@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"qbox/api"
 	"qbox/rpc"
+	. "qbox/api/conf"
 )
 
 // ----------------------------------------------------------
@@ -41,15 +42,12 @@ func EncodeURI(uri string) string {
 // ----------------------------------------------------------
 
 type Service struct {
-	Host string
 	Conn rpc.Client
 }
 
-// ----------------------------------------------------------
-
-func New(fsHost string, t http.RoundTripper) *Service {
+func New(t http.RoundTripper) *Service {
 	client := &http.Client{Transport: t}
-	return &Service{fsHost, rpc.Client{client}}
+	return &Service{rpc.Client{client}}
 }
 
 // ----------------------------------------------------------
@@ -74,13 +72,12 @@ type Entry struct {
 }
 
 func (rs *Service) Put(
-	ioHost string, entryURI, mimeType string,
-	body io.Reader, bodyLength int64) (ret PutRet, code int, err error) {
+	entryURI, mimeType string, body io.Reader, bodyLength int64) (ret PutRet, code int, err error) {
 
 	if mimeType == "" {
 		mimeType = "application/octet-stream"
 	}
-	url := ioHost + "/rs-put/" + EncodeURI(entryURI) + "/mimeType/" + EncodeURI(mimeType)
+	url := IO_HOST + "/rs-put/" + EncodeURI(entryURI) + "/mimeType/" + EncodeURI(mimeType)
 	code, err = rs.Conn.CallWith64(&ret, url, "application/octet-stream", body, bodyLength)
 	return
 }
@@ -91,7 +88,7 @@ func (rs *Service) Get(entryURI string, attName string) (data GetRet, code int, 
 
 func (rs *Service) GetWithExpires(entryURI string, attName string, expires int) (data GetRet, code int, err error) {
 
-	url := rs.Host + "/get/" + EncodeURI(entryURI)
+	url := RS_HOST + "/get/" + EncodeURI(entryURI)
 	if attName != "" {
 		url = url + "/attName/" + EncodeURI(attName)
 	}
@@ -108,7 +105,7 @@ func (rs *Service) GetWithExpires(entryURI string, attName string, expires int) 
 
 func (rs *Service) GetIfNotModified(entryURI string, attName string, base string) (data GetRet, code int, err error) {
 
-	url := rs.Host + "/get/" + EncodeURI(entryURI) + "/base/" + base
+	url := RS_HOST + "/get/" + EncodeURI(entryURI) + "/base/" + base
 	if attName != "" {
 		url = url + "/attName/" + EncodeURI(attName)
 	}
@@ -121,33 +118,35 @@ func (rs *Service) GetIfNotModified(entryURI string, attName string, base string
 }
 
 func (rs *Service) Stat(entryURI string) (entry Entry, code int, err error) {
-	code, err = rs.Conn.Call(&entry, rs.Host+"/stat/"+EncodeURI(entryURI))
+	code, err = rs.Conn.Call(&entry, RS_HOST+"/stat/"+EncodeURI(entryURI))
 	return
 }
 
 func (rs *Service) Delete(entryURI string) (code int, err error) {
-	return rs.Conn.Call(nil, rs.Host+"/delete/"+EncodeURI(entryURI))
+	return rs.Conn.Call(nil, RS_HOST+"/delete/"+EncodeURI(entryURI))
 }
 
 func (rs *Service) Drop(entryURI string) (code int, err error) {
-	return rs.Conn.Call(nil, rs.Host+"/drop/"+entryURI)
+	return rs.Conn.Call(nil, RS_HOST+"/drop/"+entryURI)
 }
 
 func (rs *Service) Move(entryURISrc, entryURIDest string) (code int, err error) {
-	return rs.Conn.Call(nil, rs.Host+"/move/"+EncodeURI(entryURISrc)+"/"+EncodeURI(entryURIDest))
+	return rs.Conn.Call(nil, RS_HOST+"/move/"+EncodeURI(entryURISrc)+"/"+EncodeURI(entryURIDest))
 }
 
 func (rs *Service) Copy(entryURISrc, entryURIDest string) (code int, err error) {
-	return rs.Conn.Call(nil, rs.Host+"/copy/"+EncodeURI(entryURISrc)+"/"+EncodeURI(entryURIDest))
+	return rs.Conn.Call(nil, RS_HOST+"/copy/"+EncodeURI(entryURISrc)+"/"+EncodeURI(entryURIDest))
 }
 
 func (rs *Service) Publish(domain, table string) (code int, err error) {
-	return rs.Conn.Call(nil, rs.Host+"/publish/"+EncodeURI(domain)+"/from/"+table)
+	return rs.Conn.Call(nil, RS_HOST+"/publish/"+EncodeURI(domain)+"/from/"+table)
 }
 
 func (rs *Service) Unpublish(domain string) (code int, err error) {
-	return rs.Conn.Call(nil, rs.Host+"/unpublish/"+EncodeURI(domain))
+	return rs.Conn.Call(nil, RS_HOST+"/unpublish/"+EncodeURI(domain))
 }
+
+// ----------------------------------------------------------
 
 type BatchRet struct {
 	Data  interface{} `json:"data"`
@@ -192,12 +191,16 @@ func (b *Batcher) Len() int {
 }
 
 func (b *Batcher) Do(rs *Service) (ret []BatchRet, code int, err error) {
-	code, err = rs.Conn.CallWithForm(&b.ret, rs.Host+"/batch", map[string][]string{"op": b.op})
+	code, err = rs.Conn.CallWithForm(&b.ret, RS_HOST+"/batch", map[string][]string{"op": b.op})
 	ret = b.ret
 	return
 }
 
+// ----------------------------------------------------------
+
 func seconds() int64 {
 	return time.Now().Unix()
 }
+
+// ----------------------------------------------------------
 
