@@ -8,6 +8,6 @@ var AUTHORIZATION_ENDPOINT = "<AuthURL>"
 var TOKEN_ENDPOINT = "https://acc.qbox.me/oauth2/token"
 
 var FS_HOST = "https://fs.qbox.me"
-var IO_HOST = "http://io.qbox.me"
+var IO_HOST = "http://iovip.qbox.me"
 var RS_HOST = "http://rs.qbox.me:10100"
 
