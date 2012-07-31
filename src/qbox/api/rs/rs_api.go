@@ -78,7 +78,7 @@ func (rs *Service) PutAuth(expires int, callBackURL string) (data GetRet, code i
 	}
 
 	if callBackURL != "" {
-		url += rpc.EncodeURI(callBackURL) + "/"
+		url += EncodeURI(callBackURL) + "/"
 	}
 
 	code, err = rs.Conn.Call(&data, url)
