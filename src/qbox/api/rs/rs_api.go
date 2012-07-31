@@ -1,14 +1,14 @@
 package rs
 
 import (
-	"io"
-	"time"
-	"strconv"
-	"net/http"
 	"encoding/base64"
+	"io"
+	"net/http"
 	"qbox/api"
-	"qbox/rpc"
 	. "qbox/api/conf"
+	"qbox/rpc"
+	"strconv"
+	"time"
 )
 
 // ----------------------------------------------------------
@@ -20,9 +20,9 @@ const (
 )
 
 var (
-	EFileModified      = api.Errno(FileModified)
-	ENoSuchEntry       = api.Errno(NoSuchEntry)
-	EEntryExists       = api.Errno(EntryExists)
+	EFileModified = api.Errno(FileModified)
+	ENoSuchEntry  = api.Errno(NoSuchEntry)
+	EEntryExists  = api.Errno(EntryExists)
 )
 
 func init() {
@@ -71,8 +71,21 @@ type Entry struct {
 	MimeType string `json:"mimeType"`
 }
 
-func (rs *Service) Put(
-	entryURI, mimeType string, body io.Reader, bodyLength int64) (ret PutRet, code int, err error) {
+func (rs *Service) PutAuth(expires int, callBackURL string) (data GetRet, code int, err error) {
+	url := IO_HOST + "/put-auth/"
+	if expires > 0 {
+		url += strconv.Itoa(expires) + "/"
+	}
+
+	if callBackURL != "" {
+		url += EncodeURI(callBackURL) + "/"
+	}
+
+	code, err = rs.Conn.Call(&data, url)
+	return
+}
+
+func (rs *Service) Put(entryURI, mimeType string, body io.Reader, bodyLength int64) (ret PutRet, code int, err error) {
 
 	if mimeType == "" {
 		mimeType = "application/octet-stream"
@@ -203,4 +216,3 @@ func seconds() int64 {
 }
 
 // ----------------------------------------------------------
-
