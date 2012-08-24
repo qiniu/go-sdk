@@ -19,7 +19,7 @@ type Transport struct {
 type AuthPolicy struct {
 	Scope            string `json:"scope"`
 	CallbackUrl      string `json:"callbackUrl"`
-	ReturnURrl		 string `json:"returnUrl"`
+	ReturnUrl		 string `json:"returnUrl"`
 	Customer         string `json:"customer"`
 	Deadline         uint32 `json:"deadline"` // 截止时间（以秒为单位）
 }
