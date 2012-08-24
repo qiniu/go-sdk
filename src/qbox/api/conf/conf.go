@@ -22,4 +22,5 @@ var UC_HOST = "http://uc.qbox.me"
 var BLOCK_BITS uint = 22
 var PUT_CHUNK_SIZE = 256 * 1024 // 256k
 var PUT_RETRY_TIMES = 2
+var EXPIRES_TIME = 3600 	// 以秒为单位
 var RS_PUT = "/rs-put/"

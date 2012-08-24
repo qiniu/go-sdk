@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"testing"
-	"time"
 	"qbox/api/rs"
 	"qbox/api/eu"
 	"qbox/api/pub"
@@ -14,48 +13,58 @@ import (
 	"qbox/auth/uptoken"
 )
 
-var t = digest.NewTransport(QBOX_ACCESS_KEY,QBOX_SECRET_KEY,nil)
 
-var aP = & uptoken.AuthPolicy {
-	Scope: "fd1",
-	Customer: "qboxuser",
-	Deadline: 3600 + uint32(time.Now().Unix()),
-}
-var token = uptoken.MakeAuthTokenString(QBOX_ACCESS_KEY, QBOX_SECRET_KEY, aP)
-var t1 = uptoken.NewTransport(token, nil)
+// digest authorization
+var t = digest.NewTransport(QBOX_ACCESS_KEY,QBOX_SECRET_KEY,nil)
 
 var rsClient = rs.New(t)
 var euClient = eu.New(t)
 var pubClient = pub.New(t)
 var ucClient = uc.New(t)
+
+
+// uptoken authorization
+var aP = &uptoken.AuthPolicy{}
+var token = uptoken.MakeAuthTokenString(QBOX_ACCESS_KEY, QBOX_SECRET_KEY, aP)
+var t1 = uptoken.NewTransport(token, nil)
+
 var upClient = up.New(1, 1, t1)
 
-func doTestPut(t *testing.T, file string) {
 
-	f, err := os.Open(file)
+// global testing variables
+var testfile = "demofile.md"
+var testbucket = "fd1"
+var testkey = "demofile.md"
+
+
+
+// test case
+
+func doTestRsService(t *testing.T) {
+
+	// testing Put()
+	f, err := os.Open(testfile)
 	if err != nil {
-		t.Fatal("Cant't open this file : ", file)
+		t.Fatal("Cant't open test file : ", testfile)
 	}
-	fi, _ := os.Stat(file)
+	fi, _ := os.Stat(testfile)
 	fsize := fi.Size()
-	ret, code, err := rsClient.Put("fd1:ruby.md", "", f, fsize)
+	_, code, err := rsClient.Put(testbucket + ":" + testkey, "", f, fsize)
 	if err != nil {
-		t.Fatal("Can't put this file to qbox : ", code, err)
-	} else {
-		t.Log(ret)
+		t.Fatal("Can't put testfile to qbox : ", code, err)
+	}
+
+
+	// testing GetWithExpires()
+	_, code, err = rsClient.GetWithExpires(testbucket + ":" + testkey, "", 0)
+	if err != nil {
+		t.Fatal("Can't get testfile from qbox : ", code, err)
 	}
 }
 
-func doTestGetWithExpires(t *testing.T, bucket, key string) {
-	ret, code, err := rsClient.GetWithExpires(bucket + ":" + key, "", 0)
-	if err != nil {
-		t.Fatal("Can't get this file from qbox : ", code, err)
-	} else {
-		t.Log(ret)
-	}
-}
+func doTestEuService(t *testing.T) {
 
-func doTestWatermark(t *testing.T) {
+	// testing Watermark()
 	params := &eu.Watermark {
 		Text: "qboxtest",
 	}
@@ -70,7 +79,9 @@ func doTestWatermark(t *testing.T) {
 	}
 }
 
-func doTestPub(t *testing.T) {
+func doTestPubService(t *testing.T) {
+
+	// testing Info()
 	ret, code, err := pubClient.Info("fd1")
 	if code != 200 {
 		t.Fatal("Can't get the bucket infomation : ", ret, code, err)
@@ -78,7 +89,9 @@ func doTestPub(t *testing.T) {
 }
 
 
-func doTestAppInfo(t *testing.T) {
+func doTestUcService(t *testing.T) {
+
+	// testing AppInfo()
 	appName := "default"
 	ret, code, err := ucClient.AppInfo(appName)
 	if code != 200 {
@@ -87,17 +100,18 @@ func doTestAppInfo(t *testing.T) {
 }
 
 
-func doTestResumablePut(t *testing.T) {
-	f, err := os.Open("ruby.md")
+func doTestUpService(t *testing.T) {
+
+	// testing resumableput
+	f, err := os.Open(testfile)
 	if err != nil {
-		t.Fatal("Can't open the file : ruby.md", err)
+		t.Fatal("Can't open the file : ", testfile, err)
 	}
-	fi, _ := os.Stat("ruby.md")
+	fi, _ := os.Stat(testfile)
 	c := up.BlockCount(fi.Size())
 	checksums := make([]string, c)
 	progs := make([]up.BlockputProgress, c)
 	code, err := upClient.Put(f, fi.Size(), checksums, progs, nil, nil)
-
 	if code != 200 {
 		t.Fatal("ResumablePut file error : ", code, err, checksums)
 	}
@@ -105,9 +119,8 @@ func doTestResumablePut(t *testing.T) {
 
 
 func TestDo(t *testing.T) {
-//	doTestPut(t, "ruby.md")
-//	doTestGetWithExpires(t, "fd1", "ruby.md")
-//	doTestWatermark(t)
-//	doTestPub(t)
-	doTestResumablePut(t)
+	doTestRsService(t)
+	doTestEuService(t)
+	doTestPubService(t)
+	doTestUpService(t)
 }

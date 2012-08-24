@@ -2,11 +2,13 @@ package uptoken
 
 
 import (
+	"time"
 	"net/http"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/json"
+	. "qbox/api/conf"
 )
 
 
@@ -25,6 +27,10 @@ type AuthPolicy struct {
 }
 
 func MakeAuthToken(key, secret []byte, auth *AuthPolicy) []byte {
+
+	if auth.Deadline == 0 {
+		auth.Deadline = uint32(time.Now().Unix()) + uint32(EXPIRES_TIME)
+	}
 
 	b, _ := json.Marshal(auth)
 	blen := base64.URLEncoding.EncodedLen(len(b))
