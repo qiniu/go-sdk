@@ -3,11 +3,11 @@ package rs
 import (
 	"io"
 	"time"
-	"strconv"
 	"net/http"
+	"strconv"
 	"encoding/base64"
 	"qbox/api"
-	"qbox/rpc"
+	"qbox/utils/rpc"
 	. "qbox/api/conf"
 )
 
@@ -47,7 +47,7 @@ type Service struct {
 
 func New(t http.RoundTripper) *Service {
 	client := &http.Client{Transport: t}
-	return &Service{rpc.Client{client}}
+	return &Service{ rpc.Client{ client } }
 }
 
 // ----------------------------------------------------------

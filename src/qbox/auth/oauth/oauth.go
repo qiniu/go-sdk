@@ -44,6 +44,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"qbox/utils/rpc"
 )
 
 const (
@@ -130,6 +131,15 @@ type Transport struct {
 	// (It should never be an oauth.Transport.)
 	Transport http.RoundTripper
 }
+
+
+func NewTransport(cfg *Config, tok *Token, transport http.RoundTripper) *Transport {
+	return &Transport{cfg, tok, transport}
+}
+
+
+
+
 
 // Exchange takes user & passwd and gets access Token from the remote server.
 func (t *Transport) ExchangeByPassword(user string, passwd string) (tok *Token, code int, err error) {

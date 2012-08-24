@@ -61,6 +61,11 @@ func RegisterErrno(em []ErrnoMsg) {
 	}
 }
 
+func RegisterError(code int, errstr string) int {
+	ErrString[code] = errstr
+	return code
+}
+
 var ErrString = map[int]string{
 
 	OK: "OK",
