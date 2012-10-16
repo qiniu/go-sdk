@@ -1,41 +1,18 @@
-package eu
+package api
 
 import (
 	"strconv"
-	"net/http"
-	"qbox/api"
-	"qbox/utils/rpc"
-	. "qbox.us/api/conf"
 )
-
-// ----------------------------------------------------------
-
-const (
-	NoSuchEntry  = 612 // 指定的 Entry 不存在或已经 Deleted
-)
-
-var (
-	ENoSuchEntry  = api.RegisterError(NoSuchEntry, "no such file or directory")
-)
-
-// ----------------------------------------------------------
-
-type Service struct {
-	Conn rpc.Client
-}
-
-func New(t http.RoundTripper) Service {
-	client := &http.Client{Transport: t}
-	return Service{rpc.Client{client}}
-}
 
 // ----------------------------------------------------------
 
 const (
 	DefaultPointSize	= 0
-	DefaultDx			= 10
-	DefaultDy			= 10
+	DefaultDx		= 10
+	DefaultDy		= 10
 )
+
+// ----------------------------------------------------------
 
 type Watermark struct {
 	Font      string `json:"font"`
@@ -49,16 +26,16 @@ type Watermark struct {
 	Dy        int    `json:"dy"`
 }
 
-func (p *Service) GetWatermark(customer string) (ret Watermark, code int, err error) {
+func (s *Service) GetWatermark(customer string) (ret Watermark, code int, err error) {
 
 	params := map[string][]string{
 		"customer": {customer},
 	}
-	code, err = p.Conn.CallWithForm(&ret, EU_HOST+"/wmget", params)
+	code, err = s.Conn.CallWithForm(&ret, s.Host["eu"] + "/wmget", params)
 	return
 }
 
-func (p *Service) SetWatermark(customer string, args *Watermark) (code int, err error) {
+func (s *Service) SetWatermark(customer string, args *Watermark) (code int, err error) {
 
 	params := map[string][]string{
 		"text": {args.Text},
@@ -86,7 +63,6 @@ func (p *Service) SetWatermark(customer string, args *Watermark) (code int, err 
 	if args.Gravity != "" {
 		params["gravity"] = []string{args.Gravity}
 	}
-	code, err = p.Conn.CallWithForm(nil, EU_HOST+"/wmset", params)
-	return
+	return s.Conn.CallWithForm(nil, s.Host["eu"] + "/wmset", params)
 }
 
