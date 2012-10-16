@@ -8,7 +8,10 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/json"
-	. "qbox/api/conf"
+)
+
+const (
+	EXPIRES_TIME = 3600
 )
 
 

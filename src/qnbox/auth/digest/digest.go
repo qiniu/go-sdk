@@ -8,7 +8,7 @@ import (
 	"encoding/base64"
 	"crypto/sha1"
 	"crypto/hmac"
-	"qbox/utils/bytes"
+	"qnbox/utils/bytes"
 )
 
 

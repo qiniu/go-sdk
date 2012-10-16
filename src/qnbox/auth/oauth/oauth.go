@@ -44,7 +44,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
-	"qbox/utils/rpc"
 )
 
 const (
