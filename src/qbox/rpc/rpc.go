@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"encoding/json"
-	"../errcode"
+	"qbox/errcode"
 )
 
 // --------------------------------------------------------------------
@@ -55,7 +55,15 @@ func callRet(ret interface{}, resp *http.Response) (code int, err error) {
 	defer resp.Body.Close()
 	code = resp.StatusCode
 	if code/100 == 2 {
-		if ret != nil && resp.ContentLength != 0 {
+		if ret == nil || resp.ContentLength == 0 {
+			return
+		}
+		switch ret.(type) {
+		case io.Writer:
+			w := ret.(io.Writer)
+			io.Copy(w, resp.Body)
+			break
+		default:
 			err = json.NewDecoder(resp.Body).Decode(ret)
 			if err != nil {
 				code = errcode.UnexceptedResponse
@@ -113,4 +121,3 @@ func (r Client) Call(ret interface{}, url1 string) (code int, err error) {
 }
 
 // --------------------------------------------------------------------
-
