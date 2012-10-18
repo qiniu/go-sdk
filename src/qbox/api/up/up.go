@@ -125,7 +125,7 @@ func (t *RPtask) PutBlock(blockIdx int) (code int, err error) {
 	return
 }
 
-func (t *RPtask) Mkfile() (code int, err error) {
+func (t *RPtask) Mkfile(customer, meta, callbackparams string) (code int, err error) {
 	var (
 		ctx string
 	)
@@ -137,7 +137,17 @@ func (t *RPtask) Mkfile() (code int, err error) {
 		}
 	}
 	bd := []byte(ctx)
-	url := t.Host["up"] + "/rs-mkfile/" + EncodeURI(t.EntryURI) + "/fsize/" + strconv.FormatInt(t.Size, 10)
+	url := t.Host["up"] + "/rs-mkfile/" + EncodeURI(t.EntryURI)
+	url += "/fsize/" + strconv.FormatInt(t.Size, 10)
+	if meta != "" {
+		url += "/meta/" + EncodeURI(meta)
+	}
+	if customer != "" {
+		url += "/customer/" + customer
+	}
+	if callbackparams != "" {
+		url += "/params/" + callbackparams
+	}
 	code, err = t.Conn.CallWith(nil, url, "", strings.NewReader(string(bd)), len(bd))
 	return
 }
@@ -166,7 +176,7 @@ func (s *Service) LoadProg(p interface{}, filename string) (err error) {
 	return
 }
 
-func (s *Service) ResumablePut(entryURI, mimeType string, bd io.ReaderAt, bdlen int64) (code int, err error) {
+func (s *Service) ResumablePut(entryURI, mimeType string, bd io.ReaderAt, bdlen int64, customer, meta, params string) (code int, err error) {
 	var (
 		wg sync.WaitGroup
 		failed bool
@@ -201,7 +211,7 @@ func (s *Service) ResumablePut(entryURI, mimeType string, bd io.ReaderAt, bdlen 
 		s.SaveProg(p, pgfile)
 		return 400, errors.New("ResumableBlockPut haven't done")
 	}
-	return t.Mkfile()
+	return t.Mkfile(customer, meta, params)
 }
 
 /*

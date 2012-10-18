@@ -231,7 +231,7 @@ func doTestDelAntiLeech(t *testing.T) {
 	}
 }
 
-func doTestRSSResumablePut(t *testing.T) {
+func doTestResumablePut(t *testing.T) {
 	entryURI := testbucket + ":" + testkey
 	f, err := os.Open(testfile)
 	if err != nil {
@@ -242,25 +242,10 @@ func doTestRSSResumablePut(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	code, err := rss.ResumablePut(entryURI, "application/json", f, fi.Size())
-	if code/100 != 2 {
-		t.Fatal(err)
-	}
-}
-
-
-func doTestUPSResumablePut(t *testing.T) {
-	entryURI := testbucket + ":" + testkey
-	f, err := os.Open(testfile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	fi, err := f.Stat()
-	if err != nil {
-		t.Fatal(err)
-	}
-	code, err := ups.ResumablePut(entryURI, "application/json", f, fi.Size())
+	meta := "this is my test image"
+	customer := "qboxtest" // uptoken may contain customer field
+	callbackparams := ""
+	code, err := ups.ResumablePut(entryURI, "application/json", f, fi.Size(), customer, meta, callbackparams)
 	if code/100 != 2 {
 		t.Fatal(err)
 	}
@@ -442,8 +427,7 @@ func TestDo(t *testing.T) {
 //	doTestAddAntiLeech(t)
 //	doTestDelAntiLeech(t)
 //	doTestCleanCache(t)
-	doTestRSSResumablePut(t)
-	doTestUPSResumablePut(t)
+	doTestResumablePut(t)
 
 	doTestImageInfo(t)
 	doTestImageExif(t)
