@@ -58,13 +58,14 @@ type RPutRet struct {
 	Ctx string  `json:"ctx"`
 	Checksum string `json:"checksum"`
 	Crc32 uint32 `json:"crc32"`
-	Offset uint32 `json:"offset"`
+	Offset int64 `json:"offset"`
 }
 
 func (t *RPtask) PutBlock(blockIdx int) (code int, err error) {
 	var (
 		ret RPutRet
 		url string
+		blocksize int64
 	)
 	h := crc32.NewIEEE()
 	prog := t.Progress[blockIdx]
@@ -72,10 +73,11 @@ func (t *RPtask) PutBlock(blockIdx int) (code int, err error) {
 
 	initProg := func(p *BlockputProgress) {
 		if blockIdx == len(t.Progress) - 1 {
-			p.RestSize = t.Size - offbase
+			blocksize = t.Size - offbase
 		} else {
-			p.RestSize = 1 << t.BlockBits
+			blocksize = int64(1 << t.BlockBits)
 		}
+		p.RestSize = blocksize
 		p.Offset = 0
 		p.Ctx = ""
 		p.Checksum = ""
@@ -104,8 +106,8 @@ func (t *RPtask) PutBlock(blockIdx int) (code int, err error) {
 		if err == nil {
 			if ret.Crc32 == h.Sum32() {
 				prog.Ctx = ret.Ctx
-				prog.Offset += bdlen
-				prog.RestSize -= bdlen
+				prog.Offset = ret.Offset
+				prog.RestSize = blocksize - ret.Offset
 				continue
 			} else {
 				err = errors.New("ResumableBlockPut: Invalid Checksum")
