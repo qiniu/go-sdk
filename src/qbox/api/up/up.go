@@ -51,7 +51,7 @@ type RPtask struct {
 	Type string
 	Size int64
 	Body io.ReaderAt
-	Progress []*BlockputProgress
+	Progress []*RPutRet
 }
 
 type RPutRet struct {
@@ -63,23 +63,24 @@ type RPutRet struct {
 
 func (t *RPtask) PutBlock(blockIdx int) (code int, err error) {
 	var (
-		ret RPutRet
 		url string
-		blocksize int64
+		restsize, blocksize int64
 	)
+
 	h := crc32.NewIEEE()
 	prog := t.Progress[blockIdx]
 	offbase := int64(blockIdx << t.BlockBits)
 
-	initProg := func(p *BlockputProgress) {
+	// default blocksize
+	blocksize = int64(1 << t.BlockBits)
+
+	initProg := func(p *RPutRet) {
 		if blockIdx == len(t.Progress) - 1 {
 			blocksize = t.Size - offbase
-		} else {
-			blocksize = int64(1 << t.BlockBits)
 		}
-		p.RestSize = blocksize
 		p.Offset = 0
 		p.Ctx = ""
+		p.Crc32 = ""
 		p.Checksum = ""
 	}
 
