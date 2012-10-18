@@ -12,6 +12,8 @@ import (
 	"qbox/api/pub"
 	"qbox/api/rs"
 	"qbox/api/image"
+	"qbox/auth/uptoken"
+	"qbox/auth/digest"
 )
 
 // global testing variables
@@ -369,7 +371,11 @@ func doTestImageMogrSaveAs(t *testing.T) {
 
 
 func doTestInit(t *testing.T) {
-	var c Config
+	var (
+		c Config
+	)
+
+	// load config
 	b, err := ioutil.ReadFile("qbox.conf")
 	if err != nil {
 		t.Fatal(err)
@@ -377,22 +383,34 @@ func doTestInit(t *testing.T) {
 	if err = json.Unmarshal(b, &c); err != nil {
 		t.Fatal(err)
 	}
-	if eus, err = eu.New(&c); err != nil {
+
+	// create auth transport layer, uptoken and digest
+	auth := &uptoken.AuthPolicy{}
+	token := uptoken.MakeAuthTokenString(c.Access_key, c.Secret_key, auth)
+	// uptoken transport
+	ut := uptoken.NewTransport(token, nil)
+
+	// digest transport
+	dt := digest.NewTransport(c.Access_key, c.Secret_key, nil)
+
+	if eus, err = eu.New(&c, dt); err != nil {
 		t.Fatal(err)
 	}
-	if pubs, err = pub.New(&c); err != nil {
+	if pubs, err = pub.New(&c, dt); err != nil {
 		t.Fatal(err)
 	}
-	if rss, err = rs.New(&c); err != nil {
+	if rss, err = rs.New(&c, dt); err != nil {
 		t.Fatal(err)
 	}
-	if ucs, err = uc.New(&c); err != nil {
+	if ucs, err = uc.New(&c, dt); err != nil {
 		t.Fatal(err)
 	}
-	if ups, err = up.New(&c); err != nil {
+	if ups, err = up.New(&c, ut); err != nil {
 		t.Fatal(err)
 	}
-	ims = image.New(&c,nil)
+	if ims, err = image.New(&c, dt); err != nil {
+		t.Fatal(err)
+	}
 }
 
 

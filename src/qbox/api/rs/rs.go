@@ -14,7 +14,6 @@ import (
 	. "qbox/api"
 	"qbox/rpc"
 	"qbox/errcode"
-	"qbox/auth/digest"
 )
 
 
@@ -25,22 +24,14 @@ type Service struct {
 }
 
 
-func New(c *Config, args... interface{}) (s *Service, err error) {
-	var (
-		t http.RoundTripper
-	)
+func New(c *Config, t http.RoundTripper) (s *Service, err error) {
 	if c == nil {
 		err = errors.New("Must have a config file")
 		return
 	}
-	for _,v := range args {
-		switch v.(type) {
-		case http.RoundTripper:
-			t = v.(http.RoundTripper)
-			break
-		}
+	if t == nil {
+		t = http.DefaultTransport
 	}
-	t = digest.NewTransport(c.Access_key, c.Secret_key, t)
 	client := &http.Client{Transport: t}
 	s = &Service{c, rpc.Client{client}}
 	return

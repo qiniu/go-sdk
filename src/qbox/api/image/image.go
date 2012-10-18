@@ -2,10 +2,10 @@ package image
 
 import (
 	"io"
+	"errors"
 	"net/http"
 	. "qbox/api"
 	"qbox/rpc"
-	"qbox/auth/digest"
 )
 
 type Service struct {
@@ -13,16 +13,18 @@ type Service struct {
 	Conn rpc.Client
 }
 
-// If c == nil, only can use Info(), Exif(), View()
-func New(c *Config, t http.RoundTripper) *Service {
+
+func New(c *Config, t http.RoundTripper) (s *Service, err error) {
+	if c == nil {
+		err = errors.New("Must have a config file")
+		return
+	}
 	if t == nil {
 		t = http.DefaultTransport
 	}
-	if c != nil {
-		t = digest.NewTransport(c.Access_key, c.Secret_key, t)
-	}
 	client := &http.Client{Transport: t}
-	return &Service{c, rpc.Client{client}}
+	s = &Service{c, rpc.Client{client}}
+	return
 }
 
 
