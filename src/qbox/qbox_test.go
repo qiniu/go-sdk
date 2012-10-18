@@ -16,10 +16,9 @@ import (
 
 // global testing variables
 const (
-	testfile = "qbox.conf"
+	testfile = "gopher.jpg"
 	testbucket = "test_bucket"
-	testkey = "qbox.conf"
-	testimageurl = "http://qiniuphotos.dn.qbox.me/gogopher.jpg"
+	testkey = "gopher.jpg"
 )
 
 var (
@@ -28,6 +27,7 @@ var (
 	ucs *uc.Service
 	pubs *pub.Service
 	rss *rs.Service
+	ims *image.Service
 )
 
 func doTestSetWatermark(t *testing.T) {
@@ -264,6 +264,110 @@ func doTestUPSResumablePut(t *testing.T) {
 	}
 }
 
+func doTestImageInfo(t *testing.T) {
+	url1 := "http://qiniuphotos.dn.qbox.me/gogopher.jpg"
+	ret, code, err := ims.Info(url1)
+	if code/100 != 2 {
+		t.Fatal(err)
+	}
+	t.Log(ret)
+}
+
+func doTestImageExif(t *testing.T) {
+	url1 := "http://qiniuphotos.dn.qbox.me/gogopher.jpg"
+	ret, code, err := ims.Exif(url1)
+	if code/100 != 2 {
+		t.Fatal(err)
+	}
+	t.Log(ret)
+}
+
+func doTestImageView(t *testing.T) {
+	url1 := "http://qiniuphotos.dn.qbox.me/gogopher.jpg"
+	f, err := ioutil.TempFile("", "imageview.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fn := f.Name()
+	defer f.Close()
+	defer os.Remove(fn)
+
+	p := map[string]string {
+		"Mode": "1",
+		"Width": "200",
+		"Height": "200",
+		"Format": "gif",
+		// "Sharpen": "",
+		// "HasWatermark": "",
+	}
+	code, err := ims.View(f, url1, p)
+	if code/100 != 2 {
+		t.Fatal(err)
+	}
+}
+
+func doTestImageMogr(t *testing.T) {
+	f, err := ioutil.TempFile("", "imagemogr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fn := f.Name()
+	defer f.Close()
+	defer os.Remove(fn)
+
+	entryURI := testbucket + ":" + testkey
+	ret, code, err := rss.Get(entryURI, "", "", 0)
+	if code/100 != 2 {
+		t.Fatal(err)
+	}
+
+	p := map[string]string {
+		"Thumbnail": "!100x100",
+		"Gravity": "center",
+		"Crop": "!100x100",
+		"Quality": "80",
+	}
+	code, err = ims.Mogr(f, ret.URL, p)
+	if code/100 != 2 {
+		t.Fatal(err)
+	}
+}
+
+func doTestImageMogrSaveAs(t *testing.T) {
+	var (
+		hash image.ImageHash
+	)
+	f, err := ioutil.TempFile("", "imagemogr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fn := f.Name()
+	defer f.Close()
+	defer os.Remove(fn)
+
+	entryURI := testbucket + ":" + testkey
+	ret, code, err := rss.Get(entryURI, "", "", 0)
+	if code/100 != 2 {
+		t.Fatal(err)
+	}
+
+	p := map[string]string {
+		"Thumbnail": "!100x100",
+		"Gravity": "center",
+		"Crop": "!100x100",
+		"Quality": "80",
+		"SaveAs": entryURI,
+	}
+	code, err = ims.Mogr(&hash, ret.URL, p)
+	if code/100 != 2 {
+		t.Fatal(err)
+	}
+	t.Log(hash)
+}
+
+
+
+
 func doTestInit(t *testing.T) {
 	var c Config
 	b, err := ioutil.ReadFile("qbox.conf")
@@ -288,67 +392,15 @@ func doTestInit(t *testing.T) {
 	if ups, err = up.New(&c); err != nil {
 		t.Fatal(err)
 	}
+	ims = image.New(&c,nil)
 }
 
-func doTestImageInfo(t *testing.T) {
-	ret, code, err := image.Info(testimageurl)
-	if code/100 != 2 {
-		t.Fatal(err)
-	}
-	t.Log(ret)
-}
 
-func doTestImageExif(t *testing.T) {
-	ret, code, err := image.Exif(testimageurl)
-	if code/100 != 2 {
-		t.Fatal(err)
-	}
-	t.Log(ret)
-}
-
-func doTestImageView(t *testing.T) {
-	f, err := ioutil.TempFile("", "imageview.jpg")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	p := map[string]string {
-		"Mode": "1",
-		"Width": "200",
-		"Height": "200",
-		"Format": "gif",
-		// "Sharpen": "",
-		// "HasWatermark": "",
-	}
-	code, err := image.View(f, testimageurl, p)
-	if code/100 != 2 {
-		t.Fatal(err)
-	}
-}
-
-func doTestImageMogr(t *testing.T) {
-	f, err := ioutil.TempFile("", "imagemogr.jpg")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	p := map[string]string {
-		"Thumbnail": "!100x100",
-		"Gravity": "center",
-		"Crop": "!100x100",
-		"Quality": "80",
-	}
-	code, err := image.Mogr(f, testimageurl, p)
-	if code/100 != 2 {
-		t.Fatal(err)
-	}
-}
 
 func TestDo(t *testing.T) {
 
 	doTestInit(t)
-/*
+
 	doTestSetWatermark(t)
 	doTestGetWatermark(t)
 	doTestImage(t)
@@ -359,11 +411,11 @@ func TestDo(t *testing.T) {
 	doTestStyle(t)
 	doTestUnstyle(t)
 	doTestPut(t)
+	defer doTestDelete(t)
 	doTestGet(t)
 	doTestStat(t)
 	doTestMove(t)
 //	doTestCopy(t)
-	doTestDelete(t)
 	doTestMkbucket(t)
 	doTestDrop(t)
 	doTestPublish(t)
@@ -374,9 +426,10 @@ func TestDo(t *testing.T) {
 //	doTestCleanCache(t)
 	doTestRSSResumablePut(t)
 	doTestUPSResumablePut(t)
-*/
+
 	doTestImageInfo(t)
 	doTestImageExif(t)
 	doTestImageView(t)
 	doTestImageMogr(t)
+	doTestImageMogrSaveAs(t)
 }
