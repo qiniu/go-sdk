@@ -3,6 +3,7 @@ package qbox
 import (
 	"os"
 	"io/ioutil"
+	"math/rand"
 	"testing"
 	"encoding/json"
 	. "qbox/api"
@@ -245,7 +246,70 @@ func doTestResumablePut(t *testing.T) {
 	meta := "this is my test image"
 	customer := "qboxtest" // uptoken may contain customer field
 	callbackparams := ""
-	code, err := ups.ResumablePut(entryURI, "application/json", f, fi.Size(), customer, meta, callbackparams)
+	code, err := ups.ResumablePut(entryURI, "application/json", f, fi.Size(), customer, meta, callbackparams, nil, nil)
+	if code/100 != 2 {
+		t.Fatal(err)
+	}
+}
+
+// Advance resumable put
+func doTestRPutTask(t *testing.T) {
+
+	tfsize := int64(10*1024*1024)
+	tf, err := ioutil.TempFile("","RPutTest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tf.Close()
+	if err = tf.Truncate(tfsize); err != nil {
+		t.Fatal(err)
+	}
+
+	pf, err := ioutil.TempFile("","RPutProg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pfn := pf.Name()
+	pf.Close()
+
+	entryURI := testbucket + ":" + testkey + "1"
+	mimeType := "application/json"
+	blockcnt := int((tfsize + (1 << ups.BlockBits) - 1) >> ups.BlockBits)
+	prog := make([]up.BlockputProgress, blockcnt)
+
+	chunkNotify := func(blkIdx int, p *up.BlockputProgress) {
+	//	t.Log(blkIdx,p)
+		if prog[blkIdx].Ctx == "" && rand.Intn(blkIdx + 1) > blkIdx/2 {
+			p1 := *p
+			prog[blkIdx] = p1
+		}
+	}
+
+	blockNotify := func(blkIdx int, p *up.BlockputProgress) {
+	//	t.Log(blkIdx,p)
+	}
+
+	t1 := ups.NewTask(entryURI,mimeType,"","","",tf,tfsize)
+
+	for i := 0; i < blockcnt/2; i++ {
+		t1.PutBlock(i)
+	}
+
+	if err = up.SaveProgress(&prog,pfn); err != nil {
+		t.Fatal(err)
+	}
+
+	code, err := t1.Run(10,10,pfn,chunkNotify,blockNotify)
+	if code/100 != 2 {
+		t.Fatal(err)
+	}
+
+	entry, code, err := rss.Get(entryURI, "", "", 0)
+	if code/100 != 2 {
+		t.Fatal(err)
+	}
+	t.Log(entry)
+	code, err = rss.Delete(entryURI)
 	if code/100 != 2 {
 		t.Fatal(err)
 	}
@@ -429,9 +493,12 @@ func TestDo(t *testing.T) {
 //	doTestCleanCache(t)
 	doTestResumablePut(t)
 
+	doTestRPutTask(t)
+
 	doTestImageInfo(t)
 	doTestImageExif(t)
 	doTestImageView(t)
 	doTestImageMogr(t)
 	doTestImageMogrSaveAs(t)
+
 }

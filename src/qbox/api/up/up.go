@@ -16,6 +16,7 @@ import (
 	"qbox/errcode"
 )
 
+
 type Service struct {
 	*Config
 	Conn rpc.Client
@@ -37,12 +38,41 @@ func New(c *Config, t http.RoundTripper) (s *Service, err error) {
 
 
 
+
+
 type BlockputProgress struct {
-	Ctx string
-	Offset int64
-	RestSize int64
-	Checksum string
+	Ctx string  `json:"ctx"`
+	Checksum string `json:"checksum"`
+	Crc32 uint32 `json:"crc32"`
+	Offset int64 `json:"offset"`
 }
+
+
+func SaveProgress(p interface{}, filename string) (err error) {
+	b, err := json.Marshal(p)
+	if err != nil {
+		return
+	}
+	if err = ioutil.WriteFile(filename, b, 0644); err != nil {
+		os.Truncate(filename,0)
+	}
+	return
+}
+
+func LoadProgress(p interface{}, filename string) (err error) {
+	if fi, err1 := os.Stat(filename); err1 != nil || fi.Size() == 0 {
+		return err1
+	}
+	b, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return
+	}
+	if err = json.Unmarshal(b,p); err != nil {
+		os.Truncate(filename,0)
+	}
+	return
+}
+
 
 
 type RPtask struct {
@@ -50,16 +80,83 @@ type RPtask struct {
 	EntryURI string
 	Type string
 	Size int64
+	Customer, Meta string
+	CallbackParams string
 	Body io.ReaderAt
-	Progress []*RPutRet
+	Progress []BlockputProgress
+	ChunkNotify, BlockNotify func(blockIdx int, prog *BlockputProgress)
 }
 
-type RPutRet struct {
-	Ctx string  `json:"ctx"`
-	Checksum string `json:"checksum"`
-	Crc32 uint32 `json:"crc32"`
-	Offset int64 `json:"offset"`
+func (s *Service) NewTask(
+	entryURI, mimeType string, customer, meta, params string,
+	r io.ReaderAt, size int64) (t *RPtask) {
+
+	blockcnt := int((size + (1 << s.BlockBits) - 1) >> s.BlockBits)
+	p := make([]BlockputProgress, blockcnt)
+	return &RPtask{s,entryURI,mimeType,size,customer,meta,params,r,p,nil,nil}
 }
+
+
+
+func (t *RPtask) Run(taskQsize, threadSize int, progfile string,
+	chunkNotify, blockNotify func(blockIdx int, prog *BlockputProgress)) (code int, err error) {
+
+	var (
+		wg sync.WaitGroup
+		failed bool
+	)
+	worker := func(tasks chan func()) {
+		for {
+			task := <- tasks
+			task()
+		}
+	}
+	blockcnt := len(t.Progress)
+	t.ChunkNotify = chunkNotify
+	t.BlockNotify = blockNotify
+
+	// Load progress cache file, if it exists
+	if progfile != "" {
+		if err = LoadProgress(&t.Progress,progfile); err != nil {
+			return errcode.InternalError, err
+		}
+	}
+
+	if taskQsize == 0 {
+		taskQsize = blockcnt
+	}
+	if threadSize == 0 {
+		threadSize = blockcnt
+	}
+
+	tasks := make(chan func(), taskQsize)
+	for i := 0; i < threadSize; i++ {
+		go worker(tasks)
+	}
+
+	wg.Add(blockcnt)
+	for i := 0; i < blockcnt; i++ {
+		blkIdx := i
+		task := func() {
+			defer wg.Done()
+			code, err = t.PutBlock(blkIdx)
+			if err != nil {
+				failed = true
+			}
+		}
+		tasks <- task
+	}
+	wg.Wait()
+
+	if failed {
+		if err = SaveProgress(&t.Progress,progfile); err == nil {
+			err = errors.New("ResumableBlockput haven't done")
+		}
+		return 400, err
+	}
+	return t.Mkfile()
+}
+
 
 func (t *RPtask) PutBlock(blockIdx int) (code int, err error) {
 	var (
@@ -68,30 +165,32 @@ func (t *RPtask) PutBlock(blockIdx int) (code int, err error) {
 	)
 
 	h := crc32.NewIEEE()
-	prog := t.Progress[blockIdx]
+	prog := &t.Progress[blockIdx]
 	offbase := int64(blockIdx << t.BlockBits)
 
-	// default blocksize
-	blocksize = int64(1 << t.BlockBits)
+	// blocksize
+	if blockIdx == len(t.Progress) - 1 {
+		blocksize = t.Size - offbase
+	} else {
+		blocksize = int64(1 << t.BlockBits)
+	}
 
-	initProg := func(p *RPutRet) {
-		if blockIdx == len(t.Progress) - 1 {
-			blocksize = t.Size - offbase
-		}
+	initProg := func(p *BlockputProgress) {
 		p.Offset = 0
 		p.Ctx = ""
-		p.Crc32 = ""
+		p.Crc32 = 0
 		p.Checksum = ""
+		restsize = blocksize
 	}
 
 	if prog.Ctx == "" {
 		initProg(prog)
 	}
 
-	for prog.RestSize > 0 {
+	for restsize > 0 {
 		bdlen := t.RPutChunkSize
-		if bdlen > prog.RestSize {
-			bdlen = prog.RestSize
+		if bdlen > restsize {
+			bdlen = restsize
 		}
 		retry := t.RPutRetryTimes
 	lzRetry:
@@ -99,16 +198,17 @@ func (t *RPtask) PutBlock(blockIdx int) (code int, err error) {
 		bd1 := io.NewSectionReader(t.Body, int64(offbase + prog.Offset), int64(bdlen))
 		bd := io.TeeReader(bd1, h)
 		if prog.Ctx == "" {
-			url = t.Host["up"] + "/mkblk/" + strconv.FormatInt(prog.RestSize, 10)
+			url = t.Host["up"] + "/mkblk/" + strconv.FormatInt(blocksize, 10)
 		} else {
 			url = t.Host["up"] + "/bput/" + prog.Ctx + "/" + strconv.FormatInt(prog.Offset, 10)
 		}
-		code, err = t.Conn.CallWith(&ret, url, "application/octet-stream", bd, int(bdlen))
+		code, err = t.Conn.CallWith(prog, url, "application/octet-stream", bd, int(bdlen))
 		if err == nil {
-			if ret.Crc32 == h.Sum32() {
-				prog.Ctx = ret.Ctx
-				prog.Offset = ret.Offset
-				prog.RestSize = blocksize - ret.Offset
+			if prog.Crc32 == h.Sum32() {
+				restsize = blocksize - prog.Offset
+				if t.ChunkNotify != nil {
+					t.ChunkNotify(blockIdx,prog)
+				}
 				continue
 			} else {
 				err = errors.New("ResumableBlockPut: Invalid Checksum")
@@ -125,10 +225,17 @@ func (t *RPtask) PutBlock(blockIdx int) (code int, err error) {
 		}
 		break
 	}
+	if t.BlockNotify != nil {
+		t.BlockNotify(blockIdx,prog)
+	}
 	return
 }
 
-func (t *RPtask) Mkfile(customer, meta, callbackparams string) (code int, err error) {
+
+
+
+
+func (t *RPtask) Mkfile() (code int, err error) {
 	var (
 		ctx string
 	)
@@ -142,58 +249,36 @@ func (t *RPtask) Mkfile(customer, meta, callbackparams string) (code int, err er
 	bd := []byte(ctx)
 	url := t.Host["up"] + "/rs-mkfile/" + EncodeURI(t.EntryURI)
 	url += "/fsize/" + strconv.FormatInt(t.Size, 10)
-	if meta != "" {
-		url += "/meta/" + EncodeURI(meta)
+	if t.Meta != "" {
+		url += "/meta/" + EncodeURI(t.Meta)
 	}
-	if customer != "" {
-		url += "/customer/" + customer
+	if t.Customer != "" {
+		url += "/customer/" + t.Customer
 	}
-	if callbackparams != "" {
-		url += "/params/" + callbackparams
+	if t.CallbackParams != "" {
+		url += "/params/" + t.CallbackParams
 	}
 	code, err = t.Conn.CallWith(nil, url, "", strings.NewReader(string(bd)), len(bd))
 	return
 }
 
-func (s *Service) SaveProg(p interface{}, filename string) (err error) {
-	b, err := json.Marshal(p)
-	if err != nil {
-		return
-	}
-	fn := s.DataPath + "/" + filename
-	if err = ioutil.WriteFile(fn, b, 0644); err != nil {
-		os.Remove(fn)
-	}
-	return
-}
+func (s *Service) ResumablePut(
+	entryURI, mimeType string, bd io.ReaderAt, bdlen int64, customer, meta, params string, 
+	chunkNotify, blockNotify func(blockIdx int, prog *BlockputProgress)) (code int, err error) {
 
-func (s *Service) LoadProg(p interface{}, filename string) (err error) {
-	fn := s.DataPath + "/" + filename
-	b, err := ioutil.ReadFile(fn)
-	if err != nil {
-		return
-	}
-	if err = json.Unmarshal(b,p); err != nil {
-		os.Remove(fn)
-	}
-	return
-}
-
-func (s *Service) ResumablePut(entryURI, mimeType string, bd io.ReaderAt, bdlen int64, customer, meta, params string) (code int, err error) {
 	var (
 		wg sync.WaitGroup
 		failed bool
 	)
 	blockcnt := int((bdlen + (1 << s.BlockBits) - 1) >> s.BlockBits)
-	p := make([]*BlockputProgress, blockcnt)
-	for k,_ := range p {
-		p[k] = &BlockputProgress{}
-	}
+	p := make([]BlockputProgress, blockcnt)
 
 	// If progress cache file exists, then load progress
-	pgfile := entryURI + strconv.FormatInt(bdlen, 10)
-	s.LoadProg(p, pgfile)
-	t := &RPtask{s,entryURI,mimeType,bdlen,bd,p}
+	pgfile := s.DataPath + string(os.PathSeparator) + entryURI + strconv.FormatInt(bdlen, 10)
+	LoadProgress(&p,pgfile)
+
+	t := &RPtask{s,entryURI,mimeType,bdlen,customer,meta,params,bd,p,chunkNotify,blockNotify}
+
 
 	wg.Add(blockcnt)
 	for i := 0; i < blockcnt; i++ {
@@ -211,21 +296,12 @@ func (s *Service) ResumablePut(entryURI, mimeType string, bd io.ReaderAt, bdlen 
 
 	if failed {
 		// save resumable put progress
-		s.SaveProg(p, pgfile)
+		SaveProgress(&p,pgfile)
 		return 400, errors.New("ResumableBlockPut haven't done")
 	}
-	return t.Mkfile(customer, meta, params)
-}
-
-/*
-// use Uptoken upload
-func Upload(token, entryURI, mimeType string, bd io.Reader, bdlen int64) (ret UpRet, code int, err error) {
-
-	if mimeType == "" {
-		mimeType = "application/octet-stream"
+	code, err = t.Mkfile()
+	if code/100 == 2 {
+		os.Remove(pgfile)
 	}
-	
-	url := s.Host["up"] + "/upload/" + api.EncodeURI(entryURI) + "/mimeType/" + api.EncodeURI(mimeType)
-	code, err = s.Conn.CallWith64(&ret, url, "application/octet-stream", body, bodyLength)
 	return
-}*/
+}

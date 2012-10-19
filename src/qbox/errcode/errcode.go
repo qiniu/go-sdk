@@ -54,6 +54,7 @@ var (
 	EBucketIsFull = Errno(BucketIsFull)
 	ENoSuchBucket = Errno(NoSuchBucket)
 	EInvalidCtx   = Errno(InvalidCtx)
+	EInternalError = Errno(InternalError)
 )
 
 
