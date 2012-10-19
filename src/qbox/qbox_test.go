@@ -232,7 +232,7 @@ func doTestDelAntiLeech(t *testing.T) {
 	}
 }
 
-func doTestResumablePut(t *testing.T) {
+func doTestUpPut(t *testing.T) {
 	entryURI := testbucket + ":" + testkey
 	f, err := os.Open(testfile)
 	if err != nil {
@@ -246,7 +246,7 @@ func doTestResumablePut(t *testing.T) {
 	meta := "this is my test image"
 	customer := "qboxtest" // uptoken may contain customer field
 	callbackparams := ""
-	code, err := ups.ResumablePut(entryURI, "application/json", f, fi.Size(), customer, meta, callbackparams, nil, nil)
+	code, err := ups.Put(entryURI,"application/json",customer,meta,callbackparams,f,fi.Size(),nil,nil)
 	if code/100 != 2 {
 		t.Fatal(err)
 	}
@@ -289,7 +289,7 @@ func doTestRPutTask(t *testing.T) {
 	//	t.Log(blkIdx,p)
 	}
 
-	t1 := ups.NewTask(entryURI,mimeType,"","","",tf,tfsize)
+	t1 := ups.NewRPtask(entryURI,mimeType,"","","",tf,tfsize)
 
 	for i := 0; i < blockcnt/2; i++ {
 		t1.PutBlock(i)
@@ -491,7 +491,7 @@ func TestDo(t *testing.T) {
 //	doTestAddAntiLeech(t)
 //	doTestDelAntiLeech(t)
 //	doTestCleanCache(t)
-	doTestResumablePut(t)
+	doTestUpPut(t)
 
 	doTestRPutTask(t)
 

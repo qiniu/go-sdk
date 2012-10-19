@@ -87,7 +87,8 @@ type RPtask struct {
 	ChunkNotify, BlockNotify func(blockIdx int, prog *BlockputProgress)
 }
 
-func (s *Service) NewTask(
+// Create a new resumable put task
+func (s *Service) NewRPtask(
 	entryURI, mimeType string, customer, meta, params string,
 	r io.ReaderAt, size int64) (t *RPtask) {
 
@@ -97,7 +98,7 @@ func (s *Service) NewTask(
 }
 
 
-
+// Running the resumable put task
 func (t *RPtask) Run(taskQsize, threadSize int, progfile string,
 	chunkNotify, blockNotify func(blockIdx int, prog *BlockputProgress)) (code int, err error) {
 
@@ -262,46 +263,12 @@ func (t *RPtask) Mkfile() (code int, err error) {
 	return
 }
 
-func (s *Service) ResumablePut(
-	entryURI, mimeType string, bd io.ReaderAt, bdlen int64, customer, meta, params string, 
+func (s *Service) Put(
+	entryURI, mimeType string, customer, meta, params string,
+	body io.ReaderAt, bodyLength int64,
+	progfile string, // if uoload haven't done, save the progress into this file
 	chunkNotify, blockNotify func(blockIdx int, prog *BlockputProgress)) (code int, err error) {
 
-	var (
-		wg sync.WaitGroup
-		failed bool
-	)
-	blockcnt := int((bdlen + (1 << s.BlockBits) - 1) >> s.BlockBits)
-	p := make([]BlockputProgress, blockcnt)
-
-	// If progress cache file exists, then load progress
-	pgfile := s.DataPath + string(os.PathSeparator) + entryURI + strconv.FormatInt(bdlen, 10)
-	LoadProgress(&p,pgfile)
-
-	t := &RPtask{s,entryURI,mimeType,bdlen,customer,meta,params,bd,p,chunkNotify,blockNotify}
-
-
-	wg.Add(blockcnt)
-	for i := 0; i < blockcnt; i++ {
-		blkIdx := i
-		task := func() {
-			defer wg.Done()
-			code, err = t.PutBlock(blkIdx)
-			if err != nil {
-				failed = true
-			}
-		}
-		go task()
-	}
-	wg.Wait()
-
-	if failed {
-		// save resumable put progress
-		SaveProgress(&p,pgfile)
-		return 400, errors.New("ResumableBlockPut haven't done")
-	}
-	code, err = t.Mkfile()
-	if code/100 == 2 {
-		os.Remove(pgfile)
-	}
-	return
+	t1 := s.NewRPtask(entryURI, mimeType, customer, meta, params, body, bodyLength)
+	return t1.Run(0,0,progfile,chunkNotify,blockNotify)
 }
