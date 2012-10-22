@@ -246,7 +246,7 @@ func doTestUpPut(t *testing.T) {
 	meta := "this is my test image"
 	customer := "qboxtest" // uptoken may contain customer field
 	callbackparams := ""
-	code, err := ups.Put(entryURI,"application/json",customer,meta,callbackparams,f,fi.Size(),nil,nil)
+	code, err := ups.Put(entryURI,"application/json",customer,meta,callbackparams,f,fi.Size(),"",nil,nil)
 	if code/100 != 2 {
 		t.Fatal(err)
 	}
