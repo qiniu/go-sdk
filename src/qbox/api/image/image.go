@@ -131,7 +131,7 @@ func (s *Service) Mogr(ret interface{}, url string, params map[string]string) (c
 	if rotate, ok := params["Rotate"]; ok && rotate != "" {
 		url1 += "/rotate/" + rotate
 	}
-	if format, ok := params["format"]; ok && format != "" {
+	if format, ok := params["Format"]; ok && format != "" {
 		url1 += "/format/" + format
 	}
 	if orient, ok := params["Orient"]; ok && orient == "true" {

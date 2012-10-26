@@ -204,6 +204,25 @@ func doTestUnpublish(t *testing.T) {
 	}
 }
 
+func doTestBatcher(t *testing.T) {
+
+	b := rss.NewBatcher()
+	entryURI := testbucket + ":" + testkey
+
+	b.Get(entryURI)
+	b.Stat(entryURI)
+	b.Copy(entryURI, entryURI + "1")
+	b.Move(entryURI + "1", entryURI + "2")
+	b.Delete(entryURI + "2")
+
+	ret, code, err := b.Do()
+	if code/100 != 2 {
+		t.Fatal(err)
+	}
+	t.Log(ret)
+}
+
+
 func doTestAntiLeechMode(t *testing.T) {
 	code, err := ucs.AntiLeechMode(testbucket, 1)
 	if code/100 != 2 {
@@ -487,6 +506,8 @@ func TestDo(t *testing.T) {
 	doTestDrop(t)
 	doTestPublish(t)
 	doTestUnpublish(t)
+	doTestBatcher(t)
+
 //	doTestAntiLeechMode(t)  // not suport digest
 //	doTestAddAntiLeech(t)
 //	doTestDelAntiLeech(t)

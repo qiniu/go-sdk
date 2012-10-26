@@ -116,6 +116,7 @@ func (s *Service) Unpublish(domain string) (code int, err error) {
 
 // ----------------------------------------------------------
 
+
 type BatchRet struct {
 	Data  interface{} `json:"data"`
 	Code  int         `json:"code"`
@@ -123,18 +124,31 @@ type BatchRet struct {
 }
 
 type Batcher struct {
+	s1 *Service
 	op  []string
 	ret []BatchRet
 }
 
+func (s *Service) NewBatcher() *Batcher {
+	return &Batcher{s1:s}
+}
+
 func (b *Batcher) operate(entryURI string, method string) {
-	b.op = append(b.op, method+EncodeURI(entryURI))
+	b.op = append(b.op, method + EncodeURI(entryURI))
 	b.ret = append(b.ret, BatchRet{})
 }
 
 func (b *Batcher) operate2(entryURISrc, entryURIDest string, method string) {
-	b.op = append(b.op, method+EncodeURI(entryURISrc)+"/"+EncodeURI(entryURIDest))
+	b.op = append(b.op, method + EncodeURI(entryURISrc) + "/" + EncodeURI(entryURIDest))
 	b.ret = append(b.ret, BatchRet{})
+}
+
+func (b *Batcher) Stat(entryURI string) {
+	b.operate(entryURI, "/stat/")
+}
+
+func (b *Batcher) Get(entryURI string) {
+	b.operate(entryURI, "/get/")
 }
 
 func (b *Batcher) Delete(entryURI string) {
@@ -158,7 +172,8 @@ func (b *Batcher) Len() int {
 	return len(b.op)
 }
 
-func (b *Batcher) Do(s *Service) (ret []BatchRet, code int, err error) {
+func (b *Batcher) Do() (ret []BatchRet, code int, err error) {
+	s := b.s1
 	code, err = s.Conn.CallWithForm(&b.ret, s.Host["rs"] + "/batch", map[string][]string{"op": b.op})
 	ret = b.ret
 	return
