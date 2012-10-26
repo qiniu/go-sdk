@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"encoding/json"
-	"qbox/api"
+	"qbox/errcode"
 )
 
 // --------------------------------------------------------------------
@@ -15,6 +15,7 @@ import (
 type Client struct {
 	*http.Client
 }
+
 
 // --------------------------------------------------------------------
 
@@ -43,6 +44,7 @@ func (r Client) PostWithForm(url1 string, data map[string][]string) (resp *http.
 	return r.PostWith(url1, "application/x-www-form-urlencoded", strings.NewReader(msg), len(msg))
 }
 
+
 // --------------------------------------------------------------------
 
 type ErrorRet struct {
@@ -53,10 +55,18 @@ func callRet(ret interface{}, resp *http.Response) (code int, err error) {
 	defer resp.Body.Close()
 	code = resp.StatusCode
 	if code/100 == 2 {
-		if ret != nil && resp.ContentLength != 0 {
+		if ret == nil || resp.ContentLength == 0 {
+			return
+		}
+		switch ret.(type) {
+		case io.Writer:
+			w := ret.(io.Writer)
+			io.Copy(w, resp.Body)
+			break
+		default:
 			err = json.NewDecoder(resp.Body).Decode(ret)
 			if err != nil {
-				code = api.UnexceptedResponse
+				code = errcode.UnexceptedResponse
 			}
 		}
 	} else {
@@ -70,7 +80,7 @@ func callRet(ret interface{}, resp *http.Response) (code int, err error) {
 				}
 			}
 		}
-		err = api.Errno(code)
+		err = errcode.Errno(code)
 	}
 	return
 }
@@ -78,7 +88,7 @@ func callRet(ret interface{}, resp *http.Response) (code int, err error) {
 func (r Client) CallWithForm(ret interface{}, url1 string, param map[string][]string) (code int, err error) {
 	resp, err := r.PostWithForm(url1, param)
 	if err != nil {
-		return api.InternalError, err
+		return errcode.InternalError, err
 	}
 	return callRet(ret, resp)
 }
@@ -87,7 +97,7 @@ func (r Client) CallWith(ret interface{}, url1 string, bodyType string, body io.
 
 	resp, err := r.PostWith(url1, bodyType, body, bodyLength)
 	if err != nil {
-		return api.InternalError, err
+		return errcode.InternalError, err
 	}
 	return callRet(ret, resp)
 }
@@ -96,18 +106,18 @@ func (r Client) CallWith64(ret interface{}, url1 string, bodyType string, body i
 
 	resp, err := r.PostWith64(url1, bodyType, body, bodyLength)
 	if err != nil {
-		return api.InternalError, err
+		return errcode.InternalError, err
 	}
 	return callRet(ret, resp)
 }
 
+
 func (r Client) Call(ret interface{}, url1 string) (code int, err error) {
 	resp, err := r.PostWith(url1, "application/x-www-form-urlencoded", nil, 0)
 	if err != nil {
-		return api.InternalError, err
+		return errcode.InternalError, err
 	}
 	return callRet(ret, resp)
 }
 
 // --------------------------------------------------------------------
-

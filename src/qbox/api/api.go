@@ -1,86 +1,49 @@
 package api
 
 import (
-	"strconv"
+	"io/ioutil"
+	"encoding/json"
+	"encoding/base64"
 )
 
-// --------------------------------------------------------------------
 
-const (
-	// 公共模块错误码
+type Config struct {
+	Host map[string]string `json:"HOST"`
 
-	OK				 = 200
-	PartialOK		 = 298 // Partial OK
+	Access_key string `json:"QBOX_ACCESS_KEY"`
+	Secret_key string `json:"QBOX_SECRET_KEY"`
+	BlockBits uint `json:"BLOCK_BITS"`
+	RPutChunkSize int64 `json:"RPUT_CHUNK_SIZE"`
+	RPutRetryTimes int `json:"RPUT_RETRY_TIMES"`
 
-	InvalidArgs      = 400 // Bad input parameter. Error message should indicate which one and why.
-	BadToken         = 401 // Token 授权错误（Access Token 超时，用户修改了密码，或输入的密码错）
-	BadOAuthRequest  = 403 // Bad OAuth request (wrong consumer token, bad nonce, expired timestamp, …).
-	BadRequestMethod = 405 // Request method not expected (generally should be GET or POST).
+	DataPath string `json:"DataPath"`
 
-	TooManyRequests  = 503 // 请求过频繁
-	ProcessPanic	 = 597 // 请求处理发生异常
-	VersionTooOld    = 598 // 客户端版本过老，支持的协议已经被废除
-	FunctionFail 	 = 599 // 请求未完成
+	Client string `json:"CLIENT"`
+	ClientId string `json:"CLIENT_ID"`
+	ClientSecret string `json:"CLIENT_SECRET"`
 
-	// 客户端错误码
-
-	NetworkError		= 9996 // 网络错误(非TimeoutError)。
-	TimeoutError		= 9997 // 请求超时。
-	UnexceptedResponse 	= 9998 // 非预期的输出。see api.UnexceptedResponse
-	InternalError      	= 9999 // 内部错误。see api.InternalError
-)
-
-var (
-	EInvalidArgs		= Errno(InvalidArgs)
-	EBadToken			= Errno(BadToken)
-	EBadOAuthRequest	= Errno(BadOAuthRequest)
-	EBadRequestMethod	= Errno(BadRequestMethod)
-	ETimeoutError		= Errno(TimeoutError)
-	EUnexceptedResponse = Errno(UnexceptedResponse)
-	EFunctionFail       = Errno(FunctionFail)
-)
-
-// --------------------------------------------------------------------
-
-type Errno int
-type ErrnoMsg struct {
-	Errno int
-	Msg string
+	RedirectURI string `json:"REDIRECT_URI"`
+	AuthorizationEndPoint string `json:"AUTHORIZATION_ENDPOINT"`
+	TokenEndPoint string `json:"TOKEN_ENDPOINT"`
 }
 
-func (e Errno) Error() string {
-	if msg, ok := ErrString[int(e)]; ok {
-		return msg
+
+func LoadConfig(filename string) (c *Config) {
+	var conf Config
+
+	b, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return
 	}
-	return "errno:" + strconv.Itoa(int(e))
-}
-
-func RegisterErrno(em []ErrnoMsg) {
-	for _, r := range em {
-		ErrString[r.Errno] = r.Msg
+	err = json.Unmarshal(b, &conf)
+	if err != nil {
+		return
 	}
+	c = &conf
+	return
 }
 
-var ErrString = map[int]string{
-
-	OK: "OK",
-	PartialOK: "Partial OK",
-
-	InvalidArgs: "invalid arguments",
-	BadToken: "bad token",
-	BadOAuthRequest: "bad oauth request",
-	BadRequestMethod: "bad request method",
-
-	TooManyRequests: "too many requests",
-	ProcessPanic: "process panic",
-	VersionTooOld: "version too old",
-	FunctionFail: "function fail",
-
-	NetworkError: "network error",
-	TimeoutError: "timeout",
-	UnexceptedResponse: "unexcepted response",
-	InternalError: "internal error",
+func EncodeURI(uri string) string {
+	return base64.URLEncoding.EncodeToString([]byte(uri))
 }
-
-// --------------------------------------------------------------------
 
