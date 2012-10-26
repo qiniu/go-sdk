@@ -73,6 +73,7 @@ title: Golang SDK 使用指南 | 七牛云存储
 
 在获取到 Access Key 和 Secret Key 之后，将它们写入到你的配置文件里，go-sdk使用的配置文件格式是json，并且提供了读取配置文件的API，如下：
 
+	package api
 
 	type Config struct {
 		Host map[string]string `json:"HOST"`
@@ -128,6 +129,8 @@ title: Golang SDK 使用指南 | 七牛云存储
 
 七牛SDK里提供了LoadConfig()函数（qbox/api/api.go）来读取一个配置文件，如下：
 
+	package api
+
 	func LoadConfig(filename string) (c *Config) {
 		// ...
 	}
@@ -144,6 +147,8 @@ title: Golang SDK 使用指南 | 七牛云存储
 
 使用数字签名认证需要用到由七牛颁发的`Access_key`和`Secret_key`，API如下（qbox/auth/digest/digest.go）
 
+	package digest
+
 	func NewTransport(key, secret string, t http.RoundTripper) *Transport {
 		// ..
 	}
@@ -153,6 +158,8 @@ title: Golang SDK 使用指南 | 七牛云存储
 ##### UPTOKEN认证
 
 uptoken 认证通常是由客户方服务器使用Access_key和`Secret_key`生成一个授权的uptoken，然后颁发给最终用户，这样最终用户就可以上传文件到我们的七牛服务器
+
+	package uptoken
 
 	func NewTransport(uptoken string, t http.RoundTripper) *Transport {
 		// ...
@@ -198,6 +205,7 @@ uptoken 认证通常是由客户方服务器使用Access_key和`Secret_key`生�
 
 MakeAuthTokenString 函数（src/auth/uptoken/uptoken.go）原型如下：
 
+	package uptoken
 
 	type AuthPolicy struct {
 		Scope            string `json:"scope"`
@@ -240,6 +248,7 @@ MakeAuthTokenString 函数（src/auth/uptoken/uptoken.go）原型如下：
 
 通过 rs.Put 方法可在客户方的业务服务器上直接往七牛云存储上传文件。该函数规格如下：
 
+	package rs
 
 	func (s *Service) Put(entryURI, mimeType string, body io.Reader, bodyLength int64) (ret PutRet, code int, err error) {
 		// ...
@@ -274,6 +283,8 @@ MakeAuthTokenString 函数（src/auth/uptoken/uptoken.go）原型如下：
 ##### 断点续上传
 
 SDK 提供的 up.Put 方法缺省使用断点续上传。默认情况下，SDK 会自动启用断点续上传的方式来上传超过 4MB 大小的文件。您也可以修改配置文件的BLOCK_BITS配置项来改变默认BLOCK块的大小：
+
+	package up
 
 	func (s *Service) Put(
 		entryURI, mimeType string, customer, meta, params string,
