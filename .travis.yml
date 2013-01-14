@@ -1,0 +1,7 @@
+language: go
+install:
+  - export QBOXROOT=~/gopath/src/github.com/qiniu/
+  - export GOPATH=~/gopath/src/github.com/qiniu/go-sdk
+  - make
+script:
+  - make test
