@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"encoding/json"
-	"qbox/api"
+	"github.com/qiniu/go-sdk/api"
 )
 
 // --------------------------------------------------------------------

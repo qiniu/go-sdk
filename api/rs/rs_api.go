@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"net/http"
 	"encoding/base64"
-	"qbox/api"
-	"qbox/rpc"
-	. "qbox/api/conf"
+	"github.com/qiniu/go-sdk/api"
+	"github.com/qiniu/go-sdk/rpc"
+	. "github.com/qiniu/go-sdk/api/conf"
 )
 
 // ----------------------------------------------------------
