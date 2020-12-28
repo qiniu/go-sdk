@@ -406,7 +406,7 @@ type DomainInfo struct {
 
 // ListBucketDomains 返回绑定在存储空间中的域名信息
 func (m *BucketManager) ListBucketDomains(bucket string) (info []DomainInfo, err error) {
-	reqHost, err := m.ApiReqHost(bucket)
+	reqHost, err := m.z0ApiHost()
 	if err != nil {
 		return
 	}
@@ -582,6 +582,16 @@ func (m *BucketManager) ApiHost(bucket string) (apiHost string, err error) {
 	}
 
 	apiHost = zone.GetApiHost(m.Cfg.UseHTTPS)
+	return
+}
+
+func (m *BucketManager) z0ApiHost() (apiHost string, err error) {
+	region, err := getRegionByRegionId("z0", m.Mac)
+	if err != nil {
+		return
+	}
+
+	apiHost = region.GetApiHost(m.Cfg.UseHTTPS)
 	return
 }
 

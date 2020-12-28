@@ -358,6 +358,86 @@ func GetRegion(ak, bucket string) (*Region, error) {
 	}
 }
 
+type ucRegionsRet struct {
+	Regions []ucRegionRet `json:"regions"`
+}
+
+type ucRegionRet struct {
+	Id  string       `json:"id"`
+	Up  ucDomainsRet `json:"up"`
+	Io  ucDomainsRet `json:"io"`
+	Uc  ucDomainsRet `json:"uc"`
+	Rs  ucDomainsRet `json:"rs"`
+	Rsf ucDomainsRet `json:"rsf"`
+	Api ucDomainsRet `json:"api"`
+}
+
+type ucDomainsRet struct {
+	Main   []string `json:"domains"`
+	Backup []string `json:"old,omitempty"`
+}
+
+var (
+	regionIdCache      = make(map[string]*Region)
+	regionIdCacheGroup singleflight.Group
+)
+
+// getRegionByRegionId 用来根据 ak 和 sk 来获取空间相关的机房信息，由于返回的 Region 结构体与先前不兼容，所以本接口暂不开放
+func getRegionByRegionId(regionId string, credentials *auth.Credentials) (region *Region, err error) {
+	var cacheValue interface{}
+
+	cacheValue, err, _ = regionIdCacheGroup.Do("query", func() (interface{}, error) {
+		if v, ok := regionIdCache[regionId]; ok {
+			return v, nil
+		}
+		reqURL := fmt.Sprintf("%s/regions", UcHost)
+		var ret ucRegionsRet
+		ctx := context.TODO()
+		qErr := client.DefaultClient.CredentialedCallWithForm(ctx, credentials, auth.TokenQiniu, &ret, "GET", reqURL, nil, nil)
+		if qErr != nil {
+			return nil, fmt.Errorf("query region error, %s", qErr.Error())
+		}
+		for _, r := range ret.Regions {
+			upHosts := r.Up.Main
+			if len(r.Up.Backup) > 0 {
+				upHosts = append(upHosts, r.Up.Backup...)
+			}
+			if len(r.Io.Main) == 0 {
+				return nil, fmt.Errorf("empty io host list")
+			}
+			if len(r.Rs.Main) == 0 {
+				return nil, fmt.Errorf("empty rs host list")
+			}
+			if len(r.Rsf.Main) == 0 {
+				return nil, fmt.Errorf("empty rsf host list")
+			}
+			if len(r.Api.Main) == 0 {
+				return nil, fmt.Errorf("empty api host list")
+			}
+
+			region := &Region{
+				SrcUpHosts: upHosts,
+				CdnUpHosts: upHosts,
+				IovipHost:  r.Io.Main[0],
+				RsHost:     r.Rs.Main[0],
+				RsfHost:    r.Rsf.Main[0],
+				ApiHost:    r.Api.Main[0],
+			}
+			regionIdCache[r.Id] = region
+		}
+		if v, ok := regionIdCache[regionId]; ok {
+			return v, nil
+		} else {
+			return nil, fmt.Errorf("region id is not found")
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	region = cacheValue.(*Region)
+	return
+}
+
 func regionFromHost(ioHost string) (Region, bool) {
 	if strings.Contains(ioHost, "-z1") {
 		return GetRegionByID(RIDHuabei)

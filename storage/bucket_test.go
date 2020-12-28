@@ -15,14 +15,12 @@ import (
 )
 
 var (
-	testAK                  = os.Getenv("accessKey")
-	testSK                  = os.Getenv("secretKey")
-	testBucket              = os.Getenv("QINIU_TEST_BUCKET")
-	testBucketPrivate       = os.Getenv("QINIU_TEST_BUCKET_PRIVATE")
-	testBucketDomain        = os.Getenv("QINIU_TEST_DOMAIN")
-	testBucketPrivateDomain = os.Getenv("QINIU_TEST_DOMAIN_PRIVATE")
-	testPipeline            = os.Getenv("QINIU_TEST_PIPELINE")
-	testDebug               = os.Getenv("QINIU_SDK_DEBUG")
+	testAK           = os.Getenv("accessKey")
+	testSK           = os.Getenv("secretKey")
+	testBucket       = os.Getenv("QINIU_TEST_BUCKET")
+	testBucketDomain = os.Getenv("QINIU_TEST_DOMAIN")
+	testPipeline     = os.Getenv("QINIU_TEST_PIPELINE")
+	testDebug        = os.Getenv("QINIU_SDK_DEBUG")
 
 	testKey      = "qiniu.png"
 	testFetchUrl = "http://devtools.qiniu.com/qiniu.png"
@@ -53,7 +51,6 @@ func init() {
 	}
 	mac = auth.New(testAK, testSK)
 	cfg := Config{}
-	cfg.Zone = &Zone_z0
 	cfg.UseCdnDomains = true
 	bucketManager = NewBucketManagerEx(mac, &cfg, &clt)
 	operationManager = NewOperationManagerEx(mac, &cfg, &clt)
@@ -223,7 +220,8 @@ func TestChangeMime(t *testing.T) {
 }
 
 func TestChangeType(t *testing.T) {
-	toChangeKey := fmt.Sprintf("%s_changeType_%d", testKey, rand.Int())
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	toChangeKey := fmt.Sprintf("%s_changeType_%d", testKey, r.Int())
 	bucketManager.Copy(testBucket, testKey, testBucket, toChangeKey, true)
 	fileType := 1
 	err := bucketManager.ChangeType(testBucket, toChangeKey, fileType)
@@ -239,7 +237,8 @@ func TestChangeType(t *testing.T) {
 }
 
 func TestRestoreAr(t *testing.T) {
-	toRestoreArKey := fmt.Sprintf("%s_RestoreAr_%d", testKey, rand.Int())
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	toRestoreArKey := fmt.Sprintf("%s_RestoreAr_%d", testKey, r.Int())
 	bucketManager.Copy(testBucket, testKey, testBucket, toRestoreArKey, true)
 	fileType := 2
 	err := bucketManager.ChangeType(testBucket, toRestoreArKey, fileType)
@@ -310,25 +309,6 @@ func TestListFiles(t *testing.T) {
 		t.Logf("ListItem:\n%s", entry.String())
 	}
 }
-
-/*
-
-CDN 节点经常超时
-func TestMakePrivateUrl(t *testing.T) {
-	deadline := time.Now().Add(time.Second * 3600).Unix()
-	privateURL := MakePrivateURL(mac, "http://"+testBucketPrivateDomain, testKey, deadline)
-	t.Logf("PrivateUrl: %s", privateURL)
-	resp, respErr := clt.Get(privateURL)
-	if respErr != nil {
-		t.Fatalf("MakePrivateUrl() error, %s", respErr)
-	}
-
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("MakePrivateUrl() error, %s", resp.Status)
-	}
-}
-*/
 
 func TestBatch(t *testing.T) {
 	copyCnt := 100
