@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/qiniu/api.v7/v7/auth"
-	"github.com/qiniu/api.v7/v7/client"
+	"github.com/qiniu/go-sdk/v7/auth"
+	"github.com/qiniu/go-sdk/v7/client"
 	"golang.org/x/sync/singleflight"
 )
 

@@ -1,5 +1,8 @@
 # Changelog
 
+## 7.9.0
+* 从 github.com/qiniu/api.v7 迁移至 github.com/qiniu/go-sdk
+
 ## 7.8.1 （2021-01-07）
 对象存储：
 * 本地缓存query查询空间对应域名信息

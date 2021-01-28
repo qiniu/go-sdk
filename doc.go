@@ -1,6 +1,6 @@
 /*
 
-包 github.com/qiniu/api.v7 是七牛 Go 语言 SDK v7.x 版本。
+包 github.com/qiniu/go-sdk 是七牛 Go 语言 SDK v7.x 版本。
 
 主要提供了存储的数据上传，下载，管理以及CDN相关的功能。要求Go语言版本>=1.10.0。
 

@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/qiniu/api.v7/v7/client"
+	"github.com/qiniu/go-sdk/v7/client"
 )
 
 // ResumeUploader 表示一个分片上传的对象

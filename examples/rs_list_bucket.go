@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/qiniu/api.v7/v7/auth"
-	"github.com/qiniu/api.v7/v7/storage"
+	"github.com/qiniu/go-sdk/v7/auth"
+	"github.com/qiniu/go-sdk/v7/storage"
 	"strings"
 )
 

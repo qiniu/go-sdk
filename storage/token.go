@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/qiniu/api.v7/v7/auth"
+	"github.com/qiniu/go-sdk/v7/auth"
 )
 
 // PutPolicy 表示文件上传的上传策略，参考 https://developer.qiniu.com/kodo/manual/1206/put-policy

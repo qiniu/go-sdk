@@ -10,7 +10,7 @@
 	- [x] 获取空间列表: ListNamespace(offset, line int, sortBy string)
 	- [x] 禁用空间: DisableNamespace(nsId string)
     - [x] 启用空间: EnableNamespace(nsId string)
-    
+
 - 流管理
     - [x] 创建流: AddStream(nsId string, stream *Stream)
     - [x] 删除流: DeleteStream(nsId string, streamId string)
@@ -20,9 +20,9 @@
     - [x] 获取流地址
         - [x] 动态模式: DynamicPublishPlayURL(nsId string, streamId string, route *DynamicLiveRoute)
         - [x] 静态模式: StaticPublishPlayURL(nsId string, streamId string, route *StaticLiveRoute)
-    - [x] 禁用流: DisableStream(nsId string, streamId string)  
-    - [x] 启用流: EnableStream(nsId string, streamId string) 
-    - [x] 查询推流记录: QueryStreamPubhistories(nsId string, streamId string, start, end int, line, offset int)  
+    - [x] 禁用流: DisableStream(nsId string, streamId string)
+    - [x] 启用流: EnableStream(nsId string, streamId string)
+    - [x] 查询推流记录: QueryStreamPubhistories(nsId string, streamId string, start, end int, line, offset int)
 
 - 模板管理
     - [x] 创建模板: AddTemplate(tmpl *Template)
@@ -44,8 +44,8 @@ package main
 
 import (
 	// ...
-	"github.com/qiniu/api.v7/v7/auth"
-	"github.com/qiniu/api.v7/v7/qvs"
+	"github.com/qiniu/go-sdk/v7/auth"
+	"github.com/qiniu/go-sdk/v7/qvs"
 )
 
 var (

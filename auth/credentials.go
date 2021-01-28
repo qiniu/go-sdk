@@ -12,8 +12,8 @@ import (
 	"sort"
 	"strings"
 
-	api "github.com/qiniu/api.v7/v7"
-	"github.com/qiniu/api.v7/v7/conf"
+	api "github.com/qiniu/go-sdk/v7"
+	"github.com/qiniu/go-sdk/v7/conf"
 )
 
 //  七牛鉴权类，用于生成Qbox, Qiniu, Upload签名

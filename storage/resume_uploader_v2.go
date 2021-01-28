@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/qiniu/api.v7/v7/client"
+	"github.com/qiniu/go-sdk/v7/client"
 )
 
 // ResumeUploaderV2 表示一个分片上传 v2 的对象

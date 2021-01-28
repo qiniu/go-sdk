@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"sync"
 
-	"github.com/qiniu/api.v7/v7"
+	"github.com/qiniu/go-sdk/v7"
 )
 
 // 分片上传过程中可能遇到的错误
