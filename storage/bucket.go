@@ -158,29 +158,20 @@ func (m *BucketManager) UpdateObjectStatus(bucketName string, key string, enable
 
 // CreateBucket 创建一个七牛存储空间
 func (m *BucketManager) CreateBucket(bucketName string, regionID RegionID) error {
-	var reqHost string
-
-	reqHost = m.Cfg.RsReqHost()
-	reqURL := fmt.Sprintf("%s/mkbucketv3/%s/region/%s", reqHost, bucketName, string(regionID))
+	reqURL := fmt.Sprintf("%s/mkbucketv3/%s/region/%s", UcHost, bucketName, string(regionID))
 	return m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
 }
 
 // Buckets 用来获取空间列表，如果指定了 shared 参数为 true，那么一同列表被授权访问的空间
 func (m *BucketManager) Buckets(shared bool) (buckets []string, err error) {
-	var reqHost string
-
-	reqHost = m.Cfg.RsReqHost()
-	reqURL := fmt.Sprintf("%s/buckets?shared=%v", reqHost, shared)
+	reqURL := fmt.Sprintf("%s/buckets?shared=%v", UcHost, shared)
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &buckets, "POST", reqURL, nil)
 	return
 }
 
 // DropBucket 删除七牛存储空间
 func (m *BucketManager) DropBucket(bucketName string) (err error) {
-	var reqHost string
-
-	reqHost = m.Cfg.RsReqHost()
-	reqURL := fmt.Sprintf("%s/drop/%s", reqHost, bucketName)
+	reqURL := fmt.Sprintf("%s/drop/%s", UcHost, bucketName)
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
 	return
 }
