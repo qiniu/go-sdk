@@ -1,4 +1,4 @@
-github.com/qiniu/go-sdk (Qiniu Go SDK v7.x)
+github.com/qiniu/go-sdk
 ===============
 
 [![LICENSE](https://img.shields.io/github/license/qiniu/go-sdk.svg)](https://github.com/qiniu/go-sdk/blob/master/LICENSE)
