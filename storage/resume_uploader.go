@@ -119,10 +119,17 @@ func (p *ResumeUploader) rput(ctx context.Context, ret interface{}, upToken stri
 		fileInfo                               os.FileInfo = nil
 	)
 
+	if accessKey, bucket, err = getAkBucketFromUploadToken(upToken); err != nil {
+		return
+	}
+
 	if extra.UpHost != "" {
 		upHost = extra.UpHost
-	} else if accessKey, bucket, upHost, err = p.resumeUploaderAPIs().getAkAndBucketAndUpHostFromUploadToken(upToken); err != nil {
-		return
+	} else {
+		upHost, err = p.resumeUploaderAPIs().upHost(accessKey, bucket)
+		if err != nil {
+			return
+		}
 	}
 
 	if extra.Recorder != nil && fileDetails != nil {
@@ -143,11 +150,18 @@ func (p *ResumeUploader) rputWithoutSize(ctx context.Context, ret interface{}, u
 	}
 	extra.init()
 
-	var upHost string
+	var upHost, accessKey, bucket string
+	if accessKey, bucket, err = getAkBucketFromUploadToken(upToken); err != nil {
+		return
+	}
+
 	if extra.UpHost != "" {
 		upHost = extra.UpHost
-	} else if upHost, err = p.resumeUploaderAPIs().getUpHostFromUploadToken(upToken); err != nil {
-		return
+	} else {
+		upHost, err = p.resumeUploaderAPIs().upHost(accessKey, bucket)
+		if err != nil {
+			return
+		}
 	}
 
 	return uploadByWorkers(
