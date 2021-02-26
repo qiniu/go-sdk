@@ -114,12 +114,18 @@ func (p *ResumeUploaderV2) rput(ctx context.Context, ret interface{}, upToken st
 		fileInfo                               os.FileInfo = nil
 	)
 
-	if accessKey, bucket, upHost, err = p.resumeUploaderAPIs().getAkAndBucketAndUpHostFromUploadToken(upToken); err != nil {
+	if accessKey, bucket, err = getAkBucketFromUploadToken(upToken); err != nil {
 		return
 	}
 	if extra.UpHost != "" {
 		upHost = extra.UpHost
+	} else {
+		upHost, err = p.resumeUploaderAPIs().upHost(accessKey, bucket)
+		if err != nil {
+			return
+		}
 	}
+
 	if extra.Recorder != nil && fileDetails != nil {
 		recorderKey = extra.Recorder.GenerateRecorderKey(
 			[]string{accessKey, bucket, key, "v2", fileDetails.fileFullPath, strconv.FormatInt(extra.PartSize, 10)},
@@ -138,12 +144,17 @@ func (p *ResumeUploaderV2) rputWithoutSize(ctx context.Context, ret interface{},
 	}
 	extra.init()
 
-	var bucket, upHost string
-	if bucket, upHost, err = p.resumeUploaderAPIs().getBucketAndUpHostFromUploadToken(upToken); err != nil {
+	var accessKey, bucket, upHost string
+	if accessKey, bucket, err = getAkBucketFromUploadToken(upToken); err != nil {
 		return
 	}
 	if extra.UpHost != "" {
 		upHost = extra.UpHost
+	} else {
+		upHost, err = p.resumeUploaderAPIs().upHost(accessKey, bucket)
+		if err != nil {
+			return
+		}
 	}
 
 	return uploadByWorkers(

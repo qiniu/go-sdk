@@ -154,24 +154,6 @@ func (p *resumeUploaderAPIs) upHost(ak, bucket string) (upHost string, err error
 	return getUpHost(p.Cfg, ak, bucket)
 }
 
-func (p *resumeUploaderAPIs) getUpHostFromUploadToken(upToken string) (upHost string, err error) {
-	_, upHost, err = p.getBucketAndUpHostFromUploadToken(upToken)
-	return
-}
-
-func (p *resumeUploaderAPIs) getBucketAndUpHostFromUploadToken(upToken string) (bucket, upHost string, err error) {
-	_, bucket, upHost, err = p.getAkAndBucketAndUpHostFromUploadToken(upToken)
-	return
-}
-
-func (p *resumeUploaderAPIs) getAkAndBucketAndUpHostFromUploadToken(upToken string) (ak, bucket, upHost string, err error) {
-	if ak, bucket, err = getAkBucketFromUploadToken(upToken); err != nil {
-		return
-	}
-	upHost, err = p.upHost(ak, bucket)
-	return
-}
-
 func makeHeadersForUpload(upToken string) http.Header {
 	return makeHeadersForUploadEx(upToken, conf.CONTENT_TYPE_OCTET)
 }
