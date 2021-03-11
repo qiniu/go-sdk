@@ -102,7 +102,7 @@ func (p *resumeUploaderAPIs) uploadParts(ctx context.Context, upToken, upHost, b
 	return p.Client.CallWith(ctx, ret, "PUT", reqUrl, makeHeadersForUploadPart(upToken, partMD5), body, size)
 }
 
-type uploadPartInfo struct {
+type UploadPartInfo struct {
 	Etag       string `json:"etag"`
 	PartNumber int64  `json:"partNumber"`
 	partSize   int
@@ -118,14 +118,14 @@ type RputV2Extra struct {
 	MimeType   string                                      // 可选。
 	PartSize   int64                                       // 可选。每次上传的块大小
 	TryTimes   int                                         // 可选。尝试次数
-	progresses []uploadPartInfo                            // 上传进度
+	Progresses []UploadPartInfo                            // 上传进度
 	Notify     func(partNumber int64, ret *UploadPartsRet) // 可选。进度提示（注意多个block是并行传输的）
 	NotifyErr  func(partNumber int64, err error)
 }
 
 func (p *resumeUploaderAPIs) completeParts(ctx context.Context, upToken, upHost string, ret interface{}, bucket, key string, hasKey bool, uploadId string, extra *RputV2Extra) (err error) {
 	type CompletePartBody struct {
-		Parts      []uploadPartInfo  `json:"parts"`
+		Parts      []UploadPartInfo  `json:"parts"`
 		MimeType   string            `json:"mimeType,omitempty"`
 		Metadata   map[string]string `json:"metadata,omitempty"`
 		CustomVars map[string]string `json:"customVars,omitempty"`
@@ -134,7 +134,7 @@ func (p *resumeUploaderAPIs) completeParts(ctx context.Context, upToken, upHost 
 		extra = &RputV2Extra{}
 	}
 	completePartBody := CompletePartBody{
-		Parts:      extra.progresses,
+		Parts:      extra.Progresses,
 		MimeType:   extra.MimeType,
 		Metadata:   extra.Metadata,
 		CustomVars: make(map[string]string),
@@ -229,7 +229,7 @@ func (rets blkputRets) Swap(i, j int) {
 	rets[i], rets[j] = rets[j], rets[i]
 }
 
-type uploadPartInfos []uploadPartInfo
+type uploadPartInfos []UploadPartInfo
 
 func (infos uploadPartInfos) Len() int {
 	return len(infos)
