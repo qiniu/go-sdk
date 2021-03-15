@@ -304,7 +304,7 @@ func (impl *resumeUploaderV2Impl) uploadChunk(ctx context.Context, c chunk) erro
 		func() {
 			impl.lock.Lock()
 			defer impl.lock.Unlock()
-			impl.extra.progresses = append(impl.extra.progresses, uploadPartInfo{
+			impl.extra.Progresses = append(impl.extra.Progresses, UploadPartInfo{
 				Etag: ret.Etag, PartNumber: partNumber, partSize: len(c.data), fileOffset: c.offset,
 			})
 			impl.save(ctx)
@@ -318,7 +318,7 @@ func (impl *resumeUploaderV2Impl) final(ctx context.Context) error {
 		impl.extra.Recorder.Delete(impl.recorderKey)
 	}
 
-	sort.Sort(uploadPartInfos(impl.extra.progresses))
+	sort.Sort(uploadPartInfos(impl.extra.Progresses))
 	return impl.resumeUploaderAPIs().completeParts(ctx, impl.upToken, impl.upHost, impl.ret, impl.bucket, impl.key, impl.hasKey, impl.uploadId, impl.extra)
 }
 
@@ -333,7 +333,7 @@ func (impl *resumeUploaderV2Impl) recover(ctx context.Context, recoverData []byt
 	impl.uploadId = recoveryInfo.UploadId
 
 	for _, c := range recoveryInfo.Contexts {
-		impl.extra.progresses = append(impl.extra.progresses, uploadPartInfo{
+		impl.extra.Progresses = append(impl.extra.Progresses, UploadPartInfo{
 			Etag: c.Etag, PartNumber: c.PartNumber, fileOffset: c.Offset, partSize: c.PartSize,
 		})
 		recovered = append(recovered, int64(c.Offset))
@@ -356,9 +356,9 @@ func (impl *resumeUploaderV2Impl) save(ctx context.Context) {
 	recoveryInfo.FileSize = impl.fileInfo.Size()
 	recoveryInfo.ModTimeStamp = impl.fileInfo.ModTime().UnixNano()
 	recoveryInfo.UploadId = impl.uploadId
-	recoveryInfo.Contexts = make([]resumeUploaderV2RecoveryInfoContext, 0, len(impl.extra.progresses))
+	recoveryInfo.Contexts = make([]resumeUploaderV2RecoveryInfoContext, 0, len(impl.extra.Progresses))
 
-	for _, progress := range impl.extra.progresses {
+	for _, progress := range impl.extra.Progresses {
 		recoveryInfo.Contexts = append(recoveryInfo.Contexts, resumeUploaderV2RecoveryInfoContext{
 			Offset: progress.fileOffset, Etag: progress.Etag, PartSize: progress.partSize, PartNumber: progress.PartNumber,
 		})
