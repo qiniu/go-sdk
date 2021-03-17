@@ -120,7 +120,7 @@ var (
 		},
 		RsHost:    "rs-z1.qbox.me",
 		RsfHost:   "rsf-z1.qbox.me",
-		ApiHost:   "api.qiniu.com",
+		ApiHost:   "api-z1.qiniuapi.com",
 		IovipHost: "iovip-z1.qbox.me",
 	}
 	// regionHuanan 表示华南机房
@@ -137,7 +137,7 @@ var (
 		},
 		RsHost:    "rs-z2.qbox.me",
 		RsfHost:   "rsf-z2.qbox.me",
-		ApiHost:   "api.qiniu.com",
+		ApiHost:   "api-z2.qiniuapi.com",
 		IovipHost: "iovip-z2.qbox.me",
 	}
 
@@ -151,7 +151,7 @@ var (
 		},
 		RsHost:    "rs-na0.qbox.me",
 		RsfHost:   "rsf-na0.qbox.me",
-		ApiHost:   "api.qiniu.com",
+		ApiHost:   "api-na0.qiniuapi.com",
 		IovipHost: "iovip-na0.qbox.me",
 	}
 	// regionSingapore 表示新加坡机房
@@ -164,7 +164,7 @@ var (
 		},
 		RsHost:    "rs-as0.qbox.me",
 		RsfHost:   "rsf-as0.qbox.me",
-		ApiHost:   "api.qiniu.com",
+		ApiHost:   "api-as0.qiniuapi.com",
 		IovipHost: "iovip-as0.qbox.me",
 	}
 	// regionFogCnEast1 表示雾存储华东区
@@ -177,7 +177,7 @@ var (
 		},
 		RsHost:    "rs-fog-cn-east-1.qbox.me",
 		RsfHost:   "rsf-fog-cn-east-1.qbox.me",
-		ApiHost:   "api.qiniu.com",
+		ApiHost:   "api-fog-cn-east-1.qiniuapi.com",
 		IovipHost: "iovip-fog-cn-east-1.qbox.me",
 	}
 )
