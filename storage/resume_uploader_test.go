@@ -197,6 +197,9 @@ func validateMD5(t *testing.T, key, md5Expected string, sizeExpected int64) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("MD5 Get Status code is not ok, expected: %d, actual: %d", http.StatusOK, response.StatusCode)
+	}
 	if err = json.NewDecoder(response.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
