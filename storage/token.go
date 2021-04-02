@@ -56,7 +56,10 @@ func (p *PutPolicy) UploadToken(cred *auth.Credentials) (token string) {
 
 func getAkBucketFromUploadToken(token string) (ak, bucket string, err error) {
 	items := strings.Split(token, ":")
-	if len(items) != 3 {
+	// KODO-11919
+	if len(items) == 5 && items[0] == "" {
+		items = items[2:]
+	} else if len(items) != 3 {
 		err = errors.New("invalid upload token, format error")
 		return
 	}
