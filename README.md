@@ -2,7 +2,7 @@ github.com/qiniu/go-sdk
 ===============
 
 [![LICENSE](https://img.shields.io/github/license/qiniu/go-sdk.svg)](https://github.com/qiniu/go-sdk/blob/master/LICENSE)
-[![Build Status](https://travis-ci.org/qiniu/go-sdk.svg?branch=master)](https://travis-ci.org/qiniu/go-sdk)
+[![Build Status](https://github.com/qiniu/go-sdk/workflows/Run%20Test%20Cases/badge.svg)](https://github.com/qiniu/go-sdk/actions)
 [![Go Report Card](https://goreportcard.com/badge/github.com/qiniu/go-sdk)](https://goreportcard.com/report/github.com/qiniu/go-sdk)
 [![GitHub release](https://img.shields.io/github/v/tag/qiniu/go-sdk.svg?label=release)](https://github.com/qiniu/go-sdk/releases)
 [![codecov](https://codecov.io/gh/qiniu/go-sdk/branch/master/graph/badge.svg)](https://codecov.io/gh/qiniu/go-sdk)

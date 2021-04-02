@@ -27,7 +27,8 @@ func TestResumeUploadPutFile(t *testing.T) {
 		DeleteAfterDays: 7,
 	}
 	upToken := putPolicy.UploadToken(mac)
-	testKey := fmt.Sprintf("testRPutFileKey_%d", rand.Int())
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	testKey := fmt.Sprintf("testRPutFileKey_%d", r.Int())
 
 	// prepare file for test uploading
 	testLocalFile, err := ioutil.TempFile("", "TestResumeUploadPutFile")
@@ -65,7 +66,7 @@ func TestPutWithoutSize(t *testing.T) {
 		for _, size := range sizes {
 			md5Sumer := md5.New()
 			rd := io.TeeReader(&io.LimitedReader{R: r, N: size}, md5Sumer)
-			testKey := fmt.Sprintf("testRPutFileKey_%d", rand.Int())
+			testKey := fmt.Sprintf("testRPutFileKey_%d", r.Int())
 			err := resumeUploader.PutWithoutSize(context.Background(), &putRet, upToken, testKey, rd, &RputExtra{
 				ChunkSize: chunkSize,
 				Notify: func(blkIdx int, blkSize int, ret *BlkputRet) {
@@ -109,7 +110,7 @@ func TestPutWithSize(t *testing.T) {
 			if _, err := io.ReadFull(r, data); err != nil {
 				t.Fatal(err)
 			}
-			testKey := fmt.Sprintf("testRPutFileKey_%d", rand.Int())
+			testKey := fmt.Sprintf("testRPutFileKey_%d", r.Int())
 			err := resumeUploader.Put(context.Background(), &putRet, upToken, testKey, bytes.NewReader(data), size, &RputExtra{
 				ChunkSize: chunkSize,
 				Notify: func(blkIdx int, blkSize int, ret *BlkputRet) {
@@ -138,7 +139,8 @@ func TestPutWithRecovery(t *testing.T) {
 	}
 	upToken := putPolicy.UploadToken(mac)
 
-	testKey := fmt.Sprintf("testRPutFileKey_%d", rand.Int())
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	testKey := fmt.Sprintf("testRPutFileKey_%d", r.Int())
 	dirName, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatal(err)
@@ -156,7 +158,6 @@ func TestPutWithRecovery(t *testing.T) {
 	}
 	defer testFile.Close()
 
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	size := int64(4 * (1 << blockBits))
 	io.CopyN(testFile, r, size)
 
@@ -196,6 +197,9 @@ func validateMD5(t *testing.T, key, md5Expected string, sizeExpected int64) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("MD5 Get Status code is not ok, expected: %d, actual: %d", http.StatusOK, response.StatusCode)
+	}
 	if err = json.NewDecoder(response.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +219,8 @@ func TestRetryChecker(t *testing.T) {
 	}
 
 	upToken := putPolicy.UploadToken(mac)
-	testKey := fmt.Sprintf("testRPutFileKey_%d", rand.Int())
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	testKey := fmt.Sprintf("testRPutFileKey_%d", r.Int())
 
 	mycfg := Config{}
 	wrongZone := Region{
