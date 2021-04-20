@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -581,5 +582,57 @@ func TestSetBucketAccessMode(t *testing.T) {
 	err = bucketManager.MakeBucketPublic(testBucket)
 	if err != nil {
 		t.Fatalf("TestSetBucketAccessMode: %q\n", err)
+	}
+}
+
+func TestMakeURL(t *testing.T) {
+	keys := map[string]string{ //rawKey => encodeKey,
+		"":            "",
+		"abc_def.mp4": "abc_def.mp4",
+		"/ab/cd":      "/ab/cd",
+		"ab/中文/de":    "ab/%E4%B8%AD%E6%96%87/de",
+		// "ab+-*de f":   "ab%2B-%2Ade%20f",
+		"ab:cd": "ab%3Acd",
+		// "ab@cd":            "ab%40cd",
+		"ab?cd=ef":  "ab%3Fcd%3Def",
+		"ab#e~f":    "ab%23e~f",
+		"ab//cd":    "ab//cd",
+		"abc%2F%2B": "abc%252F%252B",
+		"ab cd":     "ab%20cd",
+		// "ab/c:d?e#f//gh汉子": "ab/c%3Ad%3Fe%23f//gh%E6%B1%89%E5%AD%90",
+	}
+	s := MakePublicURL("https://abc.com:123/", "123/def?@#")
+	if s != "https://abc.com:123/123/def?@" {
+		t.Fatalf("TestMakeURL: %q\n", s)
+	}
+
+	s = MakePublicURL("abc.com:123/", "123/def?@#")
+	if s != "abc.com:123/123/def?@" {
+		t.Fatalf("TestMakeURL: %q\n", s)
+	}
+
+	q := make(url.Values)
+	q.Add("?", "#")
+	s = MakePublicURLv2WithQuery("https://abc.com:123/", "123/def?@#", q)
+	if s != "https://abc.com:123/123/def%3F%40%23?%3F=%23" {
+		t.Fatalf("TestMakeURL: %q\n", s)
+	}
+
+	s = makePublicURLv2WithQueryString("http://abc.com:123/", "123/def?@#|", "123/def?@#|")
+	if s != "http://abc.com:123/123/def%3F@%23%7C?123/def%3F%40%23|" {
+		t.Fatalf("TestMakeURL: %q\n", s)
+	}
+
+	s = MakePublicURLv2("http://abc.com:123/", "123/def?@#")
+	if s != "http://abc.com:123/123/def%3F%40%23" {
+		t.Fatalf("TestMakeURL: %q\n", s)
+	}
+
+	for rawKey, encodedKey := range keys {
+		s = MakePublicURLv2("http://abc.com:123/", rawKey)
+		e := "http://abc.com:123/" + encodedKey
+		if s != e {
+			t.Fatalf("TestMakeURL: %q %q\n", s, e)
+		}
 	}
 }
