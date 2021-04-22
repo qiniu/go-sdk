@@ -203,7 +203,7 @@ var regionMap = map[RegionID]Region{
 }
 
 // UcHost 为查询空间相关域名的API服务地址
-const UcHost = "https://uc.qbox.me"
+var UcHost = "https://uc.qbox.me"
 
 // UcQueryRet 为查询请求的回复
 type UcQueryRet struct {
