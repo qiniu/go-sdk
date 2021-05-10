@@ -37,6 +37,7 @@ type FileInfo struct {
 	PutTime  int64  `json:"putTime"`
 	MimeType string `json:"mimeType"`
 	Type     int    `json:"type"`
+	Parts    []int  `json:"parts"`
 }
 
 func (f *FileInfo) String() string {
@@ -177,7 +178,16 @@ func (m *BucketManager) DropBucket(bucketName string) (err error) {
 }
 
 // Stat 用来获取一个文件的基本信息
-func (m *BucketManager) Stat(bucket, key string) (info FileInfo, err error) {
+func (m *BucketManager) Stat(bucket, key string) (FileInfo, error) {
+	return m.StatWithOpts(bucket, key, nil)
+}
+
+type StatOpts struct {
+	NeedParts bool
+}
+
+// StatWithParts 用来获取一个文件的基本信息以及分片信息
+func (m *BucketManager) StatWithOpts(bucket, key string, opt *StatOpts) (info FileInfo, err error) {
 	reqHost, reqErr := m.RsReqHost(bucket)
 	if reqErr != nil {
 		err = reqErr
@@ -185,6 +195,11 @@ func (m *BucketManager) Stat(bucket, key string) (info FileInfo, err error) {
 	}
 
 	reqURL := fmt.Sprintf("%s%s", reqHost, URIStat(bucket, key))
+	if opt != nil {
+		if opt.NeedParts {
+			reqURL += "?needparts=true"
+		}
+	}
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &info, "POST", reqURL, nil)
 	return
 }
