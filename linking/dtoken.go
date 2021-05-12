@@ -36,7 +36,7 @@ func (manager *Manager) VodToken(appid, device string, deadline int64) (string, 
 		Device:    device,
 		DeadLine:  deadline,
 		Random:    time.Now().UnixNano(),
-		Statement: []Statement{Statement{Action: "linking:vod"}},
+		Statement: []Statement{{Action: "linking:vod"}},
 	}
 	return manager.deviceToken(policy)
 }
@@ -47,7 +47,7 @@ func (manager *Manager) StatusToken(appid, device string, deadline int64) (strin
 		Device:    device,
 		DeadLine:  deadline,
 		Random:    time.Now().UnixNano(),
-		Statement: []Statement{Statement{Action: "linking:status"}},
+		Statement: []Statement{{Action: "linking:status"}},
 	}
 	return manager.deviceToken(policy)
 }

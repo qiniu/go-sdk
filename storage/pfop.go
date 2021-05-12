@@ -128,9 +128,9 @@ type FopResult struct {
 func (m *OperationManager) Pfop(bucket, key, fops, pipeline, notifyURL string,
 	force bool) (persistentID string, err error) {
 	pfopParams := map[string][]string{
-		"bucket": []string{bucket},
-		"key":    []string{key},
-		"fops":   []string{fops},
+		"bucket": {bucket},
+		"key":    {key},
+		"fops":   {fops},
 	}
 
 	if pipeline != "" {
