@@ -390,14 +390,14 @@ func TestBucketInfosInRegion(t *testing.T) {
 
 func TestRefererAntiLeechMode(t *testing.T) {
 	cfgs := []*ReferAntiLeechConfig{
-		&ReferAntiLeechConfig{
+		{
 			Mode: 0, // 关闭referer防盗链
 		},
-		&ReferAntiLeechConfig{
+		{
 			Mode:    1, // 开启referer白名单
 			Pattern: "*.qiniu.com",
 		},
-		&ReferAntiLeechConfig{
+		{
 			Mode:    2, // 开启referer黑名单
 			Pattern: "*.qiniu.com",
 		},
@@ -507,7 +507,7 @@ func TestBucketEventRule(t *testing.T) {
 
 func TestCorsRules(t *testing.T) {
 	err := bucketManager.AddCorsRules(testBucket, []CorsRule{
-		CorsRule{
+		{
 			AllowedOrigin: []string{"http://www.test1.com"},
 			AllowedMethod: []string{"GET", "POST"},
 		},

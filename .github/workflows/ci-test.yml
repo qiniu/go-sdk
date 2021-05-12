@@ -13,6 +13,8 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '1.10.x'
+      - name: Format
+        run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
       - name: Run cases
         run: |
           GOPATH=$GITHUB_WORKSPACE go get github.com/qiniu/x
@@ -47,6 +49,8 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go_version }}
+      - name: Format
+        run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
       - name: Run cases
         run: |
           make test
