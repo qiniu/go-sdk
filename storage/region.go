@@ -235,6 +235,22 @@ var (
 	regionCacheLoaded   bool = false
 )
 
+func getUcHostByDefaultProtocol() string {
+	return getUcHost(true)
+}
+
+func getUcHost(useHttps bool) string {
+	if strings.Contains(UcHost, "://") {
+		return UcHost
+	} else {
+		if useHttps {
+			return "https://" + UcHost
+		} else {
+			return "http://" + UcHost
+		}
+	}
+}
+
 func SetRegionCachePath(newPath string) {
 	regionCacheLock.Lock()
 	defer regionCacheLock.Unlock()
@@ -306,7 +322,7 @@ func GetRegion(ak, bucket string) (*Region, error) {
 	}
 
 	newRegion, err, _ := regionCacheGroup.Do(regionID, func() (interface{}, error) {
-		reqURL := fmt.Sprintf("%s/v2/query?ak=%s&bucket=%s", UcHost, ak, bucket)
+		reqURL := fmt.Sprintf("%s/v2/query?ak=%s&bucket=%s", getUcHostByDefaultProtocol(), ak, bucket)
 
 		var ret UcQueryRet
 		err := client.DefaultClient.CallWithForm(context.Background(), &ret, "GET", reqURL, nil, nil)
@@ -473,7 +489,7 @@ func GetRegionsInfo(mac *auth.Credentials) ([]RegionInfo, error) {
 	var regions struct {
 		Regions []RegionInfo `json:"regions"`
 	}
-	qErr := client.DefaultClient.CredentialedCallWithForm(context.Background(), mac, auth.TokenQiniu, &regions, "GET", UcHost+"/regions", nil, nil)
+	qErr := client.DefaultClient.CredentialedCallWithForm(context.Background(), mac, auth.TokenQiniu, &regions, "GET", getUcHostByDefaultProtocol()+"/regions", nil, nil)
 	if qErr != nil {
 		return nil, fmt.Errorf("query region error, %s", qErr.Error())
 	} else {
