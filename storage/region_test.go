@@ -49,7 +49,7 @@ func TestRegionWithNoProtocol(t *testing.T) {
 		t.Fatalf("GetRegion error: %v\n", err)
 	}
 
-	if region1.IovipHost != "iovip.qbox.me" {
-		t.Fatalf("region1.IovipHost is wrong")
+	if !strings.HasPrefix(region1.IovipHost, "iovip") || !strings.HasSuffix(region1.IovipHost, ".qbox.me") {
+		t.Fatalf("region1.IovipHost is wrong: %v\v", region1.IovipHost)
 	}
 }
