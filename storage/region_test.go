@@ -40,3 +40,15 @@ func TestRegion(t *testing.T) {
 		t.Fatalf("region1.IovipHost is wrong")
 	}
 }
+
+func TestRegionWithNoProtocol(t *testing.T) {
+	UcHost = "uc.qbox.me"
+	region1, err := GetRegion(testAK, testBucket)
+	if err != nil {
+		t.Fatalf("GetRegion error: %v\n", err)
+	}
+
+	if region1.IovipHost != "iovip.qbox.me" {
+		t.Fatalf("region1.IovipHost is wrong")
+	}
+}
