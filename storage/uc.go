@@ -451,7 +451,7 @@ type BucketQuota struct {
 // SetBucketQuota 设置存储空间的配额限制
 // 配额限制主要是两块， 空间存储量的限制和空间文件数限制
 func (m *BucketManager) SetBucketQuota(bucket string, size, count int64) (err error) {
-	reqHost, rErr := m.ApiReqHost(bucket)
+	reqHost, rErr := m.z0ApiHost()
 	if rErr != nil {
 		err = rErr
 		return
@@ -464,7 +464,7 @@ func (m *BucketManager) SetBucketQuota(bucket string, size, count int64) (err er
 
 // GetBucketQuota 获取存储空间的配额信息
 func (m *BucketManager) GetBucketQuota(bucket string) (quota BucketQuota, err error) {
-	reqHost, rErr := m.ApiReqHost(bucket)
+	reqHost, rErr := m.z0ApiHost()
 	if rErr != nil {
 		err = rErr
 		return

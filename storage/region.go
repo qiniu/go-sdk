@@ -120,7 +120,7 @@ var (
 		},
 		RsHost:    "rs-z1.qbox.me",
 		RsfHost:   "rsf-z1.qbox.me",
-		ApiHost:   "api.qiniu.com",
+		ApiHost:   "api-z1.qiniuapi.com",
 		IovipHost: "iovip-z1.qbox.me",
 	}
 	// regionHuanan 表示华南机房
@@ -137,7 +137,7 @@ var (
 		},
 		RsHost:    "rs-z2.qbox.me",
 		RsfHost:   "rsf-z2.qbox.me",
-		ApiHost:   "api.qiniu.com",
+		ApiHost:   "api-z2.qiniuapi.com",
 		IovipHost: "iovip-z2.qbox.me",
 	}
 
@@ -151,7 +151,7 @@ var (
 		},
 		RsHost:    "rs-na0.qbox.me",
 		RsfHost:   "rsf-na0.qbox.me",
-		ApiHost:   "api.qiniu.com",
+		ApiHost:   "api-na0.qiniuapi.com",
 		IovipHost: "iovip-na0.qbox.me",
 	}
 	// regionSingapore 表示新加坡机房
@@ -164,7 +164,7 @@ var (
 		},
 		RsHost:    "rs-as0.qbox.me",
 		RsfHost:   "rsf-as0.qbox.me",
-		ApiHost:   "api.qiniu.com",
+		ApiHost:   "api-as0.qiniuapi.com",
 		IovipHost: "iovip-as0.qbox.me",
 	}
 	// regionFogCnEast1 表示雾存储华东区
@@ -177,7 +177,7 @@ var (
 		},
 		RsHost:    "rs-fog-cn-east-1.qbox.me",
 		RsfHost:   "rsf-fog-cn-east-1.qbox.me",
-		ApiHost:   "api.qiniu.com",
+		ApiHost:   "api-fog-cn-east-1.qiniuapi.com",
 		IovipHost: "iovip-fog-cn-east-1.qbox.me",
 	}
 )
@@ -203,7 +203,7 @@ var regionMap = map[RegionID]Region{
 }
 
 // UcHost 为查询空间相关域名的API服务地址
-const UcHost = "https://uc.qbox.me"
+var UcHost = "https://uc.qbox.me"
 
 // UcQueryRet 为查询请求的回复
 type UcQueryRet struct {
@@ -372,6 +372,86 @@ func GetRegion(ak, bucket string) (*Region, error) {
 	} else {
 		return newRegion.(*Region), nil
 	}
+}
+
+type ucRegionsRet struct {
+	Regions []ucRegionRet `json:"regions"`
+}
+
+type ucRegionRet struct {
+	Id  string       `json:"id"`
+	Up  ucDomainsRet `json:"up"`
+	Io  ucDomainsRet `json:"io"`
+	Uc  ucDomainsRet `json:"uc"`
+	Rs  ucDomainsRet `json:"rs"`
+	Rsf ucDomainsRet `json:"rsf"`
+	Api ucDomainsRet `json:"api"`
+}
+
+type ucDomainsRet struct {
+	Main   []string `json:"domains"`
+	Backup []string `json:"old,omitempty"`
+}
+
+var (
+	regionIdCache      = make(map[string]*Region)
+	regionIdCacheGroup singleflight.Group
+)
+
+// getRegionByRegionId 用来根据 ak 和 sk 来获取空间相关的机房信息，由于返回的 Region 结构体与先前不兼容，所以本接口暂不开放
+func getRegionByRegionId(regionId string, credentials *auth.Credentials) (region *Region, err error) {
+	var cacheValue interface{}
+
+	cacheValue, err, _ = regionIdCacheGroup.Do("query", func() (interface{}, error) {
+		if v, ok := regionIdCache[regionId]; ok {
+			return v, nil
+		}
+		reqURL := fmt.Sprintf("%s/regions", UcHost)
+		var ret ucRegionsRet
+		ctx := context.TODO()
+		qErr := client.DefaultClient.CredentialedCallWithForm(ctx, credentials, auth.TokenQiniu, &ret, "GET", reqURL, nil, nil)
+		if qErr != nil {
+			return nil, fmt.Errorf("query region error, %s", qErr.Error())
+		}
+		for _, r := range ret.Regions {
+			upHosts := r.Up.Main
+			if len(r.Up.Backup) > 0 {
+				upHosts = append(upHosts, r.Up.Backup...)
+			}
+			if len(r.Io.Main) == 0 {
+				return nil, fmt.Errorf("empty io host list")
+			}
+			if len(r.Rs.Main) == 0 {
+				return nil, fmt.Errorf("empty rs host list")
+			}
+			if len(r.Rsf.Main) == 0 {
+				return nil, fmt.Errorf("empty rsf host list")
+			}
+			if len(r.Api.Main) == 0 {
+				return nil, fmt.Errorf("empty api host list")
+			}
+
+			region := &Region{
+				SrcUpHosts: upHosts,
+				CdnUpHosts: upHosts,
+				IovipHost:  r.Io.Main[0],
+				RsHost:     r.Rs.Main[0],
+				RsfHost:    r.Rsf.Main[0],
+				ApiHost:    r.Api.Main[0],
+			}
+			regionIdCache[r.Id] = region
+		}
+		if v, ok := regionIdCache[regionId]; ok {
+			return v, nil
+		} else {
+			return nil, fmt.Errorf("region id is not found")
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	region = cacheValue.(*Region)
+	return
 }
 
 func regionFromHost(ioHost string) (Region, bool) {

@@ -216,7 +216,7 @@ func parseError(e *ErrorInfo, r io.Reader) {
 		Key   string `json:"key"`
 		Errno int    `json:"errno"`
 	}
-	if json.Unmarshal(body, &ret) == nil && ret.Err != "" {
+	if decodeJsonFromData(body, &ret) == nil && ret.Err != "" {
 		// qiniu error msg style returns here
 		e.Err, e.Key, e.Errno = ret.Err, ret.Key, ret.Errno
 		return
@@ -264,7 +264,7 @@ func CallRet(ctx context.Context, ret interface{}, resp *http.Response) (err err
 	}
 	if resp.StatusCode/100 == 2 {
 		if ret != nil && resp.ContentLength != 0 {
-			err = json.NewDecoder(resp.Body).Decode(ret)
+			err = decodeJsonFromReader(resp.Body, ret)
 			if err != nil {
 				return
 			}

@@ -406,7 +406,7 @@ type DomainInfo struct {
 
 // ListBucketDomains 返回绑定在存储空间中的域名信息
 func (m *BucketManager) ListBucketDomains(bucket string) (info []DomainInfo, err error) {
-	reqHost, err := m.ApiReqHost(bucket)
+	reqHost, err := m.z0ApiHost()
 	if err != nil {
 		return
 	}
@@ -585,6 +585,16 @@ func (m *BucketManager) ApiHost(bucket string) (apiHost string, err error) {
 	return
 }
 
+func (m *BucketManager) z0ApiHost() (apiHost string, err error) {
+	region, err := getRegionByRegionId("z0", m.Mac)
+	if err != nil {
+		return
+	}
+
+	apiHost = region.GetApiHost(m.Cfg.UseHTTPS)
+	return
+}
+
 func (m *BucketManager) Zone(bucket string) (z *Zone, err error) {
 
 	if m.Cfg.Zone != nil {
@@ -715,7 +725,7 @@ func EncodedEntryWithoutKey(bucket string) string {
 	return base64.URLEncoding.EncodeToString([]byte(bucket))
 }
 
-// MakePublicURL 用来生成公开空间资源下载链接
+// MakePublicURL 用来生成公开空间资源下载链接，注意该方法并不会对 key 进行 escape
 func MakePublicURL(domain, key string) (finalUrl string) {
 	domain = strings.TrimRight(domain, "/")
 	srcUrl := fmt.Sprintf("%s/%s", domain, key)
@@ -724,7 +734,36 @@ func MakePublicURL(domain, key string) (finalUrl string) {
 	return
 }
 
-// MakePrivateURL 用来生成私有空间资源下载链接
+// MakePublicURLv2 用来生成公开空间资源下载链接，并且该方法确保 key 将会被 escape
+func MakePublicURLv2(domain, key string) string {
+	return MakePublicURLv2WithQuery(domain, key, nil)
+}
+
+// MakePublicURLv2WithQuery 用来生成公开空间资源下载链接，并且该方法确保 key 将会被 escape，并在 URL 后追加经过编码的查询参数
+func MakePublicURLv2WithQuery(domain, key string, query url.Values) string {
+	var rawQuery string
+	if query != nil {
+		rawQuery = query.Encode()
+	}
+	return makePublicURLv2WithRawQuery(domain, key, rawQuery)
+}
+
+// MakePublicURLv2WithQueryString 用来生成公开空间资源下载链接，并且该方法确保 key 将会被 escape，并在 URL 后直接追加查询参数
+func makePublicURLv2WithQueryString(domain, key, query string) string {
+	return makePublicURLv2WithRawQuery(domain, key, urlEncodeQuery(query))
+}
+
+func makePublicURLv2WithRawQuery(domain, key, rawQuery string) string {
+	domain = strings.TrimRight(domain, "/")
+	srcUrl := fmt.Sprintf("%s/%s", domain, urlEncodeQuery(key))
+	if rawQuery != "" {
+		srcUrl += "?" + rawQuery
+	}
+	srcUri, _ := url.Parse(srcUrl)
+	return srcUri.String()
+}
+
+// MakePrivateURL 用来生成私有空间资源下载链接，注意该方法并不会对 key 进行 escape
 func MakePrivateURL(mac *auth.Credentials, domain, key string, deadline int64) (privateURL string) {
 	publicURL := MakePublicURL(domain, key)
 	urlToSign := publicURL
@@ -736,6 +775,46 @@ func MakePrivateURL(mac *auth.Credentials, domain, key string, deadline int64) (
 	token := mac.Sign([]byte(urlToSign))
 	privateURL = fmt.Sprintf("%s&token=%s", urlToSign, token)
 	return
+}
+
+// MakePrivateURLv2 用来生成私有空间资源下载链接，并且该方法确保 key 将会被 escape
+func MakePrivateURLv2(mac *auth.Credentials, domain, key string, deadline int64) (privateURL string) {
+	return MakePrivateURLv2WithQuery(mac, domain, key, nil, deadline)
+}
+
+// MakePrivateURLv2WithQuery 用来生成私有空间资源下载链接，并且该方法确保 key 将会被 escape，并在 URL 后追加经过编码的查询参数
+func MakePrivateURLv2WithQuery(mac *auth.Credentials, domain, key string, query url.Values, deadline int64) (privateURL string) {
+	var rawQuery string
+	if query != nil {
+		rawQuery = query.Encode()
+	}
+	return makePrivateURLv2WithRawQuery(mac, domain, key, rawQuery, deadline)
+}
+
+// MakePrivateURLv2WithQueryString 用来生成私有空间资源下载链接，并且该方法确保 key 将会被 escape，并在 URL 后直接追加查询参数
+func MakePrivateURLv2WithQueryString(mac *auth.Credentials, domain, key, query string, deadline int64) (privateURL string) {
+	return makePrivateURLv2WithRawQuery(mac, domain, key, urlEncodeQuery(query), deadline)
+}
+
+func makePrivateURLv2WithRawQuery(mac *auth.Credentials, domain, key, rawQuery string, deadline int64) (privateURL string) {
+	publicURL := makePublicURLv2WithRawQuery(domain, key, rawQuery)
+	urlToSign := publicURL
+	if strings.Contains(publicURL, "?") {
+		urlToSign = fmt.Sprintf("%s&e=%d", urlToSign, deadline)
+	} else {
+		urlToSign = fmt.Sprintf("%s?e=%d", urlToSign, deadline)
+	}
+	token := mac.Sign([]byte(urlToSign))
+	privateURL = fmt.Sprintf("%s&token=%s", urlToSign, token)
+	return
+}
+
+func urlEncodeQuery(str string) (ret string) {
+	str = url.QueryEscape(str)
+	str = strings.Replace(str, "%2F", "/", -1)
+	str = strings.Replace(str, "%7C", "|", -1)
+	str = strings.Replace(str, "+", "%20", -1)
+	return str
 }
 
 type listFilesRet2 struct {

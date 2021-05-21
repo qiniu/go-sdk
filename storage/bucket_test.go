@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -15,14 +16,12 @@ import (
 )
 
 var (
-	testAK                  = os.Getenv("accessKey")
-	testSK                  = os.Getenv("secretKey")
-	testBucket              = os.Getenv("QINIU_TEST_BUCKET")
-	testBucketPrivate       = os.Getenv("QINIU_TEST_BUCKET_PRIVATE")
-	testBucketDomain        = os.Getenv("QINIU_TEST_DOMAIN")
-	testBucketPrivateDomain = os.Getenv("QINIU_TEST_DOMAIN_PRIVATE")
-	testPipeline            = os.Getenv("QINIU_TEST_PIPELINE")
-	testDebug               = os.Getenv("QINIU_SDK_DEBUG")
+	testAK           = os.Getenv("accessKey")
+	testSK           = os.Getenv("secretKey")
+	testBucket       = os.Getenv("QINIU_TEST_BUCKET")
+	testBucketDomain = os.Getenv("QINIU_TEST_DOMAIN")
+	testPipeline     = os.Getenv("QINIU_TEST_PIPELINE")
+	testDebug        = os.Getenv("QINIU_SDK_DEBUG")
 
 	testKey      = "qiniu.png"
 	testFetchUrl = "http://devtools.qiniu.com/qiniu.png"
@@ -53,7 +52,6 @@ func init() {
 	}
 	mac = auth.New(testAK, testSK)
 	cfg := Config{}
-	cfg.Zone = &Zone_z0
 	cfg.UseCdnDomains = true
 	bucketManager = NewBucketManagerEx(mac, &cfg, &clt)
 	operationManager = NewOperationManagerEx(mac, &cfg, &clt)
@@ -223,7 +221,8 @@ func TestChangeMime(t *testing.T) {
 }
 
 func TestChangeType(t *testing.T) {
-	toChangeKey := fmt.Sprintf("%s_changeType_%d", testKey, rand.Int())
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	toChangeKey := fmt.Sprintf("%s_changeType_%d", testKey, r.Int())
 	bucketManager.Copy(testBucket, testKey, testBucket, toChangeKey, true)
 	fileType := 1
 	err := bucketManager.ChangeType(testBucket, toChangeKey, fileType)
@@ -239,7 +238,8 @@ func TestChangeType(t *testing.T) {
 }
 
 func TestRestoreAr(t *testing.T) {
-	toRestoreArKey := fmt.Sprintf("%s_RestoreAr_%d", testKey, rand.Int())
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	toRestoreArKey := fmt.Sprintf("%s_RestoreAr_%d", testKey, r.Int())
 	bucketManager.Copy(testBucket, testKey, testBucket, toRestoreArKey, true)
 	fileType := 2
 	err := bucketManager.ChangeType(testBucket, toRestoreArKey, fileType)
@@ -310,25 +310,6 @@ func TestListFiles(t *testing.T) {
 		t.Logf("ListItem:\n%s", entry.String())
 	}
 }
-
-/*
-
-CDN 节点经常超时
-func TestMakePrivateUrl(t *testing.T) {
-	deadline := time.Now().Add(time.Second * 3600).Unix()
-	privateURL := MakePrivateURL(mac, "http://"+testBucketPrivateDomain, testKey, deadline)
-	t.Logf("PrivateUrl: %s", privateURL)
-	resp, respErr := clt.Get(privateURL)
-	if respErr != nil {
-		t.Fatalf("MakePrivateUrl() error, %s", respErr)
-	}
-
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("MakePrivateUrl() error, %s", resp.Status)
-	}
-}
-*/
 
 func TestBatch(t *testing.T) {
 	copyCnt := 100
@@ -409,14 +390,14 @@ func TestBucketInfosInRegion(t *testing.T) {
 
 func TestRefererAntiLeechMode(t *testing.T) {
 	cfgs := []*ReferAntiLeechConfig{
-		&ReferAntiLeechConfig{
+		{
 			Mode: 0, // 关闭referer防盗链
 		},
-		&ReferAntiLeechConfig{
+		{
 			Mode:    1, // 开启referer白名单
 			Pattern: "*.qiniu.com",
 		},
-		&ReferAntiLeechConfig{
+		{
 			Mode:    2, // 开启referer黑名单
 			Pattern: "*.qiniu.com",
 		},
@@ -526,7 +507,7 @@ func TestBucketEventRule(t *testing.T) {
 
 func TestCorsRules(t *testing.T) {
 	err := bucketManager.AddCorsRules(testBucket, []CorsRule{
-		CorsRule{
+		{
 			AllowedOrigin: []string{"http://www.test1.com"},
 			AllowedMethod: []string{"GET", "POST"},
 		},
@@ -601,5 +582,57 @@ func TestSetBucketAccessMode(t *testing.T) {
 	err = bucketManager.MakeBucketPublic(testBucket)
 	if err != nil {
 		t.Fatalf("TestSetBucketAccessMode: %q\n", err)
+	}
+}
+
+func TestMakeURL(t *testing.T) {
+	keys := map[string]string{ //rawKey => encodeKey,
+		"":            "",
+		"abc_def.mp4": "abc_def.mp4",
+		"/ab/cd":      "/ab/cd",
+		"ab/中文/de":    "ab/%E4%B8%AD%E6%96%87/de",
+		// "ab+-*de f":   "ab%2B-%2Ade%20f",
+		"ab:cd": "ab%3Acd",
+		// "ab@cd":            "ab%40cd",
+		"ab?cd=ef":  "ab%3Fcd%3Def",
+		"ab#e~f":    "ab%23e~f",
+		"ab//cd":    "ab//cd",
+		"abc%2F%2B": "abc%252F%252B",
+		"ab cd":     "ab%20cd",
+		// "ab/c:d?e#f//gh汉子": "ab/c%3Ad%3Fe%23f//gh%E6%B1%89%E5%AD%90",
+	}
+	s := MakePublicURL("https://abc.com:123/", "123/def?@#")
+	if s != "https://abc.com:123/123/def?@" {
+		t.Fatalf("TestMakeURL: %q\n", s)
+	}
+
+	s = MakePublicURL("abc.com:123/", "123/def?@#")
+	if s != "abc.com:123/123/def?@" {
+		t.Fatalf("TestMakeURL: %q\n", s)
+	}
+
+	q := make(url.Values)
+	q.Add("?", "#")
+	s = MakePublicURLv2WithQuery("https://abc.com:123/", "123/def?@#", q)
+	if s != "https://abc.com:123/123/def%3F%40%23?%3F=%23" {
+		t.Fatalf("TestMakeURL: %q\n", s)
+	}
+
+	s = makePublicURLv2WithQueryString("http://abc.com:123/", "123/def?@#|", "123/def?@#|")
+	if s != "http://abc.com:123/123/def%3F@%23%7C?123/def%3F%40%23|" {
+		t.Fatalf("TestMakeURL: %q\n", s)
+	}
+
+	s = MakePublicURLv2("http://abc.com:123/", "123/def?@#")
+	if s != "http://abc.com:123/123/def%3F%40%23" {
+		t.Fatalf("TestMakeURL: %q\n", s)
+	}
+
+	for rawKey, encodedKey := range keys {
+		s = MakePublicURLv2("http://abc.com:123/", rawKey)
+		e := "http://abc.com:123/" + encodedKey
+		if s != e {
+			t.Fatalf("TestMakeURL: %q %q\n", s, e)
+		}
 	}
 }
