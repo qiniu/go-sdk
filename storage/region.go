@@ -236,17 +236,17 @@ var (
 )
 
 func getUcHostByDefaultProtocol() string {
-	return getUcHost(true);
+	return getUcHost(true)
 }
 
 func getUcHost(useHttps bool) string {
 	if strings.Contains(UcHost, "://") {
-		return UcHost;
+		return UcHost
 	} else {
 		if useHttps {
-			return "https://" + UcHost;
+			return "https://" + UcHost
 		} else {
-			return "http://" + UcHost;
+			return "http://" + UcHost
 		}
 	}
 }
