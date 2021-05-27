@@ -95,7 +95,7 @@ func TestPutWithSizeV2(t *testing.T) {
 			testKey := fmt.Sprintf("testRPutFileV2Key_%d", r.Int())
 			err := resumeUploaderV2.Put(context.Background(), &putRet, upToken, testKey, bytes.NewReader(data), size, &RputV2Extra{
 				PartSize: partSize,
-				UpHost: upHost,
+				UpHost:   upHost,
 				Notify: func(partNumber int64, ret *UploadPartsRet) {
 					t.Logf("Notify: partNumber: %d, ret: %#v", partNumber, ret)
 				},

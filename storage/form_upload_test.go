@@ -26,13 +26,13 @@ func TestFormUploadPutFile(t *testing.T) {
 	defer os.Remove(testLocalFile.Name())
 
 	upToken := putPolicy.UploadToken(mac)
-	upHosts := []string {testUpHost, "https://" + testUpHost, ""}
+	upHosts := []string{testUpHost, "https://" + testUpHost, ""}
 	for _, upHost := range upHosts {
 		r := rand.New(rand.NewSource(time.Now().UnixNano()))
 		testKey := fmt.Sprintf("testPutFileKey_%d", r.Int())
 
 		err = formUploader.PutFile(ctx, &putRet, upToken, testKey, testLocalFile.Name(), &PutExtra{
-			UpHost:upHost,
+			UpHost: upHost,
 		})
 		if err != nil {
 			t.Fatalf("FormUploader#PutFile() error, %s", err)
