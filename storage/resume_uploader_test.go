@@ -104,8 +104,18 @@ func TestPutWithSize(t *testing.T) {
 	}
 	chunkSizes := []int{0, 1 << 20}
 
+	hostSelector := 0
 	for _, chunkSize := range chunkSizes {
+		hostSelector += 1
 		for _, size := range sizes {
+			hostSelector += 1
+			upHost := ""
+			if hostSelector%3 == 1 {
+				upHost = testUpHost
+			} else {
+				upHost = "https://" + testUpHost
+			}
+
 			data := make([]byte, size)
 			if _, err := io.ReadFull(r, data); err != nil {
 				t.Fatal(err)
@@ -113,6 +123,7 @@ func TestPutWithSize(t *testing.T) {
 			testKey := fmt.Sprintf("testRPutFileKey_%d", r.Int())
 			err := resumeUploader.Put(context.Background(), &putRet, upToken, testKey, bytes.NewReader(data), size, &RputExtra{
 				ChunkSize: chunkSize,
+				UpHost:    upHost,
 				Notify: func(blkIdx int, blkSize int, ret *BlkputRet) {
 					t.Logf("Notify: blkIdx: %d, blkSize: %d, ret: %#v", blkIdx, blkSize, ret)
 				},
