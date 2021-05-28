@@ -28,6 +28,7 @@ jobs:
           QINIU_TEST_BUCKET: ${{ secrets.QINIU_TEST_BUCKET }}
           QINIU_TEST_DOMAIN: ${{ secrets.QINIU_TEST_DOMAIN }}
           QINIU_TEST_PIPELINE: ${{ secrets.QINIU_TEST_PIPELINE }}
+          QINIU_TEST_UP_HOST: ${{ secrets.QINIU_TEST_UP_HOST }}
       - name: Upload coverage.txt
         run: |
           bash <(curl -s https://codecov.io/bash) -f coverage.txt
@@ -61,6 +62,7 @@ jobs:
           QINIU_TEST_BUCKET: ${{ secrets.QINIU_TEST_BUCKET }}
           QINIU_TEST_DOMAIN: ${{ secrets.QINIU_TEST_DOMAIN }}
           QINIU_TEST_PIPELINE: ${{ secrets.QINIU_TEST_PIPELINE }}
+          QINIU_TEST_UP_HOST: ${{ secrets.QINIU_TEST_UP_HOST }}
           GO111MODULE: 'on'
       - name: Upload coverage.txt
         run: |

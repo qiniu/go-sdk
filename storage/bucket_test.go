@@ -22,6 +22,7 @@ var (
 	testBucketDomain = os.Getenv("QINIU_TEST_DOMAIN")
 	testPipeline     = os.Getenv("QINIU_TEST_PIPELINE")
 	testDebug        = os.Getenv("QINIU_SDK_DEBUG")
+	testUpHost       = os.Getenv("QINIU_TEST_UP_HOST")
 
 	testKey      = "qiniu.png"
 	testFetchUrl = "http://devtools.qiniu.com/qiniu.png"

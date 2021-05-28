@@ -31,6 +31,10 @@ type PutExtra struct {
 	OnProgress func(fsize, uploaded int64)
 }
 
+func (extra *PutExtra) getUpHost() string {
+	return hostAddSchemeIfNeeded(true, extra.UpHost)
+}
+
 // PutRet 为七牛标准的上传回复内容。
 // 如果使用了上传回调或者自定义了returnBody，那么需要根据实际情况，自己自定义一个返回值结构体
 type PutRet struct {
@@ -166,7 +170,7 @@ func (p *FormUploader) put(
 		extra = &PutExtra{}
 	}
 	if extra.UpHost != "" {
-		upHost = extra.UpHost
+		upHost = extra.getUpHost()
 	} else if upHost, err = p.getUpHostFromUploadToken(uptoken); err != nil {
 		return
 	}

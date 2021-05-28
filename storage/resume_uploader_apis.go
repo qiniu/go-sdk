@@ -55,6 +55,10 @@ type RputExtra struct {
 	NotifyErr  func(blkIdx int, blkSize int, err error)
 }
 
+func (extra *RputExtra) getUpHost() string {
+	return hostAddSchemeIfNeeded(true, extra.UpHost)
+}
+
 func (p *resumeUploaderAPIs) mkfile(ctx context.Context, upToken, upHost string, ret interface{}, key string, hasKey bool, fsize int64, extra *RputExtra) (err error) {
 	url := upHost + "/mkfile/" + strconv.FormatInt(fsize, 10)
 	if extra == nil {
@@ -121,6 +125,20 @@ type RputV2Extra struct {
 	Progresses []UploadPartInfo                            // 上传进度
 	Notify     func(partNumber int64, ret *UploadPartsRet) // 可选。进度提示（注意多个block是并行传输的）
 	NotifyErr  func(partNumber int64, err error)
+}
+
+func hostAddSchemeIfNeeded(useHttps bool, host string) string {
+	if host == "" {
+		return ""
+	} else if strings.Contains(host, "://") {
+		return host
+	} else {
+		return endpoint(true, host)
+	}
+}
+
+func (extra *RputV2Extra) getUpHost() string {
+	return hostAddSchemeIfNeeded(true, extra.UpHost)
 }
 
 func (p *resumeUploaderAPIs) completeParts(ctx context.Context, upToken, upHost string, ret interface{}, bucket, key string, hasKey bool, uploadId string, extra *RputV2Extra) (err error) {
