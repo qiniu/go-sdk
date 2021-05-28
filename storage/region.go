@@ -209,7 +209,8 @@ var regionMap = map[RegionID]Region{
 var UcHost = "https://uc.qbox.me"
 
 var ucHost = ""
-func SetUcHost(host string, useHttps bool)  {
+
+func SetUcHost(host string, useHttps bool) {
 	ucHost = endpoint(useHttps, host)
 }
 
