@@ -202,8 +202,33 @@ var regionMap = map[RegionID]Region{
 	RIDFogCnEast1:   regionFogCnEast1,
 }
 
-// UcHost 为查询空间相关域名的API服务地址
+/// UcHost 为查询空间相关域名的API服务地址
+/// 设置 UcHost 时，如果不指定 scheme 默认会使用 https
+/// UcHost 已废弃，建议使用 SetUcHost
+//Deprecated
 var UcHost = "https://uc.qbox.me"
+
+var ucHost = ""
+
+func SetUcHost(host string, useHttps bool) {
+	ucHost = endpoint(useHttps, host)
+}
+
+func getUcHostByDefaultProtocol() string {
+	return getUcHost(true)
+}
+
+func getUcHost(useHttps bool) string {
+	if ucHost != "" {
+		return ucHost
+	}
+
+	if strings.Contains(UcHost, "://") {
+		return UcHost
+	} else {
+		return endpoint(useHttps, UcHost)
+	}
+}
 
 // UcQueryRet 为查询请求的回复
 type UcQueryRet struct {
@@ -234,22 +259,6 @@ var (
 	regionCacheGroup    singleflight.Group
 	regionCacheLoaded   bool = false
 )
-
-func getUcHostByDefaultProtocol() string {
-	return getUcHost(true)
-}
-
-func getUcHost(useHttps bool) string {
-	if strings.Contains(UcHost, "://") {
-		return UcHost
-	} else {
-		if useHttps {
-			return "https://" + UcHost
-		} else {
-			return "http://" + UcHost
-		}
-	}
-}
 
 func SetRegionCachePath(newPath string) {
 	regionCacheLock.Lock()

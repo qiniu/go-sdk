@@ -55,8 +55,8 @@ type RputExtra struct {
 	NotifyErr  func(blkIdx int, blkSize int, err error)
 }
 
-func (extra *RputExtra) getUpHost() string {
-	return hostAddSchemeIfNeeded(true, extra.UpHost)
+func (extra *RputExtra) getUpHost(useHttps bool) string {
+	return hostAddSchemeIfNeeded(useHttps, extra.UpHost)
 }
 
 func (p *resumeUploaderAPIs) mkfile(ctx context.Context, upToken, upHost string, ret interface{}, key string, hasKey bool, fsize int64, extra *RputExtra) (err error) {
@@ -137,8 +137,8 @@ func hostAddSchemeIfNeeded(useHttps bool, host string) string {
 	}
 }
 
-func (extra *RputV2Extra) getUpHost() string {
-	return hostAddSchemeIfNeeded(true, extra.UpHost)
+func (extra *RputV2Extra) getUpHost(useHttps bool) string {
+	return hostAddSchemeIfNeeded(useHttps, extra.UpHost)
 }
 
 func (p *resumeUploaderAPIs) completeParts(ctx context.Context, upToken, upHost string, ret interface{}, bucket, key string, hasKey bool, uploadId string, extra *RputV2Extra) (err error) {
