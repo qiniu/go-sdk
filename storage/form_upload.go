@@ -31,8 +31,8 @@ type PutExtra struct {
 	OnProgress func(fsize, uploaded int64)
 }
 
-func (extra *PutExtra) getUpHost() string {
-	return hostAddSchemeIfNeeded(true, extra.UpHost)
+func (extra *PutExtra) getUpHost(useHttps bool) string {
+	return hostAddSchemeIfNeeded(useHttps, extra.UpHost)
 }
 
 // PutRet 为七牛标准的上传回复内容。
@@ -170,7 +170,7 @@ func (p *FormUploader) put(
 		extra = &PutExtra{}
 	}
 	if extra.UpHost != "" {
-		upHost = extra.getUpHost()
+		upHost = extra.getUpHost(p.Cfg.UseHTTPS)
 	} else if upHost, err = p.getUpHostFromUploadToken(uptoken); err != nil {
 		return
 	}
