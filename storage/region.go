@@ -415,7 +415,7 @@ func getRegionByRegionId(regionId string, credentials *auth.Credentials) (region
 		if v, ok := regionIdCache[regionId]; ok {
 			return v, nil
 		}
-		reqURL := fmt.Sprintf("%s/regions", UcHost)
+		reqURL := fmt.Sprintf("%s/regions", getUcHostByDefaultProtocol())
 		var ret ucRegionsRet
 		ctx := context.TODO()
 		qErr := client.DefaultClient.CredentialedCallWithForm(ctx, credentials, auth.TokenQiniu, &ret, "GET", reqURL, nil, nil)
