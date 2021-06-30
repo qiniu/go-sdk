@@ -25,6 +25,9 @@ func init() {
 
 func TestApp(t *testing.T) {
 	app := checkCreateApp(t)
+	defer func() {
+		checkDel(t, app.AppID)
+	}()
 	checkGetApp(t, app.AppID)
 	rooms := checkAllActiveRooms(t, app.AppID)
 	room := "roomName"
@@ -39,7 +42,6 @@ func TestApp(t *testing.T) {
 	checkKickUser(t, app.AppID, room, userID)
 	checkUpdate(t, app.AppID)
 	checkRoomToken(t, app.AppID)
-	checkDel(t, app.AppID)
 }
 
 func checkApp(t *testing.T, app *App) {
