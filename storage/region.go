@@ -238,6 +238,23 @@ type UcQueryRet struct {
 	Up     map[string]UcQueryUp `json:"up"`
 }
 
+func (uc *UcQueryRet)UnmarshalJSON(data []byte) error {
+	t := struct {
+		TTL    int `json:"ttl"`
+		IoInfo map[string]UcQueryIo `json:"io"`
+		Up     map[string]UcQueryUp `json:"up"`
+	}{}
+	if err := json.Unmarshal(data, &t); err != nil {
+		return err
+	}
+
+	uc.TTL = t.TTL
+	uc.IoInfo = t.IoInfo
+	uc.Up = t.Up
+	uc.setup()
+	return nil
+}
+
 func (uc *UcQueryRet) setup() {
 	if uc.Io != nil || uc.IoInfo == nil {
 		return
@@ -377,8 +394,6 @@ func GetRegion(ak, bucket string) (*Region, error) {
 		if err != nil {
 			return nil, fmt.Errorf("query region error, %s", err.Error())
 		}
-
-		ret.setup()
 
 		if len(ret.Io["src"]["main"]) <= 0 {
 			return nil, fmt.Errorf("empty io host list")
