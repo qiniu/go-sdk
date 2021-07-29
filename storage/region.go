@@ -238,9 +238,9 @@ type UcQueryRet struct {
 	Up     map[string]UcQueryUp `json:"up"`
 }
 
-func (uc *UcQueryRet)UnmarshalJSON(data []byte) error {
+func (uc *UcQueryRet) UnmarshalJSON(data []byte) error {
 	t := struct {
-		TTL    int `json:"ttl"`
+		TTL    int                  `json:"ttl"`
 		IoInfo map[string]UcQueryIo `json:"io"`
 		Up     map[string]UcQueryUp `json:"up"`
 	}{}
