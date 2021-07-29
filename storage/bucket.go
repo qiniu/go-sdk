@@ -37,6 +37,7 @@ type FileInfo struct {
 	PutTime  int64  `json:"putTime"`
 	MimeType string `json:"mimeType"`
 	Type     int    `json:"type"`
+	Status   int    `json:"status"`
 }
 
 func (f *FileInfo) String() string {
@@ -46,6 +47,7 @@ func (f *FileInfo) String() string {
 	str += fmt.Sprintf("PutTime:  %d\n", f.PutTime)
 	str += fmt.Sprintf("MimeType: %s\n", f.MimeType)
 	str += fmt.Sprintf("Type:     %d\n", f.Type)
+	str += fmt.Sprintf("Status:   %d\n", f.Status)
 	return str
 }
 
