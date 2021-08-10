@@ -76,7 +76,8 @@ func TestGetZone(t *testing.T) {
 
 // TestCreate 测试创建空间的功能
 func TestCreate(t *testing.T) {
-	const bucketName = "gosdk-test111111111"
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	bucketName := fmt.Sprintf("gosdk-test-%d", r.Int())
 	bucketManager.DropBucket(bucketName)
 	err := bucketManager.CreateBucket(bucketName, RIDHuadong)
 	bucketManager.DropBucket(bucketName)
@@ -578,11 +579,20 @@ func TestSetBucketMaxAge(t *testing.T) {
 }
 
 func TestSetBucketAccessMode(t *testing.T) {
-	err := bucketManager.MakeBucketPrivate(testBucket)
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	bucketName := fmt.Sprintf("gosdk-test-%d", r.Int())
+	bucketManager.DropBucket(bucketName)
+	err := bucketManager.CreateBucket(bucketName, RIDHuadong)
+	if err != nil {
+		t.Fatalf("CreateBucket() error: %v\n", err)
+	}
+	defer bucketManager.DropBucket(bucketName)
+
+	err = bucketManager.MakeBucketPrivate(bucketName)
 	if err != nil {
 		t.Fatalf("TestSetBucketAccessMode: %q\n", err)
 	}
-	err = bucketManager.MakeBucketPublic(testBucket)
+	err = bucketManager.MakeBucketPublic(bucketName)
 	if err != nil {
 		t.Fatalf("TestSetBucketAccessMode: %q\n", err)
 	}
