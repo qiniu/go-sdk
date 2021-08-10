@@ -1,3 +1,5 @@
+// +build unit
+
 package storage
 
 import (
@@ -15,6 +17,7 @@ import (
 
 func TestResignToken(t *testing.T) {
 	p := PutPolicy{}
+	mac := auth.New("accessKeyAccessKey", "secretKeySecretKey")
 	token1 := p.UploadToken(mac)
 	token2 := p.UploadToken(mac)
 	if token1 != token2 {

@@ -52,7 +52,12 @@ jobs:
           go-version: ${{ matrix.go_version }}
       - name: Format
         run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
-      - name: Run cases
+      - name: Run unit cases
+        run: |
+          make unittest
+        env:
+          GO111MODULE: 'on'
+      - name: Run all cases
         run: |
           make test
         env:

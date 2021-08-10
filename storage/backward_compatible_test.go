@@ -1,10 +1,13 @@
+// +build unit
+
 package storage
 
 import (
 	"fmt"
-	"github.com/qiniu/go-sdk/v7/conf"
 	"runtime"
 	"testing"
+
+	"github.com/qiniu/go-sdk/v7/conf"
 )
 
 func TestVariable(t *testing.T) {
