@@ -1,8 +1,18 @@
-on: [push]
+on:
+  push:
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    paths-ignore:
+      - '**.md'
 name: Run Test Cases
 jobs:
   go-path-test:
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2
@@ -15,23 +25,11 @@ jobs:
           go-version: '1.10.x'
       - name: Format
         run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
-      - name: Run cases
+      - name: Run unit cases
         run: |
           GOPATH=$GITHUB_WORKSPACE go get github.com/qiniu/x
           GOPATH=$GITHUB_WORKSPACE go get golang.org/x/sync/singleflight
-          GOPATH=$GITHUB_WORKSPACE make test
-        working-directory: src/github.com/qiniu/go-sdk
-        env:
-          accessKey: ${{ secrets.ACCESSKEY }}
-          secretKey: ${{ secrets.SECRETKEY }}
-          QINIU_KODO_TEST: '1'
-          QINIU_TEST_BUCKET: ${{ secrets.QINIU_TEST_BUCKET }}
-          QINIU_TEST_DOMAIN: ${{ secrets.QINIU_TEST_DOMAIN }}
-          QINIU_TEST_PIPELINE: ${{ secrets.QINIU_TEST_PIPELINE }}
-          QINIU_TEST_UP_HOST: ${{ secrets.QINIU_TEST_UP_HOST }}
-      - name: Upload coverage.txt
-        run: |
-          bash <(curl -s https://codecov.io/bash) -f coverage.txt
+          GOPATH=$GITHUB_WORKSPACE make unittest
         working-directory: src/github.com/qiniu/go-sdk
   go-mod-test:
     needs: 'go-path-test'
@@ -41,6 +39,10 @@ jobs:
       matrix:
         go_version: ['1.11.x', '1.12.x', '1.13.x', '1.14.x', '1.15.x', '1.16.x']
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2
@@ -57,18 +59,3 @@ jobs:
           make unittest
         env:
           GO111MODULE: 'on'
-      - name: Run all cases
-        run: |
-          make test
-        env:
-          accessKey: ${{ secrets.ACCESSKEY }}
-          secretKey: ${{ secrets.SECRETKEY }}
-          QINIU_KODO_TEST: '1'
-          QINIU_TEST_BUCKET: ${{ secrets.QINIU_TEST_BUCKET }}
-          QINIU_TEST_DOMAIN: ${{ secrets.QINIU_TEST_DOMAIN }}
-          QINIU_TEST_PIPELINE: ${{ secrets.QINIU_TEST_PIPELINE }}
-          QINIU_TEST_UP_HOST: ${{ secrets.QINIU_TEST_UP_HOST }}
-          GO111MODULE: 'on'
-      - name: Upload coverage.txt
-        run: |
-          bash <(curl -s https://codecov.io/bash) -f coverage.txt
