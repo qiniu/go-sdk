@@ -1,7 +1,5 @@
 test:
-	go test -failfast -v -timeout 350m -coverprofile=coverage.txt `go list ./... | grep -E  'auth|conf|cdn|storage|rtc|internal'`
+	go test -tags='unit integration' -failfast -v -timeout 350m -coverprofile=coverage.txt `go list ./... | egrep -v 'examples|sms'`
 
 unittest:
-	go test -race -v ./auth/...
-	go test -race -v ./conf/...
-	go test -race -v ./internal/...
+	go test -tags=unit -failfast -v -coverprofile=coverage.txt `go list ./... | egrep -v 'examples|sms'`
