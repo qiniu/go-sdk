@@ -232,9 +232,44 @@ func getUcHost(useHttps bool) string {
 
 // UcQueryRet 为查询请求的回复
 type UcQueryRet struct {
-	TTL int                            `json:"ttl"`
-	Io  map[string]map[string][]string `json:"io"`
-	Up  map[string]UcQueryUp           `json:"up"`
+	TTL    int `json:"ttl"`
+	Io     map[string]map[string][]string
+	IoInfo map[string]UcQueryIo `json:"io"`
+	Up     map[string]UcQueryUp `json:"up"`
+}
+
+func (uc *UcQueryRet) UnmarshalJSON(data []byte) error {
+	t := struct {
+		TTL    int                  `json:"ttl"`
+		IoInfo map[string]UcQueryIo `json:"io"`
+		Up     map[string]UcQueryUp `json:"up"`
+	}{}
+	if err := json.Unmarshal(data, &t); err != nil {
+		return err
+	}
+
+	uc.TTL = t.TTL
+	uc.IoInfo = t.IoInfo
+	uc.Up = t.Up
+	uc.setup()
+	return nil
+}
+
+func (uc *UcQueryRet) setup() {
+	if uc.Io != nil || uc.IoInfo == nil {
+		return
+	}
+
+	uc.Io = make(map[string]map[string][]string)
+	ioSrc := uc.IoInfo["src"].toMapWithoutInfo()
+	if ioSrc != nil && len(ioSrc) > 0 {
+		uc.Io["src"] = ioSrc
+	}
+
+	ioOldSrc := uc.IoInfo["old_src"].toMapWithoutInfo()
+	if ioOldSrc != nil && len(ioOldSrc) > 0 {
+		uc.Io["old_src"] = ioOldSrc
+	}
 }
 
 // UcQueryUp 为查询请求回复中的上传域名信息
@@ -242,6 +277,27 @@ type UcQueryUp struct {
 	Main   []string `json:"main,omitempty"`
 	Backup []string `json:"backup,omitempty"`
 	Info   string   `json:"info,omitempty"`
+}
+
+// UcQueryIo 为查询请求回复中的上传域名信息
+type UcQueryIo struct {
+	Main   []string `json:"main,omitempty"`
+	Backup []string `json:"backup,omitempty"`
+	Info   string   `json:"info,omitempty"`
+}
+
+func (io UcQueryIo) toMapWithoutInfo() map[string][]string {
+
+	ret := make(map[string][]string)
+	if io.Main != nil && len(io.Main) > 0 {
+		ret["main"] = io.Main
+	}
+
+	if io.Backup != nil && len(io.Backup) > 0 {
+		ret["backup"] = io.Backup
+	}
+
+	return ret
 }
 
 type regionCacheValue struct {
