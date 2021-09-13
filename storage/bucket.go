@@ -38,6 +38,7 @@ type FileInfo struct {
 	MimeType string  `json:"mimeType"`
 	Type     int     `json:"type"`
 	Parts    []int64 `json:"parts"`
+	Status   int     `json:"status"`
 }
 
 func (f *FileInfo) String() string {
@@ -47,6 +48,7 @@ func (f *FileInfo) String() string {
 	str += fmt.Sprintf("PutTime:  %d\n", f.PutTime)
 	str += fmt.Sprintf("MimeType: %s\n", f.MimeType)
 	str += fmt.Sprintf("Type:     %d\n", f.Type)
+	str += fmt.Sprintf("Status:   %d\n", f.Status)
 	return str
 }
 
@@ -159,20 +161,20 @@ func (m *BucketManager) UpdateObjectStatus(bucketName string, key string, enable
 
 // CreateBucket 创建一个七牛存储空间
 func (m *BucketManager) CreateBucket(bucketName string, regionID RegionID) error {
-	reqURL := fmt.Sprintf("%s/mkbucketv3/%s/region/%s", UcHost, bucketName, string(regionID))
+	reqURL := fmt.Sprintf("%s/mkbucketv3/%s/region/%s", getUcHost(m.Cfg.UseHTTPS), bucketName, string(regionID))
 	return m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
 }
 
 // Buckets 用来获取空间列表，如果指定了 shared 参数为 true，那么一同列表被授权访问的空间
 func (m *BucketManager) Buckets(shared bool) (buckets []string, err error) {
-	reqURL := fmt.Sprintf("%s/buckets?shared=%v", UcHost, shared)
+	reqURL := fmt.Sprintf("%s/buckets?shared=%v", getUcHost(m.Cfg.UseHTTPS), shared)
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &buckets, "POST", reqURL, nil)
 	return
 }
 
 // DropBucket 删除七牛存储空间
 func (m *BucketManager) DropBucket(bucketName string) (err error) {
-	reqURL := fmt.Sprintf("%s/drop/%s", UcHost, bucketName)
+	reqURL := fmt.Sprintf("%s/drop/%s", getUcHost(m.Cfg.UseHTTPS), bucketName)
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
 	return
 }

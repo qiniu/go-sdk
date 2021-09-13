@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/qiniu/go-sdk/v7/client"
 	"hash"
 	"hash/crc32"
 	"io"
+	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -15,6 +15,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/qiniu/go-sdk/v7/client"
 )
 
 // PutExtra 为表单上传的额外可选项
@@ -29,6 +31,10 @@ type PutExtra struct {
 
 	// 上传事件：进度通知。这个事件的回调函数应该尽可能快地结束。
 	OnProgress func(fsize, uploaded int64)
+}
+
+func (extra *PutExtra) getUpHost(useHttps bool) string {
+	return hostAddSchemeIfNeeded(useHttps, extra.UpHost)
 }
 
 // PutRet 为七牛标准的上传回复内容。
@@ -166,28 +172,23 @@ func (p *FormUploader) put(
 		extra = &PutExtra{}
 	}
 	if extra.UpHost != "" {
-		upHost = extra.UpHost
+		upHost = extra.getUpHost(p.Cfg.UseHTTPS)
 	} else if upHost, err = p.getUpHostFromUploadToken(uptoken); err != nil {
 		return
 	}
 
-	var b bytes.Buffer
-	writer := multipart.NewWriter(&b)
-
-	if extra.OnProgress != nil {
-		data = &readerWithProgress{reader: data, fsize: size, onProgress: extra.OnProgress}
-	}
-
+	b := new(bytes.Buffer)
+	writer := multipart.NewWriter(b)
 	err = writeMultipart(writer, uptoken, key, hasKey, extra, fileName)
 	if err != nil {
 		return
 	}
 
 	var dataReader io.Reader
-
 	h := crc32.NewIEEE()
 	dataReader = io.TeeReader(data, h)
 	crcReader := newCrc32Reader(writer.Boundary(), h)
+	h = nil
 	//write file
 	head := make(textproto.MIMEHeader)
 	head.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`,
@@ -200,6 +201,7 @@ func (p *FormUploader) put(
 	if err != nil {
 		return
 	}
+	head = nil
 
 	lastLine := fmt.Sprintf("\r\n--%s--\r\n", writer.Boundary())
 	r := strings.NewReader(lastLine)
@@ -210,12 +212,41 @@ func (p *FormUploader) put(
 		bodyLen += crcReader.length()
 	}
 
-	mr := io.MultiReader(&b, dataReader, crcReader, r)
+	mr := io.MultiReader(b, dataReader, crcReader, r)
+	b = nil
+	dataReader = nil
+	crcReader = nil
+	r = nil
+
+	formBytes, err := ioutil.ReadAll(mr)
+	if err != nil {
+		return
+	}
+	mr = nil
+
+	getBodyReader := func() (io.Reader, error) {
+		var formReader io.Reader = bytes.NewReader(formBytes)
+		if extra.OnProgress != nil {
+			formReader = &readerWithProgress{reader: formReader, fsize: size, onProgress: extra.OnProgress}
+		}
+		return formReader, nil
+	}
+	getBodyReadCloser := func() (io.ReadCloser, error) {
+		reader, err := getBodyReader()
+		if err != nil {
+			return nil, err
+		}
+		return ioutil.NopCloser(reader), nil
+	}
+	bodyReader, err := getBodyReader()
+	if err != nil {
+		return
+	}
 
 	contentType := writer.FormDataContentType()
 	headers := http.Header{}
 	headers.Add("Content-Type", contentType)
-	err = p.Client.CallWith64(ctx, ret, "POST", upHost, headers, mr, bodyLen)
+	err = p.Client.CallWithBodyGetter(ctx, ret, "POST", upHost, headers, bodyReader, getBodyReadCloser, bodyLen)
 	if err != nil {
 		return
 	}
@@ -240,7 +271,7 @@ type crc32Reader struct {
 	h                hash.Hash32
 	boundary         string
 	r                io.Reader
-	flag             bool
+	inited           bool
 	nlDashBoundaryNl string
 	header           string
 	crc32PadLen      int64
@@ -259,11 +290,11 @@ func newCrc32Reader(boundary string, h hash.Hash32) *crc32Reader {
 }
 
 func (r *crc32Reader) Read(p []byte) (int, error) {
-	if r.flag == false {
+	if !r.inited {
 		crc32Sum := r.h.Sum32()
 		crc32Line := r.nlDashBoundaryNl + r.header + fmt.Sprintf("%010d", crc32Sum) //padding crc32 results to 10 digits
 		r.r = strings.NewReader(crc32Line)
-		r.flag = true
+		r.inited = true
 	}
 	return r.r.Read(p)
 }
@@ -290,6 +321,9 @@ func (p *readerWithProgress) Read(b []byte) (n int, err error) {
 
 	n, err = p.reader.Read(b)
 	p.uploaded += int64(n)
+	if p.uploaded > p.fsize {
+		p.uploaded = p.fsize
+	}
 	return
 }
 

@@ -1,3 +1,5 @@
+// +build integration
+
 package storage
 
 import (
@@ -26,12 +28,18 @@ func TestFormUploadPutFile(t *testing.T) {
 	defer os.Remove(testLocalFile.Name())
 
 	upToken := putPolicy.UploadToken(mac)
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	testKey := fmt.Sprintf("testPutFileKey_%d", r.Int())
+	upHosts := []string{testUpHost, "https://" + testUpHost, ""}
+	for _, upHost := range upHosts {
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
+		testKey := fmt.Sprintf("testPutFileKey_%d", r.Int())
 
-	err = formUploader.PutFile(ctx, &putRet, upToken, testKey, testLocalFile.Name(), nil)
-	if err != nil {
-		t.Fatalf("FormUploader#PutFile() error, %s", err)
+		err = formUploader.PutFile(ctx, &putRet, upToken, testKey, testLocalFile.Name(), &PutExtra{
+			UpHost: upHost,
+		})
+		if err != nil {
+			t.Fatalf("FormUploader#PutFile() error, %s", err)
+		}
+		t.Logf("Key: %s, Hash:%s", putRet.Key, putRet.Hash)
 	}
-	t.Logf("Key: %s, Hash:%s", putRet.Key, putRet.Hash)
+
 }

@@ -202,14 +202,74 @@ var regionMap = map[RegionID]Region{
 	RIDFogCnEast1:   regionFogCnEast1,
 }
 
-// UcHost 为查询空间相关域名的API服务地址
+/// UcHost 为查询空间相关域名的API服务地址
+/// 设置 UcHost 时，如果不指定 scheme 默认会使用 https
+/// UcHost 已废弃，建议使用 SetUcHost
+//Deprecated
 var UcHost = "https://uc.qbox.me"
+
+var ucHost = ""
+
+func SetUcHost(host string, useHttps bool) {
+	ucHost = endpoint(useHttps, host)
+}
+
+func getUcHostByDefaultProtocol() string {
+	return getUcHost(true)
+}
+
+func getUcHost(useHttps bool) string {
+	if ucHost != "" {
+		return ucHost
+	}
+
+	if strings.Contains(UcHost, "://") {
+		return UcHost
+	} else {
+		return endpoint(useHttps, UcHost)
+	}
+}
 
 // UcQueryRet 为查询请求的回复
 type UcQueryRet struct {
-	TTL int                            `json:"ttl"`
-	Io  map[string]map[string][]string `json:"io"`
-	Up  map[string]UcQueryUp           `json:"up"`
+	TTL    int `json:"ttl"`
+	Io     map[string]map[string][]string
+	IoInfo map[string]UcQueryIo `json:"io"`
+	Up     map[string]UcQueryUp `json:"up"`
+}
+
+func (uc *UcQueryRet) UnmarshalJSON(data []byte) error {
+	t := struct {
+		TTL    int                  `json:"ttl"`
+		IoInfo map[string]UcQueryIo `json:"io"`
+		Up     map[string]UcQueryUp `json:"up"`
+	}{}
+	if err := json.Unmarshal(data, &t); err != nil {
+		return err
+	}
+
+	uc.TTL = t.TTL
+	uc.IoInfo = t.IoInfo
+	uc.Up = t.Up
+	uc.setup()
+	return nil
+}
+
+func (uc *UcQueryRet) setup() {
+	if uc.Io != nil || uc.IoInfo == nil {
+		return
+	}
+
+	uc.Io = make(map[string]map[string][]string)
+	ioSrc := uc.IoInfo["src"].toMapWithoutInfo()
+	if ioSrc != nil && len(ioSrc) > 0 {
+		uc.Io["src"] = ioSrc
+	}
+
+	ioOldSrc := uc.IoInfo["old_src"].toMapWithoutInfo()
+	if ioOldSrc != nil && len(ioOldSrc) > 0 {
+		uc.Io["old_src"] = ioOldSrc
+	}
 }
 
 // UcQueryUp 为查询请求回复中的上传域名信息
@@ -217,6 +277,27 @@ type UcQueryUp struct {
 	Main   []string `json:"main,omitempty"`
 	Backup []string `json:"backup,omitempty"`
 	Info   string   `json:"info,omitempty"`
+}
+
+// UcQueryIo 为查询请求回复中的上传域名信息
+type UcQueryIo struct {
+	Main   []string `json:"main,omitempty"`
+	Backup []string `json:"backup,omitempty"`
+	Info   string   `json:"info,omitempty"`
+}
+
+func (io UcQueryIo) toMapWithoutInfo() map[string][]string {
+
+	ret := make(map[string][]string)
+	if io.Main != nil && len(io.Main) > 0 {
+		ret["main"] = io.Main
+	}
+
+	if io.Backup != nil && len(io.Backup) > 0 {
+		ret["backup"] = io.Backup
+	}
+
+	return ret
 }
 
 type regionCacheValue struct {
@@ -306,7 +387,7 @@ func GetRegion(ak, bucket string) (*Region, error) {
 	}
 
 	newRegion, err, _ := regionCacheGroup.Do(regionID, func() (interface{}, error) {
-		reqURL := fmt.Sprintf("%s/v2/query?ak=%s&bucket=%s", UcHost, ak, bucket)
+		reqURL := fmt.Sprintf("%s/v2/query?ak=%s&bucket=%s", getUcHostByDefaultProtocol(), ak, bucket)
 
 		var ret UcQueryRet
 		err := client.DefaultClient.CallWithForm(context.Background(), &ret, "GET", reqURL, nil, nil)
@@ -390,7 +471,7 @@ func getRegionByRegionId(regionId string, credentials *auth.Credentials) (region
 		if v, ok := regionIdCache[regionId]; ok {
 			return v, nil
 		}
-		reqURL := fmt.Sprintf("%s/regions", UcHost)
+		reqURL := fmt.Sprintf("%s/regions", getUcHostByDefaultProtocol())
 		var ret ucRegionsRet
 		ctx := context.TODO()
 		qErr := client.DefaultClient.CredentialedCallWithForm(ctx, credentials, auth.TokenQiniu, &ret, "GET", reqURL, nil, nil)
@@ -473,7 +554,7 @@ func GetRegionsInfo(mac *auth.Credentials) ([]RegionInfo, error) {
 	var regions struct {
 		Regions []RegionInfo `json:"regions"`
 	}
-	qErr := client.DefaultClient.CredentialedCallWithForm(context.Background(), mac, auth.TokenQiniu, &regions, "GET", UcHost+"/regions", nil, nil)
+	qErr := client.DefaultClient.CredentialedCallWithForm(context.Background(), mac, auth.TokenQiniu, &regions, "GET", getUcHostByDefaultProtocol()+"/regions", nil, nil)
 	if qErr != nil {
 		return nil, fmt.Errorf("query region error, %s", qErr.Error())
 	} else {

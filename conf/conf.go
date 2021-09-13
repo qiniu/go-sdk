@@ -1,6 +1,6 @@
 package conf
 
-const Version = "7.9.5"
+const Version = "7.9.8"
 
 const (
 	CONTENT_TYPE_JSON      = "application/json"

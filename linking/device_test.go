@@ -1,3 +1,5 @@
+// +build integration
+
 package linking
 
 import (
@@ -60,7 +62,7 @@ func TestUpdateDevice(t *testing.T) {
 
 	// udpate device segmentexpiredays to 30
 	ops := []PatchOperation{
-		PatchOperation{Op: "replace", Key: "segmentExpireDays", Value: 30},
+		{Op: "replace", Key: "segmentExpireDays", Value: 30},
 	}
 	dev3, err := c.UpdateDevice(testApp, device, ops)
 	noError(t, err)

@@ -215,21 +215,21 @@ func (b *BucketInfo) TokenAntiLeechModeOn() bool {
 
 // GetBucketInfo 返回BucketInfo结构
 func (m *BucketManager) GetBucketInfo(bucketName string) (bucketInfo BucketInfo, err error) {
-	reqURL := fmt.Sprintf("%s/v2/bucketInfo?bucket=%s", UcHost, bucketName)
+	reqURL := fmt.Sprintf("%s/v2/bucketInfo?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucketName)
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &bucketInfo, "POST", reqURL, nil)
 	return
 }
 
 // BucketInfosForRegion 获取指定区域的该用户的所有bucketInfo信息
 func (m *BucketManager) BucketInfosInRegion(region RegionID, statistics bool) (bucketInfos []BucketSummary, err error) {
-	reqURL := fmt.Sprintf("%s/v2/bucketInfos?region=%s&fs=%t", UcHost, string(region), statistics)
+	reqURL := fmt.Sprintf("%s/v2/bucketInfos?region=%s&fs=%t", getUcHost(m.Cfg.UseHTTPS), string(region), statistics)
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &bucketInfos, "POST", reqURL, nil)
 	return
 }
 
 // SetReferAntiLeechMode 配置存储空间referer防盗链模式
 func (m *BucketManager) SetReferAntiLeechMode(bucketName string, refererAntiLeechConfig *ReferAntiLeechConfig) (err error) {
-	reqURL := fmt.Sprintf("%s/referAntiLeech?bucket=%s&%s", UcHost, bucketName, refererAntiLeechConfig.AsQueryString())
+	reqURL := fmt.Sprintf("%s/referAntiLeech?bucket=%s&%s", getUcHost(m.Cfg.UseHTTPS), bucketName, refererAntiLeechConfig.AsQueryString())
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
 	return
 }
@@ -268,7 +268,7 @@ func (m *BucketManager) AddBucketLifeCycleRule(bucketName string, lifeCycleRule 
 	params["delete_after_days"] = []string{strconv.Itoa(lifeCycleRule.DeleteAfterDays)}
 	params["to_line_after_days"] = []string{strconv.Itoa(lifeCycleRule.ToLineAfterDays)}
 
-	reqURL := UcHost + "/rules/add"
+	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/add"
 	err = m.Client.CredentialedCallWithForm(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil, params)
 	return
 
@@ -281,7 +281,7 @@ func (m *BucketManager) DelBucketLifeCycleRule(bucketName, ruleName string) (err
 	params["bucket"] = []string{bucketName}
 	params["name"] = []string{ruleName}
 
-	reqURL := UcHost + "/rules/delete"
+	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/delete"
 	err = m.Client.CredentialedCallWithForm(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil, params)
 	return
 }
@@ -295,14 +295,14 @@ func (m *BucketManager) UpdateBucketLifeCycleRule(bucketName string, rule *Bucke
 	params["delete_after_days"] = []string{strconv.Itoa(rule.DeleteAfterDays)}
 	params["to_line_after_days"] = []string{strconv.Itoa(rule.ToLineAfterDays)}
 
-	reqURL := UcHost + "/rules/update"
+	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/update"
 	err = m.Client.CredentialedCallWithForm(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil, params)
 	return
 }
 
 // GetBucketLifeCycleRule 获取指定空间上设置的生命周期规则
 func (m *BucketManager) GetBucketLifeCycleRule(bucketName string) (rules []BucketLifeCycleRule, err error) {
-	reqURL := UcHost + "/rules/get?bucket=" + bucketName
+	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/get?bucket=" + bucketName
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &rules, "GET", reqURL, nil)
 	return
 }
@@ -361,7 +361,7 @@ func (r *BucketEventRule) Params(bucket string) map[string][]string {
 // AddBucketEvent 增加存储空间事件通知规则
 func (m *BucketManager) AddBucketEvent(bucket string, rule *BucketEventRule) (err error) {
 	params := rule.Params(bucket)
-	reqURL := UcHost + "/events/add"
+	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/add"
 	err = m.Client.CredentialedCallWithForm(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil, params)
 	return
 }
@@ -372,7 +372,7 @@ func (m *BucketManager) DelBucketEvent(bucket, ruleName string) (err error) {
 	params["bucket"] = []string{bucket}
 	params["name"] = []string{ruleName}
 
-	reqURL := UcHost + "/events/delete"
+	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/delete"
 	err = m.Client.CredentialedCallWithForm(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil, params)
 	return
 }
@@ -380,14 +380,14 @@ func (m *BucketManager) DelBucketEvent(bucket, ruleName string) (err error) {
 // UpdateBucketEnvent 更新指定存储空间的事件通知规则
 func (m *BucketManager) UpdateBucketEnvent(bucket string, rule *BucketEventRule) (err error) {
 	params := rule.Params(bucket)
-	reqURL := UcHost + "/events/update"
+	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/update"
 	err = m.Client.CredentialedCallWithForm(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil, params)
 	return
 }
 
 // GetBucketEvent 获取指定存储空间的事件通知规则
 func (m *BucketManager) GetBucketEvent(bucket string) (rule []BucketEventRule, err error) {
-	reqURL := UcHost + "/events/get?bucket=" + bucket
+	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/get?bucket=" + bucket
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &rule, "GET", reqURL, nil)
 	return
 }
@@ -423,14 +423,14 @@ type CorsRule struct {
 
 // AddCorsRules 设置指定存储空间的跨域规则
 func (m *BucketManager) AddCorsRules(bucket string, corsRules []CorsRule) (err error) {
-	reqURL := UcHost + "/corsRules/set/" + bucket
+	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/corsRules/set/" + bucket
 	err = m.Client.CredentialedCallWithJson(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil, corsRules)
 	return
 }
 
 // GetCorsRules 获取指定存储空间的跨域规则
 func (m *BucketManager) GetCorsRules(bucket string) (corsRules []CorsRule, err error) {
-	reqURL := UcHost + "/corsRules/get/" + bucket
+	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/corsRules/get/" + bucket
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &corsRules, "GET", reqURL, nil)
 	return
 }
@@ -479,7 +479,7 @@ func (m *BucketManager) GetBucketQuota(bucket string) (quota BucketQuota, err er
 // mode - 1 ==> 开启原图保护
 // mode - 0 ==> 关闭原图保护
 func (m *BucketManager) SetBucketAccessStyle(bucket string, mode int) error {
-	reqURL := fmt.Sprintf("%s/accessMode/%s/mode/%d", UcHost, bucket, mode)
+	reqURL := fmt.Sprintf("%s/accessMode/%s/mode/%d", getUcHost(m.Cfg.UseHTTPS), bucket, mode)
 	return m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
 }
 
@@ -496,7 +496,7 @@ func (m *BucketManager) TurnOffBucketProtected(bucket string) error {
 // SetBucketMaxAge 设置指定存储空间的MaxAge响应头
 // maxAge <= 0时，表示使用默认值31536000
 func (m *BucketManager) SetBucketMaxAge(bucket string, maxAge int64) error {
-	reqURL := fmt.Sprintf("%s/maxAge?bucket=%s&maxAge=%d", UcHost, bucket, maxAge)
+	reqURL := fmt.Sprintf("%s/maxAge?bucket=%s&maxAge=%d", getUcHost(m.Cfg.UseHTTPS), bucket, maxAge)
 	return m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
 }
 
@@ -505,7 +505,7 @@ func (m *BucketManager) SetBucketMaxAge(bucket string, maxAge int64) error {
 // mode - 1 表示设置空间为私有空间， 私有空间访问需要鉴权
 // mode - 0 表示设置空间为公开空间
 func (m *BucketManager) SetBucketAccessMode(bucket string, mode int) error {
-	reqURL := fmt.Sprintf("%s/private?bucket=%s&private=%d", UcHost, bucket, mode)
+	reqURL := fmt.Sprintf("%s/private?bucket=%s&private=%d", getUcHost(m.Cfg.UseHTTPS), bucket, mode)
 	return m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
 }
 
@@ -530,7 +530,7 @@ func (m *BucketManager) TurnOffIndexPage(bucket string) error {
 }
 
 func (m *BucketManager) setIndexPage(bucket string, noIndexPage int) error {
-	reqURL := fmt.Sprintf("%s/noIndexPage?bucket=%s&noIndexPage=%d", UcHost, bucket, noIndexPage)
+	reqURL := fmt.Sprintf("%s/noIndexPage?bucket=%s&noIndexPage=%d", getUcHost(m.Cfg.UseHTTPS), bucket, noIndexPage)
 	return m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
 }
 
@@ -554,20 +554,20 @@ func (m *BucketManager) SetTagging(bucket string, tags map[string]string) error 
 		tagging.Tags = append(tagging.Tags, BucketTag{Key: key, Value: value})
 	}
 
-	reqURL := fmt.Sprintf("%s/bucketTagging?bucket=%s", UcHost, bucket)
+	reqURL := fmt.Sprintf("%s/bucketTagging?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
 	return m.Client.CredentialedCallWithJson(context.Background(), m.Mac, auth.TokenQiniu, nil, "PUT", reqURL, nil, &tagging)
 }
 
 // ClearTagging 清空 Bucket 标签
 func (m *BucketManager) ClearTagging(bucket string) error {
-	reqURL := fmt.Sprintf("%s/bucketTagging?bucket=%s", UcHost, bucket)
+	reqURL := fmt.Sprintf("%s/bucketTagging?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
 	return m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "DELETE", reqURL, nil)
 }
 
 // GetTagging 获取 Bucket 标签
 func (m *BucketManager) GetTagging(bucket string) (tags map[string]string, err error) {
 	var tagging BucketTagging
-	reqURL := fmt.Sprintf("%s/bucketTagging?bucket=%s", UcHost, bucket)
+	reqURL := fmt.Sprintf("%s/bucketTagging?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
 	if err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &tagging, "GET", reqURL, nil); err != nil {
 		return
 	}

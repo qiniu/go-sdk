@@ -117,6 +117,18 @@ func (r Client) DoRequestWith64(ctx context.Context, method, reqUrl string, head
 	return r.Do(ctx, req)
 }
 
+func (r Client) DoRequestWithBodyGetter(ctx context.Context, method, reqUrl string, headers http.Header, body io.Reader,
+	getBody func() (io.ReadCloser, error), bodyLength int64) (resp *http.Response, err error) {
+
+	req, err := newRequest(ctx, method, reqUrl, headers, body)
+	if err != nil {
+		return
+	}
+	req.ContentLength = bodyLength
+	req.GetBody = getBody
+	return r.Do(ctx, req)
+}
+
 func (r Client) DoRequestWithForm(ctx context.Context, method, reqUrl string, headers http.Header,
 	data map[string][]string) (resp *http.Response, err error) {
 
@@ -308,6 +320,16 @@ func (r Client) CallWith64(ctx context.Context, ret interface{}, method, reqUrl 
 	bodyLength int64) (err error) {
 
 	resp, err := r.DoRequestWith64(ctx, method, reqUrl, headers, body, bodyLength)
+	if err != nil {
+		return err
+	}
+	return CallRet(ctx, ret, resp)
+}
+
+func (r Client) CallWithBodyGetter(ctx context.Context, ret interface{}, method, reqUrl string, headers http.Header, body io.Reader,
+	getBody func() (io.ReadCloser, error), bodyLength int64) (err error) {
+
+	resp, err := r.DoRequestWithBodyGetter(ctx, method, reqUrl, headers, body, getBody, bodyLength)
 	if err != nil {
 		return err
 	}

@@ -1,3 +1,5 @@
+// +build integration
+
 package storage
 
 import (
@@ -76,8 +78,18 @@ func TestPutWithSizeV2(t *testing.T) {
 	}
 	partSizes := []int64{0, 1 << 20, 1 << 24}
 
+	hostSelector := 0
 	for _, partSize := range partSizes {
+		hostSelector += 1
 		for _, size := range sizes {
+			hostSelector += 1
+			upHost := ""
+			if hostSelector%3 == 1 {
+				upHost = testUpHost
+			} else {
+				upHost = "https://" + testUpHost
+			}
+
 			data := make([]byte, size)
 			if _, err := io.ReadFull(r, data); err != nil {
 				t.Error(err)
@@ -85,6 +97,7 @@ func TestPutWithSizeV2(t *testing.T) {
 			testKey := fmt.Sprintf("testRPutFileV2Key_%d", r.Int())
 			err := resumeUploaderV2.Put(context.Background(), &putRet, upToken, testKey, bytes.NewReader(data), size, &RputV2Extra{
 				PartSize: partSize,
+				UpHost:   upHost,
 				Notify: func(partNumber int64, ret *UploadPartsRet) {
 					t.Logf("Notify: partNumber: %d, ret: %#v", partNumber, ret)
 				},

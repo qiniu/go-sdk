@@ -1,3 +1,5 @@
+// +build integration
+
 package storage
 
 import (
@@ -104,8 +106,18 @@ func TestPutWithSize(t *testing.T) {
 	}
 	chunkSizes := []int{0, 1 << 20}
 
+	hostSelector := 0
 	for _, chunkSize := range chunkSizes {
+		hostSelector += 1
 		for _, size := range sizes {
+			hostSelector += 1
+			upHost := ""
+			if hostSelector%3 == 1 {
+				upHost = testUpHost
+			} else {
+				upHost = "https://" + testUpHost
+			}
+
 			data := make([]byte, size)
 			if _, err := io.ReadFull(r, data); err != nil {
 				t.Fatal(err)
@@ -113,6 +125,7 @@ func TestPutWithSize(t *testing.T) {
 			testKey := fmt.Sprintf("testRPutFileKey_%d", r.Int())
 			err := resumeUploader.Put(context.Background(), &putRet, upToken, testKey, bytes.NewReader(data), size, &RputExtra{
 				ChunkSize: chunkSize,
+				UpHost:    upHost,
 				Notify: func(blkIdx int, blkSize int, ret *BlkputRet) {
 					t.Logf("Notify: blkIdx: %d, blkSize: %d, ret: %#v", blkIdx, blkSize, ret)
 				},
@@ -125,6 +138,48 @@ func TestPutWithSize(t *testing.T) {
 			}
 			md5ByteArray := md5.Sum(data)
 			md5Value := hex.EncodeToString(md5ByteArray[:])
+			validateMD5(t, testKey, md5Value, size)
+			t.Logf("Size: %d, Chunk: %d, Key: %s, Hash:%s", size, chunkSize, putRet.Key, putRet.Hash)
+		}
+	}
+}
+
+func TestPutWithoutSizeAndKey(t *testing.T) {
+	var putRet PutRet
+	putPolicy := PutPolicy{
+		Scope:           testBucket,
+		DeleteAfterDays: 7,
+	}
+	upToken := putPolicy.UploadToken(mac)
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	sizes := []int64{
+		64,
+		1 << blockBits,
+		(1 << blockBits) - 1,
+		(1 << blockBits) + 1,
+		(1 << (blockBits + 4)) + 1,
+	}
+	chunkSizes := []int{0, 1 << 20}
+
+	for _, chunkSize := range chunkSizes {
+		for _, size := range sizes {
+			md5Sumer := md5.New()
+			rd := io.TeeReader(&io.LimitedReader{R: r, N: size}, md5Sumer)
+			err := resumeUploader.PutWithoutKeyAndSize(context.Background(), &putRet, upToken, rd, &RputExtra{
+				ChunkSize: chunkSize,
+				Notify: func(blkIdx int, blkSize int, ret *BlkputRet) {
+					t.Logf("Notify: blkIdx: %d, blkSize: %d, ret: %#v", blkIdx, blkSize, ret)
+				},
+				NotifyErr: func(blkIdx int, blkSize int, err error) {
+					t.Logf("NotifyErr: blkIdx: %d, blkSize: %d, err: %s", blkIdx, blkSize, err)
+				},
+			})
+			if err != nil {
+				t.Fatalf("PutWithoutSize() error, %s", err)
+			}
+			testKey := putRet.Key
+			md5Value := hex.EncodeToString(md5Sumer.Sum(nil))
 			validateMD5(t, testKey, md5Value, size)
 			t.Logf("Size: %d, Chunk: %d, Key: %s, Hash:%s", size, chunkSize, putRet.Key, putRet.Hash)
 		}
