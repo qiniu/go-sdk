@@ -206,8 +206,7 @@ func putData(key string, data []byte, upType UpType) (err error) {
 			PartSize: partSize,
 		})
 	} else {
-		err = formUploader.Put(context.Background(), &putRet, upToken, key, bytes.NewReader(data), int64(len(data)), &PutExtra{
-		})
+		err = formUploader.Put(context.Background(), &putRet, upToken, key, bytes.NewReader(data), int64(len(data)), &PutExtra{})
 	}
 
 	return
