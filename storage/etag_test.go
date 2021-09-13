@@ -64,6 +64,19 @@ func TestEtagV1(t *testing.T) {
 	}
 }
 
+func TestIsSignByEtagV2(t *testing.T) {
+
+	etag := ""
+	if IsSignByEtagV2(etag) {
+		t.Fatalf("is Sign etag error: expect not sign by etag v2")
+	}
+
+	etag = "ns56DcSIfBFUENXjdhsJTIvl3Rcu"
+	if !IsSignByEtagV2(etag) {
+		t.Fatalf("is Sign etag error: expect sign by etag v2 %s", etag)
+	}
+}
+
 func TestEtagV2(t *testing.T) {
 	etag, err := EtagV2(bytes.NewReader([]byte("helloworld")), []int64{5, 5})
 	if err != nil {

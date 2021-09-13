@@ -61,6 +61,15 @@ func EtagV2(reader io.Reader, parts []int64) (string, error) {
 	return base64.URLEncoding.EncodeToString(sha1Buf), nil
 }
 
+func IsSignByEtagV2(etag string) bool {
+	etagData, err := base64.URLEncoding.DecodeString(etag)
+	if len(etagData) < 1 || err != nil {
+		return false
+	} else {
+		return etagData[0] == byte(0x9e)
+	}
+}
+
 func hashSha1s(sha1s [][]byte) []byte {
 	switch len(sha1s) {
 	case 0:
