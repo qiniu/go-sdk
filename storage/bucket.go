@@ -32,12 +32,12 @@ const (
 
 // FileInfo 文件基本信息
 type FileInfo struct {
-	Hash     string  `json:"hash"`
-	Fsize    int64   `json:"fsize"`
-	PutTime  int64   `json:"putTime"`
-	MimeType string  `json:"mimeType"`
-	Type     int     `json:"type"`
-	Status   int     `json:"status"`
+	Hash     string `json:"hash"`
+	Fsize    int64  `json:"fsize"`
+	PutTime  int64  `json:"putTime"`
+	MimeType string `json:"mimeType"`
+	Type     int    `json:"type"`
+	Status   int    `json:"status"`
 }
 
 func (f *FileInfo) String() string {
