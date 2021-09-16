@@ -3,6 +3,8 @@
 package storage
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -132,6 +134,41 @@ func TestStat(t *testing.T) {
 			t.Logf("FileInfo:\n %s", info.String())
 		}
 	}
+}
+
+func TestStatWithOption(t *testing.T) {
+
+	key := "stat_with_option_" + time.Now().String()
+
+	data := make([]byte, 1024*1024*5)
+	err := putDataByResumableV2(key, data)
+	if err != nil {
+		t.Logf("StatWithOption test upload data error, %s", err)
+		return
+	}
+
+	opt := &StatOpts{NeedParts: true}
+	info, err := bucketManager.StatWithOpts(testBucket, key, opt)
+	if err != nil && info.Parts != nil {
+		t.Logf("StatWithOption() error, %s", err)
+		t.Fail()
+	} else {
+		t.Logf("FileInfo:\n %s", info.String())
+	}
+}
+
+func putDataByResumableV2(key string, data []byte) (err error) {
+	var putRet PutRet
+	putPolicy := PutPolicy{
+		Scope:           testBucket,
+		DeleteAfterDays: 1,
+	}
+	upToken := putPolicy.UploadToken(mac)
+	partSize := int64(1024 * 1024)
+	err = resumeUploaderV2.Put(context.Background(), &putRet, upToken, key, bytes.NewReader(data), int64(len(data)), &RputV2Extra{
+		PartSize: partSize,
+	})
+	return
 }
 
 func TestCopyMoveDelete(t *testing.T) {
