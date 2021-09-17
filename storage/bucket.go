@@ -37,8 +37,8 @@ type FileInfo struct {
 	PutTime  int64   `json:"putTime"`
 	MimeType string  `json:"mimeType"`
 	Type     int     `json:"type"`
-	Parts    []int64 `json:"parts"`
 	Status   int     `json:"status"`
+	Parts    []int64 `json:"parts"`
 }
 
 func (f *FileInfo) String() string {

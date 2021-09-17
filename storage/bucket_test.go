@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -139,56 +138,26 @@ func TestStat(t *testing.T) {
 
 func TestStatWithOption(t *testing.T) {
 
-	K := int64(1024)
-	M := 1024 * K
-	sizeList := []int64{512 * K, 1 * M, 1*M + 1, 2 * M, 4 * M, 4*M + 1, 5 * M, 8 * M, 10 * M, 10*M + 1}
-	for _, size := range sizeList {
-		r := rand.New(rand.NewSource(time.Now().UnixNano()))
-		data := make([]byte, size)
-		if _, err := io.ReadFull(r, data); err != nil {
-			continue
-		}
+	key := "stat_with_option_" + time.Now().String()
 
-		testKey := fmt.Sprintf("StatWithOptionte_%d_%d", size, r.Int())
-		upTypes := []UpType{UpTypeForm, UpTypeResumableV1, UpTypeResumableV2}
-		for _, upType := range upTypes {
-			upTypeDesc := upType.description()
-			key := testKey + "_" + upTypeDesc
-			// 上传数据
-			err := putData(key, data, upType)
-			if err != nil {
-				t.Logf("TestStatWithOption() put data by %s for size(%d) error: %s", upTypeDesc, size, err)
-				t.Fail()
-			} else {
-				t.Logf("TestStatWithOption() put data by %s for size(%d) completed", upTypeDesc, size)
-			}
-			// 验证结果
-			checkFileEtag(t, key, data)
-		}
+	data := make([]byte, 1024*1024*5)
+	err := putDataByResumableV2(key, data)
+	if err != nil {
+		t.Logf("StatWithOption test upload data error, %s", err)
+		return
+	}
+
+	opt := &StatOpts{NeedParts: true}
+	info, err := bucketManager.StatWithOpts(testBucket, key, opt)
+	if err != nil && info.Parts != nil {
+		t.Logf("StatWithOption() error, %s", err)
+		t.Fail()
+	} else {
+		t.Logf("FileInfo:\n %s", info.String())
 	}
 }
 
-type UpType int
-
-func (upType UpType) description() string {
-	switch upType {
-	case UpTypeResumableV1:
-		return "resumableV1"
-	case UpTypeResumableV2:
-		return "resumableV2"
-	default:
-		return "form"
-	}
-}
-
-const (
-	UpTypeForm        UpType = 1
-	UpTypeResumableV1 UpType = 2
-	UpTypeResumableV2 UpType = 3
-)
-
-func putData(key string, data []byte, upType UpType) (err error) {
-
+func putDataByResumableV2(key string, data []byte) (err error) {
 	var putRet PutRet
 	putPolicy := PutPolicy{
 		Scope:           testBucket,
@@ -196,68 +165,10 @@ func putData(key string, data []byte, upType UpType) (err error) {
 	}
 	upToken := putPolicy.UploadToken(mac)
 	partSize := int64(1024 * 1024)
-
-	if upType == UpTypeResumableV1 {
-		err = resumeUploader.Put(context.Background(), &putRet, upToken, key, bytes.NewReader(data), int64(len(data)), &RputExtra{
-			ChunkSize: int(partSize),
-		})
-	} else if upType == UpTypeResumableV2 {
-		err = resumeUploaderV2.Put(context.Background(), &putRet, upToken, key, bytes.NewReader(data), int64(len(data)), &RputV2Extra{
-			PartSize: partSize,
-		})
-	} else {
-		err = formUploader.Put(context.Background(), &putRet, upToken, key, bytes.NewReader(data), int64(len(data)), &PutExtra{})
-	}
-
-	return
-}
-
-func checkFileEtag(t *testing.T, key string, data []byte) {
-	info, err := bucketManager.StatWithOpts(testBucket, key, &StatOpts{
-		NeedParts: true,
+	err = resumeUploaderV2.Put(context.Background(), &putRet, upToken, key, bytes.NewReader(data), int64(len(data)), &RputV2Extra{
+		PartSize: partSize,
 	})
-	if err != nil {
-		t.Logf("checkFileEtag() for key:%s error: %s", key, err)
-		t.Fail()
-	}
-
-	if info.Hash == "" {
-		t.Logf("checkFileEtag() for key:%s error: hash was empty", key)
-		t.Fail()
-	}
-
-	if IsSignByEtagV2(info.Hash) {
-		if info.Parts == nil || len(info.Parts) == 0 {
-			t.Logf("checkFileEtag() for key:%s sign etag v2 error: info.Parts was empty", key)
-			t.Fail()
-		}
-
-		etag, err := EtagV2(bytes.NewReader(data), info.Parts)
-		if err != nil {
-			t.Logf("checkFileEtag() for key:%s sign etag v2 error: %s", key, err)
-			t.Fail()
-		}
-
-		if etag != info.Hash {
-			t.Logf("checkFileEtag() for key:%s sign etag v2 error: expect:%s but:%s", key, info.Hash, etag)
-			t.Fail()
-		} else {
-			t.Logf("checkFileEtag() for key:%s sign etag v2 completed expect:%s and real:%s", key, info.Hash, etag)
-		}
-	} else {
-		etag, err := EtagV1(bytes.NewReader(data))
-		if err != nil {
-			t.Logf("checkFileEtag() for key:%s sign etag v1 error: %s", key, err)
-			t.Fail()
-		}
-
-		if etag != info.Hash {
-			t.Logf("checkFileEtag() for key:%s sign etag v1 error: expect:%s but:%s", key, info.Hash, etag)
-			t.Fail()
-		} else {
-			t.Logf("checkFileEtag() for key:%s sign etag v1 completed expect:%s and real:%s", key, info.Hash, etag)
-		}
-	}
+	return
 }
 
 func TestCopyMoveDelete(t *testing.T) {
