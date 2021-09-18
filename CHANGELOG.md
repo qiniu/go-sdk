@@ -1,5 +1,8 @@
 # Changelog
 
+## 7.10.0
+* 增加了 PutWithoutKeyAndSize API，在上传时支持可不指定 size 和 key
+* 修复了 已知 UcQuery 解析问题
 ## 7.9.8
 * 补充了查询 object 元信息返回部分字段
 
