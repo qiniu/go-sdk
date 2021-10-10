@@ -326,7 +326,7 @@ type BucketEventRule struct {
 	Event []string `json:"event"`
 
 	// 回调通知地址， 可以指定多个
-	CallbackURL []string `json:"callback_urls`
+	CallbackURL []string `json:"callback_urls"`
 
 	// 用户的AccessKey， 可选， 设置的话会对通知请求用对应的ak、sk进行签名
 	AccessKey string `json:"access_key"`
