@@ -518,7 +518,7 @@ func (m *BucketManager) ListBucket(bucket, prefix, delimiter, marker string) (re
 // 接受的context可以用来取消列举操作
 func (m *BucketManager) ListBucketContext(ctx context.Context, bucket, prefix, delimiter, marker string) (retCh chan listFilesRet2, err error) {
 
-	ctx = auth.WithCredentialsType(context.Background(), m.Mac, auth.TokenQiniu)
+	ctx = auth.WithCredentialsType(ctx, m.Mac, auth.TokenQiniu)
 	reqHost, reqErr := m.RsfReqHost(bucket)
 	if reqErr != nil {
 		err = reqErr
