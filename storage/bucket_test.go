@@ -411,6 +411,18 @@ func TestListBucket(t *testing.T) {
 	}
 }
 
+func TestListBucketWithCancel(t *testing.T) {
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	cancelFunc()
+	_, lErr := bucketManager.ListBucketContext(ctx, testBucket, "", "", "")
+	if lErr == nil {
+		t.Fatal("ListBucket cancel error")
+	}
+	if !strings.Contains(lErr.Error(), "context canceled") {
+		t.Fatalf("ListBucket cancel error:%s", lErr.Error())
+	}
+}
+
 func TestGetBucketInfo(t *testing.T) {
 	bInfo, bErr := bucketManager.GetBucketInfo(testBucket)
 	if bErr != nil {
