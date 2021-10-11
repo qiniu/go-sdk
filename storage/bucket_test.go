@@ -418,7 +418,7 @@ func TestListBucketWithCancel(t *testing.T) {
 	if lErr == nil {
 		t.Fatal("ListBucket cancel error")
 	}
-	if !strings.Contains(lErr.Error(), "context canceled"){
+	if !strings.Contains(lErr.Error(), "context canceled") {
 		t.Fatalf("ListBucket cancel error:%s", lErr.Error())
 	}
 }
