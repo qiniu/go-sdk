@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"bytes"
 	"context"
 	"crypto/md5"
 	"encoding/hex"
@@ -192,7 +191,7 @@ func (p *ResumeUploaderV2) InitParts(ctx context.Context, upToken, upHost, bucke
 
 // 发送块请求
 func (p *ResumeUploaderV2) UploadParts(ctx context.Context, upToken, upHost, bucket, key string, hasKey bool, uploadId string, partNumber int64, partMD5 string, ret *UploadPartsRet, body io.Reader, size int) error {
-	return p.resumeUploaderAPIs().uploadParts(ctx, upToken, upHost, bucket, key, hasKey, uploadId, partNumber, partMD5, ret, body, size)
+	return p.resumeUploaderAPIs().uploadParts(ctx, upToken, upHost, bucket, key, hasKey, uploadId, partNumber, partMD5, ret, body, int64(size))
 }
 
 // 完成块请求
@@ -281,16 +280,28 @@ func (impl *resumeUploaderV2Impl) initUploader(ctx context.Context) ([]int64, er
 
 func (impl *resumeUploaderV2Impl) uploadChunk(ctx context.Context, c chunk) error {
 	var (
-		apis = impl.resumeUploaderAPIs()
-		ret  UploadPartsRet
-		err  error
+		apis      = impl.resumeUploaderAPIs()
+		ret       UploadPartsRet
+		chunkSize int64
+		err       error
 	)
 
-	md5ByteArray := md5.Sum(c.data)
-	md5Value := hex.EncodeToString(md5ByteArray[:])
 	partNumber := c.id + 1
+	hasher := md5.New()
+	chunkSize, err = io.Copy(hasher, io.NewSectionReader(c.reader, 0, c.size))
+	if err != nil {
+		impl.extra.NotifyErr(partNumber, err)
+		return err
+	} else if chunkSize == 0 {
+		return nil
+	}
 
-	if err = apis.uploadParts(ctx, impl.upToken, impl.upHost, impl.bucket, impl.key, impl.hasKey, impl.uploadId, partNumber, md5Value, &ret, bytes.NewReader(c.data), len(c.data)); err != nil {
+	md5Value := hex.EncodeToString(hasher.Sum(nil))
+
+	err = apis.uploadParts(ctx, impl.upToken, impl.upHost, impl.bucket, impl.key, impl.hasKey, impl.uploadId,
+		partNumber, md5Value, &ret, io.NewSectionReader(c.reader, 0, chunkSize), chunkSize)
+
+	if err != nil {
 		impl.extra.NotifyErr(partNumber, err)
 	} else {
 		impl.extra.Notify(partNumber, &ret)
@@ -305,7 +316,7 @@ func (impl *resumeUploaderV2Impl) uploadChunk(ctx context.Context, c chunk) erro
 			impl.lock.Lock()
 			defer impl.lock.Unlock()
 			impl.extra.Progresses = append(impl.extra.Progresses, UploadPartInfo{
-				Etag: ret.Etag, PartNumber: partNumber, partSize: len(c.data), fileOffset: c.offset,
+				Etag: ret.Etag, PartNumber: partNumber, partSize: int(chunkSize), fileOffset: c.offset,
 			})
 			impl.save(ctx)
 		}()
