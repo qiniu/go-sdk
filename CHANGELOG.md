@@ -1,5 +1,9 @@
 # Changelog
 
+## 7.10.1
+* 优化了分片上传内存占用
+* 修复部分已知问题
+
 ## 7.10.0
 * 增加了 PutWithoutKeyAndSize API，在上传时支持可不指定 size 和 key
 * 修复了 已知 UcQuery 解析问题
