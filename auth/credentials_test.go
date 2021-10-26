@@ -226,3 +226,14 @@ func TestAuthSignRequestV2(t *testing.T) {
 		}
 	}
 }
+
+func TestCredentials_IsIAMKey(t *testing.T) {
+	iam := New("IAM-9fVILnUAhAs8XocaM9b0vafT3PkoVvntPGofpqJt", "secretTest")
+	if !iam.IsIAMKey() {
+		t.Error("IsIAMKey failed")
+	}
+	iam.AccessKey = "accessTest"
+	if iam.IsIAMKey() {
+		t.Error("IsIAMKey failed")
+	}
+}

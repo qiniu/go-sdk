@@ -16,8 +16,13 @@ import (
 	"github.com/qiniu/go-sdk/v7/conf"
 )
 
+const (
+	IAMKeyLen    = 33
+	IAMKeyPrefix = "IAM-"
+)
+
 //  七牛鉴权类，用于生成Qbox, Qiniu, Upload签名
-// AK/SK可以从 https://portal.qiniu.com/user/key 获取。
+// AK/SK可以从 https://portal.qiniu.com/user/key 获取
 type Credentials struct {
 	AccessKey string
 	SecretKey []byte
@@ -61,6 +66,12 @@ func (ath *Credentials) SignWithData(b []byte) (token string) {
 	encodedData := base64.URLEncoding.EncodeToString(b)
 	sign := ath.Sign([]byte(encodedData))
 	return fmt.Sprintf("%s:%s", sign, encodedData)
+}
+
+// IsIAMKey 判断AccessKey是否为IAM的Key
+func (ath *Credentials) IsIAMKey() bool {
+	return len(ath.AccessKey) == IAMKeyLen*4/3 &&
+		strings.HasPrefix(ath.AccessKey, IAMKeyPrefix)
 }
 
 func collectData(req *http.Request) (data []byte, err error) {
