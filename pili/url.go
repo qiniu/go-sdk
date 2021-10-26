@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
+	"math"
 	"net/url"
 	"path/filepath"
 	"reflect"
@@ -194,7 +195,7 @@ func magicCtx(u *url.URL, query url.Values, key string) map[string]interface{} {
 func convertSRTURL(u *url.URL, token string) string {
 	query := u.Query()
 	query.Set("m", "publish")
-	rawQuery := strings.ReplaceAll(query.Encode(), "&", ",")
+	rawQuery := strings.Replace(query.Encode(), "&", ",", -1)
 	if len(token) > 0 {
 		rawQuery += ",token=" + token
 	}
@@ -258,8 +259,48 @@ func isQuery(q interface{}) (url.Values, bool) {
 }
 
 func setQuery(q url.Values, key string, v interface{}) {
-	if !reflect.ValueOf(v).IsZero() {
+	if !isZero(v) {
 		q.Set(key, fmt.Sprint(v))
+	}
+}
+
+// isZero reports whether v is the zero value for its type.
+// FIXME IsZero was added to the reflect standard package in go 1.13
+// compatible with older versions of go 1.13
+func isZero(_v interface{}) bool {
+	v := reflect.ValueOf(_v)
+	switch v.Kind() {
+	case reflect.Bool:
+		return !v.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return math.Float64bits(v.Float()) == 0
+	case reflect.Complex64, reflect.Complex128:
+		c := v.Complex()
+		return math.Float64bits(real(c)) == 0 && math.Float64bits(imag(c)) == 0
+	case reflect.Array:
+		for i := 0; i < v.Len(); i++ {
+			if !isZero(v.Index(i)) {
+				return false
+			}
+		}
+		return true
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
+		return v.IsNil()
+	case reflect.String:
+		return v.Len() == 0
+	case reflect.Struct:
+		for i := 0; i < v.NumField(); i++ {
+			if !isZero(v.Field(i)) {
+				return false
+			}
+		}
+		return true
+	default:
+		return true
 	}
 }
 

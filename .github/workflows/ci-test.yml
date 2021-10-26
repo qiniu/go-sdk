@@ -30,7 +30,25 @@ jobs:
           GOPATH=$GITHUB_WORKSPACE go get github.com/qiniu/x
           GOPATH=$GITHUB_WORKSPACE go get golang.org/x/sync/singleflight
           GOPATH=$GITHUB_WORKSPACE go get github.com/qiniu/dyn
-          GOPATH=$GITHUB_WORKSPACE go get github.com/go-playground/validator/v10
+
+          # FIXME special package
+          # github.com/go-playground/validator/v10
+          # validator modified package name
+          # from gopkg.in/go-playground/validator.v10 to github.com/go-playground/validator/v10
+          # new package name don't work in non-module mode
+          rm -rf $GITHUB_WORKSPACE/src/github.com/go-playground/validator/v10 && git clone -b v10.9.0 --depth 1 https://github.com/go-playground/validator.git $GITHUB_WORKSPACE/src/github.com/go-playground/validator/v10
+          GOPATH=$GITHUB_WORKSPACE go get github.com/go-playground/universal-translator
+          GOPATH=$GITHUB_WORKSPACE go get github.com/leodido/go-urn
+          GOPATH=$GITHUB_WORKSPACE go get golang.org/x/crypto/sha3
+          GOPATH=$GITHUB_WORKSPACE go get golang.org/x/text/language
+
+          # github.com/stretchr/testify
+          # newer version require newer go feature
+          rm -rf $GITHUB_WORKSPACE/src/github.com/stretchr/testify && git clone -b v1.6.1 --depth 1 https://github.com/stretchr/testify.git $GITHUB_WORKSPACE/src/github.com/stretchr/testify
+          GOPATH=$GITHUB_WORKSPACE go get github.com/davecgh/go-spew/spew
+          GOPATH=$GITHUB_WORKSPACE go get github.com/pmezard/go-difflib/difflib
+          GOPATH=$GITHUB_WORKSPACE go get gopkg.in/yaml.v3
+
           GOPATH=$GITHUB_WORKSPACE make unittest
         working-directory: src/github.com/qiniu/go-sdk
   go-mod-test:
