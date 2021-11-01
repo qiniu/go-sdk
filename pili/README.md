@@ -54,7 +54,6 @@ package main
 
 import (
 	// ...
-	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/pili"
 )
 
@@ -65,8 +64,8 @@ var (
 
 func main() {
 	// ...
-	mac := auth.New(AccessKey, SecretKey)
-	manager := pili.NewManager(mac)
+	conf := pili.ManagerConfig{AccessKey: AccessKey, SecretKey: SecretKey}
+	manager := pili.NewManager(conf)
 	// ...
 }
 ```
