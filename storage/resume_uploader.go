@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"hash/crc32"
@@ -207,12 +206,12 @@ func (p *ResumeUploader) rputFile(ctx context.Context, ret interface{}, upToken 
 
 // 创建块请求
 func (p *ResumeUploader) Mkblk(ctx context.Context, upToken string, upHost string, ret *BlkputRet, blockSize int, body io.Reader, size int) error {
-	return p.resumeUploaderAPIs().mkBlk(ctx, upToken, upHost, ret, blockSize, body, size)
+	return p.resumeUploaderAPIs().mkBlk(ctx, upToken, upHost, ret, int64(blockSize), body, int64(size))
 }
 
 // 发送bput请求
 func (p *ResumeUploader) Bput(ctx context.Context, upToken string, ret *BlkputRet, body io.Reader, size int) error {
-	return p.resumeUploaderAPIs().bput(ctx, upToken, ret, body, size)
+	return p.resumeUploaderAPIs().bput(ctx, upToken, ret, body, int64(size))
 }
 
 // 创建文件请求
@@ -288,27 +287,43 @@ func (impl *resumeUploaderImpl) initUploader(ctx context.Context) ([]int64, erro
 }
 
 func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error {
+	type ChunkRange struct {
+		From int64
+		Size int64
+	}
 	var (
-		chunkSize int = impl.extra.ChunkSize
-		apis          = impl.resumeUploaderAPIs()
-		chunkData []byte
-		blkPutRet BlkputRet
-		err       error
+		chunkSize      = int64(impl.extra.ChunkSize)
+		apis           = impl.resumeUploaderAPIs()
+		chunkRange     ChunkRange
+		blkPutRet      BlkputRet
+		err            error
+		realChunkSize  int64
+		totalChunkSize = int64(0)
 	)
 
-	for chunkOffset := 0; chunkOffset < len(c.data); chunkOffset += len(chunkData) {
-		chunkData = c.data[chunkOffset:]
-		actualChunkSize := len(chunkData)
-		if actualChunkSize > chunkSize {
-			actualChunkSize = chunkSize
+	for chunkOffset := int64(0); chunkOffset < c.size; chunkOffset += chunkRange.Size {
+		chunkRange = ChunkRange{From: chunkOffset, Size: c.size - chunkOffset}
+		if chunkRange.Size > chunkSize {
+			chunkRange.Size = chunkSize
 		}
-		chunkData = chunkData[:actualChunkSize]
+		hasher := crc32.NewIEEE()
+		realChunkSize, err = io.Copy(hasher, io.NewSectionReader(c.reader, chunkRange.From, chunkRange.Size))
+		if err != nil {
+			impl.extra.NotifyErr(int(c.id), int(c.size), err)
+			return err
+		} else if realChunkSize == 0 {
+			break
+		} else {
+			totalChunkSize += realChunkSize
+		}
+		crc32Value := hasher.Sum32()
 	UploadSingleChunk:
 		for retried := 0; retried < impl.extra.TryTimes; retried += 1 {
+			reader := io.NewSectionReader(c.reader, chunkRange.From, realChunkSize)
 			if chunkOffset == 0 {
-				err = apis.mkBlk(ctx, impl.upToken, impl.upHost, &blkPutRet, len(c.data), bytes.NewReader(chunkData), len(chunkData))
+				err = apis.mkBlk(ctx, impl.upToken, impl.upHost, &blkPutRet, c.size, reader, realChunkSize)
 			} else {
-				err = apis.bput(ctx, impl.upToken, &blkPutRet, bytes.NewReader(chunkData), len(chunkData))
+				err = apis.bput(ctx, impl.upToken, &blkPutRet, reader, realChunkSize)
 			}
 			if err != nil {
 				if err == context.Canceled {
@@ -316,22 +331,22 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 				}
 				continue UploadSingleChunk
 			}
-			if blkPutRet.Crc32 != crc32.ChecksumIEEE(chunkData) || int(blkPutRet.Offset) != chunkOffset+len(chunkData) {
+			if blkPutRet.Crc32 != crc32Value || int64(blkPutRet.Offset) != chunkOffset+realChunkSize {
 				err = ErrUnmatchedChecksum
 				continue UploadSingleChunk
 			}
 			break UploadSingleChunk
 		}
 		if err != nil {
-			impl.extra.NotifyErr(int(c.id), len(c.data), err)
+			impl.extra.NotifyErr(int(c.id), int(realChunkSize), err)
 			return err
 		}
 	}
 
 	blkPutRet.blkIdx = int(c.id)
 	blkPutRet.fileOffset = c.offset
-	blkPutRet.chunkSize = len(c.data)
-	impl.extra.Notify(blkPutRet.blkIdx, len(c.data), &blkPutRet)
+	blkPutRet.chunkSize = int(totalChunkSize)
+	impl.extra.Notify(blkPutRet.blkIdx, int(totalChunkSize), &blkPutRet)
 
 	select {
 	case <-ctx.Done():
@@ -343,7 +358,7 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 		impl.lock.Lock()
 		defer impl.lock.Unlock()
 		impl.extra.Progresses = append(impl.extra.Progresses, blkPutRet)
-		impl.fileSize += int64(len(c.data))
+		impl.fileSize += c.size
 		impl.save(ctx)
 	}()
 

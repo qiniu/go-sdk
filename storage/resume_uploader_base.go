@@ -1,13 +1,13 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
-	"io/ioutil"
 	"sync"
 
-	"github.com/qiniu/go-sdk/v7"
+	api "github.com/qiniu/go-sdk/v7"
 )
 
 // 分片上传过程中可能遇到的错误
@@ -98,7 +98,8 @@ type (
 	chunk struct {
 		id      int64
 		offset  int64
-		data    []byte
+		size    int64
+		reader  io.ReaderAt
 		retried int
 	}
 
@@ -120,7 +121,7 @@ type (
 
 	// 将已知数据流大小的情况和未知数据流大小的情况抽象成一个接口
 	chunkReader interface {
-		readChunks([]int64, func(chunkID int64, off int64, data []byte) error) error
+		readChunks([]int64, func(chunkID, off, size int64, reader io.ReaderAt) error) error
 	}
 
 	// 已知数据流大小的情况下读取数据流
@@ -152,8 +153,8 @@ func uploadByWorkers(uploader resumeUploaderBase, ctx context.Context, body chun
 	}
 
 	// 读取 Chunk 并创建任务
-	err = body.readChunks(recovered, func(chunkID int64, off int64, data []byte) error {
-		newChunk := chunk{id: chunkID, offset: off, data: data, retried: 0}
+	err = body.readChunks(recovered, func(chunkID, off, size int64, reader io.ReaderAt) error {
+		newChunk := chunk{id: chunkID, offset: off, size: size, reader: reader, retried: 0}
 		wg.Add(1)
 		tasks <- func() {
 			defer wg.Done()
@@ -213,7 +214,7 @@ func newUnsizedChunkReader(body io.Reader, blockSize int64) *unsizedChunkReader 
 	return &unsizedChunkReader{body: body, blockSize: blockSize}
 }
 
-func (r *unsizedChunkReader) readChunks(recovered []int64, f func(chunkID int64, off int64, data []byte) error) error {
+func (r *unsizedChunkReader) readChunks(recovered []int64, f func(chunkID, off, size int64, reader io.ReaderAt) error) error {
 	var (
 		lastChunk          = false
 		chunkID      int64 = 0
@@ -243,7 +244,7 @@ func (r *unsizedChunkReader) readChunks(recovered []int64, f func(chunkID int64,
 		}
 
 		if _, ok := recoveredMap[off]; !ok {
-			if err = f(chunkID, off, buf); err != nil {
+			if err = f(chunkID, off, int64(len(buf)), bytes.NewReader(buf)); err != nil {
 				return err
 			}
 		}
@@ -257,11 +258,10 @@ func newSizedChunkReader(body io.ReaderAt, totalSize, blockSize int64) *sizedChu
 	return &sizedChunkReader{body: body, totalSize: totalSize, blockSize: blockSize}
 }
 
-func (r *sizedChunkReader) readChunks(recovered []int64, f func(chunkID int64, off int64, data []byte) error) error {
+func (r *sizedChunkReader) readChunks(recovered []int64, f func(chunkID, off, size int64, reader io.ReaderAt) error) error {
 	var (
 		chunkID      int64 = 0
 		off          int64 = 0
-		buf          []byte
 		err          error
 		recoveredMap = make(map[int64]struct{}, len(recovered))
 	)
@@ -275,20 +275,12 @@ func (r *sizedChunkReader) readChunks(recovered []int64, f func(chunkID int64, o
 		if shouldRead > r.blockSize {
 			shouldRead = r.blockSize
 		}
-		if _, ok := recoveredMap[off]; ok {
-			off += shouldRead
-		} else {
-			if buf, err = ioutil.ReadAll(io.NewSectionReader(r.body, off, shouldRead)); err != nil {
+		if _, ok := recoveredMap[off]; !ok {
+			if err = f(chunkID, off, shouldRead, io.NewSectionReader(r.body, off, shouldRead)); err != nil {
 				return err
 			}
-			if len(buf) == 0 { // 理论上应该读到 shouldRead 个字节，实际上为空，将直接结束该方法
-				return nil
-			}
-			if err = f(chunkID, off, buf); err != nil {
-				return err
-			}
-			off += int64(len(buf))
 		}
+		off += shouldRead
 		chunkID += 1
 	}
 	return nil

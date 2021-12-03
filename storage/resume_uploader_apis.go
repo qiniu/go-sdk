@@ -30,16 +30,16 @@ type BlkputRet struct {
 	blkIdx     int
 }
 
-func (p *resumeUploaderAPIs) mkBlk(ctx context.Context, upToken, upHost string, ret *BlkputRet, blockSize int, body io.Reader, size int) error {
-	reqUrl := upHost + "/mkblk/" + strconv.Itoa(blockSize)
+func (p *resumeUploaderAPIs) mkBlk(ctx context.Context, upToken, upHost string, ret *BlkputRet, blockSize int64, body io.Reader, size int64) error {
+	reqUrl := upHost + "/mkblk/" + strconv.FormatInt(blockSize, 10)
 
-	return p.Client.CallWith(ctx, ret, "POST", reqUrl, makeHeadersForUpload(upToken), body, size)
+	return p.Client.CallWith64(ctx, ret, "POST", reqUrl, makeHeadersForUpload(upToken), body, size)
 }
 
-func (p *resumeUploaderAPIs) bput(ctx context.Context, upToken string, ret *BlkputRet, body io.Reader, size int) error {
+func (p *resumeUploaderAPIs) bput(ctx context.Context, upToken string, ret *BlkputRet, body io.Reader, size int64) error {
 	reqUrl := ret.Host + "/bput/" + ret.Ctx + "/" + strconv.FormatUint(uint64(ret.Offset), 10)
 
-	return p.Client.CallWith(ctx, ret, "POST", reqUrl, makeHeadersForUpload(upToken), body, size)
+	return p.Client.CallWith64(ctx, ret, "POST", reqUrl, makeHeadersForUpload(upToken), body, size)
 }
 
 // RputExtra 表示分片上传额外可以指定的参数
@@ -100,10 +100,10 @@ type UploadPartsRet struct {
 	MD5  string `json:"md5"`
 }
 
-func (p *resumeUploaderAPIs) uploadParts(ctx context.Context, upToken, upHost, bucket, key string, hasKey bool, uploadId string, partNumber int64, partMD5 string, ret *UploadPartsRet, body io.Reader, size int) error {
+func (p *resumeUploaderAPIs) uploadParts(ctx context.Context, upToken, upHost, bucket, key string, hasKey bool, uploadId string, partNumber int64, partMD5 string, ret *UploadPartsRet, body io.Reader, size int64) error {
 	reqUrl := upHost + "/buckets/" + bucket + "/objects/" + encodeV2(key, hasKey) + "/uploads/" + uploadId + "/" + strconv.FormatInt(partNumber, 10)
 
-	return p.Client.CallWith(ctx, ret, "PUT", reqUrl, makeHeadersForUploadPart(upToken, partMD5), body, size)
+	return p.Client.CallWith64(ctx, ret, "PUT", reqUrl, makeHeadersForUploadPart(upToken, partMD5), body, size)
 }
 
 type UploadPartInfo struct {
