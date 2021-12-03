@@ -120,7 +120,7 @@ var (
 		},
 		RsHost:    "rs-cn-east-2.qiniuapi.com",
 		RsfHost:   "rsf-cn-east-2-qiniuapi.com",
-		ApiHost:   "api.qiniu.com",
+		ApiHost:   "api-cn-east-2.qiniuapi.com",
 		IovipHost: "iovip-cn-east-2.qiniuio.com",
 	}
 
