@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"encoding/hex"
@@ -288,7 +289,9 @@ func (impl *resumeUploaderV2Impl) uploadChunk(ctx context.Context, c chunk) erro
 
 	partNumber := c.id + 1
 	hasher := md5.New()
-	chunkSize, err = io.Copy(hasher, io.NewSectionReader(c.reader, 0, c.size))
+
+	buffer := bytes.NewBuffer(make([]byte, 0, c.size))
+	chunkSize, err = io.Copy(hasher, io.TeeReader(io.NewSectionReader(c.reader, 0, c.size), buffer))
 	if err != nil {
 		impl.extra.NotifyErr(partNumber, err)
 		return err
@@ -299,7 +302,7 @@ func (impl *resumeUploaderV2Impl) uploadChunk(ctx context.Context, c chunk) erro
 	md5Value := hex.EncodeToString(hasher.Sum(nil))
 
 	err = apis.uploadParts(ctx, impl.upToken, impl.upHost, impl.bucket, impl.key, impl.hasKey, impl.uploadId,
-		partNumber, md5Value, &ret, io.NewSectionReader(c.reader, 0, chunkSize), chunkSize)
+		partNumber, md5Value, &ret, buffer, chunkSize)
 
 	if err != nil {
 		impl.extra.NotifyErr(partNumber, err)
