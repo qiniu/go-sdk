@@ -231,13 +231,13 @@ func (p *ResumeUploader) resumeUploaderAPIs() *resumeUploaderAPIs {
 type (
 	// 用于实现 resumeUploaderBase 的 V1 分片接口
 	resumeUploaderImpl struct {
-		ctx         context.Context
 		client      *client.Client
 		cfg         *Config
 		key         string
 		hasKey      bool
 		upToken     string
 		upHost      string
+		bufPool     *sync.Pool
 		extra       *RputExtra
 		ret         interface{}
 		fileSize    int64
@@ -263,12 +263,17 @@ type (
 
 func newResumeUploaderImpl(resumeUploader *ResumeUploader, key string, hasKey bool, upToken string, upHost string, fileInfo os.FileInfo, extra *RputExtra, ret interface{}, recorderKey string) *resumeUploaderImpl {
 	return &resumeUploaderImpl{
-		client:      resumeUploader.Client,
-		cfg:         resumeUploader.Cfg,
-		key:         key,
-		hasKey:      hasKey,
-		upToken:     upToken,
-		upHost:      upHost,
+		client:  resumeUploader.Client,
+		cfg:     resumeUploader.Cfg,
+		key:     key,
+		hasKey:  hasKey,
+		upToken: upToken,
+		upHost:  upHost,
+		bufPool: &sync.Pool{
+			New: func() interface{} {
+				return bytes.NewBuffer(make([]byte, 0, extra.ChunkSize))
+			},
+		},
 		extra:       extra,
 		ret:         ret,
 		fileSize:    0,
@@ -300,7 +305,9 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 		err            error
 		realChunkSize  int64
 		totalChunkSize = int64(0)
+		buffer         = impl.bufPool.Get().(*bytes.Buffer)
 	)
+	defer impl.bufPool.Put(buffer)
 
 	for chunkOffset := int64(0); chunkOffset < c.size; chunkOffset += chunkRange.Size {
 		chunkRange = ChunkRange{From: chunkOffset, Size: c.size - chunkOffset}
@@ -308,7 +315,7 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 			chunkRange.Size = chunkSize
 		}
 		hasher := crc32.NewIEEE()
-		buffer := bytes.NewBuffer(make([]byte, 0, chunkRange.Size))
+		buffer.Reset()
 		realChunkSize, err = io.Copy(hasher, io.TeeReader(io.NewSectionReader(c.reader, chunkRange.From, chunkRange.Size), buffer))
 		if err != nil {
 			impl.extra.NotifyErr(int(c.id), int(c.size), err)
