@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"encoding/hex"
@@ -210,7 +211,6 @@ func (p *ResumeUploaderV2) resumeUploaderAPIs() *resumeUploaderAPIs {
 type (
 	// 用于实现 resumeUploaderBase 的 V2 分片接口
 	resumeUploaderV2Impl struct {
-		ctx         context.Context
 		client      *client.Client
 		cfg         *Config
 		bucket      string
@@ -224,6 +224,7 @@ type (
 		recorderKey string
 		ret         interface{}
 		lock        sync.Mutex
+		bufPool     *sync.Pool
 	}
 
 	resumeUploaderV2RecoveryInfoContext struct {
@@ -254,6 +255,11 @@ func newResumeUploaderV2Impl(resumeUploader *ResumeUploaderV2, bucket, key strin
 		recorderKey: recorderKey,
 		extra:       extra,
 		ret:         ret,
+		bufPool: &sync.Pool{
+			New: func() interface{} {
+				return bytes.NewBuffer(make([]byte, 0, extra.PartSize))
+			},
+		},
 	}
 }
 
@@ -283,12 +289,16 @@ func (impl *resumeUploaderV2Impl) uploadChunk(ctx context.Context, c chunk) erro
 		apis      = impl.resumeUploaderAPIs()
 		ret       UploadPartsRet
 		chunkSize int64
+		buffer    = impl.bufPool.Get().(*bytes.Buffer)
 		err       error
 	)
+	defer impl.bufPool.Put(buffer)
+	buffer.Reset()
 
 	partNumber := c.id + 1
 	hasher := md5.New()
-	chunkSize, err = io.Copy(hasher, io.NewSectionReader(c.reader, 0, c.size))
+
+	chunkSize, err = io.Copy(hasher, io.TeeReader(io.NewSectionReader(c.reader, 0, c.size), buffer))
 	if err != nil {
 		impl.extra.NotifyErr(partNumber, err)
 		return err
@@ -299,7 +309,7 @@ func (impl *resumeUploaderV2Impl) uploadChunk(ctx context.Context, c chunk) erro
 	md5Value := hex.EncodeToString(hasher.Sum(nil))
 
 	err = apis.uploadParts(ctx, impl.upToken, impl.upHost, impl.bucket, impl.key, impl.hasKey, impl.uploadId,
-		partNumber, md5Value, &ret, io.NewSectionReader(c.reader, 0, chunkSize), chunkSize)
+		partNumber, md5Value, &ret, buffer, chunkSize)
 
 	if err != nil {
 		impl.extra.NotifyErr(partNumber, err)
