@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"hash/crc32"
@@ -230,13 +231,13 @@ func (p *ResumeUploader) resumeUploaderAPIs() *resumeUploaderAPIs {
 type (
 	// 用于实现 resumeUploaderBase 的 V1 分片接口
 	resumeUploaderImpl struct {
-		ctx         context.Context
 		client      *client.Client
 		cfg         *Config
 		key         string
 		hasKey      bool
 		upToken     string
 		upHost      string
+		bufPool     *sync.Pool
 		extra       *RputExtra
 		ret         interface{}
 		fileSize    int64
@@ -262,12 +263,17 @@ type (
 
 func newResumeUploaderImpl(resumeUploader *ResumeUploader, key string, hasKey bool, upToken string, upHost string, fileInfo os.FileInfo, extra *RputExtra, ret interface{}, recorderKey string) *resumeUploaderImpl {
 	return &resumeUploaderImpl{
-		client:      resumeUploader.Client,
-		cfg:         resumeUploader.Cfg,
-		key:         key,
-		hasKey:      hasKey,
-		upToken:     upToken,
-		upHost:      upHost,
+		client:  resumeUploader.Client,
+		cfg:     resumeUploader.Cfg,
+		key:     key,
+		hasKey:  hasKey,
+		upToken: upToken,
+		upHost:  upHost,
+		bufPool: &sync.Pool{
+			New: func() interface{} {
+				return bytes.NewBuffer(make([]byte, 0, extra.ChunkSize))
+			},
+		},
 		extra:       extra,
 		ret:         ret,
 		fileSize:    0,
@@ -299,7 +305,9 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 		err            error
 		realChunkSize  int64
 		totalChunkSize = int64(0)
+		buffer         = impl.bufPool.Get().(*bytes.Buffer)
 	)
+	defer impl.bufPool.Put(buffer)
 
 	for chunkOffset := int64(0); chunkOffset < c.size; chunkOffset += chunkRange.Size {
 		chunkRange = ChunkRange{From: chunkOffset, Size: c.size - chunkOffset}
@@ -307,7 +315,8 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 			chunkRange.Size = chunkSize
 		}
 		hasher := crc32.NewIEEE()
-		realChunkSize, err = io.Copy(hasher, io.NewSectionReader(c.reader, chunkRange.From, chunkRange.Size))
+		buffer.Reset()
+		realChunkSize, err = io.Copy(hasher, io.TeeReader(io.NewSectionReader(c.reader, chunkRange.From, chunkRange.Size), buffer))
 		if err != nil {
 			impl.extra.NotifyErr(int(c.id), int(c.size), err)
 			return err
@@ -319,11 +328,10 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 		crc32Value := hasher.Sum32()
 	UploadSingleChunk:
 		for retried := 0; retried < impl.extra.TryTimes; retried += 1 {
-			reader := io.NewSectionReader(c.reader, chunkRange.From, realChunkSize)
 			if chunkOffset == 0 {
-				err = apis.mkBlk(ctx, impl.upToken, impl.upHost, &blkPutRet, c.size, reader, realChunkSize)
+				err = apis.mkBlk(ctx, impl.upToken, impl.upHost, &blkPutRet, c.size, buffer, realChunkSize)
 			} else {
-				err = apis.bput(ctx, impl.upToken, &blkPutRet, reader, realChunkSize)
+				err = apis.bput(ctx, impl.upToken, &blkPutRet, buffer, realChunkSize)
 			}
 			if err != nil {
 				if err == context.Canceled {
