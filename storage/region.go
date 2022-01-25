@@ -110,8 +110,8 @@ var (
 		IovipHost: "iovip.qbox.me",
 	}
 
-	// regionHuadongZhejiang 表示华东-浙江2
-	regionHuadongZhejiang = Region{
+	// regionHuadongZhejiang2 表示华东-浙江2
+	regionHuadongZhejiang2 = Region{
 		SrcUpHosts: []string{
 			"up-cn-east-2.qiniup.com",
 		},
@@ -198,24 +198,24 @@ var (
 
 const (
 	// region code
-	RIDHuadong         = RegionID("z0")
-	RIDHuadongZheJiang = RegionID("cn-east-2")
-	RIDHuabei          = RegionID("z1")
-	RIDHuanan          = RegionID("z2")
-	RIDNorthAmerica    = RegionID("na0")
-	RIDSingapore       = RegionID("as0")
-	RIDFogCnEast1      = RegionID("fog-cn-east-1")
+	RIDHuadong          = RegionID("z0")
+	RIDHuadongZheJiang2 = RegionID("cn-east-2")
+	RIDHuabei           = RegionID("z1")
+	RIDHuanan           = RegionID("z2")
+	RIDNorthAmerica     = RegionID("na0")
+	RIDSingapore        = RegionID("as0")
+	RIDFogCnEast1       = RegionID("fog-cn-east-1")
 )
 
 // regionMap 是RegionID到具体的Region的映射
 var regionMap = map[RegionID]Region{
-	RIDHuadong:         regionHuadong,
-	RIDHuadongZheJiang: regionHuadongZhejiang,
-	RIDHuanan:          regionHuanan,
-	RIDHuabei:          regionHuabei,
-	RIDSingapore:       regionSingapore,
-	RIDNorthAmerica:    regionNorthAmerica,
-	RIDFogCnEast1:      regionFogCnEast1,
+	RIDHuadong:          regionHuadong,
+	RIDHuadongZheJiang2: regionHuadongZhejiang2,
+	RIDHuanan:           regionHuanan,
+	RIDHuabei:           regionHuabei,
+	RIDSingapore:        regionSingapore,
+	RIDNorthAmerica:     regionNorthAmerica,
+	RIDFogCnEast1:       regionFogCnEast1,
 }
 
 /// UcHost 为查询空间相关域名的API服务地址
