@@ -319,7 +319,7 @@ func (m *BucketManager) Fetch(resURL, bucket, key string) (fetchRet FetchRet, er
 		return
 	}
 	reqURL := fmt.Sprintf("%s%s", reqHost, uriFetch(resURL, bucket, key))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQBox, &fetchRet, "POST", reqURL, nil)
+	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &fetchRet, "POST", reqURL, nil)
 	return
 }
 
@@ -403,7 +403,7 @@ func (m *BucketManager) FetchWithoutKey(resURL, bucket string) (fetchRet FetchRe
 		return
 	}
 	reqURL := fmt.Sprintf("%s%s", reqHost, uriFetchWithoutKey(resURL, bucket))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQBox, &fetchRet, "POST", reqURL, nil)
+	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &fetchRet, "POST", reqURL, nil)
 	return
 }
 
