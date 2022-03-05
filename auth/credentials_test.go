@@ -109,11 +109,11 @@ func TestCollectDataV2(t *testing.T) {
 		"GET \nHost: \nContent-Type: application/json\n\n{\"name\": \"test\"}",
 		"GET \nHost: \nContent-Type: application/x-www-form-urlencoded\n\n{\"name\": \"test\"}",
 		"POST \nHost: \nContent-Type: application/json\n\n{\"name\": \"test\"}",
-		"GET \nHost: upload.qiniup.com\nContent-Type: application/x-www-form-urlencoded\nX-Qiniu-Aaa: CCC\nX-Qiniu-Aaa: DDD\nX-Qiniu-Bbb: AAA\nX-Qiniu-Bbb: BBB\n\n{\"name\": \"test\"}",
-		"GET \nHost: upload.qiniup.com\nContent-Type: application/json\nX-Qiniu-Aaa: CCC\nX-Qiniu-Aaa: DDD\nX-Qiniu-Bbb: AAA\nX-Qiniu-Bbb: BBB\n\n{\"name\": \"test\"}",
-		"GET \nHost: upload.qiniup.com\nContent-Type: application/x-www-form-urlencoded\nX-Qiniu-Aaa: CCC\nX-Qiniu-Aaa: DDD\nX-Qiniu-Bbb: AAA\nX-Qiniu-Bbb: BBB\n\nname=test&language=go",
-		"GET ?v=2\nHost: upload.qiniup.com\nContent-Type: application/x-www-form-urlencoded\nX-Qiniu-Aaa: CCC\nX-Qiniu-Aaa: DDD\nX-Qiniu-Bbb: AAA\nX-Qiniu-Bbb: BBB\n\nname=test&language=go",
-		"GET /find/sdk?v=2\nHost: upload.qiniup.com\nContent-Type: application/x-www-form-urlencoded\nX-Qiniu-Aaa: CCC\nX-Qiniu-Aaa: DDD\nX-Qiniu-Bbb: AAA\nX-Qiniu-Bbb: BBB\n\nname=test&language=go",
+		"GET \nHost: upload.qiniup.com\nContent-Type: application/x-www-form-urlencoded\nX-Qiniu-Aaa: \nX-Qiniu-Bbb: \n\n{\"name\": \"test\"}",
+		"GET \nHost: upload.qiniup.com\nContent-Type: application/json\nX-Qiniu-Aaa: \nX-Qiniu-Bbb: \n\n{\"name\": \"test\"}",
+		"GET \nHost: upload.qiniup.com\nContent-Type: application/x-www-form-urlencoded\nX-Qiniu-Aaa: \nX-Qiniu-Bbb: \n\nname=test&language=go",
+		"GET ?v=2\nHost: upload.qiniup.com\nContent-Type: application/x-www-form-urlencoded\nX-Qiniu-Aaa: \nX-Qiniu-Bbb: \n\nname=test&language=go",
+		"GET /find/sdk?v=2\nHost: upload.qiniup.com\nContent-Type: application/x-www-form-urlencoded\nX-Qiniu-Aaa: \nX-Qiniu-Bbb: \n\nname=test&language=go",
 	}
 	reqs, gErr := genRequests(inputs)
 	if gErr != nil {
@@ -126,7 +126,7 @@ func TestCollectDataV2(t *testing.T) {
 			t.Error("collectDataV2: ", err)
 		}
 		if string(data) != wants[ind] {
-			t.Errorf("collectDataV2, want = %q, got = %q\n", wants[ind], data)
+			t.Errorf("index:%d collectDataV2, want = %q, got = %q\n", ind, wants[ind], data)
 		}
 	}
 }
@@ -209,8 +209,8 @@ func TestAuthSignRequestV2(t *testing.T) {
 		"ak:0i1vKClRDWFyNkcTFzwcE7PzX74=",
 		"ak:0ujEjW_vLRZxebsveBgqa3JyQ-w=",
 		"ak:GShw5NitGmd5TLoo38nDkGUofRw=",
-		"ak:N1JHCQfjs0zX00yNP59ajZI41W8=",
-		"ak:s2cp5btoYoHaraDW2CAGBxj0OvU=",
+		"ak:-fB4yn26QtKrW3jb_owJha4-W1I=",
+		"ak:PSssnOFa3sUvpEjTfACJ9WWKBS4=",
 	}
 	reqs, gErr := genRequests(inputs)
 	if gErr != nil {
@@ -222,7 +222,7 @@ func TestAuthSignRequestV2(t *testing.T) {
 			t.Errorf("SignRequest: %v\n", sErr)
 		}
 		if got != wants[ind] {
-			t.Errorf("SignRequest, want = %q, got = %q\n", wants[ind], got)
+			t.Errorf("index:%d SignRequest, want = %q, got = %q\n", ind, wants[ind], got)
 		}
 	}
 }

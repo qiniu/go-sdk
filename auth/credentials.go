@@ -144,16 +144,15 @@ func collectDataV2(req *http.Request) (data []byte, err error) {
 	s += fmt.Sprintf("Content-Type: %s\n", contentType)
 
 	xQiniuHeaders := make(xQiniuHeaders, 0, len(req.Header))
-	for headerName, headerValues := range req.Header {
+	for headerName := range req.Header {
 		if len(headerName) > len("X-Qiniu-") && strings.HasPrefix(headerName, "X-Qiniu-") {
-			for _, headerValue := range headerValues {
-				xQiniuHeaders = append(xQiniuHeaders, xQiniuHeaderItem{
-					HeaderName:  textproto.CanonicalMIMEHeaderKey(headerName),
-					HeaderValue: headerValue,
-				})
-			}
+			xQiniuHeaders = append(xQiniuHeaders, xQiniuHeaderItem{
+				HeaderName:  textproto.CanonicalMIMEHeaderKey(headerName),
+				HeaderValue: req.Header.Get(headerName),
+			})
 		}
 	}
+
 	if len(xQiniuHeaders) > 0 {
 		sort.Sort(xQiniuHeaders)
 		for _, xQiniuHeader := range xQiniuHeaders {
