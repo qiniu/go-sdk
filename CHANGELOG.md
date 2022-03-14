@@ -1,4 +1,7 @@
 # Changelog
+## 7.11.2
+* 全面支持 Qiniu 签名
+
 ## 7.11.1
 * 优化容器环境下 pod 当前内存工作集 (working set) 使用量
 
