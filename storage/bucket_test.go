@@ -475,10 +475,15 @@ func TestRefererAntiLeechMode(t *testing.T) {
 }
 
 func TestBucketLifeCycleRule(t *testing.T) {
+	bucketManager.DelBucketLifeCycleRule(testBucket, "golangIntegrationTest")
+
 	err := bucketManager.AddBucketLifeCycleRule(testBucket, &BucketLifeCycleRule{
 		Name:            "golangIntegrationTest",
 		Prefix:          "testPutFileKey",
-		DeleteAfterDays: 3,
+		DeleteAfterDays: 13,
+		ToLineAfterDays: 1,
+		ToArchiveAfterDays: 6,
+		ToDeepArchiveAfterDays: 10,
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "rule name exists") {
@@ -491,7 +496,8 @@ func TestBucketLifeCycleRule(t *testing.T) {
 	}
 	ruleExists := false
 	for _, r := range rules {
-		if r.Name == "golangIntegrationTest" && r.Prefix == "testPutFileKey" && r.DeleteAfterDays == 3 {
+		if r.Name == "golangIntegrationTest" && r.Prefix == "testPutFileKey" && r.DeleteAfterDays == 13 &&
+			r.ToLineAfterDays == 1 && r.ToArchiveAfterDays == 6 && r.ToDeepArchiveAfterDays == 10 {
 			ruleExists = true
 			break
 		}
@@ -503,12 +509,32 @@ func TestBucketLifeCycleRule(t *testing.T) {
 	err = bucketManager.UpdateBucketLifeCycleRule(testBucket, &BucketLifeCycleRule{
 		Name:            "golangIntegrationTest",
 		Prefix:          "testPutFileKey",
-		DeleteAfterDays: 2,
+		DeleteAfterDays: 22,
+		ToLineAfterDays: 11,
+		ToArchiveAfterDays: 16,
+		ToDeepArchiveAfterDays: 20,
 	})
 
 	if err != nil {
 		t.Fatalf("TestBucketLifeCycleRule: %v\n", err)
 	}
+
+	rules, err = bucketManager.GetBucketLifeCycleRule(testBucket)
+	if err != nil {
+		t.Fatalf("TestBucketLifeCycleRule: %v\n", err)
+	}
+	ruleExists = false
+	for _, r := range rules {
+		if r.Name == "golangIntegrationTest" && r.Prefix == "testPutFileKey" && r.DeleteAfterDays == 22 &&
+			r.ToLineAfterDays == 11 && r.ToArchiveAfterDays == 16 && r.ToDeepArchiveAfterDays == 20 {
+			ruleExists = true
+			break
+		}
+	}
+	if !ruleExists {
+		t.Fatalf("TestBucketLifeCycleRule: %v\n", err)
+	}
+
 	err = bucketManager.DelBucketLifeCycleRule(testBucket, "golangIntegrationTest")
 
 	if err != nil {
