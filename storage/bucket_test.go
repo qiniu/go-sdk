@@ -478,11 +478,11 @@ func TestBucketLifeCycleRule(t *testing.T) {
 	bucketManager.DelBucketLifeCycleRule(testBucket, "golangIntegrationTest")
 
 	err := bucketManager.AddBucketLifeCycleRule(testBucket, &BucketLifeCycleRule{
-		Name:            "golangIntegrationTest",
-		Prefix:          "testPutFileKey",
-		DeleteAfterDays: 13,
-		ToLineAfterDays: 1,
-		ToArchiveAfterDays: 6,
+		Name:                   "golangIntegrationTest",
+		Prefix:                 "testPutFileKey",
+		DeleteAfterDays:        13,
+		ToLineAfterDays:        1,
+		ToArchiveAfterDays:     6,
 		ToDeepArchiveAfterDays: 10,
 	})
 	if err != nil {
@@ -507,11 +507,11 @@ func TestBucketLifeCycleRule(t *testing.T) {
 	}
 
 	err = bucketManager.UpdateBucketLifeCycleRule(testBucket, &BucketLifeCycleRule{
-		Name:            "golangIntegrationTest",
-		Prefix:          "testPutFileKey",
-		DeleteAfterDays: 22,
-		ToLineAfterDays: 11,
-		ToArchiveAfterDays: 16,
+		Name:                   "golangIntegrationTest",
+		Prefix:                 "testPutFileKey",
+		DeleteAfterDays:        22,
+		ToLineAfterDays:        11,
+		ToArchiveAfterDays:     16,
 		ToDeepArchiveAfterDays: 20,
 	})
 
