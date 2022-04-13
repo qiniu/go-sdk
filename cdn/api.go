@@ -256,7 +256,7 @@ func (m *CdnManager) GetCdnLogList(day string, domains []string) (
 		return
 	}
 
-	if listLogResult.Error != "" {
+	if listLogResult.Code != 200 {
 		err = fmt.Errorf("get log list error, %d %s", listLogResult.Code, listLogResult.Error)
 		return
 	}
