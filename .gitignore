@@ -2,12 +2,15 @@
 *.o
 *.a
 *.so
+*.dylib
+*.dll
 
 # Folders
 _obj
 _test
 .idea
 .vscode
+.DS_Store
 
 # Architecture specific extensions/prefixes
 *.[568vq]
@@ -27,3 +30,6 @@ _testmain.go
 
 # coverage file
 coverage.txt
+
+# Go workspace file
+go.work

@@ -253,8 +253,19 @@ type BucketLifeCycleRule struct {
 	// 在多少天后转低频存储
 	// 0  - 表示不转低频
 	// < 0 表示上传的文件立即使用低频存储
-	// > 0 表示转低频的天数
+	// > 0 表示多少天后转低频存储
 	ToLineAfterDays int `json:"to_line_after_days"`
+
+	// 指定文件上传多少天后转归档存储。
+	// 0 表示不转归档存储，
+	// < 0 表示上传的文件立即变归档存储
+	// > 0 表示多少天后转归档存储
+	ToArchiveAfterDays int `json:"to_archive_after_days"`
+
+	// 指定文件上传多少天后转深度归档存储。
+	// < 0 表示上传的文件立即变深度归档存储
+	// > 0 表示多少天后转深度归档存储
+	ToDeepArchiveAfterDays int `json:"to_deep_archive_after_days"`
 }
 
 // SetBucketLifeCycleRule 设置存储空间内文件的生命周期规则
@@ -266,7 +277,9 @@ func (m *BucketManager) AddBucketLifeCycleRule(bucketName string, lifeCycleRule 
 	params["name"] = []string{lifeCycleRule.Name}
 	params["prefix"] = []string{lifeCycleRule.Prefix}
 	params["delete_after_days"] = []string{strconv.Itoa(lifeCycleRule.DeleteAfterDays)}
-	params["to_line_after_days"] = []string{strconv.Itoa(lifeCycleRule.ToLineAfterDays)}
+	params["to_ia_after_days"] = []string{strconv.Itoa(lifeCycleRule.ToLineAfterDays)}
+	params["to_archive_after_days"] = []string{strconv.Itoa(lifeCycleRule.ToArchiveAfterDays)}
+	params["to_deep_archive_after_days"] = []string{strconv.Itoa(lifeCycleRule.ToDeepArchiveAfterDays)}
 
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/add"
 	err = m.Client.CredentialedCallWithForm(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil, params)
@@ -292,8 +305,11 @@ func (m *BucketManager) UpdateBucketLifeCycleRule(bucketName string, rule *Bucke
 
 	params["bucket"] = []string{bucketName}
 	params["name"] = []string{rule.Name}
+	params["prefix"] = []string{rule.Prefix}
 	params["delete_after_days"] = []string{strconv.Itoa(rule.DeleteAfterDays)}
 	params["to_line_after_days"] = []string{strconv.Itoa(rule.ToLineAfterDays)}
+	params["to_archive_after_days"] = []string{strconv.Itoa(rule.ToArchiveAfterDays)}
+	params["to_deep_archive_after_days"] = []string{strconv.Itoa(rule.ToDeepArchiveAfterDays)}
 
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/update"
 	err = m.Client.CredentialedCallWithForm(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil, params)
