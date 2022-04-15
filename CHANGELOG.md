@@ -1,6 +1,7 @@
 # Changelog
-## 7.11.2
-* 全面支持 Qiniu 签名
+## 7.12.0
+* 对象存储，新增支持 [深度归档存储类型](https://developer.qiniu.com/kodo/3956/kodo-category#deep_archive)
+* 对象存储，全面支持 Qiniu 签名
 
 ## 7.11.1
 * 优化容器环境下 pod 当前内存工作集 (working set) 使用量
