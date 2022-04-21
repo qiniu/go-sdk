@@ -146,42 +146,42 @@ func TestStat(t *testing.T) {
 		t.Logf("1 FileInfo:\n %s", info.String())
 	}
 
+	bucketManager.Delete(testBucket, copyKey)
+	copyKey = "rule_" + copyKey
+	ruleName := "golangStatusTest"
+	bucketManager.DelBucketLifeCycleRule(testBucket, ruleName)
+	if e := bucketManager.AddBucketLifeCycleRule(testBucket, &BucketLifeCycleRule{
+		Name:                   ruleName,
+		Prefix:                 "",
+		ToLineAfterDays:        1,
+		ToArchiveAfterDays:     2,
+		ToDeepArchiveAfterDays: 3,
+		DeleteAfterDays:        4,
+	}); e != nil {
+		t.Logf("Stat AddBucketLifeCycleRule() error, %s", e)
+		t.Fail()
+	}
+
 	if e := bucketManager.Copy(testBucket, key, testBucket, copyKey, true); e != nil {
 		t.Logf("2 Stat Copy error, %s", e)
 		t.Fail()
 	}
-	if e := bucketManager.ChangeType(testBucket, copyKey, 3); e != nil {
-		t.Logf("2 Stat Copy error, %s", e)
-		t.Fail()
-	}
-	if e := bucketManager.RestoreAr(testBucket, copyKey, 2); e != nil {
-		t.Logf("2 Stat Restore error, %s", e)
-		t.Fail()
-	}
-	if e := bucketManager.DeleteAfterDays(testBucket, copyKey, 2); e != nil {
+	if e := bucketManager.DeleteAfterDays(testBucket, copyKey, 1); e != nil {
 		t.Logf("2 Stat Delete error, %s", e)
 		t.Fail()
 	}
+	time.Sleep(5 * time.Second)
+	client.DebugMode = true
 	if info, e := bucketManager.Stat(testBucket, copyKey); e != nil ||
-		info.Type != 3 || len(info.Hash) == 0 || len(info.Md5) == 0 ||
-		info.RestoreStatus == 0 || info.Expiration == 0 {
-		t.Logf("3 Stat() error, %s", e)
+		len(info.Hash) == 0 || len(info.Md5) == 0 || info.Expiration == 0 ||
+		info.TransitionToIA == 0 || info.TransitionToArchive == 0 || info.TransitionToDeepArchive == 0 {
+		t.Logf("3 Stat() error, %v", e)
 		t.Fail()
 	} else {
 		t.Logf("3 FileInfo:\n %s", info.String())
 	}
-
-	keysToStat := []string{key}
-
-	for _, eachKey := range keysToStat {
-		info, err := bucketManager.Stat(testBucket, eachKey)
-		if err != nil {
-			t.Logf("Stat() error, %s", err)
-			t.Fail()
-		} else {
-			t.Logf("FileInfo:\n %s", info.String())
-		}
-	}
+	bucketManager.Delete(testBucket, copyKey)
+	bucketManager.DelBucketLifeCycleRule(testBucket, ruleName)
 }
 
 func TestStatWithOption(t *testing.T) {
