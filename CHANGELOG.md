@@ -1,4 +1,8 @@
 # Changelog
+
+## 7.12.1
+* 对象存储，补充 Stat API 可查看对象元数据信息
+
 ## 7.12.0
 * 对象存储，新增支持 [深度归档存储类型](https://developer.qiniu.com/kodo/3956/kodo-category#deep_archive)
 * 对象存储，全面支持 Qiniu 签名
