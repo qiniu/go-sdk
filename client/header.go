@@ -23,6 +23,3 @@ func addXQiniuDate(headers http.Header) error {
 	headers.Set(RequestHeaderKeyXQiniuDate, timeString)
 	return nil
 }
-
-
-

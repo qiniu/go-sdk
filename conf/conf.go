@@ -9,7 +9,6 @@ const (
 	CONTENT_TYPE_MULTIPART = "multipart/form-data"
 )
 
-
 var enableRequestHeaderXQiniuDate = true
 
 func IsEnableRequestHeaderXQiniuDate() bool {
