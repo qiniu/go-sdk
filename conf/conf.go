@@ -8,3 +8,14 @@ const (
 	CONTENT_TYPE_OCTET     = "application/octet-stream"
 	CONTENT_TYPE_MULTIPART = "multipart/form-data"
 )
+
+
+var enableRequestHeaderXQiniuDate = true
+
+func IsEnableRequestHeaderXQiniuDate() bool {
+	return enableRequestHeaderXQiniuDate
+}
+
+func SetEnableRequestHeaderXQiniuDate(enable bool) {
+	enableRequestHeaderXQiniuDate = enable
+}
