@@ -10,7 +10,7 @@ const (
 	RequestHeaderKeyXQiniuDate = "X-Qiniu-Date"
 )
 
-func AddDefaultHeader(headers http.Header) error {
+func addDefaultHeader(headers http.Header) error {
 	return addXQiniuDate(headers)
 }
 

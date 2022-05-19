@@ -58,7 +58,7 @@ func newRequest(ctx context.Context, method, reqUrl string, headers http.Header,
 		headers = http.Header{}
 	}
 
-	err = AddDefaultHeader(headers)
+	err = addDefaultHeader(headers)
 	if err != nil {
 		return
 	}
