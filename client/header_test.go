@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/qiniu/go-sdk/v7/auth"
-	"github.com/qiniu/go-sdk/v7/conf"
 	"net/http"
 	"os"
 	"testing"
@@ -32,8 +31,8 @@ func bucketsWithHeader(header http.Header) (buckets []string, err error) {
 	return
 }
 
-func TestEnableXQiniuDate(t *testing.T) {
-	conf.SetEnableRequestHeaderXQiniuDate(true)
+func TestEnableTimeStampSignature(t *testing.T) {
+	os.Setenv("DISABLE_QINIU_TIMESTAMP_SIGNATURE", "false")
 	header := http.Header{}
 	if err := AddDefaultHeader(header); err != nil {
 		t.Fatalf("TestEnableXQiniuDate error:%v", err)
@@ -44,8 +43,8 @@ func TestEnableXQiniuDate(t *testing.T) {
 	}
 }
 
-func TestDisableXQiniuDate(t *testing.T) {
-	conf.SetEnableRequestHeaderXQiniuDate(false)
+func TestDisableQiniuTimeStampSignature(t *testing.T) {
+	os.Setenv("DISABLE_QINIU_TIMESTAMP_SIGNATURE", "true")
 
 	header := http.Header{}
 	if err := AddDefaultHeader(header); err != nil {

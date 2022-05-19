@@ -1,5 +1,7 @@
 package conf
 
+import "os"
+
 const Version = "7.12.1"
 
 const (
@@ -7,14 +9,10 @@ const (
 	CONTENT_TYPE_FORM      = "application/x-www-form-urlencoded"
 	CONTENT_TYPE_OCTET     = "application/octet-stream"
 	CONTENT_TYPE_MULTIPART = "multipart/form-data"
+
+	disableQiniuTimestampSignatureEnvKey = "DISABLE_QINIU_TIMESTAMP_SIGNATURE"
 )
 
-var enableRequestHeaderXQiniuDate = true
-
-func IsEnableRequestHeaderXQiniuDate() bool {
-	return enableRequestHeaderXQiniuDate
-}
-
-func SetEnableRequestHeaderXQiniuDate(enable bool) {
-	enableRequestHeaderXQiniuDate = enable
+func IsDisableQiniuTimestampSignature() bool {
+	return os.Getenv(disableQiniuTimestampSignatureEnvKey) == "true"
 }

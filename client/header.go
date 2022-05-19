@@ -15,7 +15,7 @@ func AddDefaultHeader(headers http.Header) error {
 }
 
 func addXQiniuDate(headers http.Header) error {
-	if !conf.IsEnableRequestHeaderXQiniuDate() {
+	if conf.IsDisableQiniuTimestampSignature() {
 		return nil
 	}
 
