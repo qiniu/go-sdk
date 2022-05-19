@@ -1,6 +1,9 @@
 package conf
 
-import "os"
+import (
+	"os"
+	"strings"
+)
 
 const Version = "7.12.1"
 
@@ -14,5 +17,7 @@ const (
 )
 
 func IsDisableQiniuTimestampSignature() bool {
-	return os.Getenv(disableQiniuTimestampSignatureEnvKey) == "true"
+	value := os.Getenv(disableQiniuTimestampSignatureEnvKey)
+	value = strings.ToLower(value)
+	return value == "true" || value == "yes" || value == "y" || value == "1"
 }
