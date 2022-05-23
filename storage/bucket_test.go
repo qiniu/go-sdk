@@ -195,7 +195,7 @@ func TestStatWithOption(t *testing.T) {
 
 	opt := &StatOpts{NeedParts: true}
 	info, err := bucketManager.StatWithOpts(testBucket, key, opt)
-	if err != nil && info.Parts != nil {
+	if err != nil || info.Parts == nil {
 		t.Logf("StatWithOption() error, %s", err)
 		t.Fail()
 	} else {

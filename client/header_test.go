@@ -30,3 +30,28 @@ func bucketsWithHeader(header http.Header) (buckets []string, err error) {
 	err = DefaultClient.CredentialedCall(context.Background(), mac, auth.TokenQiniu, &buckets, "POST", reqURL, header)
 	return
 }
+
+func TestEnableTimeStampSignature(t *testing.T) {
+	os.Setenv("DISABLE_QINIU_TIMESTAMP_SIGNATURE", "false")
+	header := http.Header{}
+	if err := addDefaultHeader(header); err != nil {
+		t.Fatalf("TestEnableXQiniuDate error:%v", err)
+	}
+	xQiniuDate := header.Values(RequestHeaderKeyXQiniuDate)
+	if len(xQiniuDate) == 0 || len(xQiniuDate[0]) == 0 {
+		t.Fatal("TestEnableXQiniuDate xQiniuDate header not set success")
+	}
+}
+
+func TestDisableQiniuTimeStampSignature(t *testing.T) {
+	os.Setenv("DISABLE_QINIU_TIMESTAMP_SIGNATURE", "true")
+
+	header := http.Header{}
+	if err := addDefaultHeader(header); err != nil {
+		t.Fatalf("TestDisableXQiniuDate error:%v", err)
+	}
+	xQiniuDate := header.Values(RequestHeaderKeyXQiniuDate)
+	if len(xQiniuDate) > 0 {
+		t.Fatal("TestDisableXQiniuDate xQiniuDate header should not set success")
+	}
+}

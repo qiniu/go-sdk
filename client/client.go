@@ -58,6 +58,11 @@ func newRequest(ctx context.Context, method, reqUrl string, headers http.Header,
 		headers = http.Header{}
 	}
 
+	err = addDefaultHeader(headers)
+	if err != nil {
+		return
+	}
+
 	req.Header = headers
 	req = req.WithContext(ctx)
 
