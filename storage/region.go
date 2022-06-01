@@ -96,13 +96,9 @@ var (
 	regionHuadong = Region{
 		SrcUpHosts: []string{
 			"up.qiniup.com",
-			"up-nb.qiniup.com",
-			"up-xs.qiniup.com",
 		},
 		CdnUpHosts: []string{
 			"upload.qiniup.com",
-			"upload-nb.qiniup.com",
-			"upload-xs.qiniup.com",
 		},
 		RsHost:    "rs.qbox.me",
 		RsfHost:   "rsf.qbox.me",
@@ -141,13 +137,9 @@ var (
 	regionHuanan = Region{
 		SrcUpHosts: []string{
 			"up-z2.qiniup.com",
-			"up-gz.qiniup.com",
-			"up-fs.qiniup.com",
 		},
 		CdnUpHosts: []string{
 			"upload-z2.qiniup.com",
-			"upload-gz.qiniup.com",
-			"upload-fs.qiniup.com",
 		},
 		RsHost:    "rs-z2.qbox.me",
 		RsfHost:   "rsf-z2.qbox.me",
