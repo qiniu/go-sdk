@@ -1,5 +1,8 @@
 # Changelog
 
+## 7.13.0
+* 对象存储，管理类 API 发送请求时增加 [X-Qiniu-Date](https://developer.qiniu.com/kodo/3924/common-request-headers) （生成请求的时间） header
+
 ## 7.12.1
 * 对象存储，补充 Stat API 可查看对象元数据信息
 
