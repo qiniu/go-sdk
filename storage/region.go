@@ -137,6 +137,7 @@ var (
 		ApiHost:   "api-z1.qiniuapi.com",
 		IovipHost: "iovip-z1.qbox.me",
 	}
+
 	// regionHuanan 表示华南机房
 	regionHuanan = Region{
 		SrcUpHosts: []string{
@@ -168,6 +169,7 @@ var (
 		ApiHost:   "api-na0.qiniuapi.com",
 		IovipHost: "iovip-na0.qbox.me",
 	}
+
 	// regionSingapore 表示新加坡机房
 	regionSingapore = Region{
 		SrcUpHosts: []string{
@@ -181,6 +183,21 @@ var (
 		ApiHost:   "api-as0.qiniuapi.com",
 		IovipHost: "iovip-as0.qbox.me",
 	}
+
+	// regionNortheast1 表示首尔机房
+	regionNortheast1 = Region{
+		SrcUpHosts: []string{
+			"up-ap-northeast-1.qiniup.com",
+		},
+		CdnUpHosts: []string{
+			"upload-ap-northeast-1.qiniup.com",
+		},
+		RsHost:    "rs-ap-northeast-1.qiniuapi.com",
+		RsfHost:   "rsf-ap-northeast-1.qiniuapi.com",
+		ApiHost:   "api-ap-northeast-1.qiniuapi.com",
+		IovipHost: "iovip-ap-northeast-1.qiniuio.com",
+	}
+
 	// regionFogCnEast1 表示雾存储华东区
 	regionFogCnEast1 = Region{
 		SrcUpHosts: []string{
@@ -204,6 +221,7 @@ const (
 	RIDHuanan           = RegionID("z2")
 	RIDNorthAmerica     = RegionID("na0")
 	RIDSingapore        = RegionID("as0")
+	RIDNortheast1       = RegionID("ap-northeast-1")
 	RIDFogCnEast1       = RegionID("fog-cn-east-1")
 )
 
@@ -215,6 +233,7 @@ var regionMap = map[RegionID]Region{
 	RIDHuabei:           regionHuabei,
 	RIDSingapore:        regionSingapore,
 	RIDNorthAmerica:     regionNorthAmerica,
+	RIDNortheast1:       regionNortheast1,
 	RIDFogCnEast1:       regionFogCnEast1,
 }
 
@@ -542,7 +561,12 @@ func regionFromHost(ioHost string) (Region, bool) {
 	if strings.Contains(ioHost, "-z2") {
 		return GetRegionByID(RIDHuanan)
 	}
-
+	if strings.Contains(ioHost, "-cn-east-2") {
+		return GetRegionByID(RIDHuadongZheJiang2)
+	}
+	if strings.Contains(ioHost, "-ap-northeast-1") {
+		return GetRegionByID(RIDNortheast1)
+	}
 	if strings.Contains(ioHost, "-na0") {
 		return GetRegionByID(RIDNorthAmerica)
 	}
