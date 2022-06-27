@@ -197,20 +197,6 @@ var (
 		ApiHost:   "api-ap-northeast-1.qiniuapi.com",
 		IovipHost: "iovip-ap-northeast-1.qiniuio.com",
 	}
-
-	// regionFogCnEast1 表示雾存储华东区
-	regionFogCnEast1 = Region{
-		SrcUpHosts: []string{
-			"up-fog-cn-east-1.qiniup.com",
-		},
-		CdnUpHosts: []string{
-			"upload-fog-cn-east-1.qiniup.com",
-		},
-		RsHost:    "rs-fog-cn-east-1.qbox.me",
-		RsfHost:   "rsf-fog-cn-east-1.qbox.me",
-		ApiHost:   "api-fog-cn-east-1.qiniuapi.com",
-		IovipHost: "iovip-fog-cn-east-1.qbox.me",
-	}
 )
 
 const (
@@ -222,7 +208,6 @@ const (
 	RIDNorthAmerica     = RegionID("na0")
 	RIDSingapore        = RegionID("as0")
 	RIDNortheast1       = RegionID("ap-northeast-1")
-	RIDFogCnEast1       = RegionID("fog-cn-east-1")
 )
 
 // regionMap 是RegionID到具体的Region的映射
@@ -234,7 +219,6 @@ var regionMap = map[RegionID]Region{
 	RIDSingapore:        regionSingapore,
 	RIDNorthAmerica:     regionNorthAmerica,
 	RIDNortheast1:       regionNortheast1,
-	RIDFogCnEast1:       regionFogCnEast1,
 }
 
 /// UcHost 为查询空间相关域名的API服务地址
