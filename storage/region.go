@@ -119,7 +119,7 @@ var (
 			"upload-cn-east-2.qiniup.com",
 		},
 		RsHost:    "rs-cn-east-2.qiniuapi.com",
-		RsfHost:   "rsf-cn-east-2-qiniuapi.com",
+		RsfHost:   "rsf-cn-east-2.qiniuapi.com",
 		ApiHost:   "api-cn-east-2.qiniuapi.com",
 		IovipHost: "iovip-cn-east-2.qiniuio.com",
 	}
