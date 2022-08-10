@@ -184,8 +184,8 @@ var (
 		IovipHost: "iovip-as0.qbox.me",
 	}
 
-	// regionNortheast1 表示首尔机房
-	regionNortheast1 = Region{
+	// regionApNortheast1 表示亚太-首尔机房
+	regionApNortheast1 = Region{
 		SrcUpHosts: []string{
 			"up-ap-northeast-1.qiniup.com",
 		},
@@ -207,7 +207,7 @@ const (
 	RIDHuanan           = RegionID("z2")
 	RIDNorthAmerica     = RegionID("na0")
 	RIDSingapore        = RegionID("as0")
-	RIDNortheast1       = RegionID("ap-northeast-1")
+	RIDApNortheast1     = RegionID("ap-northeast-1")
 )
 
 // regionMap 是RegionID到具体的Region的映射
@@ -218,7 +218,7 @@ var regionMap = map[RegionID]Region{
 	RIDHuabei:           regionHuabei,
 	RIDSingapore:        regionSingapore,
 	RIDNorthAmerica:     regionNorthAmerica,
-	RIDNortheast1:       regionNortheast1,
+	RIDApNortheast1:     regionApNortheast1,
 }
 
 /// UcHost 为查询空间相关域名的API服务地址
@@ -549,7 +549,7 @@ func regionFromHost(ioHost string) (Region, bool) {
 		return GetRegionByID(RIDHuadongZheJiang2)
 	}
 	if strings.Contains(ioHost, "-ap-northeast-1") {
-		return GetRegionByID(RIDNortheast1)
+		return GetRegionByID(RIDApNortheast1)
 	}
 	if strings.Contains(ioHost, "-na0") {
 		return GetRegionByID(RIDNorthAmerica)

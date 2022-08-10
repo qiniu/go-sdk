@@ -35,7 +35,7 @@ var (
 	ZoneHuadongZheJiang2, _ = GetRegionByID(RIDHuadongZheJiang2)
 
 	// 亚太首尔 1 区
-	ZoneShouEr1, _ = GetRegionByID(RIDNortheast1)
+	ZoneShouEr1, _ = GetRegionByID(RIDApNortheast1)
 
 	// 兼容保留
 	Zone_z0 = ZoneHuadong
