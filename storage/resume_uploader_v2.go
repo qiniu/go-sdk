@@ -120,7 +120,7 @@ func (p *ResumeUploaderV2) rput(ctx context.Context, ret interface{}, upToken st
 		return
 	}
 	if extra.UpHost != "" {
-		hostProvider = hostprovider.NewWithHosts([]string{extra.UpHost})
+		hostProvider = hostprovider.NewWithHosts([]string{extra.getUpHost(p.Cfg.UseHTTPS)})
 	} else {
 		hostProvider, err = p.resumeUploaderAPIs().upHostProvider(accessKey, bucket)
 		if err != nil {
@@ -155,7 +155,7 @@ func (p *ResumeUploaderV2) rputWithoutSize(ctx context.Context, ret interface{},
 		return
 	}
 	if extra.UpHost != "" {
-		hostProvider = hostprovider.NewWithHosts([]string{extra.UpHost})
+		hostProvider = hostprovider.NewWithHosts([]string{extra.getUpHost(p.Cfg.UseHTTPS)})
 	} else {
 		hostProvider, err = p.resumeUploaderAPIs().upHostProvider(accessKey, bucket)
 		if err != nil {

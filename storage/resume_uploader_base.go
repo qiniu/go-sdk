@@ -138,19 +138,20 @@ type (
 )
 
 // 使用并发 Goroutine 上传数据
-func uploadByWorkers(uploader resumeUploaderBase, ctx context.Context, body chunkReader) (err error) {
+func uploadByWorkers(uploader resumeUploaderBase, ctx context.Context, body chunkReader) error {
 
 	initWorkers()
 
-	var recovered []int64
-	if recovered, err = uploader.initUploader(ctx); err != nil {
-		return
+	recovered, iErr := uploader.initUploader(ctx)
+	if iErr != nil {
+		return iErr
 	}
 
 	// 读取 Chunk 并创建任务
 	var uErr error
 	var locker = sync.Mutex{}
-	err = body.readChunks(recovered, func(chunkID, off, size int64, reader io.ReaderAt) error {
+	var waiter = sync.WaitGroup{}
+	rErr := body.readChunks(recovered, func(chunkID, off, size int64, reader io.ReaderAt) error {
 		locker.Lock()
 		if uErr != nil {
 			locker.Unlock()
@@ -158,6 +159,7 @@ func uploadByWorkers(uploader resumeUploaderBase, ctx context.Context, body chun
 		}
 		locker.Unlock()
 
+		waiter.Add(1)
 		tasks <- func() {
 			pErr := uploader.uploadChunk(ctx, chunk{
 				id:     chunkID,
@@ -171,15 +173,21 @@ func uploadByWorkers(uploader resumeUploaderBase, ctx context.Context, body chun
 				uErr = pErr
 			}
 			locker.Unlock()
+			waiter.Done()
 		}
 		return nil
 	})
-	if err != nil {
-		return err
+	waiter.Wait()
+
+	if rErr != nil {
+		return rErr
 	}
 
-	err = uploader.final(ctx)
-	return
+	if uErr != nil {
+		return uErr
+	}
+
+	return uploader.final(ctx)
 }
 
 func newUnsizedChunkReader(body io.Reader, blockSize int64) *unsizedChunkReader {

@@ -139,7 +139,7 @@ func (p *FormUploader) putFile(
 
 	var hostProvider hostprovider.HostProvider = nil
 	if extra.UpHost != "" {
-		hostProvider = hostprovider.NewWithHosts([]string{extra.UpHost})
+		hostProvider = hostprovider.NewWithHosts([]string{extra.getUpHost(p.Cfg.UseHTTPS)})
 	} else {
 		hostProvider, err = p.getUpHostProviderFromUploadToken(upToken)
 		if err != nil {

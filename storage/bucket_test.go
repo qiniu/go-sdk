@@ -138,9 +138,9 @@ func TestStat(t *testing.T) {
 		t.Fail()
 	}
 	if info, e := bucketManager.Stat(testBucket, copyKey); e != nil ||
-		info.Type != 2 || len(info.Hash) == 0 || len(info.Md5) == 0 ||
+		info.Type != 2 || len(info.Hash) == 0 ||
 		info.RestoreStatus == 0 {
-		t.Logf("1 Stat() error, %s", e)
+		t.Logf("1 Stat() error, %+v", e)
 		t.Fail()
 	} else {
 		t.Logf("1 FileInfo:\n %s", info.String())
@@ -172,7 +172,7 @@ func TestStat(t *testing.T) {
 	}
 	client.DebugMode = true
 	if info, e := bucketManager.Stat(testBucket, copyKey); e != nil ||
-		len(info.Hash) == 0 || len(info.Md5) == 0 || info.Expiration == 0 {
+		len(info.Hash) == 0 || info.Expiration == 0 {
 		t.Logf("3 Stat() error, %v", e)
 		t.Fail()
 	} else {
