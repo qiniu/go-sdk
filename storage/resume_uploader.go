@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"hash/crc32"
 	"io"
 	"os"
@@ -128,8 +129,9 @@ func (p *ResumeUploader) rput(ctx context.Context, ret interface{}, upToken stri
 	extra.init()
 
 	var (
-		upHost, accessKey, bucket, recorderKey string
-		fileInfo                               os.FileInfo = nil
+		accessKey, bucket, recorderKey string
+		fileInfo                       os.FileInfo               = nil
+		hostProvider                   hostprovider.HostProvider = nil
 	)
 
 	if accessKey, bucket, err = getAkBucketFromUploadToken(upToken); err != nil {
@@ -137,9 +139,9 @@ func (p *ResumeUploader) rput(ctx context.Context, ret interface{}, upToken stri
 	}
 
 	if extra.UpHost != "" {
-		upHost = extra.getUpHost(p.Cfg.UseHTTPS)
+		hostProvider = hostprovider.NewWithHosts([]string{extra.UpHost})
 	} else {
-		upHost, err = p.resumeUploaderAPIs().upHost(accessKey, bucket)
+		hostProvider, err = p.resumeUploaderAPIs().upHostProvider(accessKey, bucket)
 		if err != nil {
 			return
 		}
@@ -153,8 +155,8 @@ func (p *ResumeUploader) rput(ctx context.Context, ret interface{}, upToken stri
 	}
 
 	return uploadByWorkers(
-		newResumeUploaderImpl(p, key, hasKey, upToken, upHost, fileInfo, extra, ret, recorderKey),
-		ctx, newSizedChunkReader(f, fsize, 1<<blockBits), extra.TryTimes)
+		newResumeUploaderImpl(p, key, hasKey, upToken, hostProvider, fileInfo, extra, ret, recorderKey),
+		ctx, newSizedChunkReader(f, fsize, 1<<blockBits))
 }
 
 func (p *ResumeUploader) rputWithoutSize(ctx context.Context, ret interface{}, upToken string, key string, hasKey bool, r io.Reader, extra *RputExtra) (err error) {
@@ -163,23 +165,27 @@ func (p *ResumeUploader) rputWithoutSize(ctx context.Context, ret interface{}, u
 	}
 	extra.init()
 
-	var upHost, accessKey, bucket string
+	var (
+		accessKey, bucket string
+		hostProvider      hostprovider.HostProvider = nil
+	)
+
 	if accessKey, bucket, err = getAkBucketFromUploadToken(upToken); err != nil {
 		return
 	}
 
 	if extra.UpHost != "" {
-		upHost = extra.getUpHost(p.Cfg.UseHTTPS)
+		hostProvider = hostprovider.NewWithHosts([]string{extra.UpHost})
 	} else {
-		upHost, err = p.resumeUploaderAPIs().upHost(accessKey, bucket)
+		hostProvider, err = p.resumeUploaderAPIs().upHostProvider(accessKey, bucket)
 		if err != nil {
 			return
 		}
 	}
 
 	return uploadByWorkers(
-		newResumeUploaderImpl(p, key, hasKey, upToken, upHost, nil, extra, ret, ""),
-		ctx, newUnsizedChunkReader(r, 1<<blockBits), extra.TryTimes)
+		newResumeUploaderImpl(p, key, hasKey, upToken, hostProvider, nil, extra, ret, ""),
+		ctx, newUnsizedChunkReader(r, 1<<blockBits))
 }
 
 func (p *ResumeUploader) rputFile(ctx context.Context, ret interface{}, upToken string, key string, hasKey bool, localFile string, extra *RputExtra) (err error) {
@@ -231,19 +237,19 @@ func (p *ResumeUploader) resumeUploaderAPIs() *resumeUploaderAPIs {
 type (
 	// 用于实现 resumeUploaderBase 的 V1 分片接口
 	resumeUploaderImpl struct {
-		client      *client.Client
-		cfg         *Config
-		key         string
-		hasKey      bool
-		upToken     string
-		upHost      string
-		bufPool     *sync.Pool
-		extra       *RputExtra
-		ret         interface{}
-		fileSize    int64
-		fileInfo    os.FileInfo
-		recorderKey string
-		lock        sync.Mutex
+		client         *client.Client
+		cfg            *Config
+		key            string
+		hasKey         bool
+		upToken        string
+		upHostProvider hostprovider.HostProvider
+		bufPool        *sync.Pool
+		extra          *RputExtra
+		ret            interface{}
+		fileSize       int64
+		fileInfo       os.FileInfo
+		recorderKey    string
+		lock           sync.Mutex
 	}
 
 	resumeUploaderRecoveryInfoContext struct {
@@ -261,14 +267,14 @@ type (
 	}
 )
 
-func newResumeUploaderImpl(resumeUploader *ResumeUploader, key string, hasKey bool, upToken string, upHost string, fileInfo os.FileInfo, extra *RputExtra, ret interface{}, recorderKey string) *resumeUploaderImpl {
+func newResumeUploaderImpl(resumeUploader *ResumeUploader, key string, hasKey bool, upToken string, upHostProvider hostprovider.HostProvider, fileInfo os.FileInfo, extra *RputExtra, ret interface{}, recorderKey string) *resumeUploaderImpl {
 	return &resumeUploaderImpl{
-		client:  resumeUploader.Client,
-		cfg:     resumeUploader.Cfg,
-		key:     key,
-		hasKey:  hasKey,
-		upToken: upToken,
-		upHost:  upHost,
+		client:         resumeUploader.Client,
+		cfg:            resumeUploader.Cfg,
+		key:            key,
+		hasKey:         hasKey,
+		upToken:        upToken,
+		upHostProvider: upHostProvider,
 		bufPool: &sync.Pool{
 			New: func() interface{} {
 				return bytes.NewBuffer(make([]byte, 0, extra.ChunkSize))
@@ -326,25 +332,30 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 			totalChunkSize += realChunkSize
 		}
 		crc32Value := hasher.Sum32()
-	UploadSingleChunk:
-		for retried := 0; retried < impl.extra.TryTimes; retried += 1 {
-			if chunkOffset == 0 {
-				err = apis.mkBlk(ctx, impl.upToken, impl.upHost, &blkPutRet, c.size, buffer, realChunkSize)
-			} else {
-				err = apis.bput(ctx, impl.upToken, &blkPutRet, buffer, realChunkSize)
-			}
-			if err != nil {
-				if err == context.Canceled {
-					break UploadSingleChunk
+
+		if chunkOffset == 0 {
+			err = doUploadAction(impl.upHostProvider, impl.extra.TryTimes, func(host string) error {
+				if e := apis.mkBlk(ctx, impl.upToken, host, &blkPutRet, c.size, buffer, realChunkSize); e != nil {
+					return e
 				}
-				continue UploadSingleChunk
-			}
-			if blkPutRet.Crc32 != crc32Value || int64(blkPutRet.Offset) != chunkOffset+realChunkSize {
-				err = ErrUnmatchedChecksum
-				continue UploadSingleChunk
-			}
-			break UploadSingleChunk
+				if blkPutRet.Crc32 != crc32Value || int64(blkPutRet.Offset) != chunkOffset+realChunkSize {
+					return ErrUnmatchedChecksum
+				}
+				return nil
+			})
+		} else {
+			err = doUploadAction(impl.upHostProvider, impl.extra.TryTimes, func(host string) error {
+				blkPutRet.Host = host
+				if e := apis.bput(ctx, impl.upToken, &blkPutRet, buffer, realChunkSize); e != nil {
+					return e
+				}
+				if blkPutRet.Crc32 != crc32Value || int64(blkPutRet.Offset) != chunkOffset+realChunkSize {
+					return ErrUnmatchedChecksum
+				}
+				return nil
+			})
 		}
+
 		if err != nil {
 			impl.extra.NotifyErr(int(c.id), int(realChunkSize), err)
 			return err
@@ -379,7 +390,9 @@ func (impl *resumeUploaderImpl) final(ctx context.Context) error {
 	}
 
 	sort.Sort(blkputRets(impl.extra.Progresses))
-	return impl.resumeUploaderAPIs().mkfile(ctx, impl.upToken, impl.upHost, impl.ret, impl.key, impl.hasKey, impl.fileSize, impl.extra)
+	return doUploadAction(impl.upHostProvider, impl.extra.TryTimes, func(host string) error {
+		return impl.resumeUploaderAPIs().mkfile(ctx, impl.upToken, host, impl.ret, impl.key, impl.hasKey, impl.fileSize, impl.extra)
+	})
 }
 
 func (impl *resumeUploaderImpl) recover(ctx context.Context, recoverData []byte) (recovered []int64) {

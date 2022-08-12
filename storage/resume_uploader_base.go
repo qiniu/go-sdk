@@ -96,11 +96,10 @@ func initWorkers() {
 // 代表一块分片的基本信息
 type (
 	chunk struct {
-		id      int64
-		offset  int64
-		size    int64
-		reader  io.ReaderAt
-		retried int
+		id     int64
+		offset int64
+		size   int64
+		reader io.ReaderAt
 	}
 
 	// 代表一块分片的上传错误信息
@@ -139,71 +138,44 @@ type (
 )
 
 // 使用并发 Goroutine 上传数据
-func uploadByWorkers(uploader resumeUploaderBase, ctx context.Context, body chunkReader, tryTimes int) (err error) {
-	var (
-		wg           sync.WaitGroup
-		failedChunks sync.Map
-		recovered    []int64
-	)
+func uploadByWorkers(uploader resumeUploaderBase, ctx context.Context, body chunkReader) (err error) {
 
 	initWorkers()
 
+	var recovered []int64
 	if recovered, err = uploader.initUploader(ctx); err != nil {
 		return
 	}
 
 	// 读取 Chunk 并创建任务
+	var uErr error
+	var locker = sync.Mutex{}
 	err = body.readChunks(recovered, func(chunkID, off, size int64, reader io.ReaderAt) error {
-		newChunk := chunk{id: chunkID, offset: off, size: size, reader: reader, retried: 0}
-		wg.Add(1)
+		locker.Lock()
+		if uErr != nil {
+			locker.Unlock()
+			return uErr
+		}
+		locker.Unlock()
+
 		tasks <- func() {
-			defer wg.Done()
-			if err := uploader.uploadChunk(ctx, newChunk); err != nil {
-				newChunk.retried += 1
-				failedChunks.LoadOrStore(newChunk.id, chunkError{chunk: newChunk, err: err})
+			pErr := uploader.uploadChunk(ctx, chunk{
+				id:     chunkID,
+				offset: off,
+				size:   size,
+				reader: reader,
+			})
+
+			locker.Lock()
+			if uErr == nil {
+				uErr = pErr
 			}
+			locker.Unlock()
 		}
 		return nil
 	})
 	if err != nil {
 		return err
-	}
-
-	for {
-		// 等待这一轮任务执行完毕
-		wg.Wait()
-		// 不断重试先前失败的任务
-		failedTasks := 0
-		failedChunks.Range(func(key, chunkValue interface{}) bool {
-			chunkErr := chunkValue.(chunkError)
-			if chunkErr.err == context.Canceled {
-				err = chunkErr.err
-				return false
-			}
-
-			failedChunks.Delete(key)
-			if chunkErr.retried < tryTimes {
-				failedTasks += 1
-				wg.Add(1)
-				tasks <- func() {
-					defer wg.Done()
-					if cerr := uploader.uploadChunk(ctx, chunkErr.chunk); cerr != nil {
-						chunkErr.retried += 1
-						failedChunks.LoadOrStore(chunkErr.id, chunkErr)
-					}
-				}
-				return true
-			} else {
-				err = chunkErr.err
-				return false
-			}
-		})
-		if err != nil {
-			err = api.NewError(ErrMaxUpRetry, err.Error())
-			return
-		} else if failedTasks == 0 {
-			break
-		}
 	}
 
 	err = uploader.final(ctx)

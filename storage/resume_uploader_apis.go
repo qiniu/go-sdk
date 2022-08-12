@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"encoding/base64"
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"io"
 	"net/http"
 	"strconv"
@@ -170,6 +171,10 @@ func (p *resumeUploaderAPIs) completeParts(ctx context.Context, upToken, upHost 
 
 func (p *resumeUploaderAPIs) upHost(ak, bucket string) (upHost string, err error) {
 	return getUpHost(p.Cfg, ak, bucket)
+}
+
+func (p *resumeUploaderAPIs) upHostProvider(ak, bucket string) (hostProvider hostprovider.HostProvider, err error) {
+	return getUpHostProvider(p.Cfg, ak, bucket)
 }
 
 func makeHeadersForUpload(upToken string) http.Header {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"hash"
 	"hash/crc32"
 	"io"
@@ -26,11 +27,19 @@ type PutExtra struct {
 
 	UpHost string
 
+	TryTimes int // 可选。尝试次数
+
 	// 可选，当为 "" 时候，服务端自动判断。
 	MimeType string
 
 	// 上传事件：进度通知。这个事件的回调函数应该尽可能快地结束。
 	OnProgress func(fsize, uploaded int64)
+}
+
+func (r *PutExtra) init() {
+	if r.TryTimes == 0 {
+		r.TryTimes = settings.TryTimes
+	}
 }
 
 func (extra *PutExtra) getUpHost(useHttps bool) string {
@@ -109,8 +118,12 @@ func (p *FormUploader) PutFileWithoutKey(
 }
 
 func (p *FormUploader) putFile(
-	ctx context.Context, ret interface{}, uptoken string,
+	ctx context.Context, ret interface{}, upToken string,
 	key string, hasKey bool, localFile string, extra *PutExtra) (err error) {
+	if extra == nil {
+		extra = &PutExtra{}
+	}
+	extra.init()
 
 	f, err := os.Open(localFile)
 	if err != nil {
@@ -124,11 +137,21 @@ func (p *FormUploader) putFile(
 	}
 	fsize := fi.Size()
 
-	if extra == nil {
-		extra = &PutExtra{}
+	var hostProvider hostprovider.HostProvider = nil
+	if extra.UpHost != "" {
+		hostProvider = hostprovider.NewWithHosts([]string{extra.UpHost})
+	} else {
+		hostProvider, err = p.getUpHostProviderFromUploadToken(upToken)
+		if err != nil {
+			return
+		}
 	}
 
-	return p.put(ctx, ret, uptoken, key, hasKey, f, fsize, extra, filepath.Base(localFile))
+	return doUploadAction(hostProvider, extra.TryTimes, func(host string) error {
+		extraNew := *extra
+		extraNew.UpHost = host
+		return p.put(ctx, ret, upToken, key, hasKey, f, fsize, &extraNew, filepath.Base(localFile))
+	})
 }
 
 // Put 用来以表单方式上传一个文件。
@@ -265,6 +288,14 @@ func (p *FormUploader) getUpHostFromUploadToken(upToken string) (upHost string, 
 	}
 	upHost, err = p.UpHost(ak, bucket)
 	return
+}
+
+func (p *FormUploader) getUpHostProviderFromUploadToken(upToken string) (hostprovider.HostProvider, error) {
+	ak, bucket, err := getAkBucketFromUploadToken(upToken)
+	if err != nil {
+		return nil, err
+	}
+	return getUpHostProvider(p.Cfg, ak, bucket)
 }
 
 type crc32Reader struct {

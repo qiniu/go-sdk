@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"hash/crc32"
 	"io"
 	"net/http"
@@ -55,6 +56,14 @@ type Base64PutExtra struct {
 
 	// 可选，当为 "" 时候，服务端自动判断。
 	MimeType string
+
+	TryTimes int // 可选。尝试次数
+}
+
+func (r *Base64PutExtra) init() {
+	if r.TryTimes == 0 {
+		r.TryTimes = settings.TryTimes
+	}
 }
 
 // Put 用来以Base64方式上传一个文件
@@ -79,23 +88,12 @@ func (p *Base64Uploader) PutWithoutKey(
 
 func (p *Base64Uploader) put(
 	ctx context.Context, ret interface{}, uptoken, key string, hasKey bool, base64Data []byte, extra *Base64PutExtra) (err error) {
-	//get up host
-	ak, bucket, gErr := getAkBucketFromUploadToken(uptoken)
-	if gErr != nil {
-		err = gErr
-		return
-	}
-
-	var upHost string
-	upHost, err = p.upHost(ak, bucket)
-	if err != nil {
-		return
-	}
 
 	//set default extra
 	if extra == nil {
 		extra = &Base64PutExtra{}
 	}
+	extra.init()
 
 	//calc crc32
 	h := crc32.NewIEEE()
@@ -139,14 +137,33 @@ func (p *Base64Uploader) put(
 		}
 	}
 
-	postURL := fmt.Sprintf("%s%s", upHost, postPath.String())
-	headers := http.Header{}
-	headers.Add("Content-Type", "application/octet-stream")
-	headers.Add("Authorization", "UpToken "+uptoken)
+	//get up host
+	ak, bucket, gErr := getAkBucketFromUploadToken(uptoken)
+	if gErr != nil {
+		err = gErr
+		return
+	}
 
-	return p.client.CallWith(ctx, ret, "POST", postURL, headers, bytes.NewReader(base64Data), len(base64Data))
+	var upHostProvider hostprovider.HostProvider
+	upHostProvider, err = p.upHostProvider(ak, bucket)
+	if err != nil {
+		return
+	}
+
+	return doUploadAction(upHostProvider, extra.TryTimes, func(host string) error {
+		postURL := fmt.Sprintf("%s%s", host, postPath.String())
+		headers := http.Header{}
+		headers.Add("Content-Type", "application/octet-stream")
+		headers.Add("Authorization", "UpToken "+uptoken)
+
+		return p.client.CallWith(ctx, ret, "POST", postURL, headers, bytes.NewReader(base64Data), len(base64Data))
+	})
 }
 
 func (p *Base64Uploader) upHost(ak, bucket string) (upHost string, err error) {
 	return getUpHost(p.cfg, ak, bucket)
+}
+
+func (p *Base64Uploader) upHostProvider(ak, bucket string) (hostProvider hostprovider.HostProvider, err error) {
+	return getUpHostProvider(p.cfg, ak, bucket)
 }
