@@ -334,7 +334,7 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 		crc32Value := hasher.Sum32()
 
 		if chunkOffset == 0 {
-			err = doUploadAction(impl.upHostProvider, impl.extra.TryTimes, func(host string) error {
+			err = doUploadAction(impl.upHostProvider, impl.extra.TryTimes, impl.extra.HostFreezeDuration, func(host string) error {
 				if e := apis.mkBlk(ctx, impl.upToken, host, &blkPutRet, c.size, buffer, realChunkSize); e != nil {
 					return e
 				}
@@ -344,7 +344,7 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 				return nil
 			})
 		} else {
-			err = doUploadAction(impl.upHostProvider, impl.extra.TryTimes, func(host string) error {
+			err = doUploadAction(impl.upHostProvider, impl.extra.TryTimes, impl.extra.HostFreezeDuration, func(host string) error {
 				blkPutRet.Host = host
 				if e := apis.bput(ctx, impl.upToken, &blkPutRet, buffer, realChunkSize); e != nil {
 					return e
@@ -390,7 +390,7 @@ func (impl *resumeUploaderImpl) final(ctx context.Context) error {
 	}
 
 	sort.Sort(blkputRets(impl.extra.Progresses))
-	return doUploadAction(impl.upHostProvider, impl.extra.TryTimes, func(host string) error {
+	return doUploadAction(impl.upHostProvider, impl.extra.TryTimes, impl.extra.HostFreezeDuration, func(host string) error {
 		return impl.resumeUploaderAPIs().mkfile(ctx, impl.upToken, host, impl.ret, impl.key, impl.hasKey, impl.fileSize, impl.extra)
 	})
 }

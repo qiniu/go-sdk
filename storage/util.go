@@ -38,8 +38,8 @@ func shouldUploadRetry(err error) bool {
 	return errInfo.Code > 499 && errInfo.Code < 600 && errInfo.Code != 573 && errInfo.Code != 579
 }
 
-func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, action func(host string) error) error {
-	for i := 1; ; i++ {
+func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, freezeDuration int, action func(host string) error) error {
+	for i := 0; ; i++ {
 		host, err := hostProvider.Provider()
 		if err != nil {
 			return err
@@ -63,6 +63,6 @@ func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, action
 		}
 
 		// 重试，冻结当前 host
-		_ = hostProvider.Freeze(host, err, 10*60)
+		_ = hostProvider.Freeze(host, err, freezeDuration)
 	}
 }

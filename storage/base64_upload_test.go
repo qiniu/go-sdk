@@ -67,3 +67,42 @@ func TestBase64UploaderWithoutKey(t *testing.T) {
 		t.Fatalf("Base64Uploader#PutWithoutKey() error, unmatch hash")
 	}
 }
+
+func TestBase64UploaderWithBackup(t *testing.T) {
+	var putRet PutRet
+	ctx := context.TODO()
+	putPolicy := PutPolicy{
+		Scope:           testBucket,
+		DeleteAfterDays: 7,
+	}
+	upToken := putPolicy.UploadToken(mac)
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	testKey := fmt.Sprintf("testPutFileKey_%d", r.Int())
+
+	extra := Base64PutExtra{}
+	extra.MimeType = "image/png"
+	extra.Params = map[string]string{
+		"x:qiniu":   "Qiniu Cloud",
+		"x:storage": "KODO Storage",
+	}
+
+	region, err := GetRegion(mac.AccessKey, testBucket)
+	if err != nil {
+		t.Fatal("get region error:", err)
+	}
+
+	customizedHost := []string{"mock.qiniu.com"}
+	customizedHost = append(customizedHost, region.SrcUpHosts...)
+	region.SrcUpHosts = customizedHost
+	cfg := Config{}
+	cfg.UseCdnDomains = false
+	cfg.Region = region
+	uploader := NewBase64UploaderEx(&cfg, &clt)
+	err = uploader.Put(ctx, &putRet, upToken, testKey, imgData, &extra)
+	if err != nil {
+		t.Fatalf("Base64Uploader#Put() error, %s", err)
+	}
+	if putRet.Hash != imgHash {
+		t.Fatalf("Base64Uploader#Put() error, unmatch hash")
+	}
+}

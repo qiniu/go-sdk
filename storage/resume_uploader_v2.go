@@ -283,7 +283,7 @@ func (impl *resumeUploaderV2Impl) initUploader(ctx context.Context) ([]int64, er
 		}
 	}
 
-	err := doUploadAction(impl.upHostProvider, impl.extra.TryTimes, func(host string) error {
+	err := doUploadAction(impl.upHostProvider, impl.extra.TryTimes, impl.extra.HostFreezeDuration, func(host string) error {
 		return impl.resumeUploaderAPIs().initParts(ctx, impl.upToken, host, impl.bucket, impl.key, impl.hasKey, &ret)
 	})
 	if err == nil {
@@ -316,7 +316,7 @@ func (impl *resumeUploaderV2Impl) uploadChunk(ctx context.Context, c chunk) erro
 
 	md5Value := hex.EncodeToString(hasher.Sum(nil))
 
-	err = doUploadAction(impl.upHostProvider, impl.extra.TryTimes, func(host string) error {
+	err = doUploadAction(impl.upHostProvider, impl.extra.TryTimes, impl.extra.HostFreezeDuration, func(host string) error {
 		return apis.uploadParts(ctx, impl.upToken, host, impl.bucket, impl.key, impl.hasKey, impl.uploadId,
 			partNumber, md5Value, &ret, buffer, chunkSize)
 	})
@@ -349,7 +349,7 @@ func (impl *resumeUploaderV2Impl) final(ctx context.Context) error {
 	}
 
 	sort.Sort(uploadPartInfos(impl.extra.Progresses))
-	return doUploadAction(impl.upHostProvider, impl.extra.TryTimes, func(host string) error {
+	return doUploadAction(impl.upHostProvider, impl.extra.TryTimes, impl.extra.HostFreezeDuration, func(host string) error {
 		return impl.resumeUploaderAPIs().completeParts(ctx, impl.upToken, host, impl.ret, impl.bucket, impl.key, impl.hasKey, impl.uploadId, impl.extra)
 	})
 }

@@ -7,7 +7,7 @@ import (
 
 type HostProvider interface {
 	Provider() (string, error)
-	Freeze(host string, cause error, duration int64) error
+	Freeze(host string, cause error, duration int) error
 }
 
 func NewWithHosts(hosts []string) HostProvider {
@@ -36,7 +36,11 @@ func (a *arrayHostProvider) Provider() (string, error) {
 	return "", a.lastFreezeErr
 }
 
-func (a *arrayHostProvider) Freeze(host string, cause error, duration int64) error {
+func (a *arrayHostProvider) Freeze(host string, cause error, duration int) error {
+	if duration <= 0 {
+		return nil
+	}
+
 	a.lastFreezeErr = cause
 	return a.freezer.Freeze(host, duration)
 }
