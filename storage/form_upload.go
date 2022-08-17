@@ -239,10 +239,11 @@ func (p *FormUploader) putBytes(ctx context.Context, ret interface{}, upToken st
 	// 不再重新构造 formBody ，避免内存峰值问题
 	formBodyLen := int64(len(formFieldData)) + int64(len(data)) + int64(len(formEndLine))
 
+	progress := newUploadProgress(extra.OnProgress)
 	getBodyReader := func() (io.Reader, error) {
 		var formReader = io.MultiReader(bytes.NewReader(formFieldData), bytes.NewReader(data), bytes.NewReader(formEndLine))
 		if extra.OnProgress != nil {
-			formReader = &readerWithProgress{reader: formReader, fsize: formBodyLen, onProgress: extra.OnProgress}
+			formReader = &readerWithProgress{reader: formReader, fsize: formBodyLen, onProgress: progress.onProgress}
 		}
 		return formReader, nil
 	}
