@@ -38,32 +38,55 @@ func shouldUploadRetry(err error) bool {
 	return errInfo.Code > 499 && errInfo.Code < 600 && errInfo.Code != 573 && errInfo.Code != 579
 }
 
+func shouldFreezeHost(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errInfo, ok := err.(*ErrorInfo)
+	if !ok {
+		// 转化不成功，非服务问题
+		return false
+	}
+
+	return errInfo.Code > 499 && errInfo.Code < 600 && errInfo.Code != 573 && errInfo.Code != 579
+}
+
 func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, freezeDuration int, action func(host string) error) error {
-	for i := 0; ; i++ {
+	for {
 		host, err := hostProvider.Provider()
 		if err != nil {
-			return err
-		}
-
-		err = action(host)
-		if err == nil {
-			return nil
-		}
-
-		if isCancelErr(err) {
-			return err
-		}
-
-		if i >= retryMax {
 			return api.NewError(ErrMaxUpRetry, err.Error())
 		}
 
-		if !shouldUploadRetry(err) {
-			return err
-		}
+		for i := 0; ; i++ {
+			err = action(host)
 
-		// 重试，冻结当前 host
-		_ = hostProvider.Freeze(host, err, freezeDuration)
+			// 请求成功
+			if err == nil {
+				return nil
+			}
+
+			// 取消
+			if isCancelErr(err) {
+				return err
+			}
+
+			// 如果需要则冻结当前 host
+			if shouldFreezeHost(err) {
+				_ = hostProvider.Freeze(host, err, freezeDuration)
+			}
+
+			// 不可重试错误
+			if !shouldUploadRetry(err) {
+				return err
+			}
+
+			// 单个 host 重试达到最大值
+			if i >= retryMax {
+				break
+			}
+		}
 	}
 }
 
