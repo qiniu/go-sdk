@@ -2,9 +2,9 @@ package storage
 
 import (
 	"context"
-	"errors"
 	api "github.com/qiniu/go-sdk/v7"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
+	"strings"
 	"time"
 )
 
@@ -50,7 +50,7 @@ func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, freeze
 			return nil
 		}
 
-		if errors.Is(err, context.Canceled) {
+		if isCancelErr(err) {
 			return err
 		}
 
@@ -65,4 +65,16 @@ func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, freeze
 		// 重试，冻结当前 host
 		_ = hostProvider.Freeze(host, err, freezeDuration)
 	}
+}
+
+func isCancelErr(err error) bool {
+	if err == context.Canceled {
+		return true
+	}
+
+	if err == nil {
+		return false
+	}
+
+	return strings.Contains(err.Error(), "context canceled")
 }
