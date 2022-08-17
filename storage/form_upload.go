@@ -182,15 +182,20 @@ func (p *FormUploader) put(
 	ctx context.Context, ret interface{}, upToken string,
 	key string, hasKey bool, data io.Reader, size int64, extra *PutExtra, fileName string) error {
 
-	dataBytes, rErr := ioutil.ReadAll(data)
-	if rErr != nil {
-		return rErr
+	seekableData, ok := data.(io.ReadSeeker)
+	if !ok {
+		dataBytes, rErr := ioutil.ReadAll(data)
+		if rErr != nil {
+			return rErr
+		}
+		seekableData = bytes.NewReader(dataBytes)
 	}
-	return p.putBytes(ctx, ret, upToken, key, hasKey, dataBytes, extra, fileName)
+
+	return p.putSeekableData(ctx, ret, upToken, key, hasKey, seekableData, size, extra, fileName)
 }
 
-func (p *FormUploader) putBytes(ctx context.Context, ret interface{}, upToken string,
-	key string, hasKey bool, data []byte, extra *PutExtra, fileName string) error {
+func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upToken string,
+	key string, hasKey bool, data io.ReadSeeker, dataSize int64, extra *PutExtra, fileName string) error {
 
 	formFieldBuff := new(bytes.Buffer)
 	formWriter := multipart.NewWriter(formFieldBuff)
@@ -213,7 +218,7 @@ func (p *FormUploader) putBytes(ctx context.Context, ret interface{}, upToken st
 
 	// 计算文件 crc32
 	crc32Hash := crc32.NewIEEE()
-	if _, cErr := io.Copy(crc32Hash, bytes.NewReader(data)); cErr != nil {
+	if _, cErr := io.Copy(crc32Hash, data); cErr != nil {
 		return cErr
 	}
 	crcReader := newCrc32Reader(formWriter.Boundary(), crc32Hash)
@@ -237,11 +242,18 @@ func (p *FormUploader) putBytes(ctx context.Context, ret interface{}, upToken st
 	formEndLine := []byte(fmt.Sprintf("\r\n--%s--\r\n", formWriter.Boundary()))
 
 	// 不再重新构造 formBody ，避免内存峰值问题
-	formBodyLen := int64(len(formFieldData)) + int64(len(data)) + int64(len(formEndLine))
+	var formBodyLen int64 = -1
+	if dataSize >= 0 {
+		formBodyLen = int64(len(formFieldData)) + dataSize + int64(len(formEndLine))
+	}
 
 	progress := newUploadProgress(extra.OnProgress)
 	getBodyReader := func() (io.Reader, error) {
-		var formReader = io.MultiReader(bytes.NewReader(formFieldData), bytes.NewReader(data), bytes.NewReader(formEndLine))
+		if _, err := data.Seek(0, io.SeekStart); err != nil {
+			return nil, err
+		}
+
+		var formReader = io.MultiReader(bytes.NewReader(formFieldData), data, bytes.NewReader(formEndLine))
 		if extra.OnProgress != nil {
 			formReader = &readerWithProgress{reader: formReader, fsize: formBodyLen, onProgress: progress.onProgress}
 		}
