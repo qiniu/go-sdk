@@ -320,9 +320,10 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 		if chunkRange.Size > chunkSize {
 			chunkRange.Size = chunkSize
 		}
-		hasher := crc32.NewIEEE()
+
+		hash32 := crc32.NewIEEE()
 		buffer.Reset()
-		realChunkSize, err = io.Copy(hasher, io.TeeReader(io.NewSectionReader(c.reader, chunkRange.From, chunkRange.Size), buffer))
+		realChunkSize, err = io.Copy(hash32, io.TeeReader(io.NewSectionReader(c.reader, chunkRange.From, chunkRange.Size), buffer))
 		if err != nil {
 			impl.extra.NotifyErr(int(c.id), int(c.size), err)
 			return err
@@ -331,11 +332,16 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 		} else {
 			totalChunkSize += realChunkSize
 		}
-		crc32Value := hasher.Sum32()
+		crc32Value := hash32.Sum32()
 
+		seekableData := bytes.NewReader(buffer.Bytes())
 		if chunkOffset == 0 {
 			err = doUploadAction(impl.upHostProvider, impl.extra.TryTimes, impl.extra.HostFreezeDuration, func(host string) error {
-				if e := apis.mkBlk(ctx, impl.upToken, host, &blkPutRet, c.size, buffer, realChunkSize); e != nil {
+				if _, sErr := seekableData.Seek(0, io.SeekStart); sErr != nil {
+					return sErr
+				}
+
+				if e := apis.mkBlk(ctx, impl.upToken, host, &blkPutRet, c.size, seekableData, realChunkSize); e != nil {
 					return e
 				}
 				if blkPutRet.Crc32 != crc32Value || int64(blkPutRet.Offset) != chunkOffset+realChunkSize {
@@ -346,7 +352,11 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 		} else {
 			err = doUploadAction(impl.upHostProvider, impl.extra.TryTimes, impl.extra.HostFreezeDuration, func(host string) error {
 				blkPutRet.Host = host
-				if e := apis.bput(ctx, impl.upToken, &blkPutRet, buffer, realChunkSize); e != nil {
+				if _, sErr := seekableData.Seek(0, io.SeekStart); sErr != nil {
+					return sErr
+				}
+
+				if e := apis.bput(ctx, impl.upToken, &blkPutRet, seekableData, realChunkSize); e != nil {
 					return e
 				}
 				if blkPutRet.Crc32 != crc32Value || int64(blkPutRet.Offset) != chunkOffset+realChunkSize {
