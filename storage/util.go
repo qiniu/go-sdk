@@ -72,16 +72,14 @@ func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, freeze
 				return err
 			}
 
-			// 如果需要则冻结当前 host
-			if shouldFreezeHost(err) {
-				_ = hostProvider.Freeze(host, err, freezeDuration)
-			}
-
 			// 不可重试错误
 			if !shouldUploadRetry(err) {
 				return err
 			}
 		}
+
+		// 单个 host 失败，冻结此 host，换其他 host
+		_ = hostProvider.Freeze(host, err, freezeDuration)
 	}
 }
 
