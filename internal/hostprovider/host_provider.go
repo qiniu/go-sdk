@@ -33,7 +33,12 @@ func (a *arrayHostProvider) Provider() (string, error) {
 			return host, nil
 		}
 	}
-	return "", a.lastFreezeErr
+
+	if a.lastFreezeErr != nil {
+		return "", a.lastFreezeErr
+	} else {
+		return "", errors.New("all hosts are frozen")
+	}
 }
 
 func (a *arrayHostProvider) Freeze(host string, cause error, duration int) error {
