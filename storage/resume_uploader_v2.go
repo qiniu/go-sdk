@@ -301,11 +301,10 @@ func (impl *resumeUploaderV2Impl) uploadChunk(ctx context.Context, c chunk) erro
 		err       error
 	)
 	defer impl.bufPool.Put(buffer)
-	buffer.Reset()
 
 	partNumber := c.id + 1
 	hasher := md5.New()
-
+	buffer.Reset()
 	chunkSize, err = io.Copy(hasher, io.TeeReader(io.NewSectionReader(c.reader, 0, c.size), buffer))
 	if err != nil {
 		impl.extra.NotifyErr(partNumber, err)
@@ -316,9 +315,14 @@ func (impl *resumeUploaderV2Impl) uploadChunk(ctx context.Context, c chunk) erro
 
 	md5Value := hex.EncodeToString(hasher.Sum(nil))
 
+	seekableData := bytes.NewReader(buffer.Bytes())
 	err = doUploadAction(impl.upHostProvider, impl.extra.TryTimes, impl.extra.HostFreezeDuration, func(host string) error {
+		if _, sErr := seekableData.Seek(0, io.SeekStart); sErr != nil {
+			return sErr
+		}
+
 		return apis.uploadParts(ctx, impl.upToken, host, impl.bucket, impl.key, impl.hasKey, impl.uploadId,
-			partNumber, md5Value, &ret, buffer, chunkSize)
+			partNumber, md5Value, &ret, seekableData, chunkSize)
 	})
 	if err != nil {
 		impl.extra.NotifyErr(partNumber, err)
