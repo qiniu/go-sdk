@@ -59,7 +59,7 @@ func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, freeze
 			return api.NewError(ErrMaxUpRetry, err.Error())
 		}
 
-		for i := 0; i >= retryMax; i++ {
+		for i := 0; ; i++ {
 			err = action(host)
 
 			// 请求成功
@@ -75,6 +75,11 @@ func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, freeze
 			// 不可重试错误
 			if !shouldUploadRetry(err) {
 				return err
+			}
+
+			// 超过重试次数退出
+			if i >= retryMax {
+				break
 			}
 		}
 
