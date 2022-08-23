@@ -25,6 +25,19 @@ func IsContextExpired(blkPut BlkputRet) bool {
 	return now.After(target)
 }
 
+func shouldUploadRegionRetry(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errInfo, ok := err.(*ErrorInfo)
+	if !ok {
+		return true
+	}
+	// 4xx 不重试
+	return errInfo.Code < 400 || errInfo.Code > 499
+}
+
 func shouldUploadRetry(err error) bool {
 	if err == nil {
 		return false
