@@ -684,12 +684,7 @@ func (m *BucketManager) ApiHost(bucket string) (apiHost string, err error) {
 }
 
 func (m *BucketManager) z0ApiHost() (apiHost string, err error) {
-	region, err := getRegionByRegionId("z0", m.Mac)
-	if err != nil {
-		return
-	}
-
-	apiHost = region.GetApiHost(m.Cfg.UseHTTPS)
+	apiHost = regionHuadong.GetApiHost(m.Cfg.UseHTTPS)
 	return
 }
 

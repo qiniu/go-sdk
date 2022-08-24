@@ -127,10 +127,17 @@ func (manager *UploadManager) Put(ctx context.Context, ret interface{}, upToken 
 
 func (manager *UploadManager) putRetryWithRegion(ctx context.Context, ret interface{}, upToken string, key *string, source UploadSource, extra *UploadExtra) error {
 	if manager.cfg.Regions == nil {
-		return manager.put(ctx, ret, nil, upToken, key, source, extra)
+		regions, err := manager.getRegionGroupWithUploadToken(upToken)
+		if err != nil {
+			return err
+		}
+		manager.cfg.Regions = regions
 	}
 
 	regions := manager.cfg.Regions.clone()
+
+	// TODO: 断点续传的恢复，当前只有 File 且为分片上传 支持断点续传
+
 	var err error
 	for {
 		region := regions.GetRegion()
@@ -312,6 +319,14 @@ func (manager *UploadManager) getResumeV2Uploader(region *Region) *ResumeUploade
 		UseCdnDomains: manager.cfg.UseCdnDomains,
 		CentralRsHost: "",
 	}, manager.client)
+}
+
+func (manager *UploadManager) getRegionGroupWithUploadToken(upToken string) (*RegionGroup, error) {
+	ak, bucket, err := getAkBucketFromUploadToken(upToken)
+	if err != nil {
+		return nil, err
+	}
+	return getRegionGroup(ak, bucket)
 }
 
 func uploadKey(keyQuote *string) (key string, hashKey bool) {

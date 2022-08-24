@@ -134,3 +134,125 @@ func TestRegionWithSetHost(t *testing.T) {
 		t.Fatalf("region1.IovipHost is wrong: %v\v", region1.IovipHost)
 	}
 }
+
+func TestRegionV4(t *testing.T) {
+	regionGroup, err := getRegionGroup(testAK, testBucket)
+	if err != nil {
+		t.Fatalf("GetRegion error: %v\n", err)
+	}
+
+	if len(regionGroup.regions) == 0 {
+		t.Fatalf("region1.IovipHost is wrong")
+	}
+}
+
+func TestRegionV4WithNoProtocol(t *testing.T) {
+	UcHost = "uc.qbox.me"
+	regionGroup, err := getRegionGroup(testAK, testBucket)
+	if err != nil {
+		t.Fatalf("GetRegion error: %v\n", err)
+	}
+
+	if len(regionGroup.regions) == 0 {
+		t.Fatalf("region1.IovipHost is wrong")
+	}
+}
+
+func TestUcQueryV4RetUnmarshalJSON(t *testing.T) {
+	retJson := `{
+  "hosts": [
+    {
+      "region": "z2",
+      "ttl": 86400,
+      "features": {
+        "http3": {
+          "enabled": true
+        },
+        "ipv6": {
+          "enabled": false
+        }
+      },
+      "io": {
+        "domains": [
+          "iovip-z2.qbox.me"
+        ]
+      },
+      "up": {
+        "domains": [
+          "upload-z2.qiniup.com",
+          "up-z2.qiniup.com"
+        ],
+        "old": [
+          "upload-z2.qbox.me",
+          "up-z2.qbox.me"
+        ]
+      },
+      "uc": {
+        "domains": [
+          "uc.qbox.me"
+        ]
+      },
+      "rs": {
+        "domains": [
+          "rs-z2.qbox.me"
+        ]
+      },
+      "rsf": {
+        "domains": [
+          "rsf-z2.qbox.me"
+        ]
+      },
+      "api": {
+        "domains": [
+          "api-z2.qiniu.com"
+        ]
+      },
+      "s3": {
+        "domains": [
+          "s3-cn-south-1.qiniucs.com"
+        ],
+        "region_alias": "cn-south-1"
+      }
+    }
+  ]
+}`
+	var ret ucQueryV4Ret
+	err := json.Unmarshal([]byte(retJson), &ret)
+	if err != nil {
+		t.Fatalf("UcQueryRetUnmarshalJSON error: %v\n", err)
+	}
+
+	region := ret.Hosts[0]
+
+	if region.Up.Domains == nil {
+		t.Fatalf("UcQueryRetUnmarshalJSON Up was nil")
+	}
+
+	if region.Io.Domains == nil {
+		t.Fatalf("UcQueryRetUnmarshalJSON Io was nil")
+	}
+
+	if region.Rs.Domains == nil {
+		t.Fatalf("UcQueryRetUnmarshalJSON Rs was nil")
+	}
+
+	if region.Rsf.Domains == nil {
+		t.Fatalf("UcQueryRetUnmarshalJSON Rsf was nil")
+	}
+
+	if region.Api.Domains == nil {
+		t.Fatalf("UcQueryRetUnmarshalJSON Api was nil")
+	}
+}
+
+func TestRegionV4WithSetHost(t *testing.T) {
+	SetUcHost("uc.qbox.me", true)
+	regionGroup, err := getRegionGroup(testAK, testBucket)
+	if err != nil {
+		t.Fatalf("GetRegion error: %v\n", err)
+	}
+
+	if len(regionGroup.regions) == 0 {
+		t.Fatalf("region1.IovipHost is wrong")
+	}
+}

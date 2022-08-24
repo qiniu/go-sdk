@@ -8,6 +8,14 @@ type RegionGroup struct {
 	regions            []*Region
 }
 
+func NewRegionGroup(region ...*Region) *RegionGroup {
+	return &RegionGroup{
+		locker:             sync.Mutex{},
+		currentRegionIndex: 0,
+		regions:            region,
+	}
+}
+
 func (g *RegionGroup) GetRegion() *Region {
 	g.locker.Lock()
 	defer g.locker.Unlock()
