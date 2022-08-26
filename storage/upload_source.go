@@ -1,6 +1,9 @@
 package storage
 
-import "io"
+import (
+	"io"
+	"os"
+)
 
 type UploadSource interface {
 	Size() int64
@@ -54,14 +57,20 @@ func (u *uploadSourceReaderAt) Size() int64 {
 	return u.size
 }
 
-func NewUploadSourceFile(filePath string) UploadSource {
-	return &uploadSourceFile{
-		filePath: filePath,
+func NewUploadSourceFile(filePath string) (UploadSource, error) {
+	if fileInfo, err := os.Stat(filePath); err != nil {
+		return nil, err
+	} else {
+		return &uploadSourceFile{
+			fileInfo: fileInfo,
+			filePath: filePath,
+		}, nil
 	}
 }
 
 type uploadSourceFile struct {
 	filePath string
+	fileInfo os.FileInfo
 }
 
 func (u *uploadSourceFile) Reloadable() bool {
@@ -73,5 +82,5 @@ func (u *uploadSourceFile) Reload() error {
 }
 
 func (u *uploadSourceFile) Size() int64 {
-	return -1
+	return u.fileInfo.Size()
 }

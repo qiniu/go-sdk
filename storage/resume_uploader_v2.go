@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"sync"
 
 	"github.com/qiniu/go-sdk/v7/client"
@@ -128,12 +127,7 @@ func (p *ResumeUploaderV2) rput(ctx context.Context, ret interface{}, upToken st
 		}
 	}
 
-	if extra.Recorder != nil && fileDetails != nil {
-		recorderKey = extra.Recorder.GenerateRecorderKey(
-			[]string{accessKey, bucket, key, "v2", fileDetails.fileFullPath, strconv.FormatInt(extra.PartSize, 10)},
-			fileDetails.fileInfo)
-		fileInfo = fileDetails.fileInfo
-	}
+	recorderKey = getRecorderKey(extra.Recorder, upToken, key, "v2", extra.PartSize, fileDetails)
 
 	return uploadByWorkers(
 		newResumeUploaderV2Impl(p, bucket, key, hasKey, upToken, hostProvider, fileInfo, extra, ret, recorderKey),
@@ -241,10 +235,12 @@ type (
 	}
 
 	resumeUploaderV2RecoveryInfo struct {
-		FileSize     int64                                 `json:"s"`
-		ModTimeStamp int64                                 `json:"m"`
-		UploadId     string                                `json:"i"`
-		Contexts     []resumeUploaderV2RecoveryInfoContext `json:"c"`
+		RecorderVersion string                                `json:"v"`
+		Region          *Region                               `json:"r"`
+		FileSize        int64                                 `json:"s"`
+		ModTimeStamp    int64                                 `json:"m"`
+		UploadId        string                                `json:"i"`
+		Contexts        []resumeUploaderV2RecoveryInfoContext `json:"c"`
 	}
 )
 
@@ -275,10 +271,13 @@ func (impl *resumeUploaderV2Impl) initUploader(ctx context.Context) ([]int64, er
 		ret       InitPartsRet
 	)
 
-	if impl.extra.Recorder != nil {
+	if impl.extra.Recorder != nil && len(impl.recorderKey) > 0 {
 		if recorderData, err := impl.extra.Recorder.Get(impl.recorderKey); err == nil {
 			if recovered = impl.recover(ctx, recorderData); len(recovered) > 0 {
 				return recovered, nil
+			}
+			if len(recovered) == 0 {
+				_ = impl.extra.Recorder.Delete(impl.recorderKey)
 			}
 		}
 	}
@@ -348,7 +347,7 @@ func (impl *resumeUploaderV2Impl) uploadChunk(ctx context.Context, c chunk) erro
 }
 
 func (impl *resumeUploaderV2Impl) final(ctx context.Context) error {
-	if impl.extra.Recorder != nil {
+	if impl.extra.Recorder != nil && len(impl.recorderKey) > 0 {
 		impl.extra.Recorder.Delete(impl.recorderKey)
 	}
 
@@ -363,7 +362,9 @@ func (impl *resumeUploaderV2Impl) recover(ctx context.Context, recoverData []byt
 	if err := json.Unmarshal(recoverData, &recoveryInfo); err != nil {
 		return
 	}
-	if impl.fileInfo == nil || recoveryInfo.FileSize != impl.fileInfo.Size() || recoveryInfo.ModTimeStamp != impl.fileInfo.ModTime().UnixNano() {
+	if impl.fileInfo == nil || recoveryInfo.FileSize != impl.fileInfo.Size() ||
+		recoveryInfo.RecorderVersion != uploadRecordVersion ||
+		recoveryInfo.ModTimeStamp != impl.fileInfo.ModTime().UnixNano() {
 		return
 	}
 	impl.uploadId = recoveryInfo.UploadId
@@ -385,10 +386,12 @@ func (impl *resumeUploaderV2Impl) save(ctx context.Context) {
 		err           error
 	)
 
-	if impl.fileInfo == nil || impl.extra.Recorder == nil {
+	if impl.fileInfo == nil || impl.extra.Recorder == nil || len(impl.recorderKey) == 0 {
 		return
 	}
 
+	recoveryInfo.RecorderVersion = uploadRecordVersion
+	recoveryInfo.Region = impl.cfg.Region
 	recoveryInfo.FileSize = impl.fileInfo.Size()
 	recoveryInfo.ModTimeStamp = impl.fileInfo.ModTime().UnixNano()
 	recoveryInfo.UploadId = impl.uploadId

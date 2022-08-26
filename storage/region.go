@@ -11,9 +11,6 @@ import (
 // 存储所在的地区，例如华东，华南，华北
 // 每个存储区域可能有多个机房信息，每个机房可能有多个上传入口
 type Region struct {
-	// 区域唯一标识符，如果是自定义 Region ，请务必保证此值存在
-	RegionID RegionID `json:"region"`
-
 	// 上传入口
 	SrcUpHosts []string `json:"src_up,omitempty"`
 
@@ -44,7 +41,6 @@ func GetRegionByID(regionID RegionID) (Region, bool) {
 
 func (r *Region) String() string {
 	str := ""
-	str += fmt.Sprintf("SrcUpHosts: %s\n", r.RegionID)
 	str += fmt.Sprintf("SrcUpHosts: %v\n", r.SrcUpHosts)
 	str += fmt.Sprintf("CdnUpHosts: %v\n", r.CdnUpHosts)
 	str += fmt.Sprintf("IovipHost: %s\n", r.IovipHost)

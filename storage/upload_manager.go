@@ -2,9 +2,11 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/qiniu/go-sdk/v7/client"
 	"io"
+	"strings"
 	"sync"
 )
 
@@ -13,6 +15,10 @@ type UploadResumeVersion = int
 const (
 	UploadResumeV1 UploadResumeVersion = 1
 	UploadResumeV2 UploadResumeVersion = 2
+
+	uploadMethodForm     = 0
+	uploadMethodResumeV1 = 1
+	uploadMethodResumeV2 = 2
 )
 
 type UploadConfig struct {
@@ -25,7 +31,9 @@ func (config *UploadConfig) init() {
 }
 
 type UploadExtra struct {
-	// 【可选】用户自定义参数，必须以 "x:" 开头。若不以x:开头，则忽略。
+	// 【可选】参数，
+	// 用户自定义参数，必须以 "x:" 开头。若不以 "x:" 开头，则忽略。
+	// meta-data 参数，必须以 "x-qn-meta-" 开头。若不以 "x-qn-meta-" 开头，则忽略。
 	Params map[string]string
 
 	// 【可选】指定上传使用的 host, 如果指定则不再使用区域的 host
@@ -43,10 +51,10 @@ type UploadExtra struct {
 	// 【可选】上传事件：进度通知。这个事件的回调函数应该尽可能快地结束。
 	OnProgress func(fileSize, uploaded int64)
 
-	// 【可选】上传方式， 默认：UploadMethodForm
+	// 【可选】分片上传的上传方式， 默认：UploadResumeV2
 	UploadResumeVersion UploadResumeVersion
 
-	// 【可选】上传阈值，当上传方式为 UploadMethodForm 时，文件大小大于此阈值，则使用单位：字节，默认：4 * 1024 * 1024
+	// 【可选】上传阈值，当文件大小大于此阈值时使用分片上传；单位：字节，默认：4 * 1024 * 1024
 	UploadThreshold int64
 
 	// 【可选】分片上传进度记录
@@ -93,6 +101,44 @@ func (extra *UploadExtra) init() {
 	}
 }
 
+func (extra *UploadExtra) getMetadata() map[string]string {
+	if len(extra.Params) == 0 {
+		return nil
+	}
+
+	ret := make(map[string]string)
+	for key, value := range extra.Params {
+		if strings.HasPrefix(key, "x-qn-meta-") && len(value) > 0 {
+			ret[key] = value
+		}
+	}
+
+	if len(ret) > 0 {
+		return ret
+	}
+
+	return nil
+}
+
+func (extra *UploadExtra) getCustomVar() map[string]string {
+	if len(extra.Params) == 0 {
+		return nil
+	}
+
+	ret := make(map[string]string)
+	for key, value := range extra.Params {
+		if strings.HasPrefix(key, "x:") && len(value) > 0 {
+			ret[key] = value
+		}
+	}
+
+	if len(ret) > 0 {
+		return ret
+	}
+
+	return nil
+}
+
 type UploadManager struct {
 	cfg    *UploadConfig
 	client *client.Client
@@ -136,12 +182,29 @@ func (manager *UploadManager) putRetryWithRegion(ctx context.Context, ret interf
 
 	regions := manager.cfg.Regions.clone()
 
-	// TODO: 断点续传的恢复，当前只有 File 且为分片上传 支持断点续传
+	resumeVersion := "v1"
+	uploadMethod := uploadMethodForm
+	if source.Size() > 0 && source.Size() < extra.UploadThreshold {
+		uploadMethod = uploadMethodResumeV2
+		resumeVersion = "v1"
+	} else if extra.UploadResumeVersion == UploadResumeV1 {
+		// 默认使用分片 v2，如果设置了 v1 则使用 v1
+		uploadMethod = uploadMethodResumeV1
+		resumeVersion = "v2"
+	}
+
+	if uploadMethod != uploadMethodForm {
+		recoverRegion := manager.getRecoverRegion(key, upToken, resumeVersion, source, extra)
+		if recoverRegion != nil {
+			// 把记录的 Region 插在第一个
+			regions.regions = append([]*Region{recoverRegion}, regions.regions...)
+		}
+	}
 
 	var err error
 	for {
 		region := regions.GetRegion()
-		err = manager.put(ctx, ret, region, upToken, key, source, extra)
+		err = manager.put(ctx, ret, region, uploadMethod, upToken, key, source, extra)
 
 		// 是否需要重试
 		if !shouldUploadRegionRetry(err) {
@@ -156,22 +219,20 @@ func (manager *UploadManager) putRetryWithRegion(ctx context.Context, ret interf
 	return err
 }
 
-func (manager *UploadManager) put(ctx context.Context, ret interface{}, region *Region, upToken string, key *string, source UploadSource, extra *UploadExtra) error {
+func (manager *UploadManager) put(ctx context.Context, ret interface{}, region *Region, uploadMethod int,
+	upToken string, key *string, source UploadSource, extra *UploadExtra) error {
 	if extra == nil {
 		extra = &UploadExtra{}
 	}
 	extra.init()
 
-	if source.Size() > 0 && source.Size() < extra.UploadThreshold {
+	if uploadMethod == uploadMethodForm {
 		return manager.putByForm(ctx, ret, region, upToken, key, source, extra)
-	}
-
-	// 默认使用分片 v2，如果设置了 v1 则使用 v1
-	if extra.UploadResumeVersion == UploadResumeV1 {
+	} else if uploadMethod == uploadMethodResumeV1 {
 		return manager.putByResumeV1(ctx, ret, region, upToken, key, source, extra)
+	} else {
+		return manager.putByResumeV2(ctx, ret, region, upToken, key, source, extra)
 	}
-
-	return manager.putByResumeV2(ctx, ret, region, upToken, key, source, extra)
 }
 
 func (manager *UploadManager) putByForm(ctx context.Context, ret interface{}, region *Region, upToken string, key *string, source UploadSource, extra *UploadExtra) error {
@@ -252,8 +313,8 @@ func (manager *UploadManager) putByResumeV2(ctx context.Context, ret interface{}
 	saveKey, hasKey := uploadKey(key)
 	uploadExtra := &RputV2Extra{
 		Recorder:           extra.Recorder,
-		Metadata:           nil, //todo:
-		CustomVars:         nil, //todo:
+		Metadata:           extra.getMetadata(),
+		CustomVars:         extra.getCustomVar(),
 		UpHost:             extra.UpHost,
 		MimeType:           extra.MimeType,
 		PartSize:           extra.PartSize,
@@ -289,6 +350,39 @@ func (manager *UploadManager) putByResumeV2(ctx context.Context, ret interface{}
 	}
 
 	return errors.New("unknown upload source")
+}
+
+func (manager *UploadManager) getRecoverRegion(key *string, upToken string, resumeVersion string,
+	source UploadSource, extra *UploadExtra) *Region {
+	file, ok := source.(*uploadSourceFile)
+	if !ok {
+		return nil
+	}
+
+	saveKey, hasKey := uploadKey(key)
+	if !hasKey {
+		return nil
+	}
+
+	recorderKey := getRecorderKey(extra.Recorder, upToken, saveKey, resumeVersion, extra.PartSize, &fileDetailsInfo{
+		fileFullPath: file.filePath,
+		fileInfo:     file.fileInfo,
+	})
+	if len(recorderKey) == 0 {
+		return nil
+	}
+
+	recoverData, err := extra.Recorder.Get(recorderKey)
+	if err != nil {
+		return nil
+	}
+
+	var recoveryInfo uploaderRecoveryInfo
+	if err := json.Unmarshal(recoverData, &recoveryInfo); err != nil {
+		return nil
+	}
+
+	return recoveryInfo.Region
 }
 
 func (manager *UploadManager) getFormUploader(region *Region) *FormUploader {
@@ -335,4 +429,8 @@ func uploadKey(keyQuote *string) (key string, hashKey bool) {
 	} else {
 		return *keyQuote, true
 	}
+}
+
+type uploaderRecoveryInfo struct {
+	Region *Region `json:"r"`
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strconv"
 	"sync"
 
 	api "github.com/qiniu/go-sdk/v7"
@@ -23,6 +24,8 @@ const (
 const (
 	blockBits = 22
 	blockMask = (1 << blockBits) - 1
+
+	uploadRecordVersion = "1.0.0"
 )
 
 // Settings 为分片上传设置
@@ -264,4 +267,20 @@ func (r *sizedChunkReader) readChunks(recovered []int64, f func(chunkID, off, si
 		chunkID += 1
 	}
 	return nil
+}
+
+func getRecorderKey(recorder Recorder, upToken string, key string,
+	resumeVersion string, partSize int64, fileDetails *fileDetailsInfo) string {
+	if recorder == nil || fileDetails == nil || len(upToken) == 0 {
+		return ""
+	}
+
+	accessKey, bucket, err := getAkBucketFromUploadToken(upToken)
+	if err != nil {
+		return ""
+	}
+
+	return recorder.GenerateRecorderKey(
+		[]string{accessKey, bucket, key, resumeVersion, fileDetails.fileFullPath, strconv.FormatInt(partSize, 10)},
+		fileDetails.fileInfo)
 }
