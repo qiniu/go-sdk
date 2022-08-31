@@ -16,28 +16,29 @@ import (
 
 // UcQueryRet 为查询请求的回复
 type UcQueryRet struct {
-	TTL     int `json:"ttl"`
-	Io      map[string]map[string][]string
-	IoInfo  map[string]UcQueryIo `json:"io"`
-	Up      map[string]UcQueryUp `json:"up"`
-	RsInfo  map[string]UcQueryIo `json:"rs"`
-	RsfInfo map[string]UcQueryIo `json:"rsf"`
-	ApiInfo map[string]UcQueryIo `json:"api"`
+	TTL     int                            `json:"ttl"`
+	Io      map[string]map[string][]string `json:"-"`
+	IoInfo  map[string]UcQueryIo           `json:"io"`
+	Up      map[string]UcQueryUp           `json:"up"`
+	RsInfo  map[string]UcQueryServerInfo   `json:"rs"`
+	RsfInfo map[string]UcQueryServerInfo   `json:"rsf"`
+	ApiInfo map[string]UcQueryServerInfo   `json:"api"`
 }
 
+type tmpUcQueryRet UcQueryRet
+
 func (uc *UcQueryRet) UnmarshalJSON(data []byte) error {
-	t := struct {
-		TTL    int                  `json:"ttl"`
-		IoInfo map[string]UcQueryIo `json:"io"`
-		Up     map[string]UcQueryUp `json:"up"`
-	}{}
-	if err := json.Unmarshal(data, &t); err != nil {
+	var tmp tmpUcQueryRet
+	if err := json.Unmarshal(data, &tmp); err != nil {
 		return err
 	}
 
-	uc.TTL = t.TTL
-	uc.IoInfo = t.IoInfo
-	uc.Up = t.Up
+	uc.TTL = tmp.TTL
+	uc.IoInfo = tmp.IoInfo
+	uc.Up = tmp.Up
+	uc.RsInfo = tmp.RsInfo
+	uc.RsfInfo = tmp.RsfInfo
+	uc.ApiInfo = tmp.ApiInfo
 	uc.setup()
 	return nil
 }
@@ -59,21 +60,29 @@ func (uc *UcQueryRet) setup() {
 	}
 }
 
-// UcQueryUp 为查询请求回复中的上传域名信息
-type UcQueryUp struct {
+func (uc *UcQueryRet) getOneHostFromInfo(info map[string]UcQueryIo) string {
+	if len(info["src"].Main) > 0 {
+		return info["src"].Main[0]
+	}
+
+	if len(info["acc"].Main) > 0 {
+		return info["acc"].Main[0]
+	}
+
+	return ""
+}
+
+type UcQueryUp = UcQueryServerInfo
+type UcQueryIo = UcQueryServerInfo
+
+// UcQueryServerInfo 为查询请求回复中的上传域名信息
+type UcQueryServerInfo struct {
 	Main   []string `json:"main,omitempty"`
 	Backup []string `json:"backup,omitempty"`
 	Info   string   `json:"info,omitempty"`
 }
 
-// UcQueryIo 为查询请求回复中的上传域名信息
-type UcQueryIo struct {
-	Main   []string `json:"main,omitempty"`
-	Backup []string `json:"backup,omitempty"`
-	Info   string   `json:"info,omitempty"`
-}
-
-func (io UcQueryIo) toMapWithoutInfo() map[string][]string {
+func (io UcQueryServerInfo) toMapWithoutInfo() map[string][]string {
 
 	ret := make(map[string][]string)
 	if io.Main != nil && len(io.Main) > 0 {
@@ -190,25 +199,25 @@ func getRegionByV2(ak, bucket string) (*Region, error) {
 			return nil, fmt.Errorf("query region error, %s", err.Error())
 		}
 
-		if len(ret.IoInfo["src"].Main) <= 0 {
+		ioHost := ret.getOneHostFromInfo(ret.IoInfo)
+		if len(ioHost) == 0 {
 			return nil, fmt.Errorf("empty io host list")
 		}
-		ioHost := ret.IoInfo["src"].Main[0]
 
-		if len(ret.RsInfo["src"].Main) <= 0 {
+		rsHost := ret.getOneHostFromInfo(ret.RsInfo)
+		if len(rsHost) == 0 {
 			return nil, fmt.Errorf("empty rs host list")
 		}
-		rsHost := ret.RsInfo["src"].Main[0]
 
-		if len(ret.RsfInfo["src"].Main) <= 0 {
+		rsfHost := ret.getOneHostFromInfo(ret.RsfInfo)
+		if len(rsfHost) == 0 {
 			return nil, fmt.Errorf("empty rsf host list")
 		}
-		rsfHost := ret.RsfInfo["src"].Main[0]
 
-		if len(ret.ApiInfo["src"].Main) <= 0 {
+		apiHost := ret.getOneHostFromInfo(ret.ApiInfo)
+		if len(apiHost) == 0 {
 			return nil, fmt.Errorf("empty api host list")
 		}
-		apiHost := ret.RsfInfo["src"].Main[0]
 
 		srcUpHosts := ret.Up["src"].Main
 		if ret.Up["src"].Backup != nil {
@@ -239,6 +248,9 @@ func getRegionByV2(ak, bucket string) (*Region, error) {
 		storeRegionV2Cache()
 		return region, nil
 	})
+	if newRegion == nil {
+		return nil, err
+	}
 
 	return newRegion.(*Region), err
 }

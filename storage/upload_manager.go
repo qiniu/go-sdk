@@ -139,6 +139,11 @@ func (extra *UploadExtra) getCustomVar() map[string]string {
 	return nil
 }
 
+type UploadRet struct {
+	Hash string `json:"hash"`
+	Key  string `json:"key"`
+}
+
 type UploadManager struct {
 	cfg    *UploadConfig
 	client *client.Client
@@ -164,8 +169,17 @@ func NewUploadManagerEx(cfg *UploadConfig, c *client.Client) *UploadManager {
 }
 
 func (manager *UploadManager) Put(ctx context.Context, ret interface{}, upToken string, key *string, source UploadSource, extra *UploadExtra) error {
-	if ctx == nil || ret == nil || len(upToken) == 0 || source == nil {
-		return errors.New("put param invalid")
+	if ctx == nil {
+		return errors.New("ctx can't be nil")
+	}
+	if ret == nil {
+		return errors.New("ret invalid")
+	}
+	if len(upToken) == 0 {
+		return errors.New("upToken invalid")
+	}
+	if source == nil {
+		return errors.New("source invalid")
 	}
 
 	return manager.putRetryWithRegion(ctx, ret, upToken, key, source, extra)

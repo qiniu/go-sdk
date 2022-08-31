@@ -30,6 +30,10 @@ func shouldUploadRegionRetry(err error) bool {
 		return false
 	}
 
+	if isCancelErr(err) {
+		return false
+	}
+
 	errInfo, ok := err.(*ErrorInfo)
 	if !ok {
 		return true
@@ -40,6 +44,10 @@ func shouldUploadRegionRetry(err error) bool {
 
 func shouldUploadRetry(err error) bool {
 	if err == nil {
+		return false
+	}
+
+	if isCancelErr(err) {
 		return false
 	}
 
@@ -78,11 +86,6 @@ func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, freeze
 			// 请求成功
 			if err == nil {
 				return nil
-			}
-
-			// 取消
-			if isCancelErr(err) {
-				return err
 			}
 
 			// 不可重试错误

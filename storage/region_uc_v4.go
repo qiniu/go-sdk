@@ -147,9 +147,8 @@ func getRegionByV4(ak, bucket string) (*RegionGroup, error) {
 		for _, host := range ret.Hosts {
 			ttl = host.TTL
 			regions = append(regions, &Region{
-				RegionID:   RegionID(host.RegionId),
 				SrcUpHosts: host.Up.Domains,
-				CdnUpHosts: nil,
+				CdnUpHosts: host.Up.Domains,
 				RsHost:     host.Rs.getOneServer(),
 				RsfHost:    host.Rsf.getOneServer(),
 				ApiHost:    host.Api.getOneServer(),
