@@ -36,9 +36,6 @@ type UploadExtra struct {
 	// meta-data 参数，必须以 "x-qn-meta-" 开头。若不以 "x-qn-meta-" 开头，则忽略。
 	Params map[string]string
 
-	// 【可选】指定上传使用的 host, 如果指定则不再使用区域的 host
-	UpHost string
-
 	// 【可选】尝试次数
 	TryTimes int
 
@@ -196,15 +193,15 @@ func (manager *UploadManager) putRetryWithRegion(ctx context.Context, ret interf
 
 	regions := manager.cfg.Regions.clone()
 
-	resumeVersion := "v1"
-	uploadMethod := uploadMethodForm
+	resumeVersion := "v2"
+	uploadMethod := uploadMethodResumeV2
 	if source.Size() > 0 && source.Size() < extra.UploadThreshold {
-		uploadMethod = uploadMethodResumeV2
-		resumeVersion = "v1"
+		uploadMethod = uploadMethodForm
+		resumeVersion = ""
 	} else if extra.UploadResumeVersion == UploadResumeV1 {
 		// 默认使用分片 v2，如果设置了 v1 则使用 v1
 		uploadMethod = uploadMethodResumeV1
-		resumeVersion = "v2"
+		resumeVersion = "v1"
 	}
 
 	if uploadMethod != uploadMethodForm {
@@ -253,7 +250,6 @@ func (manager *UploadManager) putByForm(ctx context.Context, ret interface{}, re
 	saveKey, hasKey := uploadKey(key)
 	uploadExtra := &PutExtra{
 		Params:             extra.Params,
-		UpHost:             extra.UpHost,
 		TryTimes:           extra.TryTimes,
 		HostFreezeDuration: extra.HostFreezeDuration,
 		MimeType:           extra.MimeType,
@@ -262,7 +258,7 @@ func (manager *UploadManager) putByForm(ctx context.Context, ret interface{}, re
 	uploader := manager.getFormUploader(region)
 
 	if reader, ok := source.(*uploadSourceReader); ok {
-		return uploader.put(ctx, ret, upToken, saveKey, hasKey, reader.reader, -1, uploadExtra, "")
+		return uploader.put(ctx, ret, upToken, saveKey, hasKey, reader.reader, reader.size, uploadExtra, "")
 	}
 
 	if readerAt, ok := source.(*uploadSourceReaderAt); ok {
@@ -284,14 +280,13 @@ func (manager *UploadManager) putByResumeV1(ctx context.Context, ret interface{}
 	uploadExtra := &RputExtra{
 		Recorder:           extra.Recorder,
 		Params:             extra.Params,
-		UpHost:             extra.UpHost,
 		MimeType:           extra.MimeType,
 		ChunkSize:          int(extra.PartSize),
 		TryTimes:           extra.TryTimes,
 		HostFreezeDuration: extra.HostFreezeDuration,
 		Progresses:         nil,
 		Notify: func(blkIdx int, blkSize int, ret *BlkputRet) {
-			if blkIdx < 2 {
+			if blkIdx < 1 {
 				return
 			}
 			locker.Lock()
@@ -329,14 +324,13 @@ func (manager *UploadManager) putByResumeV2(ctx context.Context, ret interface{}
 		Recorder:           extra.Recorder,
 		Metadata:           extra.getMetadata(),
 		CustomVars:         extra.getCustomVar(),
-		UpHost:             extra.UpHost,
 		MimeType:           extra.MimeType,
 		PartSize:           extra.PartSize,
 		TryTimes:           extra.TryTimes,
 		HostFreezeDuration: extra.HostFreezeDuration,
 		Progresses:         nil,
 		Notify: func(partNumber int64, ret *UploadPartsRet) {
-			if partNumber < 2 {
+			if partNumber < 1 {
 				return
 			}
 			locker.Lock()
@@ -386,13 +380,15 @@ func (manager *UploadManager) getRecoverRegion(key *string, upToken string, resu
 		return nil
 	}
 
-	recoverData, err := extra.Recorder.Get(recorderKey)
-	if err != nil {
+	recoverData, gErr := extra.Recorder.Get(recorderKey)
+	if gErr != nil {
 		return nil
 	}
 
 	var recoveryInfo uploaderRecoveryInfo
-	if err := json.Unmarshal(recoverData, &recoveryInfo); err != nil {
+	if uErr := json.Unmarshal(recoverData, &recoveryInfo); uErr != nil {
+		// 失败则删除，避免脏数据
+		_ = extra.Recorder.Delete(recorderKey)
 		return nil
 	}
 

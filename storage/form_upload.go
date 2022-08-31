@@ -188,6 +188,9 @@ func (p *FormUploader) put(
 		if rErr != nil {
 			return rErr
 		}
+		if size <= 0 {
+			size = int64(len(dataBytes))
+		}
 		seekableData = bytes.NewReader(dataBytes)
 	}
 
@@ -369,7 +372,7 @@ func (p *readerWithProgress) Read(b []byte) (n int, err error) {
 
 	n, err = p.reader.Read(b)
 	p.uploaded += int64(n)
-	if p.uploaded > p.fsize {
+	if p.fsize > 0 && p.uploaded > p.fsize {
 		p.uploaded = p.fsize
 	}
 	return

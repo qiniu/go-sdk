@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"io"
 	"os"
 )
@@ -11,14 +12,16 @@ type UploadSource interface {
 	Reload() error
 }
 
-func NewUploadSourceReader(reader io.Reader) UploadSource {
+func NewUploadSourceReader(reader io.Reader, size int64) (UploadSource, error) {
 	return &uploadSourceReader{
 		reader: reader,
-	}
+		size:   size,
+	}, nil
 }
 
 type uploadSourceReader struct {
 	reader io.Reader
+	size   int64
 }
 
 func (u *uploadSourceReader) Reloadable() bool {
@@ -30,14 +33,18 @@ func (u *uploadSourceReader) Reload() error {
 }
 
 func (u *uploadSourceReader) Size() int64 {
-	return -1
+	return u.size
 }
 
-func NewUploadSourceReaderAt(reader io.ReaderAt, size int64) UploadSource {
+func NewUploadSourceReaderAt(reader io.ReaderAt, size int64) (UploadSource, error) {
+	if size <= 0 {
+		return nil, errors.New("source size must be set")
+	}
+	
 	return &uploadSourceReaderAt{
 		reader: reader,
 		size:   size,
-	}
+	}, nil
 }
 
 type uploadSourceReaderAt struct {

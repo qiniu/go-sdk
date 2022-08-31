@@ -4,6 +4,8 @@ package storage
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -34,10 +36,15 @@ func getUploadToken() string {
 	return putPolicy.UploadToken(mac)
 }
 
+type Ret struct {
+	UploadRet
+
+	Foo string `json:"x:foo"`
+}
+
 func TestUploadManagerFormUpload(t *testing.T) {
-	data := make([]byte, 1024*1024)
-	data = []byte("hello")
-	tempFile, err := ioutil.TempFile("", "TestResumeUploadPutFile")
+	data := []byte("hello, 七牛！！！")
+	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut")
 	if err != nil {
 		t.Fatalf("create temp file error:%v", err)
 	}
@@ -46,31 +53,291 @@ func TestUploadManagerFormUpload(t *testing.T) {
 		os.ReadFile(tempFile.Name())
 	}()
 	tempFile.Write(data)
+	size := int64(len(data))
+
+	params := make(map[string]string)
+	params["x:foo"] = "foo"
+	params["x-qn-meta-A"] = "meta-A"
 
 	uploadManager := getUploadManager()
-	var ret UploadRet
+	var ret Ret
+
+	// 上传 file
 	source, err := NewUploadSourceFile(tempFile.Name())
 	err = uploadManager.Put(context.Background(), &ret, getUploadToken(), nil, source, &UploadExtra{
-		Params:              nil,
-		UpHost:              "",
-		TryTimes:            0,
-		HostFreezeDuration:  0,
-		MimeType:            "",
-		OnProgress:          nil,
+		Params:             params,
+		TryTimes:           1,
+		HostFreezeDuration: 0,
+		MimeType:           "",
+		OnProgress: func(fileSize, uploaded int64) {
+			fmt.Printf("form upload file progress: %d-%d \n", uploaded, fileSize)
+		},
 		UploadResumeVersion: 0,
 		UploadThreshold:     0,
 		Recorder:            nil,
 		PartSize:            0,
 	})
 	if err != nil {
-		t.Fatalf("form upload error:%v", err)
+		t.Fatalf("form upload file error:%v", err)
+	}
+	if len(ret.Key) == 0 || len(ret.Hash) == 0 {
+		t.Fatal("form upload file error, key or hash is empty")
+	}
+	if len(ret.Foo) == 0 {
+		t.Fatal("form upload file error, foo is empty")
+	}
+
+	// 上传 reader no size
+	tempFile.Seek(0, io.SeekStart)
+	source, _ = NewUploadSourceReader(tempFile, size)
+	err = uploadManager.Put(context.Background(), &ret, getUploadToken(), nil, source, &UploadExtra{
+		Params:             params,
+		TryTimes:           1,
+		HostFreezeDuration: 0,
+		MimeType:           "",
+		OnProgress: func(fileSize, uploaded int64) {
+			fmt.Printf("form upload reader progress: %d-%d \n", uploaded, fileSize)
+		},
+		UploadResumeVersion: 0,
+		UploadThreshold:     0,
+		Recorder:            nil,
+		PartSize:            0,
+	})
+	if err != nil {
+		t.Fatalf("form upload reader error:%v", err)
+	}
+	if len(ret.Key) == 0 || len(ret.Hash) == 0 {
+		t.Fatal("form upload reader error, key or hash is empty")
+	}
+	if len(ret.Foo) == 0 {
+		t.Fatal("form upload reader error, foo is empty")
+	}
+
+	// 上传 readerAt
+	tempFile.Seek(0, io.SeekStart)
+	source, _ = NewUploadSourceReaderAt(tempFile, -1)
+	err = uploadManager.Put(context.Background(), &ret, getUploadToken(), nil, source, &UploadExtra{
+		Params:             params,
+		TryTimes:           1,
+		HostFreezeDuration: 0,
+		MimeType:           "",
+		OnProgress: func(fileSize, uploaded int64) {
+			fmt.Printf("form upload reader at progress: %d-%d \n", uploaded, fileSize)
+		},
+		UploadResumeVersion: 0,
+		UploadThreshold:     0,
+		Recorder:            nil,
+		PartSize:            0,
+	})
+	if err != nil {
+		t.Fatalf("form upload reader at error:%v", err)
+	}
+	if len(ret.Key) == 0 || len(ret.Hash) == 0 {
+		t.Fatal("form upload reader at error, key or hash is empty")
+	}
+	if len(ret.Foo) == 0 {
+		t.Fatal("form upload reader at error, foo is empty")
 	}
 }
 
 func TestUploadManagerResumeV1Upload(t *testing.T) {
+	length := 1024 * 1024 * 4
+	data := make([]byte, length, length)
+	data[0] = 8
+	data[length-1] = 8
+	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut")
+	if err != nil {
+		t.Fatalf("create temp file error:%v", err)
+	}
+	defer func() {
+		tempFile.Close()
+		os.ReadFile(tempFile.Name())
+	}()
+	tempFile.Write(data)
+	size := int64(len(data))
 
+	params := make(map[string]string)
+	params["x:foo"] = "foo"
+	params["x-qn-meta-A"] = "meta-A"
+
+	uploadManager := getUploadManager()
+	var ret Ret
+
+	// 上传 file
+	source, err := NewUploadSourceFile(tempFile.Name())
+	err = uploadManager.Put(context.Background(), &ret, getUploadToken(), nil, source, &UploadExtra{
+		Params:             params,
+		TryTimes:           1,
+		HostFreezeDuration: 0,
+		MimeType:           "",
+		OnProgress: func(fileSize, uploaded int64) {
+			fmt.Printf("resume v1: upload file progress: %d-%d \n", uploaded, fileSize)
+		},
+		UploadResumeVersion: UploadResumeV1,
+		UploadThreshold:     1024 * 1024 * 2,
+		Recorder:            nil,
+		PartSize:            1024 * 1024,
+	})
+	if err != nil {
+		t.Fatalf("form upload file error:%v", err)
+	}
+	if len(ret.Key) == 0 || len(ret.Hash) == 0 {
+		t.Fatal("form upload file error, key or hash is empty")
+	}
+	if len(ret.Foo) == 0 {
+		t.Fatal("form upload file error, foo is empty")
+	}
+
+	// 上传 reader no size
+	tempFile.Seek(0, io.SeekStart)
+	source, _ = NewUploadSourceReader(tempFile, size)
+	err = uploadManager.Put(context.Background(), &ret, getUploadToken(), nil, source, &UploadExtra{
+		Params:             params,
+		TryTimes:           1,
+		HostFreezeDuration: 0,
+		MimeType:           "",
+		OnProgress: func(fileSize, uploaded int64) {
+			fmt.Printf("resume v1: upload reader progress: %d-%d \n", uploaded, fileSize)
+		},
+		UploadResumeVersion: UploadResumeV1,
+		UploadThreshold:     1024 * 1024 * 2,
+		Recorder:            nil,
+		PartSize:            1024 * 1024,
+	})
+	if err != nil {
+		t.Fatalf("resume v1: upload reader error:%v", err)
+	}
+	if len(ret.Key) == 0 || len(ret.Hash) == 0 {
+		t.Fatal("resume v1: upload reader error, key or hash is empty")
+	}
+	if len(ret.Foo) == 0 {
+		t.Fatal("resume v1: upload reader error, foo is empty")
+	}
+
+	// 上传 readerAt
+	tempFile.Seek(0, io.SeekStart)
+	source, _ = NewUploadSourceReaderAt(tempFile, size)
+	err = uploadManager.Put(context.Background(), &ret, getUploadToken(), nil, source, &UploadExtra{
+		Params:             params,
+		TryTimes:           1,
+		HostFreezeDuration: 0,
+		MimeType:           "",
+		OnProgress: func(fileSize, uploaded int64) {
+			fmt.Printf("resume v1: upload reader at progress: %d-%d \n", uploaded, fileSize)
+		},
+		UploadResumeVersion: UploadResumeV1,
+		UploadThreshold:     1024 * 1024 * 2,
+		Recorder:            nil,
+		PartSize:            1024 * 1024,
+	})
+	if err != nil {
+		t.Fatalf("resume v1: upload reader at error:%v", err)
+	}
+	if len(ret.Key) == 0 || len(ret.Hash) == 0 {
+		t.Fatal("resume v1: upload reader at error, key or hash is empty")
+	}
+	if len(ret.Foo) == 0 {
+		t.Fatal("resume v1: upload reader at error, foo is empty")
+	}
 }
 
 func TestUploadManagerResumeV2Upload(t *testing.T) {
+	length := 1024 * 1024 * 4
+	data := make([]byte, length, length)
+	data[0] = 8
+	data[length-1] = 8
+	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut")
+	if err != nil {
+		t.Fatalf("create temp file error:%v", err)
+	}
+	defer func() {
+		tempFile.Close()
+		os.ReadFile(tempFile.Name())
+	}()
+	tempFile.Write(data)
+	size := int64(len(data))
 
+	params := make(map[string]string)
+	params["x:foo"] = "foo"
+	params["x-qn-meta-A"] = "meta-A"
+
+	uploadManager := getUploadManager()
+	var ret Ret
+
+	// 上传 file
+	source, err := NewUploadSourceFile(tempFile.Name())
+	err = uploadManager.Put(context.Background(), &ret, getUploadToken(), nil, source, &UploadExtra{
+		Params:             params,
+		TryTimes:           1,
+		HostFreezeDuration: 0,
+		MimeType:           "",
+		OnProgress: func(fileSize, uploaded int64) {
+			fmt.Printf("resume v2: upload file progress: %d-%d \n", uploaded, fileSize)
+		},
+		UploadResumeVersion: UploadResumeV2,
+		UploadThreshold:     1024 * 1024 * 2,
+		Recorder:            nil,
+		PartSize:            1024 * 1024,
+	})
+	if err != nil {
+		t.Fatalf("form upload file error:%v", err)
+	}
+	if len(ret.Key) == 0 || len(ret.Hash) == 0 {
+		t.Fatal("form upload file error, key or hash is empty")
+	}
+	if len(ret.Foo) == 0 {
+		t.Fatal("form upload file error, foo is empty")
+	}
+
+	// 上传 reader no size
+	tempFile.Seek(0, io.SeekStart)
+	source, _ = NewUploadSourceReader(tempFile, size)
+	err = uploadManager.Put(context.Background(), &ret, getUploadToken(), nil, source, &UploadExtra{
+		Params:             params,
+		TryTimes:           1,
+		HostFreezeDuration: 0,
+		MimeType:           "",
+		OnProgress: func(fileSize, uploaded int64) {
+			fmt.Printf("resume v2: upload reader progress: %d-%d \n", uploaded, fileSize)
+		},
+		UploadResumeVersion: UploadResumeV2,
+		UploadThreshold:     1024 * 1024 * 2,
+		Recorder:            nil,
+		PartSize:            1024 * 1024,
+	})
+	if err != nil {
+		t.Fatalf("resume v2: upload reader error:%v", err)
+	}
+	if len(ret.Key) == 0 || len(ret.Hash) == 0 {
+		t.Fatal("resume v2: upload reader error, key or hash is empty")
+	}
+	if len(ret.Foo) == 0 {
+		t.Fatal("resume v2: upload reader error, foo is empty")
+	}
+
+	// 上传 readerAt
+	tempFile.Seek(0, io.SeekStart)
+	source, _ = NewUploadSourceReaderAt(tempFile, size)
+	err = uploadManager.Put(context.Background(), &ret, getUploadToken(), nil, source, &UploadExtra{
+		Params:             params,
+		TryTimes:           1,
+		HostFreezeDuration: 0,
+		MimeType:           "",
+		OnProgress: func(fileSize, uploaded int64) {
+			fmt.Printf("resume v2: upload reader at progress: %d-%d \n", uploaded, fileSize)
+		},
+		UploadResumeVersion: UploadResumeV2,
+		UploadThreshold:     1024 * 1024 * 2,
+		Recorder:            nil,
+		PartSize:            1024 * 1024,
+	})
+	if err != nil {
+		t.Fatalf("resume v2: upload reader at error:%v", err)
+	}
+	if len(ret.Key) == 0 || len(ret.Hash) == 0 {
+		t.Fatal("resume v2: upload reader at error, key or hash is empty")
+	}
+	if len(ret.Foo) == 0 {
+		t.Fatal("resume v2: upload reader at error, foo is empty")
+	}
 }
