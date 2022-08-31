@@ -199,18 +199,6 @@ func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upT
 
 	formFieldBuff := new(bytes.Buffer)
 	formWriter := multipart.NewWriter(formFieldBuff)
-
-	formHead := make(textproto.MIMEHeader)
-	formHead.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`,
-		escapeQuotes(fileName)))
-	if extra.MimeType != "" {
-		formHead.Set("Content-Type", extra.MimeType)
-	}
-	if _, cErr := formWriter.CreatePart(formHead); cErr != nil {
-		return cErr
-	}
-	formHead = nil
-
 	// 写入表单头、token、key、fileName 等信息
 	if wErr := writeMultipart(formWriter, upToken, key, hasKey, extra, fileName); wErr != nil {
 		return wErr
@@ -233,6 +221,17 @@ func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upT
 		return wErr
 	}
 	crcBytes = nil
+
+	formHead := make(textproto.MIMEHeader)
+	formHead.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`,
+		escapeQuotes(fileName)))
+	if extra.MimeType != "" {
+		formHead.Set("Content-Type", extra.MimeType)
+	}
+	if _, cErr := formWriter.CreatePart(formHead); cErr != nil {
+		return cErr
+	}
+	formHead = nil
 
 	// 表单 Fields
 	formFieldData := formFieldBuff.Bytes()
