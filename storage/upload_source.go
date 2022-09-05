@@ -40,7 +40,7 @@ func NewUploadSourceReaderAt(reader io.ReaderAt, size int64) (UploadSource, erro
 	if size <= 0 {
 		return nil, errors.New("source size must be set")
 	}
-	
+
 	return &uploadSourceReaderAt{
 		reader: reader,
 		size:   size,
