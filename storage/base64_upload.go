@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/qiniu/go-sdk/v7/client"
 )
@@ -59,8 +60,8 @@ type Base64PutExtra struct {
 
 	TryTimes int // 可选。尝试次数
 
-	// 主备域名冻结时间（单位：秒，默认：600），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
-	HostFreezeDuration int
+	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
+	HostFreezeDuration time.Duration
 }
 
 func (r *Base64PutExtra) init() {
@@ -68,7 +69,7 @@ func (r *Base64PutExtra) init() {
 		r.TryTimes = settings.TryTimes
 	}
 	if r.HostFreezeDuration <= 0 {
-		r.HostFreezeDuration = 10 * 60
+		r.HostFreezeDuration = 10 * 60 * time.Second
 	}
 }
 

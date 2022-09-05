@@ -50,7 +50,7 @@ func TestUploadManagerFormUpload(t *testing.T) {
 	}
 	defer func() {
 		tempFile.Close()
-		os.ReadFile(tempFile.Name())
+		os.Remove(tempFile.Name())
 	}()
 	tempFile.Write(data)
 	size := int64(len(data))
@@ -115,7 +115,7 @@ func TestUploadManagerFormUpload(t *testing.T) {
 
 	// 上传 readerAt
 	tempFile.Seek(0, io.SeekStart)
-	source, _ = NewUploadSourceReaderAt(tempFile, -1)
+	source, _ = NewUploadSourceReaderAt(tempFile, size)
 	err = uploadManager.Put(context.Background(), &ret, getUploadToken(), nil, source, &UploadExtra{
 		Params:             params,
 		TryTimes:           1,

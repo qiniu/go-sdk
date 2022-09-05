@@ -7,7 +7,7 @@ import (
 
 type Freezer interface {
 	Available(itemId string) bool
-	Freeze(itemId string, duration int) error
+	Freeze(itemId string, duration time.Duration) error
 	Unfreeze(itemId string) error
 }
 
@@ -36,9 +36,9 @@ func (i *freezer) Available(itemId string) bool {
 	return timestamp > unfreezeTimeInt64
 }
 
-func (i *freezer) Freeze(itemId string, duration int) error {
+func (i *freezer) Freeze(itemId string, duration time.Duration) error {
 	timestamp := time.Now().Unix()
-	i.freezerItems.Store(itemId, timestamp+int64(duration))
+	i.freezerItems.Store(itemId, timestamp+int64(duration/time.Second))
 	return nil
 }
 

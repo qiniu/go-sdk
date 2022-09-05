@@ -68,7 +68,7 @@ func setRegionV4CachePath(newPath string) {
 	regionV4CacheLock.Lock()
 	defer regionV4CacheLock.Unlock()
 
-	regionV4CachePath = filepath.Join(cacheDir, regionV2CacheFileName)
+	regionV4CachePath = filepath.Join(cacheDir, regionV4CacheFileName)
 	regionV4CacheLoaded = false
 }
 
@@ -156,7 +156,7 @@ func getRegionByV4(ak, bucket string) (*RegionGroup, error) {
 			})
 		}
 
-		regionV2Cache.Store(regionID, regionV4CacheValue{
+		regionV4Cache.Store(regionID, regionV4CacheValue{
 			Regions:  regions,
 			Deadline: time.Now().Add(time.Duration(ttl) * time.Second),
 		})

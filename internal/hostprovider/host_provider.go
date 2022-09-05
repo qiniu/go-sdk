@@ -3,11 +3,12 @@ package hostprovider
 import (
 	"errors"
 	"github.com/qiniu/go-sdk/v7/internal/freezer"
+	"time"
 )
 
 type HostProvider interface {
 	Provider() (string, error)
-	Freeze(host string, cause error, duration int) error
+	Freeze(host string, cause error, duration time.Duration) error
 }
 
 func NewWithHosts(hosts []string) HostProvider {
@@ -41,7 +42,7 @@ func (a *arrayHostProvider) Provider() (string, error) {
 	}
 }
 
-func (a *arrayHostProvider) Freeze(host string, cause error, duration int) error {
+func (a *arrayHostProvider) Freeze(host string, cause error, duration time.Duration) error {
 	if duration <= 0 {
 		return nil
 	}

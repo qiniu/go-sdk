@@ -59,7 +59,7 @@ func shouldUploadRetryWithOtherHost(err error) bool {
 	return errInfo.Code > 499 && errInfo.Code < 600 && errInfo.Code != 573 && errInfo.Code != 579
 }
 
-func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, freezeDuration int, action func(host string) error) error {
+func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, freezeDuration time.Duration, action func(host string) error) error {
 	for {
 		host, err := hostProvider.Provider()
 		if err != nil {

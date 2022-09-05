@@ -378,12 +378,6 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 	blkPutRet.fileOffset = c.offset
 	blkPutRet.chunkSize = int(totalChunkSize)
 
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
-
 	func() {
 		impl.lock.Lock()
 		defer impl.lock.Unlock()
@@ -392,8 +386,13 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 		impl.save(ctx)
 	}()
 
-	// 最后通知进度
 	impl.extra.Notify(blkPutRet.blkIdx, int(totalChunkSize), &blkPutRet)
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 
 	return nil
 }

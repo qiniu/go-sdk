@@ -223,13 +223,13 @@ func TestPutWithRecovery(t *testing.T) {
 			Recorder:  recorder,
 			ChunkSize: (1 << blockBits) / 2,
 			Notify: func(blkIdx int, blkSize int, ret *BlkputRet) {
-				t.Logf("Notify: blkIdx: %d, blkSize: %d, ret: %#v", blkIdx, blkSize, ret)
+				t.Logf("[%d] Notify: blkIdx: %d, blkSize: %d, ret: %#v", i, blkIdx, blkSize, ret)
 				if atomic.AddUint32(&counter, 1) >= 2 {
 					cancelFunc()
 				}
 			},
 			NotifyErr: func(blkIdx int, blkSize int, err error) {
-				t.Logf("NotifyErr: blkIdx: %d, blkSize: %d, err: %s", blkIdx, blkSize, err)
+				t.Logf("[%d] NotifyErr: blkIdx: %d, blkSize: %d, err: %s", i, blkIdx, blkSize, err)
 			},
 		})
 		if err == nil {
