@@ -129,8 +129,12 @@ func (p *ResumeUploader) rput(ctx context.Context, ret interface{}, upToken stri
 
 	var (
 		accessKey, bucket, recorderKey string
+		fileInfo                       os.FileInfo               = nil
 		hostProvider                   hostprovider.HostProvider = nil
 	)
+	if fileDetails != nil {
+		fileInfo = fileDetails.fileInfo
+	}
 
 	if accessKey, bucket, err = getAkBucketFromUploadToken(upToken); err != nil {
 		return
@@ -148,7 +152,7 @@ func (p *ResumeUploader) rput(ctx context.Context, ret interface{}, upToken stri
 	recorderKey = getRecorderKey(extra.Recorder, upToken, key, "v1", blockSize, fileDetails)
 
 	return uploadByWorkers(
-		newResumeUploaderImpl(p, key, hasKey, upToken, hostProvider, fileDetails.fileInfo, extra, ret, recorderKey),
+		newResumeUploaderImpl(p, key, hasKey, upToken, hostProvider, fileInfo, extra, ret, recorderKey),
 		ctx, newSizedChunkReader(f, fsize, blockSize))
 }
 
