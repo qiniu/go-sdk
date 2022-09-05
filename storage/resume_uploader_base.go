@@ -24,6 +24,7 @@ const (
 const (
 	blockBits = 22
 	blockMask = (1 << blockBits) - 1
+	blockSize = 1 << blockBits
 
 	uploadRecordVersion = "1.0.0"
 )

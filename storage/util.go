@@ -25,7 +25,7 @@ func IsContextExpired(blkPut BlkputRet) bool {
 	return now.After(target)
 }
 
-func shouldUploadRegionRetry(err error) bool {
+func shouldUploadRetryWithOtherRegion(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -42,7 +42,7 @@ func shouldUploadRegionRetry(err error) bool {
 	return errInfo.Code < 400 || errInfo.Code > 499
 }
 
-func shouldUploadRetry(err error) bool {
+func shouldUploadRetryWithOtherHost(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -54,20 +54,6 @@ func shouldUploadRetry(err error) bool {
 	errInfo, ok := err.(*ErrorInfo)
 	if !ok {
 		return true
-	}
-
-	return errInfo.Code > 499 && errInfo.Code < 600 && errInfo.Code != 573 && errInfo.Code != 579
-}
-
-func shouldFreezeHost(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	errInfo, ok := err.(*ErrorInfo)
-	if !ok {
-		// 转化不成功，非服务问题
-		return false
 	}
 
 	return errInfo.Code > 499 && errInfo.Code < 600 && errInfo.Code != 573 && errInfo.Code != 579
@@ -89,7 +75,7 @@ func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, freeze
 			}
 
 			// 不可重试错误
-			if !shouldUploadRetry(err) {
+			if !shouldUploadRetryWithOtherHost(err) {
 				return err
 			}
 

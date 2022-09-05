@@ -179,10 +179,10 @@ func (manager *UploadManager) Put(ctx context.Context, ret interface{}, upToken 
 		return errors.New("source invalid")
 	}
 
-	return manager.putRetryWithRegion(ctx, ret, upToken, key, source, extra)
+	return manager.putRetryBetweenRegion(ctx, ret, upToken, key, source, extra)
 }
 
-func (manager *UploadManager) putRetryWithRegion(ctx context.Context, ret interface{}, upToken string, key *string, source UploadSource, extra *UploadExtra) error {
+func (manager *UploadManager) putRetryBetweenRegion(ctx context.Context, ret interface{}, upToken string, key *string, source UploadSource, extra *UploadExtra) error {
 	if manager.cfg.Regions == nil {
 		regions, err := manager.getRegionGroupWithUploadToken(upToken)
 		if err != nil {
@@ -218,7 +218,7 @@ func (manager *UploadManager) putRetryWithRegion(ctx context.Context, ret interf
 		err = manager.put(ctx, ret, region, uploadMethod, upToken, key, source, extra)
 
 		// 是否需要重试
-		if !shouldUploadRegionRetry(err) {
+		if !shouldUploadRetryWithOtherRegion(err) {
 			break
 		}
 
@@ -286,11 +286,8 @@ func (manager *UploadManager) putByResumeV1(ctx context.Context, ret interface{}
 		HostFreezeDuration: extra.HostFreezeDuration,
 		Progresses:         nil,
 		Notify: func(blkIdx int, blkSize int, ret *BlkputRet) {
-			if blkIdx < 1 {
-				return
-			}
 			locker.Lock()
-			offset := int64(blkIdx-1) * int64(blkSize)
+			offset := int64(blkIdx)*blockSize + int64(blkSize) - extra.PartSize
 			if offset > uploadedSize {
 				uploadedSize = offset
 			}
@@ -367,12 +364,12 @@ func (manager *UploadManager) getRecoverRegion(key *string, upToken string, resu
 		return nil
 	}
 
-	saveKey, hasKey := uploadKey(key)
-	if !hasKey {
-		return nil
+	partSize := extra.PartSize
+	if resumeVersion == "v1" {
+		partSize = blockSize
 	}
-
-	recorderKey := getRecorderKey(extra.Recorder, upToken, saveKey, resumeVersion, extra.PartSize, &fileDetailsInfo{
+	saveKey, _ := uploadKey(key)
+	recorderKey := getRecorderKey(extra.Recorder, upToken, saveKey, resumeVersion, partSize, &fileDetailsInfo{
 		fileFullPath: file.filePath,
 		fileInfo:     file.fileInfo,
 	})

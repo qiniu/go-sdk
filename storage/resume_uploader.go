@@ -129,7 +129,6 @@ func (p *ResumeUploader) rput(ctx context.Context, ret interface{}, upToken stri
 
 	var (
 		accessKey, bucket, recorderKey string
-		fileInfo                       os.FileInfo               = nil
 		hostProvider                   hostprovider.HostProvider = nil
 	)
 
@@ -146,11 +145,11 @@ func (p *ResumeUploader) rput(ctx context.Context, ret interface{}, upToken stri
 		}
 	}
 
-	recorderKey = getRecorderKey(extra.Recorder, upToken, key, "v1", 1<<blockBits, fileDetails)
+	recorderKey = getRecorderKey(extra.Recorder, upToken, key, "v1", blockSize, fileDetails)
 
 	return uploadByWorkers(
-		newResumeUploaderImpl(p, key, hasKey, upToken, hostProvider, fileInfo, extra, ret, recorderKey),
-		ctx, newSizedChunkReader(f, fsize, 1<<blockBits))
+		newResumeUploaderImpl(p, key, hasKey, upToken, hostProvider, fileDetails.fileInfo, extra, ret, recorderKey),
+		ctx, newSizedChunkReader(f, fsize, blockSize))
 }
 
 func (p *ResumeUploader) rputWithoutSize(ctx context.Context, ret interface{}, upToken string, key string, hasKey bool, r io.Reader, extra *RputExtra) (err error) {
@@ -374,7 +373,6 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 	blkPutRet.blkIdx = int(c.id)
 	blkPutRet.fileOffset = c.offset
 	blkPutRet.chunkSize = int(totalChunkSize)
-	impl.extra.Notify(blkPutRet.blkIdx, int(totalChunkSize), &blkPutRet)
 
 	select {
 	case <-ctx.Done():
@@ -389,6 +387,9 @@ func (impl *resumeUploaderImpl) uploadChunk(ctx context.Context, c chunk) error 
 		impl.fileSize += c.size
 		impl.save(ctx)
 	}()
+
+	// 最后通知进度
+	impl.extra.Notify(blkPutRet.blkIdx, int(totalChunkSize), &blkPutRet)
 
 	return nil
 }
