@@ -8,8 +8,8 @@ import (
 
 type UploadSource interface {
 	Size() int64
-	Reloadable() bool
-	Reload() error
+	Rewindable() bool
+	Rewind() error
 }
 
 func NewUploadSourceReader(reader io.Reader, size int64) (UploadSource, error) {
@@ -24,12 +24,12 @@ type uploadSourceReader struct {
 	size   int64
 }
 
-func (u *uploadSourceReader) Reloadable() bool {
+func (u *uploadSourceReader) Rewindable() bool {
 	return false
 }
 
-func (u *uploadSourceReader) Reload() error {
-	return nil
+func (u *uploadSourceReader) Rewind() error {
+	return errors.New("resource not support rewind")
 }
 
 func (u *uploadSourceReader) Size() int64 {
@@ -52,11 +52,11 @@ type uploadSourceReaderAt struct {
 	size   int64
 }
 
-func (u *uploadSourceReaderAt) Reloadable() bool {
+func (u *uploadSourceReaderAt) Rewindable() bool {
 	return true
 }
 
-func (u *uploadSourceReaderAt) Reload() error {
+func (u *uploadSourceReaderAt) Rewind() error {
 	return nil
 }
 
@@ -80,11 +80,11 @@ type uploadSourceFile struct {
 	fileInfo os.FileInfo
 }
 
-func (u *uploadSourceFile) Reloadable() bool {
-	return false
+func (u *uploadSourceFile) Rewindable() bool {
+	return true
 }
 
-func (u *uploadSourceFile) Reload() error {
+func (u *uploadSourceFile) Rewind() error {
 	return nil
 }
 

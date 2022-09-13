@@ -224,7 +224,12 @@ func (manager *UploadManager) putRetryBetweenRegion(ctx context.Context, ret int
 		}
 
 		// 切换区域是否成功
-		if !regions.SwitchRegion() {
+		if !regions.CouldSwitchRegion() || !regions.SwitchRegion() {
+			break
+		}
+
+		// 资源重新加载
+		if !source.Rewindable() || source.Rewind() != nil {
 			break
 		}
 	}

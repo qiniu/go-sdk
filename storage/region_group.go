@@ -3,22 +3,22 @@ package storage
 import "sync"
 
 type RegionGroup struct {
-	locker             sync.Mutex
+	locker             sync.RWMutex
 	currentRegionIndex int
 	regions            []*Region
 }
 
 func NewRegionGroup(region ...*Region) *RegionGroup {
 	return &RegionGroup{
-		locker:             sync.Mutex{},
+		locker:             sync.RWMutex{},
 		currentRegionIndex: 0,
 		regions:            region,
 	}
 }
 
 func (g *RegionGroup) GetRegion() *Region {
-	g.locker.Lock()
-	defer g.locker.Unlock()
+	g.locker.RLock()
+	defer g.locker.RUnlock()
 	if g.currentRegionIndex >= len(g.regions) {
 		return nil
 	}
@@ -26,8 +26,8 @@ func (g *RegionGroup) GetRegion() *Region {
 }
 
 func (g *RegionGroup) CouldSwitchRegion() bool {
-	g.locker.Lock()
-	defer g.locker.Unlock()
+	g.locker.RLock()
+	defer g.locker.RUnlock()
 	return len(g.regions) > (g.currentRegionIndex + 1)
 }
 
@@ -42,10 +42,10 @@ func (g *RegionGroup) SwitchRegion() bool {
 }
 
 func (g *RegionGroup) clone() *RegionGroup {
-	g.locker.Lock()
-	defer g.locker.Unlock()
+	g.locker.RLock()
+	defer g.locker.RUnlock()
 	return &RegionGroup{
-		locker:             sync.Mutex{},
+		locker:             sync.RWMutex{},
 		currentRegionIndex: g.currentRegionIndex,
 		regions:            g.regions,
 	}
