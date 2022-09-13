@@ -103,14 +103,8 @@ func TestUploadManagerFormUpload(t *testing.T) {
 		Recorder:            nil,
 		PartSize:            0,
 	})
-	if err != nil {
-		t.Fatalf("form upload reader error:%v", err)
-	}
-	if len(ret.Key) == 0 || len(ret.Hash) == 0 {
-		t.Fatal("form upload reader error, key or hash is empty")
-	}
-	if len(ret.Foo) == 0 {
-		t.Fatal("form upload reader error, foo is empty")
+	if err == nil {
+		t.Fatal("form upload: reader source should not support region backup")
 	}
 
 	// 上传 readerAt
@@ -204,14 +198,8 @@ func TestUploadManagerResumeV1Upload(t *testing.T) {
 		Recorder:            nil,
 		PartSize:            1024 * 1024,
 	})
-	if err != nil {
-		t.Fatalf("resume v1: upload reader error:%v", err)
-	}
-	if len(ret.Key) == 0 || len(ret.Hash) == 0 {
-		t.Fatal("resume v1: upload reader error, key or hash is empty")
-	}
-	if len(ret.Foo) == 0 {
-		t.Fatal("resume v1: upload reader error, foo is empty")
+	if err == nil {
+		t.Fatal("resume v1:: reader source should not support region backup")
 	}
 
 	// 上传 readerAt
@@ -388,14 +376,8 @@ func TestUploadManagerResumeV2Upload(t *testing.T) {
 		Recorder:            nil,
 		PartSize:            1024 * 1024,
 	})
-	if err != nil {
-		t.Fatalf("resume v2: upload reader error:%v", err)
-	}
-	if len(ret.Key) == 0 || len(ret.Hash) == 0 {
-		t.Fatal("resume v2: upload reader error, key or hash is empty")
-	}
-	if len(ret.Foo) == 0 {
-		t.Fatal("resume v2: upload reader error, foo is empty")
+	if err == nil {
+		t.Fatal("resume v2:: reader source should not support region backup")
 	}
 
 	// 上传 readerAt
