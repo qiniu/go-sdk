@@ -21,7 +21,7 @@ const (
 	IAMKeyPrefix = "IAM-"
 
 	AuthorizationPrefixQiniu = "Qiniu "
-	AuthorizationPrefixQbox  = "Qbox "
+	AuthorizationPrefixQBox  = "QBox "
 )
 
 //  七牛鉴权类，用于生成Qbox, Qiniu, Upload签名
@@ -59,7 +59,7 @@ func (ath *Credentials) AddToken(t TokenType, req *http.Request) error {
 		if err != nil {
 			return err
 		}
-		req.Header.Add("Authorization", AuthorizationPrefixQbox+token)
+		req.Header.Add("Authorization", AuthorizationPrefixQBox+token)
 	}
 	return nil
 }
@@ -228,6 +228,6 @@ func (ath *Credentials) VerifyCallback(req *http.Request) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		return auth == AuthorizationPrefixQbox+token, nil
+		return auth == AuthorizationPrefixQBox+token, nil
 	}
 }
