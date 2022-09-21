@@ -219,12 +219,13 @@ func (manager *UploadManager) putRetryBetweenRegion(ctx context.Context, ret int
 		err = manager.put(ctx, ret, region, uploadMethod, upToken, key, source, extra)
 
 		// 是否需要重试
-		if !shouldUploadRetryWithOtherRegion(err) {
+		if !shouldUploadAgain(err) {
 			break
 		}
 
+		// context 过期不需要切换 region
 		// 切换区域是否成功
-		if !regions.CouldSwitchRegion() || !regions.SwitchRegion() {
+		if !isContextExpiredError(err) && !regions.CouldSwitchRegion() || !regions.SwitchRegion() {
 			break
 		}
 

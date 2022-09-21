@@ -6,14 +6,13 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"sync"
-
-	"github.com/qiniu/go-sdk/v7/client"
 )
 
 // ResumeUploaderV2 表示一个分片上传 v2 的对象
@@ -221,6 +220,7 @@ type (
 		key            string
 		hasKey         bool
 		uploadId       string
+		expiredAt      int64
 		upToken        string
 		upHostProvider hostprovider.HostProvider
 		extra          *RputV2Extra
@@ -243,6 +243,7 @@ type (
 		Region          *Region                               `json:"r"`
 		FileSize        int64                                 `json:"s"`
 		ModTimeStamp    int64                                 `json:"m"`
+		ExpiredAt       int64                                 `json:"e"`
 		UploadId        string                                `json:"i"`
 		Contexts        []resumeUploaderV2RecoveryInfoContext `json:"c"`
 	}
@@ -291,6 +292,7 @@ func (impl *resumeUploaderV2Impl) initUploader(ctx context.Context) ([]int64, er
 	})
 	if err == nil {
 		impl.uploadId = ret.UploadID
+		impl.expiredAt = ret.ExpireAt
 	}
 	return nil, err
 }
@@ -371,7 +373,13 @@ func (impl *resumeUploaderV2Impl) recover(ctx context.Context, recoverData []byt
 		recoveryInfo.ModTimeStamp != impl.fileInfo.ModTime().UnixNano() {
 		return
 	}
+
+	if isUploadContextExpired(recoveryInfo.ExpiredAt) {
+		return
+	}
+
 	impl.uploadId = recoveryInfo.UploadId
+	impl.expiredAt = recoveryInfo.ExpiredAt
 
 	for _, c := range recoveryInfo.Contexts {
 		impl.extra.Progresses = append(impl.extra.Progresses, UploadPartInfo{
@@ -399,6 +407,7 @@ func (impl *resumeUploaderV2Impl) save(ctx context.Context) {
 	recoveryInfo.FileSize = impl.fileInfo.Size()
 	recoveryInfo.ModTimeStamp = impl.fileInfo.ModTime().UnixNano()
 	recoveryInfo.UploadId = impl.uploadId
+	recoveryInfo.ExpiredAt = impl.expiredAt
 	recoveryInfo.Contexts = make([]resumeUploaderV2RecoveryInfoContext, 0, len(impl.extra.Progresses))
 
 	for _, progress := range impl.extra.Progresses {

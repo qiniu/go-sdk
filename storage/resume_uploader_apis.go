@@ -107,6 +107,7 @@ func (p *resumeUploaderAPIs) mkfile(ctx context.Context, upToken, upHost string,
 // InitPartsRet 表示分片上传 v2 初始化完毕的返回值
 type InitPartsRet struct {
 	UploadID string `json:"uploadId"`
+	ExpireAt int64  `json:"expireAt"`
 }
 
 func (p *resumeUploaderAPIs) initParts(ctx context.Context, upToken, upHost, bucket, key string, hasKey bool, ret *InitPartsRet) error {

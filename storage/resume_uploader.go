@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"hash/crc32"
 	"io"
@@ -11,9 +12,6 @@ import (
 	"path/filepath"
 	"sort"
 	"sync"
-	"time"
-
-	"github.com/qiniu/go-sdk/v7/client"
 )
 
 // ResumeUploader 表示一个分片上传的对象
@@ -411,27 +409,30 @@ func (impl *resumeUploaderImpl) final(ctx context.Context) error {
 func (impl *resumeUploaderImpl) recover(ctx context.Context, recoverData []byte) (recovered []int64) {
 	var recoveryInfo resumeUploaderRecoveryInfo
 	if err := json.Unmarshal(recoverData, &recoveryInfo); err != nil {
-		return
+		return nil
 	}
 	if impl.fileInfo == nil || recoveryInfo.FileSize != impl.fileInfo.Size() ||
 		recoveryInfo.ModTimeStamp != impl.fileInfo.ModTime().UnixNano() {
-		return
+		return nil
 	}
 	if recoveryInfo.RecorderVersion != uploadRecordVersion {
 		return
 	}
 
 	for _, c := range recoveryInfo.Contexts {
-		if time.Now().Before(time.Unix(c.ExpiredAt, 0)) {
-			impl.fileSize += int64(c.ChunkSize)
-			impl.extra.Progresses = append(impl.extra.Progresses, BlkputRet{
-				blkIdx: c.Idx, fileOffset: c.Offset, chunkSize: c.ChunkSize, Ctx: c.Ctx, ExpiredAt: c.ExpiredAt,
-			})
-			recovered = append(recovered, int64(c.Offset))
+		if isUploadContextExpired(c.ExpiredAt) {
+			// 有一个过期，最终其实都会无效，重传最后之前没过期的也可能会过期
+			return nil
 		}
+
+		impl.fileSize += int64(c.ChunkSize)
+		impl.extra.Progresses = append(impl.extra.Progresses, BlkputRet{
+			blkIdx: c.Idx, fileOffset: c.Offset, chunkSize: c.ChunkSize, Ctx: c.Ctx, ExpiredAt: c.ExpiredAt,
+		})
+		recovered = append(recovered, c.Offset)
 	}
 
-	return
+	return recovered
 }
 
 func (impl *resumeUploaderImpl) save(ctx context.Context) {
