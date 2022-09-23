@@ -223,13 +223,13 @@ func TestPutWithRecovery(t *testing.T) {
 			Recorder:  recorder,
 			ChunkSize: (1 << blockBits) / 2,
 			Notify: func(blkIdx int, blkSize int, ret *BlkputRet) {
-				t.Logf("Notify: blkIdx: %d, blkSize: %d, ret: %#v", blkIdx, blkSize, ret)
+				t.Logf("[%d] Notify: blkIdx: %d, blkSize: %d, ret: %#v", i, blkIdx, blkSize, ret)
 				if atomic.AddUint32(&counter, 1) >= 2 {
 					cancelFunc()
 				}
 			},
 			NotifyErr: func(blkIdx int, blkSize int, err error) {
-				t.Logf("NotifyErr: blkIdx: %d, blkSize: %d, err: %s", blkIdx, blkSize, err)
+				t.Logf("[%d] NotifyErr: blkIdx: %d, blkSize: %d, err: %s", i, blkIdx, blkSize, err)
 			},
 		})
 		if err == nil {
@@ -237,6 +237,67 @@ func TestPutWithRecovery(t *testing.T) {
 		}
 	}
 	t.Fatal(err)
+}
+
+func TestPutWithBackup(t *testing.T) {
+	var putRet PutRet
+	putPolicy := PutPolicy{
+		Scope:           testBucket,
+		DeleteAfterDays: 7,
+	}
+	upToken := putPolicy.UploadToken(mac)
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	sizes := []int64{
+		64,
+		1 << blockBits,
+		(1 << blockBits) - 1,
+		(1 << blockBits) + 1,
+		(1 << (blockBits + 4)) + 1,
+	}
+	chunkSizes := []int{0, 1 << 20}
+
+	region, err := GetRegion(mac.AccessKey, testBucket)
+	if err != nil {
+		t.Fatal("get region error:", err)
+	}
+
+	customizedHost := []string{"mock.qiniu.com"}
+	customizedHost = append(customizedHost, region.SrcUpHosts...)
+	region.SrcUpHosts = customizedHost
+	cfg := Config{}
+	cfg.UseCdnDomains = false
+	cfg.Region = region
+	uploader := NewResumeUploader(&cfg)
+
+	hostSelector := 0
+	for _, chunkSize := range chunkSizes {
+		hostSelector += 1
+		for _, size := range sizes {
+			hostSelector += 1
+			data := make([]byte, size)
+			if _, err := io.ReadFull(r, data); err != nil {
+				t.Fatal(err)
+			}
+			testKey := fmt.Sprintf("testRPutFileKey_%d", r.Int())
+			err := uploader.Put(context.Background(), &putRet, upToken, testKey, bytes.NewReader(data), size, &RputExtra{
+				ChunkSize: chunkSize,
+				Notify: func(blkIdx int, blkSize int, ret *BlkputRet) {
+					t.Logf("Notify: blkIdx: %d, blkSize: %d, ret: %#v", blkIdx, blkSize, ret)
+				},
+				NotifyErr: func(blkIdx int, blkSize int, err error) {
+					t.Logf("NotifyErr: blkIdx: %d, blkSize: %d, err: %s", blkIdx, blkSize, err)
+				},
+			})
+			if err != nil {
+				t.Fatalf("Put() error, %s", err)
+			}
+			md5ByteArray := md5.Sum(data)
+			md5Value := hex.EncodeToString(md5ByteArray[:])
+			validateMD5(t, testKey, md5Value, size)
+			t.Logf("Size: %d, Chunk: %d, Key: %s, Hash:%s", size, chunkSize, putRet.Key, putRet.Hash)
+		}
+	}
 }
 
 func validateMD5(t *testing.T, key, md5Expected string, sizeExpected int64) {

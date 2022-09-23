@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"hash/crc32"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/qiniu/go-sdk/v7/client"
 )
@@ -55,6 +57,20 @@ type Base64PutExtra struct {
 
 	// 可选，当为 "" 时候，服务端自动判断。
 	MimeType string
+
+	TryTimes int // 可选。尝试次数
+
+	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
+	HostFreezeDuration time.Duration
+}
+
+func (r *Base64PutExtra) init() {
+	if r.TryTimes == 0 {
+		r.TryTimes = settings.TryTimes
+	}
+	if r.HostFreezeDuration <= 0 {
+		r.HostFreezeDuration = 10 * 60 * time.Second
+	}
 }
 
 // Put 用来以Base64方式上传一个文件
@@ -79,23 +95,12 @@ func (p *Base64Uploader) PutWithoutKey(
 
 func (p *Base64Uploader) put(
 	ctx context.Context, ret interface{}, uptoken, key string, hasKey bool, base64Data []byte, extra *Base64PutExtra) (err error) {
-	//get up host
-	ak, bucket, gErr := getAkBucketFromUploadToken(uptoken)
-	if gErr != nil {
-		err = gErr
-		return
-	}
-
-	var upHost string
-	upHost, err = p.upHost(ak, bucket)
-	if err != nil {
-		return
-	}
 
 	//set default extra
 	if extra == nil {
 		extra = &Base64PutExtra{}
 	}
+	extra.init()
 
 	//calc crc32
 	h := crc32.NewIEEE()
@@ -139,14 +144,33 @@ func (p *Base64Uploader) put(
 		}
 	}
 
-	postURL := fmt.Sprintf("%s%s", upHost, postPath.String())
-	headers := http.Header{}
-	headers.Add("Content-Type", "application/octet-stream")
-	headers.Add("Authorization", "UpToken "+uptoken)
+	//get up host
+	ak, bucket, gErr := getAkBucketFromUploadToken(uptoken)
+	if gErr != nil {
+		err = gErr
+		return
+	}
 
-	return p.client.CallWith(ctx, ret, "POST", postURL, headers, bytes.NewReader(base64Data), len(base64Data))
+	var upHostProvider hostprovider.HostProvider
+	upHostProvider, err = p.upHostProvider(ak, bucket)
+	if err != nil {
+		return
+	}
+
+	return doUploadAction(upHostProvider, extra.TryTimes, extra.HostFreezeDuration, func(host string) error {
+		postURL := fmt.Sprintf("%s%s", host, postPath.String())
+		headers := http.Header{}
+		headers.Add("Content-Type", "application/octet-stream")
+		headers.Add("Authorization", "UpToken "+uptoken)
+
+		return p.client.CallWith(ctx, ret, "POST", postURL, headers, bytes.NewReader(base64Data), len(base64Data))
+	})
 }
 
 func (p *Base64Uploader) upHost(ak, bucket string) (upHost string, err error) {
 	return getUpHost(p.cfg, ak, bucket)
+}
+
+func (p *Base64Uploader) upHostProvider(ak, bucket string) (hostProvider hostprovider.HostProvider, err error) {
+	return getUpHostProvider(p.cfg, ak, bucket)
 }

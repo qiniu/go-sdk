@@ -247,6 +247,66 @@ func TestPutWithRecoveryV2(t *testing.T) {
 	t.Fatal(err)
 }
 
+func TestPutWithBackupV2(t *testing.T) {
+	var putRet PutRet
+	putPolicy := PutPolicy{
+		Scope:           testBucket,
+		DeleteAfterDays: 7,
+	}
+	upToken := putPolicy.UploadToken(mac)
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	sizes := []int64{
+		64,
+		1 << blockBits,
+		(1 << blockBits) - 1,
+		(1 << blockBits) + 1,
+		(1 << (blockBits + 4)) + 1,
+	}
+	chunkSizes := []int{0, 1 << 20}
+
+	region, err := GetRegion(mac.AccessKey, testBucket)
+	if err != nil {
+		t.Fatal("get region error:", err)
+	}
+
+	customizedHost := []string{"mock.qiniu.com"}
+	customizedHost = append(customizedHost, region.SrcUpHosts...)
+	region.SrcUpHosts = customizedHost
+	cfg := Config{}
+	cfg.UseCdnDomains = false
+	cfg.Region = region
+	uploader := NewResumeUploaderV2(&cfg)
+
+	hostSelector := 0
+	for _, chunkSize := range chunkSizes {
+		hostSelector += 1
+		for _, size := range sizes {
+			hostSelector += 1
+			data := make([]byte, size)
+			if _, err := io.ReadFull(r, data); err != nil {
+				t.Fatal(err)
+			}
+			testKey := fmt.Sprintf("testRPutFileKey_%d", r.Int())
+			err := uploader.Put(context.Background(), &putRet, upToken, testKey, bytes.NewReader(data), size, &RputV2Extra{
+				Notify: func(partNumber int64, ret *UploadPartsRet) {
+					t.Logf("Notify: partNumber: %d, ret: %#v", partNumber, ret)
+				},
+				NotifyErr: func(partNumber int64, err error) {
+					t.Logf("NotifyErr: partNumber: %d, err: %s", partNumber, err)
+				},
+			})
+			if err != nil {
+				t.Fatalf("Put() error, %s", err)
+			}
+			md5ByteArray := md5.Sum(data)
+			md5Value := hex.EncodeToString(md5ByteArray[:])
+			validateMD5(t, testKey, md5Value, size)
+			t.Logf("Size: %d, Chunk: %d, Key: %s, Hash:%s", size, chunkSize, putRet.Key, putRet.Hash)
+		}
+	}
+}
+
 func TestPutWithEmptyKeyV2(t *testing.T) {
 	bucketManager.Delete(testBucket, "")
 
