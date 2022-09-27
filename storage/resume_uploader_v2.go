@@ -282,7 +282,7 @@ func (impl *resumeUploaderV2Impl) initUploader(ctx context.Context) ([]int64, er
 				return recovered, nil
 			}
 			if len(recovered) == 0 {
-				_ = impl.extra.Recorder.Delete(impl.recorderKey)
+				impl.deleteUploadRecordIfNeed(nil, true)
 			}
 		}
 	}
@@ -331,6 +331,7 @@ func (impl *resumeUploaderV2Impl) uploadChunk(ctx context.Context, c chunk) erro
 	})
 	if err != nil {
 		impl.extra.NotifyErr(partNumber, err)
+		impl.deleteUploadRecordIfNeed(err, false)
 	} else {
 		impl.extra.Notify(partNumber, &ret)
 
@@ -354,13 +355,22 @@ func (impl *resumeUploaderV2Impl) uploadChunk(ctx context.Context, c chunk) erro
 
 func (impl *resumeUploaderV2Impl) final(ctx context.Context) error {
 	if impl.extra.Recorder != nil && len(impl.recorderKey) > 0 {
-		impl.extra.Recorder.Delete(impl.recorderKey)
+		impl.deleteUploadRecordIfNeed(nil, true)
 	}
 
 	sort.Sort(uploadPartInfos(impl.extra.Progresses))
-	return doUploadAction(impl.upHostProvider, impl.extra.TryTimes, impl.extra.HostFreezeDuration, func(host string) error {
+	err := doUploadAction(impl.upHostProvider, impl.extra.TryTimes, impl.extra.HostFreezeDuration, func(host string) error {
 		return impl.resumeUploaderAPIs().completeParts(ctx, impl.upToken, host, impl.ret, impl.bucket, impl.key, impl.hasKey, impl.uploadId, impl.extra)
 	})
+	impl.deleteUploadRecordIfNeed(err, false)
+	return err
+}
+
+func (impl *resumeUploaderV2Impl) deleteUploadRecordIfNeed(err error, force bool) {
+	// 无效删除之前的记录
+	if force || (isContextExpiredError(err) && impl.extra.Recorder != nil && len(impl.recorderKey) > 0) {
+		_ = impl.extra.Recorder.Delete(impl.recorderKey)
+	}
 }
 
 func (impl *resumeUploaderV2Impl) recover(ctx context.Context, recoverData []byte) (recovered []int64) {

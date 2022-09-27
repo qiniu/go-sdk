@@ -58,7 +58,7 @@ func isContextExpiredError(err error) bool {
 		return false
 	}
 
-	return errInfo.Code == 701
+	return errInfo.Code == 701 || (errInfo.Code == 612 && strings.Contains(errInfo.Error(), "no such uploadId"))
 }
 
 func shouldUploadRetryWithOtherHost(err error) bool {

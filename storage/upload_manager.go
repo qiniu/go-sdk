@@ -225,7 +225,7 @@ func (manager *UploadManager) putRetryBetweenRegion(ctx context.Context, ret int
 
 		// context 过期不需要切换 region
 		// 切换区域是否成功
-		if !isContextExpiredError(err) && !regions.CouldSwitchRegion() || !regions.SwitchRegion() {
+		if !isContextExpiredError(err) && (!regions.CouldSwitchRegion() || !regions.SwitchRegion()) {
 			break
 		}
 
