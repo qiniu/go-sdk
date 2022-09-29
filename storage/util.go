@@ -26,7 +26,7 @@ func IsContextExpired(blkPut BlkputRet) bool {
 }
 
 func isUploadContextExpired(expiredAt int64) bool {
-	target := time.Unix(expiredAt, 0).AddDate(0, 0, -1)
+	target := time.Unix(expiredAt, 0).Add(-2 * time.Hour)
 	return time.Now().After(target)
 }
 

@@ -215,6 +215,7 @@ func TestPutWithRecoveryV2(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	fmt.Sprintln("recorder path:" + dirName)
 	fileName := filepath.Join(dirName, "originalFile")
 	testFile, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
