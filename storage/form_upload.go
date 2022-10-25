@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"hash"
 	"hash/crc32"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/qiniu/go-sdk/v7/client"
 )
@@ -26,11 +28,25 @@ type PutExtra struct {
 
 	UpHost string
 
+	TryTimes int // 可选。尝试次数
+
+	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
+	HostFreezeDuration time.Duration
+
 	// 可选，当为 "" 时候，服务端自动判断。
 	MimeType string
 
 	// 上传事件：进度通知。这个事件的回调函数应该尽可能快地结束。
 	OnProgress func(fsize, uploaded int64)
+}
+
+func (extra *PutExtra) init() {
+	if extra.TryTimes == 0 {
+		extra.TryTimes = settings.TryTimes
+	}
+	if extra.HostFreezeDuration <= 0 {
+		extra.HostFreezeDuration = 10 * 60 * time.Second
+	}
 }
 
 func (extra *PutExtra) getUpHost(useHttps bool) string {
@@ -109,8 +125,12 @@ func (p *FormUploader) PutFileWithoutKey(
 }
 
 func (p *FormUploader) putFile(
-	ctx context.Context, ret interface{}, uptoken string,
+	ctx context.Context, ret interface{}, upToken string,
 	key string, hasKey bool, localFile string, extra *PutExtra) (err error) {
+	if extra == nil {
+		extra = &PutExtra{}
+	}
+	extra.init()
 
 	f, err := os.Open(localFile)
 	if err != nil {
@@ -124,11 +144,7 @@ func (p *FormUploader) putFile(
 	}
 	fsize := fi.Size()
 
-	if extra == nil {
-		extra = &PutExtra{}
-	}
-
-	return p.put(ctx, ret, uptoken, key, hasKey, f, fsize, extra, filepath.Base(localFile))
+	return p.put(ctx, ret, upToken, key, hasKey, f, fsize, extra, filepath.Base(localFile))
 }
 
 // Put 用来以表单方式上传一个文件。
@@ -164,70 +180,85 @@ func (p *FormUploader) PutWithoutKey(
 }
 
 func (p *FormUploader) put(
-	ctx context.Context, ret interface{}, uptoken string,
-	key string, hasKey bool, data io.Reader, size int64, extra *PutExtra, fileName string) (err error) {
+	ctx context.Context, ret interface{}, upToken string,
+	key string, hasKey bool, data io.Reader, size int64, extra *PutExtra, fileName string) error {
 
-	var upHost string
-	if extra == nil {
-		extra = &PutExtra{}
-	}
-	if extra.UpHost != "" {
-		upHost = extra.getUpHost(p.Cfg.UseHTTPS)
-	} else if upHost, err = p.getUpHostFromUploadToken(uptoken); err != nil {
-		return
-	}
-
-	b := new(bytes.Buffer)
-	writer := multipart.NewWriter(b)
-	err = writeMultipart(writer, uptoken, key, hasKey, extra, fileName)
-	if err != nil {
-		return
+	seekableData, ok := data.(io.ReadSeeker)
+	if !ok {
+		dataBytes, rErr := ioutil.ReadAll(data)
+		if rErr != nil {
+			return rErr
+		}
+		if size <= 0 {
+			size = int64(len(dataBytes))
+		}
+		seekableData = bytes.NewReader(dataBytes)
 	}
 
-	var dataReader io.Reader
-	h := crc32.NewIEEE()
-	dataReader = io.TeeReader(data, h)
-	crcReader := newCrc32Reader(writer.Boundary(), h)
-	h = nil
-	//write file
-	head := make(textproto.MIMEHeader)
-	head.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`,
+	return p.putSeekableData(ctx, ret, upToken, key, hasKey, seekableData, size, extra, fileName)
+}
+
+func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upToken string,
+	key string, hasKey bool, data io.ReadSeeker, dataSize int64, extra *PutExtra, fileName string) error {
+
+	formFieldBuff := new(bytes.Buffer)
+	formWriter := multipart.NewWriter(formFieldBuff)
+	// 写入表单头、token、key、fileName 等信息
+	if wErr := writeMultipart(formWriter, upToken, key, hasKey, extra, fileName); wErr != nil {
+		return wErr
+	}
+
+	// 计算文件 crc32
+	crc32Hash := crc32.NewIEEE()
+	if _, cErr := io.Copy(crc32Hash, data); cErr != nil {
+		return cErr
+	}
+	crcReader := newCrc32Reader(formWriter.Boundary(), crc32Hash)
+	crcBytes, rErr := ioutil.ReadAll(crcReader)
+	if rErr != nil {
+		return rErr
+	}
+	crcReader = nil
+
+	// 表单写入文件 crc32
+	if _, wErr := formFieldBuff.Write(crcBytes); wErr != nil {
+		return wErr
+	}
+	crcBytes = nil
+
+	formHead := make(textproto.MIMEHeader)
+	formHead.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`,
 		escapeQuotes(fileName)))
 	if extra.MimeType != "" {
-		head.Set("Content-Type", extra.MimeType)
+		formHead.Set("Content-Type", extra.MimeType)
+	}
+	if _, cErr := formWriter.CreatePart(formHead); cErr != nil {
+		return cErr
+	}
+	formHead = nil
+
+	// 表单 Fields
+	formFieldData := formFieldBuff.Bytes()
+	formFieldBuff = nil
+
+	// 表单最后一行
+	formEndLine := []byte(fmt.Sprintf("\r\n--%s--\r\n", formWriter.Boundary()))
+
+	// 不再重新构造 formBody ，避免内存峰值问题
+	var formBodyLen int64 = -1
+	if dataSize >= 0 {
+		formBodyLen = int64(len(formFieldData)) + dataSize + int64(len(formEndLine))
 	}
 
-	_, err = writer.CreatePart(head)
-	if err != nil {
-		return
-	}
-	head = nil
-
-	lastLine := fmt.Sprintf("\r\n--%s--\r\n", writer.Boundary())
-	r := strings.NewReader(lastLine)
-
-	bodyLen := int64(-1)
-	if size >= 0 {
-		bodyLen = int64(b.Len()) + size + int64(len(lastLine))
-		bodyLen += crcReader.length()
-	}
-
-	mr := io.MultiReader(b, dataReader, crcReader, r)
-	b = nil
-	dataReader = nil
-	crcReader = nil
-	r = nil
-
-	formBytes, err := ioutil.ReadAll(mr)
-	if err != nil {
-		return
-	}
-	mr = nil
-
+	progress := newUploadProgress(extra.OnProgress)
 	getBodyReader := func() (io.Reader, error) {
-		var formReader io.Reader = bytes.NewReader(formBytes)
+		if _, err := data.Seek(0, io.SeekStart); err != nil {
+			return nil, err
+		}
+
+		var formReader = io.MultiReader(bytes.NewReader(formFieldData), data, bytes.NewReader(formEndLine))
 		if extra.OnProgress != nil {
-			formReader = &readerWithProgress{reader: formReader, fsize: size, onProgress: extra.OnProgress}
+			formReader = &readerWithProgress{reader: formReader, fsize: formBodyLen, onProgress: progress.onProgress}
 		}
 		return formReader, nil
 	}
@@ -240,21 +271,34 @@ func (p *FormUploader) put(
 	}
 	bodyReader, err := getBodyReader()
 	if err != nil {
-		return
+		return err
 	}
 
-	contentType := writer.FormDataContentType()
+	var hostProvider hostprovider.HostProvider = nil
+	if extra.UpHost != "" {
+		hostProvider = hostprovider.NewWithHosts([]string{extra.getUpHost(p.Cfg.UseHTTPS)})
+	} else {
+		hostProvider, err = p.getUpHostProviderFromUploadToken(upToken)
+		if err != nil {
+			return err
+		}
+	}
+
+	// 上传
+	contentType := formWriter.FormDataContentType()
 	headers := http.Header{}
 	headers.Add("Content-Type", contentType)
-	err = p.Client.CallWithBodyGetter(ctx, ret, "POST", upHost, headers, bodyReader, getBodyReadCloser, bodyLen)
+	err = doUploadAction(hostProvider, extra.TryTimes, extra.HostFreezeDuration, func(host string) error {
+		return p.Client.CallWithBodyGetter(ctx, ret, "POST", host, headers, bodyReader, getBodyReadCloser, formBodyLen)
+	})
 	if err != nil {
-		return
+		return err
 	}
 	if extra.OnProgress != nil {
-		extra.OnProgress(size, size)
+		extra.OnProgress(formBodyLen, formBodyLen)
 	}
 
-	return
+	return nil
 }
 
 func (p *FormUploader) getUpHostFromUploadToken(upToken string) (upHost string, err error) {
@@ -265,6 +309,14 @@ func (p *FormUploader) getUpHostFromUploadToken(upToken string) (upHost string, 
 	}
 	upHost, err = p.UpHost(ak, bucket)
 	return
+}
+
+func (p *FormUploader) getUpHostProviderFromUploadToken(upToken string) (hostprovider.HostProvider, error) {
+	ak, bucket, err := getAkBucketFromUploadToken(upToken)
+	if err != nil {
+		return nil, err
+	}
+	return getUpHostProvider(p.Cfg, ak, bucket)
 }
 
 type crc32Reader struct {
@@ -321,7 +373,7 @@ func (p *readerWithProgress) Read(b []byte) (n int, err error) {
 
 	n, err = p.reader.Read(b)
 	p.uploaded += int64(n)
-	if p.uploaded > p.fsize {
+	if p.fsize > 0 && p.uploaded > p.fsize {
 		p.uploaded = p.fsize
 	}
 	return

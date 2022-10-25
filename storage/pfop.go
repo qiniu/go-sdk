@@ -145,7 +145,7 @@ func (m *OperationManager) Pfop(bucket, key, fops, pipeline, notifyURL string,
 		pfopParams["force"] = []string{"1"}
 	}
 	var ret PfopRet
-	ctx := auth.WithCredentials(context.TODO(), m.Mac)
+	ctx := auth.WithCredentialsType(context.TODO(), m.Mac, auth.TokenQiniu)
 	reqHost, reqErr := m.ApiHost(bucket)
 	if reqErr != nil {
 		err = reqErr
@@ -165,11 +165,11 @@ func (m *OperationManager) Pfop(bucket, key, fops, pipeline, notifyURL string,
 
 // Prefop 持久化处理状态查询
 func (m *OperationManager) Prefop(persistentID string) (ret PrefopRet, err error) {
-	ctx := context.TODO()
 	reqHost := m.PrefopApiHost(persistentID)
 	reqURL := fmt.Sprintf("%s/status/get/prefop?id=%s", reqHost, persistentID)
 	headers := http.Header{}
 	headers.Add("Content-Type", conf.CONTENT_TYPE_FORM)
+	ctx := auth.WithCredentialsType(context.TODO(), m.Mac, auth.TokenQiniu)
 	err = m.Client.Call(ctx, &ret, "GET", reqURL, headers)
 	return
 }

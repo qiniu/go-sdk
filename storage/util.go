@@ -1,6 +1,10 @@
 package storage
 
 import (
+	"context"
+	api "github.com/qiniu/go-sdk/v7"
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
+	"strings"
 	"time"
 )
 
@@ -19,4 +23,100 @@ func IsContextExpired(blkPut BlkputRet) bool {
 	target := time.Unix(blkPut.ExpiredAt, 0).AddDate(0, 0, -1)
 	now := time.Now()
 	return now.After(target)
+}
+
+func isUploadContextExpired(expiredAt int64) bool {
+	target := time.Unix(expiredAt, 0).Add(-2 * time.Hour)
+	return time.Now().After(target)
+}
+
+func shouldUploadAgain(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if isCancelErr(err) {
+		return false
+	}
+
+	errInfo, ok := err.(*ErrorInfo)
+	if !ok {
+		return true
+	}
+
+	// 4xx 不重试
+	return errInfo.Code < 400 || errInfo.Code > 499
+}
+
+func isContextExpiredError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errInfo, ok := err.(*ErrorInfo)
+	if !ok {
+		return false
+	}
+
+	return errInfo.Code == 701 || (errInfo.Code == 612 && strings.Contains(errInfo.Error(), "no such uploadId"))
+}
+
+func shouldUploadRetryWithOtherHost(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if isCancelErr(err) {
+		return false
+	}
+
+	errInfo, ok := err.(*ErrorInfo)
+	if !ok {
+		return true
+	}
+
+	return errInfo.Code > 499 && errInfo.Code < 600 && errInfo.Code != 573 && errInfo.Code != 579
+}
+
+func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, freezeDuration time.Duration, action func(host string) error) error {
+	for {
+		host, err := hostProvider.Provider()
+		if err != nil {
+			return api.NewError(ErrMaxUpRetry, err.Error())
+		}
+
+		for i := 0; ; i++ {
+			err = action(host)
+
+			// 请求成功
+			if err == nil {
+				return nil
+			}
+
+			// 不可重试错误
+			if !shouldUploadRetryWithOtherHost(err) {
+				return err
+			}
+
+			// 超过重试次数退出
+			if i >= retryMax {
+				break
+			}
+		}
+
+		// 单个 host 失败，冻结此 host，换其他 host
+		_ = hostProvider.Freeze(host, err, freezeDuration)
+	}
+}
+
+func isCancelErr(err error) bool {
+	if err == context.Canceled {
+		return true
+	}
+
+	if err == nil {
+		return false
+	}
+
+	return strings.Contains(err.Error(), "context canceled")
 }

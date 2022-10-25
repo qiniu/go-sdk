@@ -3,10 +3,12 @@ package storage
 import (
 	"context"
 	"encoding/base64"
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/conf"
@@ -44,15 +46,34 @@ func (p *resumeUploaderAPIs) bput(ctx context.Context, upToken string, ret *Blkp
 
 // RputExtra 表示分片上传额外可以指定的参数
 type RputExtra struct {
-	Recorder   Recorder          // 可选。上传进度记录
-	Params     map[string]string // 可选。用户自定义参数，以"x:"开头，而且值不能为空，否则忽略
-	UpHost     string
-	MimeType   string                                        // 可选。
-	ChunkSize  int                                           // 可选。每次上传的Chunk大小
-	TryTimes   int                                           // 可选。尝试次数
-	Progresses []BlkputRet                                   // 可选。上传进度
-	Notify     func(blkIdx int, blkSize int, ret *BlkputRet) // 可选。进度提示（注意多个block是并行传输的）
-	NotifyErr  func(blkIdx int, blkSize int, err error)
+	Recorder           Recorder          // 可选。上传进度记录
+	Params             map[string]string // 可选。用户自定义参数，以"x:"开头，而且值不能为空，否则忽略
+	UpHost             string
+	MimeType           string                                        // 可选。
+	ChunkSize          int                                           // 可选。每次上传的Chunk大小
+	TryTimes           int                                           // 可选。尝试次数
+	HostFreezeDuration time.Duration                                 // 可选。主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
+	Progresses         []BlkputRet                                   // 可选。上传进度
+	Notify             func(blkIdx int, blkSize int, ret *BlkputRet) // 可选。进度提示（注意多个block是并行传输的）
+	NotifyErr          func(blkIdx int, blkSize int, err error)
+}
+
+func (extra *RputExtra) init() {
+	if extra.ChunkSize == 0 {
+		extra.ChunkSize = settings.ChunkSize
+	}
+	if extra.TryTimes == 0 {
+		extra.TryTimes = settings.TryTimes
+	}
+	if extra.HostFreezeDuration <= 0 {
+		extra.HostFreezeDuration = 10 * 60 * time.Second
+	}
+	if extra.Notify == nil {
+		extra.Notify = func(blkIdx, blkSize int, ret *BlkputRet) {}
+	}
+	if extra.NotifyErr == nil {
+		extra.NotifyErr = func(blkIdx, blkSize int, err error) {}
+	}
 }
 
 func (extra *RputExtra) getUpHost(useHttps bool) string {
@@ -86,6 +107,7 @@ func (p *resumeUploaderAPIs) mkfile(ctx context.Context, upToken, upHost string,
 // InitPartsRet 表示分片上传 v2 初始化完毕的返回值
 type InitPartsRet struct {
 	UploadID string `json:"uploadId"`
+	ExpireAt int64  `json:"expireAt"`
 }
 
 func (p *resumeUploaderAPIs) initParts(ctx context.Context, upToken, upHost, bucket, key string, hasKey bool, ret *InitPartsRet) error {
@@ -115,16 +137,39 @@ type UploadPartInfo struct {
 
 // RputV2Extra 表示分片上传 v2 额外可以指定的参数
 type RputV2Extra struct {
-	Recorder   Recorder          // 可选。上传进度记录
-	Metadata   map[string]string // 可选。用户自定义文件 metadata 信息
-	CustomVars map[string]string // 可选。用户自定义参数，以"x:"开头，而且值不能为空，否则忽略
-	UpHost     string
-	MimeType   string                                      // 可选。
-	PartSize   int64                                       // 可选。每次上传的块大小
-	TryTimes   int                                         // 可选。尝试次数
-	Progresses []UploadPartInfo                            // 上传进度
-	Notify     func(partNumber int64, ret *UploadPartsRet) // 可选。进度提示（注意多个block是并行传输的）
-	NotifyErr  func(partNumber int64, err error)
+	Recorder           Recorder          // 可选。上传进度记录
+	Metadata           map[string]string // 可选。用户自定义文件 metadata 信息
+	CustomVars         map[string]string // 可选。用户自定义参数，以"x:"开头，而且值不能为空，否则忽略
+	UpHost             string
+	MimeType           string                                      // 可选。
+	PartSize           int64                                       // 可选。每次上传的块大小
+	TryTimes           int                                         // 可选。尝试次数
+	HostFreezeDuration time.Duration                               // 可选。主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
+	Progresses         []UploadPartInfo                            // 上传进度
+	Notify             func(partNumber int64, ret *UploadPartsRet) // 可选。进度提示（注意多个block是并行传输的）
+	NotifyErr          func(partNumber int64, err error)
+}
+
+func (extra *RputV2Extra) init() {
+	if extra.PartSize == 0 {
+		extra.PartSize = settings.PartSize
+	}
+	if extra.TryTimes == 0 {
+		extra.TryTimes = settings.TryTimes
+	}
+	if extra.HostFreezeDuration <= 0 {
+		extra.HostFreezeDuration = 10 * 60 * time.Second
+	}
+	if extra.Notify == nil {
+		extra.Notify = func(partNumber int64, ret *UploadPartsRet) {}
+	}
+	if extra.NotifyErr == nil {
+		extra.NotifyErr = func(partNumber int64, err error) {}
+	}
+}
+
+func (extra *RputV2Extra) getUpHost(useHttps bool) string {
+	return hostAddSchemeIfNeeded(useHttps, extra.UpHost)
 }
 
 func hostAddSchemeIfNeeded(useHttps bool, host string) string {
@@ -135,10 +180,6 @@ func hostAddSchemeIfNeeded(useHttps bool, host string) string {
 	} else {
 		return endpoint(true, host)
 	}
-}
-
-func (extra *RputV2Extra) getUpHost(useHttps bool) string {
-	return hostAddSchemeIfNeeded(useHttps, extra.UpHost)
 }
 
 func (p *resumeUploaderAPIs) completeParts(ctx context.Context, upToken, upHost string, ret interface{}, bucket, key string, hasKey bool, uploadId string, extra *RputV2Extra) (err error) {
@@ -172,6 +213,10 @@ func (p *resumeUploaderAPIs) upHost(ak, bucket string) (upHost string, err error
 	return getUpHost(p.Cfg, ak, bucket)
 }
 
+func (p *resumeUploaderAPIs) upHostProvider(ak, bucket string) (hostProvider hostprovider.HostProvider, err error) {
+	return getUpHostProvider(p.Cfg, ak, bucket)
+}
+
 func makeHeadersForUpload(upToken string) http.Header {
 	return makeHeadersForUploadEx(upToken, conf.CONTENT_TYPE_OCTET)
 }
@@ -200,36 +245,6 @@ func encodeV2(key string, hasKey bool) string {
 		return "~"
 	} else {
 		return encode(key)
-	}
-}
-
-func (r *RputExtra) init() {
-	if r.ChunkSize == 0 {
-		r.ChunkSize = settings.ChunkSize
-	}
-	if r.TryTimes == 0 {
-		r.TryTimes = settings.TryTimes
-	}
-	if r.Notify == nil {
-		r.Notify = func(blkIdx, blkSize int, ret *BlkputRet) {}
-	}
-	if r.NotifyErr == nil {
-		r.NotifyErr = func(blkIdx, blkSize int, err error) {}
-	}
-}
-
-func (r *RputV2Extra) init() {
-	if r.PartSize == 0 {
-		r.PartSize = settings.PartSize
-	}
-	if r.TryTimes == 0 {
-		r.TryTimes = settings.TryTimes
-	}
-	if r.Notify == nil {
-		r.Notify = func(partNumber int64, ret *UploadPartsRet) {}
-	}
-	if r.NotifyErr == nil {
-		r.NotifyErr = func(partNumber int64, err error) {}
 	}
 }
 
