@@ -237,3 +237,32 @@ func TestCredentials_IsIAMKey(t *testing.T) {
 		t.Error("IsIAMKey failed")
 	}
 }
+
+func TestCredentials_VerifyCallback(t *testing.T) {
+	inputs := []ReqParams{
+		{Method: "", Url: "", Headers: http.Header{"Authorization": []string{"QBox ak:qfWnqF1E_vfzjZnReCVkcSMl29M="}}},
+		{Method: "", Url: "", Headers: http.Header{"Authorization": []string{"QBox ak:qfWnqF1E_vfzjZnReCVkcSMl29M="}, "Content-Type": []string{"application/json"}, "X-Qiniu-": []string{"a"}, "X-Qiniu": []string{"b"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "GET", Url: "", Headers: http.Header{"Authorization": []string{"QBox ak:qfWnqF1E_vfzjZnReCVkcSMl29M="}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "POST", Url: "", Headers: http.Header{"Authorization": []string{"QBox ak:qfWnqF1E_vfzjZnReCVkcSMl29M="}, "Content-Type": []string{"application/json"}, "X-Qiniu-": []string{"a"}, "X-Qiniu": []string{"b"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", Url: "http://upload.qiniup.com", Headers: http.Header{"Authorization": []string{"QBox ak:qfWnqF1E_vfzjZnReCVkcSMl29M="}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", Url: "http://upload.qiniup.com", Headers: http.Header{"Authorization": []string{"QBox ak:qfWnqF1E_vfzjZnReCVkcSMl29M="}, "Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", Url: "http://upload.qiniup.com", Headers: http.Header{"Authorization": []string{"QBox ak:h8gBb1Adb2Jgoys1N8sRVAnNvpw="}, "Content-Type": []string{"application/x-www-form-urlencoded"}}, Body: strings.NewReader(`name=test&language=go`)},
+		{Method: "", Url: "", Headers: http.Header{"Authorization": []string{"Qiniu ak:0i1vKClRDWFyNkcTFzwcE7PzX74="}, "X-Qiniu-": []string{"a"}, "X-Qiniu": []string{"b"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", Url: "", Headers: http.Header{"Authorization": []string{"Qiniu ak:K1DI0goT05yhGizDFE5FiPJxAj4="}, "Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "GET", Url: "", Headers: http.Header{"Authorization": []string{"Qiniu ak:0i1vKClRDWFyNkcTFzwcE7PzX74="}, "X-Qiniu-": []string{"a"}, "X-Qiniu": []string{"b"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "POST", Url: "", Headers: http.Header{"Authorization": []string{"Qiniu ak:0ujEjW_vLRZxebsveBgqa3JyQ-w="}, "Content-Type": []string{"application/json"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", Url: "http://upload.qiniup.com", Headers: http.Header{"Authorization": []string{"Qiniu ak:GShw5NitGmd5TLoo38nDkGUofRw="}, "X-Qiniu-": []string{"a"}, "X-Qiniu": []string{"b"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", Url: "http://upload.qiniup.com", Headers: http.Header{"Authorization": []string{"Qiniu ak:-fB4yn26QtKrW3jb_owJha4-W1I="}, "Content-Type": []string{"application/json"}, "X-Qiniu-BBB": []string{"BBB", "AAA"}, "X-Qiniu-AAA": []string{"DDD", "CCC"}, "X-Qiniu-": []string{"a"}, "X-Qiniu": []string{"b"}}, Body: strings.NewReader(`{"name": "test"}`)},
+		{Method: "", Url: "http://upload.qiniup.com", Headers: http.Header{"Authorization": []string{"Qiniu ak:PSssnOFa3sUvpEjTfACJ9WWKBS4="}, "Content-Type": []string{"application/x-www-form-urlencoded"}, "X-Qiniu-BBB": []string{"BBB", "AAA"}, "X-Qiniu-AAA": []string{"DDD", "CCC"}, "X-Qiniu-": []string{"a"}, "X-Qiniu": []string{"b"}}, Body: strings.NewReader(`name=test&language=go`)},
+	}
+	reqs, gErr := genRequests(inputs)
+	if gErr != nil {
+		t.Errorf("generate requests: %v\n", gErr)
+	}
+
+	for ind, req := range reqs {
+		if ok, err := at.VerifyCallback(req); !ok {
+			t.Errorf("index:%d verify error:%+v\n", ind, err)
+		}
+	}
+}
