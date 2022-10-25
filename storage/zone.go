@@ -31,9 +31,11 @@ var (
 	// 兼容保留
 	ZoneXinjiapo, _ = GetRegionByID(RIDSingapore)
 
-	// 雾存储华东机房
-	// 兼容保留
-	ZoneFogCnEast1, _ = GetRegionByID(RIDFogCnEast1)
+	// 华东浙江 2 区
+	ZoneHuadongZheJiang2, _ = GetRegionByID(RIDHuadongZheJiang2)
+
+	// 亚太首尔 1 区
+	ZoneShouEr1, _ = GetRegionByID(RIDApNortheast1)
 
 	// 兼容保留
 	Zone_z0 = ZoneHuadong
@@ -45,6 +47,4 @@ var (
 	Zone_na0 = ZoneBeimei
 	// 兼容保留
 	Zone_as0 = ZoneXinjiapo
-	// 兼容保留
-	Zone_fog_cn_east_1 = ZoneFogCnEast1
 )

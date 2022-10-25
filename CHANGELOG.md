@@ -1,4 +1,13 @@
 # Changelog
+## 7.14.0
+* Go SDK  对七牛回调请求的鉴权验证函数支持 Qiniu 签名
+* UploadMananger 支持双活区域
+* 优化分片上传 ctx 超时检测
+* 表单 / 分片 v1 / 分片 v2 上传支持主备域名重试逻辑。
+* 表单上传支持配置重试次数
+* 处理 Config 配置固定 Region， 但不生效的问题(配置 Zone 生效)
+* 移除雾存储区域：华东一区
+* 增加亚太-首尔区域固定 Region
 
 ## 7.13.0
 * 对象存储，管理类 API 发送请求时增加 [X-Qiniu-Date](https://developer.qiniu.com/kodo/3924/common-request-headers) （生成请求的时间） header

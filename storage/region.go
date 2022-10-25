@@ -108,7 +108,7 @@ var (
 			"upload-cn-east-2.qiniup.com",
 		},
 		RsHost:    "rs-cn-east-2.qiniuapi.com",
-		RsfHost:   "rsf-cn-east-2-qiniuapi.com",
+		RsfHost:   "rsf-cn-east-2.qiniuapi.com",
 		ApiHost:   "api-cn-east-2.qiniuapi.com",
 		IovipHost: "iovip-cn-east-2.qiniuio.com",
 	}
@@ -126,6 +126,7 @@ var (
 		ApiHost:   "api-z1.qiniuapi.com",
 		IovipHost: "iovip-z1.qbox.me",
 	}
+
 	// regionHuanan 表示华南机房
 	regionHuanan = Region{
 		SrcUpHosts: []string{
@@ -153,6 +154,7 @@ var (
 		ApiHost:   "api-na0.qiniuapi.com",
 		IovipHost: "iovip-na0.qbox.me",
 	}
+
 	// regionSingapore 表示新加坡机房
 	regionSingapore = Region{
 		SrcUpHosts: []string{
@@ -166,18 +168,19 @@ var (
 		ApiHost:   "api-as0.qiniuapi.com",
 		IovipHost: "iovip-as0.qbox.me",
 	}
-	// regionFogCnEast1 表示雾存储华东区
-	regionFogCnEast1 = Region{
+
+	// regionApNortheast1 表示亚太-首尔机房
+	regionApNortheast1 = Region{
 		SrcUpHosts: []string{
-			"up-fog-cn-east-1.qiniup.com",
+			"up-ap-northeast-1.qiniup.com",
 		},
 		CdnUpHosts: []string{
-			"upload-fog-cn-east-1.qiniup.com",
+			"upload-ap-northeast-1.qiniup.com",
 		},
-		RsHost:    "rs-fog-cn-east-1.qbox.me",
-		RsfHost:   "rsf-fog-cn-east-1.qbox.me",
-		ApiHost:   "api-fog-cn-east-1.qiniuapi.com",
-		IovipHost: "iovip-fog-cn-east-1.qbox.me",
+		RsHost:    "rs-ap-northeast-1.qiniuapi.com",
+		RsfHost:   "rsf-ap-northeast-1.qiniuapi.com",
+		ApiHost:   "api-ap-northeast-1.qiniuapi.com",
+		IovipHost: "iovip-ap-northeast-1.qiniuio.com",
 	}
 )
 
@@ -189,7 +192,7 @@ const (
 	RIDHuanan           = RegionID("z2")
 	RIDNorthAmerica     = RegionID("na0")
 	RIDSingapore        = RegionID("as0")
-	RIDFogCnEast1       = RegionID("fog-cn-east-1")
+	RIDApNortheast1     = RegionID("ap-northeast-1")
 )
 
 // regionMap 是RegionID到具体的Region的映射
@@ -200,7 +203,7 @@ var regionMap = map[RegionID]Region{
 	RIDHuabei:           regionHuabei,
 	RIDSingapore:        regionSingapore,
 	RIDNorthAmerica:     regionNorthAmerica,
-	RIDFogCnEast1:       regionFogCnEast1,
+	RIDApNortheast1:     regionApNortheast1,
 }
 
 /// UcHost 为查询空间相关域名的API服务地址
