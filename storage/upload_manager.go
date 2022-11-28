@@ -17,9 +17,9 @@ const (
 	UploadResumeV1 UploadResumeVersion = 1
 	UploadResumeV2 UploadResumeVersion = 2
 
-	uploadMethodForm     = 0
-	uploadMethodResumeV1 = 1
-	uploadMethodResumeV2 = 2
+	uploadMethodForm     = 1
+	uploadMethodResumeV1 = 2
+	uploadMethodResumeV2 = 3
 )
 
 type UploadConfig struct {
@@ -184,16 +184,6 @@ func (manager *UploadManager) Put(ctx context.Context, ret interface{}, upToken 
 }
 
 func (manager *UploadManager) putRetryBetweenRegion(ctx context.Context, ret interface{}, upToken string, key *string, source UploadSource, extra *UploadExtra) error {
-	if manager.cfg.Regions == nil {
-		regions, err := manager.getRegionGroupWithUploadToken(upToken)
-		if err != nil {
-			return err
-		}
-		manager.cfg.Regions = regions
-	}
-
-	regions := manager.cfg.Regions.clone()
-
 	resumeVersion := "v2"
 	uploadMethod := uploadMethodResumeV2
 	if source.Size() > 0 && source.Size() < extra.UploadThreshold {
@@ -204,6 +194,15 @@ func (manager *UploadManager) putRetryBetweenRegion(ctx context.Context, ret int
 		uploadMethod = uploadMethodResumeV1
 		resumeVersion = "v1"
 	}
+
+	if manager.cfg.Regions == nil {
+		regions, err := manager.getRegionGroupWithUploadToken(upToken, uploadMethod)
+		if err != nil {
+			return err
+		}
+		manager.cfg.Regions = regions
+	}
+	regions := manager.cfg.Regions.clone()
 
 	if uploadMethod != uploadMethodForm {
 		recoverRegion := manager.getRecoverRegion(key, upToken, resumeVersion, source, extra)
@@ -429,12 +428,12 @@ func (manager *UploadManager) getResumeV2Uploader(region *Region) *ResumeUploade
 	}, manager.client)
 }
 
-func (manager *UploadManager) getRegionGroupWithUploadToken(upToken string) (*RegionGroup, error) {
+func (manager *UploadManager) getRegionGroupWithUploadToken(upToken string, actionType int) (*RegionGroup, error) {
 	ak, bucket, err := getAkBucketFromUploadToken(upToken)
 	if err != nil {
 		return nil, err
 	}
-	return getRegionGroup(ak, bucket)
+	return getRegionGroupWithActionType(ak, bucket, actionType)
 }
 
 func uploadKey(keyQuote *string) (key string, hashKey bool) {

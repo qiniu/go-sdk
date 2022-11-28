@@ -242,7 +242,11 @@ func GetRegion(ak, bucket string) (*Region, error) {
 
 // 使用 v4
 func getRegionGroup(ak, bucket string) (*RegionGroup, error) {
-	return getRegionByV4(ak, bucket)
+	return getRegionGroupWithActionType(ak, bucket, actionTypeNone)
+}
+
+func getRegionGroupWithActionType(ak, bucket string, actionType int) (*RegionGroup, error) {
+	return getRegionByV4(ak, bucket, actionType)
 }
 
 type RegionInfo struct {
