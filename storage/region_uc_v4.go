@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/qiniu/go-sdk/v7/client"
 	"golang.org/x/sync/singleflight"
+	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -161,10 +162,12 @@ func getRegionByV4(ak, bucket string, actionType int) (*RegionGroup, error) {
 			return nil, fmt.Errorf("query region error, %s", err.Error())
 		}
 
-		ttl := 0
+		ttl := math.MaxUint64
 		regions := make([]*Region, 0, 0)
 		for _, host := range ret.Hosts {
-			ttl = host.TTL
+			if ttl > host.TTL {
+				ttl = host.TTL
+			}
 			regions = append(regions, &Region{
 				SrcUpHosts: host.Up.Domains,
 				CdnUpHosts: host.Up.Domains,
@@ -178,6 +181,9 @@ func getRegionByV4(ak, bucket string, actionType int) (*RegionGroup, error) {
 		var universal *Region = nil
 		var universalSupportApis []string = nil
 		if ret.Universal != nil {
+			if ttl > ret.Universal.TTL {
+				ttl = ret.Universal.TTL
+			}
 			universal = &Region{
 				SrcUpHosts: ret.Universal.Up.Domains,
 				CdnUpHosts: ret.Universal.Up.Domains,
