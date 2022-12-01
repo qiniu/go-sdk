@@ -169,18 +169,17 @@ func getRegionByV4(ak, bucket string) (*RegionGroup, error) {
 			})
 		}
 
-		cacheValue := regionV4CacheValue{
+		regionV4Cache.Store(regionID, regionV4CacheValue{
 			Regions:  regions,
 			Deadline: time.Now().Add(time.Duration(ttl) * time.Second),
-		}
-		regionV4Cache.Store(regionID, cacheValue)
+		})
 
 		regionV4CacheSyncLock.Lock()
 		defer regionV4CacheSyncLock.Unlock()
 
 		storeRegionV4Cache()
 
-		return NewRegionGroup(cacheValue.getRegions()...), nil
+		return NewRegionGroup(regions...), nil
 	})
 
 	return newRegion.(*RegionGroup), err
