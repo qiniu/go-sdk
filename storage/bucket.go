@@ -33,21 +33,11 @@ const (
 // FileInfo 文件基本信息
 type FileInfo struct {
 
-	// 文件的HASH值，使用hash值算法计算。
-	Hash string `json:"hash"`
-
 	// 资源内容的大小，单位：字节。
 	Fsize int64 `json:"fsize"`
 
-	// 上传时间，单位：100纳秒，其值去掉低七位即为Unix时间戳。
-	PutTime int64 `json:"putTime"`
-
-	/**
-	 * 归档/深度归档存储文件的解冻状态，归档/深度归档文件冻结时，不返回该字段。
-	 * 1 表示解冻中
-	 * 2 表示解冻完成
-	 */
-	RestoreStatus int `json:"restoreStatus"`
+	// 文件的HASH值，使用hash值算法计算。
+	Hash string `json:"hash"`
 
 	// 资源的 MIME 类型。
 	MimeType string `json:"mimeType"`
@@ -61,10 +51,15 @@ type FileInfo struct {
 	 */
 	Type int `json:"type"`
 
+	// 上传时间，单位：100纳秒，其值去掉低七位即为Unix时间戳。
+	PutTime int64 `json:"putTime"`
+
 	/**
-	 * 文件上传时设置的endUser
+	 * 归档/深度归档存储文件的解冻状态，归档/深度归档文件冻结时，不返回该字段。
+	 * 1 表示解冻中
+	 * 2 表示解冻完成
 	 */
-	EndUser string `json:"endUser"`
+	RestoreStatus int `json:"restoreStatus"`
 
 	/**
 	 * 文件的存储状态，即禁用状态和启用状态间的的互相转换，请参考：文件状态。
@@ -77,6 +72,11 @@ type FileInfo struct {
 	 * 文件的 md5 值
 	 */
 	Md5 string `json:"md5"`
+
+	/**
+	 * 文件上传时设置的endUser
+	 */
+	EndUser string `json:"endUser"`
 
 	/**
 	 * 文件过期删除日期，int64 类型，Unix 时间戳格式，具体文件过期日期计算参考 生命周期管理。
@@ -157,8 +157,12 @@ func (r *FetchRet) String() string {
 type BatchOpRet struct {
 	Code int `json:"code,omitempty"`
 	Data struct {
-		FileInfo
-		Error string `json:"error"`
+		Hash     string `json:"hash"`
+		Fsize    int64  `json:"fsize"`
+		PutTime  int64  `json:"putTime"`
+		MimeType string `json:"mimeType"`
+		Type     int    `json:"type"`
+		Error    string `json:"error"`
 	} `json:"data,omitempty"`
 }
 
@@ -920,10 +924,47 @@ type listFilesRet struct {
 
 // ListItem 为文件列举的返回值
 type ListItem struct {
-	FileInfo
 
 	// 资源名
 	Key string `json:"key"`
+
+	// 上传时间，单位：100纳秒，其值去掉低七位即为Unix时间戳。
+	PutTime int64 `json:"putTime"`
+
+	// 文件的HASH值，使用hash值算法计算。
+	Hash string `json:"hash"`
+
+	// 资源内容的大小，单位：字节。
+	Fsize int64 `json:"fsize"`
+
+	// 资源的 MIME 类型。
+	MimeType string `json:"mimeType"`
+
+	/**
+	 * 文件上传时设置的endUser
+	 */
+	EndUser string `json:"endUser"`
+
+	/**
+	 * 资源的存储类型
+	 * 0 表示标准存储
+	 * 1 表示低频存储
+	 * 2 表示归档存储
+	 * 3 表示深度归档存储
+	 */
+	Type int `json:"type"`
+
+	/**
+	 * 文件的存储状态，即禁用状态和启用状态间的的互相转换，请参考：文件状态。
+	 * 0 表示启用
+	 * 1 表示禁用
+	 */
+	Status int `json:"status"`
+
+	/**
+	 * 文件的 md5 值
+	 */
+	Md5 string `json:"md5"`
 }
 
 // 接口可能返回空的记录
