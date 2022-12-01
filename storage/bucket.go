@@ -924,32 +924,6 @@ type ListItem struct {
 
 	// 资源名
 	Key string `json:"key"`
-
-	//// 上传时间，单位：100纳秒，其值去掉低七位即为Unix时间戳。
-	//PutTime int64 `json:"putTime"`
-	//
-	//// 文件的HASH值，使用hash值算法计算。
-	//Hash string `json:"hash"`
-	//
-	//// 资源内容的大小，单位：字节。
-	//Fsize int64 `json:"fsize"`
-	//
-	//// 资源内容的唯一属主标识，请参考上传策略 (PutPolicy)。
-	//MimeType string `json:"mimeType"`
-	//
-	//// 资源内容的唯一属主标识，请参考上传策略 (PutPolicy)。
-	//EndUser string `json:"endUser"`
-	//
-	//// 资源的存储类型，0表示标准存储，1 表示低频存储，2 表示归档存储，3 表示深度归档存储。
-	//Type int `json:"type"`
-	//
-	//// 文件的存储状态，即禁用状态和启用状态间的的互相转换，0表示启用，1表示禁用，请参考：文件状态。
-	//Status int `json:"status"`
-	//
-	//// 文件md5值，32位16进制组成的字符串，只有通过直传文件和追加文件API上传的文件，服务端确保有该字段返回，
-	//// 如请求时服务端没有返回md5字段，可以通过请求qhash/md5 方法来获取，
-	//// 比如 http://test.com/test.mp4?qhash/md5
-	//Md5 string `json:"md_5"`
 }
 
 // 接口可能返回空的记录
