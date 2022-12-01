@@ -14,8 +14,7 @@ import (
 )
 
 type ucQueryV4Ret struct {
-	Universal *ucQueryV4Region  `json:"universal"`
-	Hosts     []ucQueryV4Region `json:"hosts"`
+	Hosts []ucQueryV4Region `json:"hosts"`
 }
 
 type ucQueryV4Region struct {
@@ -47,23 +46,15 @@ func (s *ucQueryV4Server) getOneServer() string {
 var ucQueryV4Group singleflight.Group
 
 type regionV4CacheValue struct {
-	UniversalSupportApis []string  `json:"universal_support_apis"`
-	Universal            *Region   `json:"universal"`
-	Regions              []*Region `json:"regions"`
-	Deadline             time.Time `json:"deadline"`
+	Regions  []*Region `json:"regions"`
+	Deadline time.Time `json:"deadline"`
 }
 
-func (r *regionV4CacheValue) getRegions(actionType int) []*Region {
+func (r *regionV4CacheValue) getRegions() []*Region {
 	if r == nil {
 		return nil
 	}
-
-	if r.Universal == nil || !isApisSupportAction(r.UniversalSupportApis, actionType) {
-		return r.Regions
-	}
-
-	regions := []*Region{r.Universal}
-	return append(regions, r.Regions...)
+	return r.Regions
 }
 
 type regionV4CacheMap map[string]regionV4CacheValue
@@ -129,7 +120,7 @@ func storeRegionV4Cache() {
 	}
 }
 
-func getRegionByV4(ak, bucket string, actionType int) (*RegionGroup, error) {
+func getRegionByV4(ak, bucket string) (*RegionGroup, error) {
 	regionV4CacheLock.RLock()
 	if regionV4CacheLoaded {
 		regionV4CacheLock.RUnlock()
@@ -150,7 +141,7 @@ func getRegionByV4(ak, bucket string, actionType int) (*RegionGroup, error) {
 	//check from cache
 	if v, ok := regionV4Cache.Load(regionID); ok && time.Now().Before(v.(regionV4CacheValue).Deadline) {
 		cacheValue, _ := v.(regionV4CacheValue)
-		return NewRegionGroup(cacheValue.getRegions(actionType)...), nil
+		return NewRegionGroup(cacheValue.getRegions()...), nil
 	}
 
 	newRegion, err, _ := ucQueryV2Group.Do(regionID, func() (interface{}, error) {
@@ -162,7 +153,7 @@ func getRegionByV4(ak, bucket string, actionType int) (*RegionGroup, error) {
 			return nil, fmt.Errorf("query region error, %s", err.Error())
 		}
 
-		ttl := math.MaxUint64
+		ttl := math.MaxInt32
 		regions := make([]*Region, 0, 0)
 		for _, host := range ret.Hosts {
 			if ttl > host.TTL {
@@ -178,28 +169,9 @@ func getRegionByV4(ak, bucket string, actionType int) (*RegionGroup, error) {
 			})
 		}
 
-		var universal *Region = nil
-		var universalSupportApis []string = nil
-		if ret.Universal != nil {
-			if ttl > ret.Universal.TTL {
-				ttl = ret.Universal.TTL
-			}
-			universal = &Region{
-				SrcUpHosts: ret.Universal.Up.Domains,
-				CdnUpHosts: ret.Universal.Up.Domains,
-				RsHost:     ret.Universal.Rs.getOneServer(),
-				RsfHost:    ret.Universal.Rsf.getOneServer(),
-				ApiHost:    ret.Universal.Api.getOneServer(),
-				IovipHost:  ret.Universal.Io.getOneServer(),
-			}
-			universalSupportApis = ret.Universal.SupportApis
-		}
-
 		cacheValue := regionV4CacheValue{
-			UniversalSupportApis: universalSupportApis,
-			Universal:            universal,
-			Regions:              regions,
-			Deadline:             time.Now().Add(time.Duration(ttl) * time.Second),
+			Regions:  regions,
+			Deadline: time.Now().Add(time.Duration(ttl) * time.Second),
 		}
 		regionV4Cache.Store(regionID, cacheValue)
 
@@ -208,7 +180,7 @@ func getRegionByV4(ak, bucket string, actionType int) (*RegionGroup, error) {
 
 		storeRegionV4Cache()
 
-		return NewRegionGroup(cacheValue.getRegions(actionType)...), nil
+		return NewRegionGroup(cacheValue.getRegions()...), nil
 	})
 
 	return newRegion.(*RegionGroup), err

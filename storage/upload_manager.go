@@ -196,7 +196,7 @@ func (manager *UploadManager) putRetryBetweenRegion(ctx context.Context, ret int
 	}
 
 	if manager.cfg.Regions == nil {
-		regions, err := manager.getRegionGroupWithUploadToken(upToken, uploadMethod)
+		regions, err := manager.getRegionGroupWithUploadToken(upToken)
 		if err != nil {
 			return err
 		}
@@ -428,12 +428,12 @@ func (manager *UploadManager) getResumeV2Uploader(region *Region) *ResumeUploade
 	}, manager.client)
 }
 
-func (manager *UploadManager) getRegionGroupWithUploadToken(upToken string, actionType int) (*RegionGroup, error) {
+func (manager *UploadManager) getRegionGroupWithUploadToken(upToken string) (*RegionGroup, error) {
 	ak, bucket, err := getAkBucketFromUploadToken(upToken)
 	if err != nil {
 		return nil, err
 	}
-	return getRegionGroupWithActionType(ak, bucket, actionType)
+	return getRegionGroup(ak, bucket)
 }
 
 func uploadKey(keyQuote *string) (key string, hashKey bool) {
