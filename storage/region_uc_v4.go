@@ -18,14 +18,13 @@ type ucQueryV4Ret struct {
 }
 
 type ucQueryV4Region struct {
-	RegionId    string          `json:"region"`
-	TTL         int             `json:"ttl"`
-	SupportApis []string        `json:"support_apis"`
-	Io          ucQueryV4Server `json:"io"`
-	Up          ucQueryV4Server `json:"up"`
-	Rs          ucQueryV4Server `json:"rs"`
-	Rsf         ucQueryV4Server `json:"rsf"`
-	Api         ucQueryV4Server `json:"api"`
+	RegionId string          `json:"region"`
+	TTL      int             `json:"ttl"`
+	Io       ucQueryV4Server `json:"io"`
+	Up       ucQueryV4Server `json:"up"`
+	Rs       ucQueryV4Server `json:"rs"`
+	Rsf      ucQueryV4Server `json:"rsf"`
+	Api      ucQueryV4Server `json:"api"`
 }
 
 type ucQueryV4Server struct {
