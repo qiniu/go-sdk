@@ -444,9 +444,6 @@ func TestBatchStat(t *testing.T) {
 	if len(ret.Data.MimeType) == 0 {
 		t.Fatalf("MimeType error")
 	}
-	if len(ret.Data.Md5) == 0 {
-		t.Fatalf("Md5 error")
-	}
 	if ret.Data.Type != 1 {
 		t.Fatalf("Type error")
 	}
