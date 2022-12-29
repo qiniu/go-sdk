@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/qiniu/go-sdk/v7/client"
 	"golang.org/x/sync/singleflight"
+	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -47,6 +48,14 @@ type regionV4CacheValue struct {
 	Regions  []*Region `json:"regions"`
 	Deadline time.Time `json:"deadline"`
 }
+
+func (r *regionV4CacheValue) getRegions() []*Region {
+	if r == nil {
+		return nil
+	}
+	return r.Regions
+}
+
 type regionV4CacheMap map[string]regionV4CacheValue
 
 const regionV4CacheFileName = "query_v4.cache.json"
@@ -130,7 +139,8 @@ func getRegionByV4(ak, bucket string) (*RegionGroup, error) {
 	regionID := fmt.Sprintf("%s:%s", ak, bucket)
 	//check from cache
 	if v, ok := regionV4Cache.Load(regionID); ok && time.Now().Before(v.(regionV4CacheValue).Deadline) {
-		return NewRegionGroup(v.(regionV4CacheValue).Regions...), nil
+		cacheValue, _ := v.(regionV4CacheValue)
+		return NewRegionGroup(cacheValue.getRegions()...), nil
 	}
 
 	newRegion, err, _ := ucQueryV2Group.Do(regionID, func() (interface{}, error) {
@@ -142,10 +152,12 @@ func getRegionByV4(ak, bucket string) (*RegionGroup, error) {
 			return nil, fmt.Errorf("query region error, %s", err.Error())
 		}
 
-		ttl := 0
+		ttl := math.MaxInt32
 		regions := make([]*Region, 0, 0)
 		for _, host := range ret.Hosts {
-			ttl = host.TTL
+			if ttl > host.TTL {
+				ttl = host.TTL
+			}
 			regions = append(regions, &Region{
 				SrcUpHosts: host.Up.Domains,
 				CdnUpHosts: host.Up.Domains,

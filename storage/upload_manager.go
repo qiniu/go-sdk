@@ -191,7 +191,6 @@ func (manager *UploadManager) putRetryBetweenRegion(ctx context.Context, ret int
 		}
 		manager.cfg.Regions = regions
 	}
-
 	regions := manager.cfg.Regions.clone()
 
 	resumeVersion := "v2"

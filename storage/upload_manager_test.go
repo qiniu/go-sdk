@@ -21,10 +21,11 @@ func getUploadManager() *UploadManager {
 		return nil
 	}
 
+	regionGroup := NewRegionGroup(region01, region02)
 	return NewUploadManager(&UploadConfig{
 		UseHTTPS:      true,
 		UseCdnDomains: false,
-		Regions:       NewRegionGroup(region01, region02),
+		Regions:       regionGroup,
 	})
 }
 
