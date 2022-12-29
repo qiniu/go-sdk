@@ -178,6 +178,30 @@ func TestStat(t *testing.T) {
 	} else {
 		t.Logf("3 FileInfo:\n %s", info.String())
 	}
+
+	statOps := make([]string, 0, 1)
+	statOps = append(statOps, URIStat(testBucket, copyKey))
+
+	rets, bErr := bucketManager.Batch(statOps)
+	if len(rets) == 0 || bErr != nil {
+		t.Fatalf("BatchStat error, %s", bErr)
+	}
+
+	ret := rets[0]
+	t.Log(ret)
+	if ret.Data.Expiration == nil {
+		t.Fatalf("Expiration error")
+	}
+	if ret.Data.TransitionToIA == nil {
+		t.Fatalf("TransitionToIA error")
+	}
+	if ret.Data.TransitionToArchive == nil {
+		t.Fatalf("TransitionToArchive error")
+	}
+	if ret.Data.TransitionToDeepArchive == nil {
+		t.Fatalf("TransitionToDeepArchive error")
+	}
+
 	bucketManager.Delete(testBucket, copyKey)
 	bucketManager.DelBucketLifeCycleRule(testBucket, ruleName)
 }
