@@ -178,6 +178,7 @@ func TestStat(t *testing.T) {
 	} else {
 		t.Logf("3 FileInfo:\n %s", info.String())
 	}
+
 	bucketManager.Delete(testBucket, copyKey)
 	bucketManager.DelBucketLifeCycleRule(testBucket, ruleName)
 }
@@ -409,7 +410,7 @@ func TestBatch(t *testing.T) {
 	}
 
 	batchCopyOpRets, bErr := bucketManager.Batch(copyOps)
-	if batchCopyOpRets != nil && bErr != nil {
+	if batchCopyOpRets == nil || bErr != nil {
 		t.Fatalf("BatchCopy error, %s", bErr)
 	}
 
@@ -423,6 +424,32 @@ func TestBatch(t *testing.T) {
 	}
 
 	t.Logf("BatchStat: %v", batchOpRets)
+}
+
+func TestBatchStat(t *testing.T) {
+
+	statOps := make([]string, 0, 2)
+	statOps = append(statOps, URIStat(testBucket, "form_test/120"))
+
+	rets, bErr := bucketManager.Batch(statOps)
+	if len(rets) == 0 || bErr != nil {
+		t.Fatalf("BatchStat error, %s", bErr)
+	}
+
+	ret := rets[0]
+	t.Log(ret)
+	if len(ret.Data.Hash) == 0 {
+		t.Fatalf("Hash error")
+	}
+	if len(ret.Data.MimeType) == 0 {
+		t.Fatalf("MimeType error")
+	}
+	if ret.Data.Type != 1 {
+		t.Fatalf("Type error")
+	}
+	if ret.Data.Status == nil {
+		t.Fatalf("Status error")
+	}
 }
 
 func TestBatchPartialFailure(t *testing.T) {
@@ -448,12 +475,50 @@ func TestBatchPartialFailure(t *testing.T) {
 }
 
 func TestListBucket(t *testing.T) {
-	retChan, lErr := bucketManager.ListBucket(testBucket, "", "", "")
+	retChan, lErr := bucketManager.ListBucket(testBucket, "form_test", "", "")
 	if lErr != nil {
 		t.Fatalf("ListBucket: %v\n", lErr)
 	}
 	for ret := range retChan {
 		t.Log(ret.Item)
+		if len(ret.Item.Key) == 0 {
+			t.Fatalf("key error")
+		}
+		if len(ret.Item.Hash) == 0 {
+			t.Fatalf("Hash error")
+		}
+		if len(ret.Item.MimeType) == 0 {
+			t.Fatalf("MimeType error")
+		}
+		if ret.Item.Type < 0 {
+			t.Fatalf("Type error")
+		}
+		if ret.Item.Status < 0 {
+			t.Fatalf("Status error")
+		}
+	}
+
+	retChan, lErr = bucketManager.ListBucket(testBucket, "form_test/120", "", "")
+	if lErr != nil {
+		t.Fatalf("ListBucket: %v\n", lErr)
+	}
+	for ret := range retChan {
+		t.Log(ret.Item)
+		if len(ret.Item.Key) == 0 {
+			t.Fatalf("key error")
+		}
+		if len(ret.Item.Hash) == 0 {
+			t.Fatalf("Hash error")
+		}
+		if len(ret.Item.MimeType) == 0 {
+			t.Fatalf("MimeType error")
+		}
+		if ret.Item.Type != 1 {
+			t.Fatalf("Type error")
+		}
+		if ret.Item.Status != 1 {
+			t.Fatalf("Status error")
+		}
 	}
 }
 
