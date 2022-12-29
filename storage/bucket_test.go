@@ -490,9 +490,6 @@ func TestListBucket(t *testing.T) {
 		if len(ret.Item.MimeType) == 0 {
 			t.Fatalf("MimeType error")
 		}
-		if len(ret.Item.Md5) == 0 {
-			t.Fatalf("Md5 error")
-		}
 		if ret.Item.Type < 0 {
 			t.Fatalf("Type error")
 		}
@@ -515,9 +512,6 @@ func TestListBucket(t *testing.T) {
 		}
 		if len(ret.Item.MimeType) == 0 {
 			t.Fatalf("MimeType error")
-		}
-		if len(ret.Item.Md5) == 0 {
-			t.Fatalf("Md5 error")
 		}
 		if ret.Item.Type != 1 {
 			t.Fatalf("Type error")
