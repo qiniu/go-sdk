@@ -187,12 +187,7 @@ func (m *OperationManager) ApiHost(bucket string) (apiHost string, err error) {
 		}
 	}
 
-	scheme := "http://"
-	if m.Cfg.UseHTTPS {
-		scheme = "https://"
-	}
-	apiHost = fmt.Sprintf("%s%s", scheme, zone.ApiHost)
-
+	apiHost = endpoint(m.Cfg.UseHTTPS, zone.ApiHost)
 	return
 }
 
@@ -201,12 +196,6 @@ func (m *OperationManager) PrefopApiHost(persistentID string) (apiHost string) {
 	if m.Cfg.Zone != nil {
 		apiHost = m.Cfg.Zone.ApiHost
 	}
-
-	if m.Cfg.UseHTTPS {
-		apiHost = fmt.Sprintf("https://%s", apiHost)
-	} else {
-		apiHost = fmt.Sprintf("http://%s", apiHost)
-	}
-
+	apiHost = endpoint(m.Cfg.UseHTTPS, apiHost)
 	return
 }
