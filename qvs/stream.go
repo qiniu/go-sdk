@@ -12,7 +12,7 @@ const (
 	DomainLiveRTMP    string = "liveRtmp"
 	DomainLiveHLS     string = "liveHls"
 	DomainLiveHDL     string = "liveHdl"
-	DomainLiveRTC     string = "liveRtc"
+	DomainLiveRTC     string = "liveWebrtc"
 )
 
 type Stream struct {
