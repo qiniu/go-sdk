@@ -12,6 +12,7 @@ const (
 	DomainLiveRTMP    string = "liveRtmp"
 	DomainLiveHLS     string = "liveHls"
 	DomainLiveHDL     string = "liveHdl"
+	DomainLiveRTC     string = "liveRtc"
 )
 
 type Stream struct {
@@ -40,7 +41,7 @@ type Stream struct {
 }
 
 /*
-	创建流API
+创建流API
 */
 func (manager *Manager) AddStream(nsId string, stream *Stream) (*Stream, error) {
 
@@ -53,7 +54,7 @@ func (manager *Manager) AddStream(nsId string, stream *Stream) (*Stream, error) 
 }
 
 /*
-	查询流API
+查询流API
 */
 func (manager *Manager) QueryStream(nsId string, streamId string) (*Stream, error) {
 
@@ -66,7 +67,7 @@ func (manager *Manager) QueryStream(nsId string, streamId string) (*Stream, erro
 }
 
 /*
-	更新流API
+更新流API
 */
 func (manager *Manager) UpdateStream(nsId string, streamId string, ops []PatchOperation) (*Stream, error) {
 
@@ -80,7 +81,7 @@ func (manager *Manager) UpdateStream(nsId string, streamId string, ops []PatchOp
 }
 
 /*
-	删除流API
+删除流API
 */
 func (manager *Manager) DeleteStream(nsId string, streamId string) error {
 
@@ -88,7 +89,7 @@ func (manager *Manager) DeleteStream(nsId string, streamId string) error {
 }
 
 /*
-	查询流列表API
+查询流列表API
 */
 func (manager *Manager) ListStream(nsId string, offset, line int, prefix, sortBy string, qType int) ([]Stream, int64, error) {
 
@@ -127,13 +128,14 @@ type RouteRet struct {
 }
 
 type RoutePlayUrls struct {
-	Rtmp string `json:"rtmp"` // rtmp播放地址
-	Flv  string `json:"flv"`  // flv播放地址
-	Hls  string `json:"hls"`  // hls播放地址
+	Rtmp   string `json:"rtmp"`   // rtmp播放地址
+	Flv    string `json:"flv"`    // flv播放地址
+	Hls    string `json:"hls"`    // hls播放地址
+	WebRTC string `json:"webrtc"` //webrtc播放地址
 }
 
 /*
-	动态获取流地址API：推拉流IP地址计算最合适的设备端推拉流地址
+动态获取流地址API：推拉流IP地址计算最合适的设备端推拉流地址
 */
 func (manager *Manager) DynamicPublishPlayURL(nsId string, streamId string, route *DynamicLiveRoute) (*RouteRet, error) {
 
@@ -146,7 +148,7 @@ func (manager *Manager) DynamicPublishPlayURL(nsId string, streamId string, rout
 }
 
 /*
-	静态获取流地址API：根据domain生成推拉流地址
+静态获取流地址API：根据domain生成推拉流地址
 */
 func (manager *Manager) StaticPublishPlayURL(nsId, streamId string, route *StaticLiveRoute) (string, error) {
 
@@ -164,6 +166,8 @@ func (manager *Manager) StaticPublishPlayURL(nsId, streamId string, route *Stati
 		return ret.PlayUrls.Hls, nil
 	case DomainLiveHDL:
 		return ret.PlayUrls.Flv, nil
+	case DomainLiveRTC:
+		return ret.PlayUrls.WebRTC, nil
 	}
 	return "", nil
 }
