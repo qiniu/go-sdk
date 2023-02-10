@@ -1,4 +1,7 @@
 # Changelog
+## 7.14.1
+* 表单上传 Put 函数 PutExtra 参数支持为 nil
+
 ## 7.14.0
 * Go SDK  对七牛回调请求的鉴权验证函数支持 Qiniu 签名
 * UploadMananger 支持双活区域

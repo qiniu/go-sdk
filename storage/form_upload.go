@@ -127,10 +127,6 @@ func (p *FormUploader) PutFileWithoutKey(
 func (p *FormUploader) putFile(
 	ctx context.Context, ret interface{}, upToken string,
 	key string, hasKey bool, localFile string, extra *PutExtra) (err error) {
-	if extra == nil {
-		extra = &PutExtra{}
-	}
-	extra.init()
 
 	f, err := os.Open(localFile)
 	if err != nil {
@@ -182,6 +178,11 @@ func (p *FormUploader) PutWithoutKey(
 func (p *FormUploader) put(
 	ctx context.Context, ret interface{}, upToken string,
 	key string, hasKey bool, data io.Reader, size int64, extra *PutExtra, fileName string) error {
+
+	if extra == nil {
+		extra = &PutExtra{}
+	}
+	extra.init()
 
 	seekableData, ok := data.(io.ReadSeeker)
 	if !ok {

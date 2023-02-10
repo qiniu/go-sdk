@@ -178,7 +178,7 @@ func hostAddSchemeIfNeeded(useHttps bool, host string) string {
 	} else if strings.Contains(host, "://") {
 		return host
 	} else {
-		return endpoint(true, host)
+		return endpoint(useHttps, host)
 	}
 }
 
