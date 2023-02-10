@@ -584,7 +584,7 @@ type DomainInfo struct {
 
 // ListBucketDomains 返回绑定在存储空间中的域名信息
 func (m *BucketManager) ListBucketDomains(bucket string) (info []DomainInfo, err error) {
-	reqHost, err := m.z0ApiHost()
+	reqHost, err := m.ApiHost(bucket)
 	if err != nil {
 		return
 	}
@@ -605,6 +605,7 @@ func (m *BucketManager) Prefetch(bucket, key string) (err error) {
 	return
 }
 
+//TODO:
 // SetImage 用来设置空间镜像源
 func (m *BucketManager) SetImage(siteURL, bucket string) (err error) {
 	reqURL := fmt.Sprintf("http://%s%s", DefaultPubHost, uriSetImage(siteURL, bucket))
@@ -612,6 +613,7 @@ func (m *BucketManager) SetImage(siteURL, bucket string) (err error) {
 	return
 }
 
+//TODO:
 // SetImageWithHost 用来设置空间镜像源，额外添加回源Host头部
 func (m *BucketManager) SetImageWithHost(siteURL, bucket, host string) (err error) {
 	reqURL := fmt.Sprintf("http://%s%s", DefaultPubHost,
@@ -620,6 +622,7 @@ func (m *BucketManager) SetImageWithHost(siteURL, bucket, host string) (err erro
 	return
 }
 
+//TODO:
 // UnsetImage 用来取消空间镜像源设置
 func (m *BucketManager) UnsetImage(bucket string) (err error) {
 	reqURL := fmt.Sprintf("http://%s%s", DefaultPubHost, uriUnsetImage(bucket))
