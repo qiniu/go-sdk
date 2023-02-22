@@ -605,27 +605,24 @@ func (m *BucketManager) Prefetch(bucket, key string) (err error) {
 	return
 }
 
-//TODO:
 // SetImage 用来设置空间镜像源
 func (m *BucketManager) SetImage(siteURL, bucket string) (err error) {
-	reqURL := fmt.Sprintf("http://%s%s", DefaultPubHost, uriSetImage(siteURL, bucket))
+	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriSetImage(siteURL, bucket))
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
 	return
 }
 
-//TODO:
 // SetImageWithHost 用来设置空间镜像源，额外添加回源Host头部
 func (m *BucketManager) SetImageWithHost(siteURL, bucket, host string) (err error) {
-	reqURL := fmt.Sprintf("http://%s%s", DefaultPubHost,
+	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS),
 		uriSetImageWithHost(siteURL, bucket, host))
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
 	return
 }
 
-//TODO:
 // UnsetImage 用来取消空间镜像源设置
 func (m *BucketManager) UnsetImage(bucket string) (err error) {
-	reqURL := fmt.Sprintf("http://%s%s", DefaultPubHost, uriUnsetImage(bucket))
+	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriUnsetImage(bucket))
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
 	return err
 }
@@ -763,11 +760,6 @@ func (m *BucketManager) ApiHost(bucket string) (apiHost string, err error) {
 	}
 
 	apiHost = zone.GetApiHost(m.Cfg.UseHTTPS)
-	return
-}
-
-func (m *BucketManager) z0ApiHost() (apiHost string, err error) {
-	apiHost = regionHuadong.GetApiHost(m.Cfg.UseHTTPS)
 	return
 }
 
