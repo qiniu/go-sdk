@@ -407,7 +407,7 @@ func TestBatch(t *testing.T) {
 		copyOps = append(copyOps, URICopy(testBucket, testKey, testBucket, cpKey, true))
 	}
 
-	batchCopyOpRets, bErr := bucketManager.Batch(copyOps)
+	batchCopyOpRets, bErr := bucketManager.BatchWithBucket(testBucket, copyOps)
 	if batchCopyOpRets == nil || bErr != nil {
 		t.Fatalf("BatchCopy error, %s", bErr)
 	}
