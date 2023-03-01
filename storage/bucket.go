@@ -600,11 +600,8 @@ type DomainInfo struct {
 
 // ListBucketDomains 返回绑定在存储空间中的域名信息
 func (m *BucketManager) ListBucketDomains(bucket string) (info []DomainInfo, err error) {
-	reqHost, err := m.ApiReqHost(bucket)
-	if err != nil {
-		return
-	}
-	reqURL := fmt.Sprintf("%s/v7/domain/list?tbl=%s", reqHost, bucket)
+	host := getUcHost(m.Cfg.UseHTTPS)
+	reqURL := fmt.Sprintf("%s/v3/domains?tbl=%s", host, bucket)
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &info, "GET", reqURL, nil)
 	return
 }
