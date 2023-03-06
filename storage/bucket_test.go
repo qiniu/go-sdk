@@ -347,10 +347,9 @@ func TestRestoreAr(t *testing.T) {
 	defer bucketManager.Delete(testBucket, toRestoreArKey)
 }
 
-/*
 // SetImage成功以后， 后台生效需要一段时间；导致集成测试经常失败。
 // 如果要修改这一部分代码可以重新开启这个测试
-func TestPrefetchAndImage(t *testing.T) {
+func aTestPrefetchAndImage(t *testing.T) {
 	err := bucketManager.SetImage(testSiteUrl, testBucket)
 	if err != nil {
 		t.Fatalf("SetImage() error, %s", err)
@@ -372,7 +371,6 @@ func TestPrefetchAndImage(t *testing.T) {
 
 	t.Log("unset image success for bucket", testBucket)
 }
-*/
 
 func TestListFiles(t *testing.T) {
 	limit := 100
@@ -409,7 +407,7 @@ func TestBatch(t *testing.T) {
 		copyOps = append(copyOps, URICopy(testBucket, testKey, testBucket, cpKey, true))
 	}
 
-	batchCopyOpRets, bErr := bucketManager.Batch(copyOps)
+	batchCopyOpRets, bErr := bucketManager.BatchWithBucket(testBucket, copyOps)
 	if batchCopyOpRets == nil || bErr != nil {
 		t.Fatalf("BatchCopy error, %s", bErr)
 	}

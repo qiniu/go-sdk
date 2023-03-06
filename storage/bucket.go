@@ -455,19 +455,35 @@ func (m *BucketManager) DeleteAfterDays(bucket, key string, days int) (err error
 }
 
 // Batch 接口提供了资源管理的批量操作，支持 stat，copy，move，delete，chgm，chtype，deleteAfterDays几个接口
-func (m *BucketManager) Batch(operations []string) (batchOpRet []BatchOpRet, err error) {
+// 没有 bucket 参数，会使用 Cfg.CentralRsHost 中的 host ，此 host 默认为转发域名，不推荐使用，推荐使用 BatchWithBucket
+// Deprecated
+func (m *BucketManager) Batch(operations []string) ([]BatchOpRet, error) {
+	if len(m.Cfg.CentralRsHost) == 0 {
+		return nil, errors.New("batch error, Config.CentralRsHost should set")
+	}
+	return m.batchOperation(endpoint(m.Cfg.UseHTTPS, m.Cfg.CentralRsHost), operations)
+}
+
+// BatchWithBucket 接口提供了资源管理的批量操作，支持 stat，copy，move，delete，chgm，chtype，deleteAfterDays几个接口
+// @param	bucket	operations 列表中操作对象所属的 bucket
+// @param	operations	操作对象列表，列表中操作对象所属的 bucket 必须一致
+func (m *BucketManager) BatchWithBucket(bucket string, operations []string) ([]BatchOpRet, error) {
+	host, err := m.RsReqHost(bucket)
+	if err != nil {
+		return nil, err
+	}
+	return m.batchOperation(host, operations)
+}
+
+func (m *BucketManager) batchOperation(reqURL string, operations []string) (batchOpRet []BatchOpRet, err error) {
 	if len(operations) > 1000 {
 		err = errors.New("batch operation count exceeds the limit of 1000")
 		return
 	}
-	scheme := "http://"
-	if m.Cfg.UseHTTPS {
-		scheme = "https://"
-	}
-	reqURL := fmt.Sprintf("%s%s/batch", scheme, m.Cfg.CentralRsHost)
 	params := map[string][]string{
 		"op": operations,
 	}
+	reqURL = fmt.Sprintf("%s/batch", reqURL)
 	err = m.Client.CredentialedCallWithForm(context.Background(), m.Mac, auth.TokenQiniu, &batchOpRet, "POST", reqURL, nil, params)
 	return
 }
@@ -497,7 +513,7 @@ func (m *BucketManager) RsReqHost(bucket string) (reqHost string, err error) {
 		reqHost = m.Cfg.RsHost
 	}
 	if !strings.HasPrefix(reqHost, "http") {
-		reqHost = "http://" + reqHost
+		reqHost = endpoint(m.Cfg.UseHTTPS, reqHost)
 	}
 	return
 }
@@ -515,7 +531,7 @@ func (m *BucketManager) ApiReqHost(bucket string) (reqHost string, err error) {
 		reqHost = m.Cfg.ApiHost
 	}
 	if !strings.HasPrefix(reqHost, "http") {
-		reqHost = "http://" + reqHost
+		reqHost = endpoint(m.Cfg.UseHTTPS, reqHost)
 	}
 	return
 }
@@ -533,7 +549,7 @@ func (m *BucketManager) RsfReqHost(bucket string) (reqHost string, err error) {
 		reqHost = m.Cfg.RsfHost
 	}
 	if !strings.HasPrefix(reqHost, "http") {
-		reqHost = "http://" + reqHost
+		reqHost = endpoint(m.Cfg.UseHTTPS, reqHost)
 	}
 	return
 }
@@ -551,7 +567,7 @@ func (m *BucketManager) IoReqHost(bucket string) (reqHost string, err error) {
 		reqHost = m.Cfg.IoHost
 	}
 	if !strings.HasPrefix(reqHost, "http") {
-		reqHost = "http://" + reqHost
+		reqHost = endpoint(m.Cfg.UseHTTPS, reqHost)
 	}
 	return
 }
@@ -584,11 +600,8 @@ type DomainInfo struct {
 
 // ListBucketDomains 返回绑定在存储空间中的域名信息
 func (m *BucketManager) ListBucketDomains(bucket string) (info []DomainInfo, err error) {
-	reqHost, err := m.z0ApiHost()
-	if err != nil {
-		return
-	}
-	reqURL := fmt.Sprintf("%s/v7/domain/list?tbl=%s", reqHost, bucket)
+	host := getUcHost(m.Cfg.UseHTTPS)
+	reqURL := fmt.Sprintf("%s/v3/domains?tbl=%s", host, bucket)
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &info, "GET", reqURL, nil)
 	return
 }
@@ -607,14 +620,14 @@ func (m *BucketManager) Prefetch(bucket, key string) (err error) {
 
 // SetImage 用来设置空间镜像源
 func (m *BucketManager) SetImage(siteURL, bucket string) (err error) {
-	reqURL := fmt.Sprintf("http://%s%s", DefaultPubHost, uriSetImage(siteURL, bucket))
+	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriSetImage(siteURL, bucket))
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
 	return
 }
 
 // SetImageWithHost 用来设置空间镜像源，额外添加回源Host头部
 func (m *BucketManager) SetImageWithHost(siteURL, bucket, host string) (err error) {
-	reqURL := fmt.Sprintf("http://%s%s", DefaultPubHost,
+	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS),
 		uriSetImageWithHost(siteURL, bucket, host))
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
 	return
@@ -622,7 +635,7 @@ func (m *BucketManager) SetImageWithHost(siteURL, bucket, host string) (err erro
 
 // UnsetImage 用来取消空间镜像源设置
 func (m *BucketManager) UnsetImage(bucket string) (err error) {
-	reqURL := fmt.Sprintf("http://%s%s", DefaultPubHost, uriUnsetImage(bucket))
+	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriUnsetImage(bucket))
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
 	return err
 }
@@ -760,11 +773,6 @@ func (m *BucketManager) ApiHost(bucket string) (apiHost string, err error) {
 	}
 
 	apiHost = zone.GetApiHost(m.Cfg.UseHTTPS)
-	return
-}
-
-func (m *BucketManager) z0ApiHost() (apiHost string, err error) {
-	apiHost = regionHuadong.GetApiHost(m.Cfg.UseHTTPS)
 	return
 }
 
