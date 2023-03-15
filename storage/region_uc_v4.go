@@ -21,6 +21,7 @@ type ucQueryV4Region struct {
 	RegionId string          `json:"region"`
 	TTL      int             `json:"ttl"`
 	Io       ucQueryV4Server `json:"io"`
+	IoSrc    ucQueryV4Server `json:"io_src"`
 	Up       ucQueryV4Server `json:"up"`
 	Rs       ucQueryV4Server `json:"rs"`
 	Rsf      ucQueryV4Server `json:"rsf"`
@@ -58,7 +59,7 @@ func (r *regionV4CacheValue) getRegions() []*Region {
 
 type regionV4CacheMap map[string]regionV4CacheValue
 
-const regionV4CacheFileName = "query_v4.cache.json"
+const regionV4CacheFileName = "query_v4_00.cache.json"
 
 var (
 	regionV4CachePath     = filepath.Join(os.TempDir(), "qiniu-golang-sdk", regionV4CacheFileName)
@@ -165,6 +166,7 @@ func getRegionByV4(ak, bucket string) (*RegionGroup, error) {
 				RsfHost:    host.Rsf.getOneServer(),
 				ApiHost:    host.Api.getOneServer(),
 				IovipHost:  host.Io.getOneServer(),
+				IoSrcHost:  host.IoSrc.getOneServer(),
 			})
 		}
 

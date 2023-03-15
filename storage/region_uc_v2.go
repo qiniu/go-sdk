@@ -16,13 +16,14 @@ import (
 
 // UcQueryRet 为查询请求的回复
 type UcQueryRet struct {
-	TTL     int                            `json:"ttl"`
-	Io      map[string]map[string][]string `json:"-"`
-	IoInfo  map[string]UcQueryIo           `json:"io"`
-	Up      map[string]UcQueryUp           `json:"up"`
-	RsInfo  map[string]UcQueryServerInfo   `json:"rs"`
-	RsfInfo map[string]UcQueryServerInfo   `json:"rsf"`
-	ApiInfo map[string]UcQueryServerInfo   `json:"api"`
+	TTL       int                            `json:"ttl"`
+	Io        map[string]map[string][]string `json:"-"`
+	IoInfo    map[string]UcQueryIo           `json:"io"`
+	IoSrcInfo map[string]UcQueryIo           `json:"io_src"`
+	Up        map[string]UcQueryUp           `json:"up"`
+	RsInfo    map[string]UcQueryServerInfo   `json:"rs"`
+	RsfInfo   map[string]UcQueryServerInfo   `json:"rsf"`
+	ApiInfo   map[string]UcQueryServerInfo   `json:"api"`
 }
 
 type tmpUcQueryRet UcQueryRet
@@ -35,6 +36,7 @@ func (uc *UcQueryRet) UnmarshalJSON(data []byte) error {
 
 	uc.TTL = tmp.TTL
 	uc.IoInfo = tmp.IoInfo
+	uc.IoSrcInfo = tmp.IoSrcInfo
 	uc.Up = tmp.Up
 	uc.RsInfo = tmp.RsInfo
 	uc.RsfInfo = tmp.RsfInfo
@@ -105,7 +107,7 @@ type regionV2CacheValue struct {
 
 type regionV2CacheMap map[string]regionV2CacheValue
 
-const regionV2CacheFileName = "query.cache.json"
+const regionV2CacheFileName = "query_v2_00.cache.json"
 
 var (
 	regionV2CachePath     = filepath.Join(os.TempDir(), "qiniu-golang-sdk", regionV2CacheFileName)
@@ -204,6 +206,11 @@ func getRegionByV2(ak, bucket string) (*Region, error) {
 			return nil, fmt.Errorf("empty io host list")
 		}
 
+		ioSrcHost := ret.getOneHostFromInfo(ret.IoSrcInfo)
+		if len(ioHost) == 0 {
+			return nil, fmt.Errorf("empty io host list")
+		}
+
 		rsHost := ret.getOneHostFromInfo(ret.RsInfo)
 		if len(rsHost) == 0 {
 			return nil, fmt.Errorf("empty rs host list")
@@ -235,6 +242,7 @@ func getRegionByV2(ak, bucket string) (*Region, error) {
 			RsHost:     rsHost,
 			RsfHost:    rsfHost,
 			ApiHost:    apiHost,
+			IoSrcHost:  ioSrcHost,
 		}
 
 		regionV2Cache.Store(regionID, regionV2CacheValue{
