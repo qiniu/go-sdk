@@ -144,7 +144,7 @@ func getRegionByV4(ak, bucket string) (*RegionGroup, error) {
 		return NewRegionGroup(cacheValue.getRegions()...), nil
 	}
 
-	newRegion, err, _ := ucQueryV2Group.Do(regionID, func() (interface{}, error) {
+	newRegion, err, _ := ucQueryV4Group.Do(regionID, func() (interface{}, error) {
 		reqURL := fmt.Sprintf("%s/v4/query?ak=%s&bucket=%s", getUcHostByDefaultProtocol(), ak, bucket)
 
 		var ret ucQueryV4Ret
