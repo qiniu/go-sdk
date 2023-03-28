@@ -27,6 +27,9 @@ type Region struct {
 
 	// 存储io 入口
 	IovipHost string `json:"io,omitempty"`
+
+	// 源站下载入口
+	IoSrcHost string `json:"io_src,omitempty"`
 }
 
 type RegionID string
