@@ -455,18 +455,38 @@ func (m *BucketManager) DeleteAfterDays(bucket, key string, days int) (err error
 }
 
 // Batch 接口提供了资源管理的批量操作，支持 stat，copy，move，delete，chgm，chtype，deleteAfterDays几个接口
-// 没有 bucket 参数，会使用 Cfg.CentralRsHost 中的 host ，此 host 默认为转发域名，不推荐使用，推荐使用 BatchWithBucket
-// Deprecated
+// 没有 bucket 参数，会从 operations 中解析出 bucket
+// @param	operations	操作对象列表，操作对象所属的 bucket 可能会不同，但是必须属于同一个区域
 func (m *BucketManager) Batch(operations []string) ([]BatchOpRet, error) {
-	if len(m.Cfg.CentralRsHost) == 0 {
-		return nil, errors.New("batch error, Config.CentralRsHost should set")
+	if len(operations) == 0 {
+		return nil, errors.New("operations is empty")
 	}
-	return m.batchOperation(endpoint(m.Cfg.UseHTTPS, m.Cfg.CentralRsHost), operations)
+
+	bucket := ""
+	for _, operation := range operations {
+		paths := strings.Split(operation, "/")
+		if len(paths) < 3 {
+			continue
+		}
+
+		// 按当前模式，第 3 个 entry 是 bucket 和 key 键值对
+		if b, _, err := decodedEntry(paths[2]); err != nil {
+			continue
+		} else {
+			bucket = b
+			break
+		}
+	}
+	if len(bucket) == 0 {
+		return nil, errors.New("can't get one bucket from operations")
+	}
+
+	return m.BatchWithBucket(bucket, operations)
 }
 
 // BatchWithBucket 接口提供了资源管理的批量操作，支持 stat，copy，move，delete，chgm，chtype，deleteAfterDays几个接口
-// @param	bucket	operations 列表中操作对象所属的 bucket
-// @param	operations	操作对象列表，列表中操作对象所属的 bucket 必须一致
+// @param	bucket	operations 列表中任意一个操作对象所属的 bucket
+// @param	operations	操作对象列表，操作对象所属的 bucket 可能会不同，但是必须属于同一个区域
 func (m *BucketManager) BatchWithBucket(bucket string, operations []string) ([]BatchOpRet, error) {
 	host, err := m.RsReqHost(bucket)
 	if err != nil {
@@ -899,6 +919,21 @@ func uriListFiles2(bucket, prefix, delimiter, marker string) string {
 func EncodedEntry(bucket, key string) string {
 	entry := fmt.Sprintf("%s:%s", bucket, key)
 	return base64.URLEncoding.EncodeToString([]byte(entry))
+}
+
+func decodedEntry(entry string) (bucket, key string, err error) {
+	value, dErr := base64.URLEncoding.DecodeString(entry)
+	if dErr != nil {
+		return "", "", dErr
+	}
+	bk := strings.Split(string(value), ":")
+	if len(bk) == 0 {
+		return "", "", errors.New("entry format error")
+	}
+	if len(bk) == 1 {
+		return bk[0], "", nil
+	}
+	return bk[0], bk[1], nil
 }
 
 // EncodedEntryWithoutKey 生成 key 为null的情况下 URL Safe Base64编码的Entry

@@ -2,7 +2,6 @@
 ## 7.14.1
 * 表单上传 Put 函数 PutExtra 参数支持为 nil
 * BucketManager 新增函数 BatchWithBucket
-* BucketManager 废弃函数 Batch
 * bucket 镜像源/配额 API 使用 UC 域名
 
 ## 7.14.0
