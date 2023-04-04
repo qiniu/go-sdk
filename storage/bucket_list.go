@@ -242,21 +242,3 @@ func uriListFiles(bucket, prefix, delimiter, marker string, limit int) string {
 	}
 	return fmt.Sprintf("/list?%s", query.Encode())
 }
-
-func uriListFiles2(bucket, prefix, delimiter, marker string, limit int) string {
-	query := make(url.Values)
-	query.Add("bucket", bucket)
-	if prefix != "" {
-		query.Add("prefix", prefix)
-	}
-	if delimiter != "" {
-		query.Add("delimiter", delimiter)
-	}
-	if marker != "" {
-		query.Add("marker", marker)
-	}
-	if limit > 0 {
-		query.Add("marker", strconv.Itoa(limit))
-	}
-	return fmt.Sprintf("/v2/list?%s", query.Encode())
-}
