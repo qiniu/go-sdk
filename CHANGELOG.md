@@ -3,6 +3,8 @@
 * 表单上传 Put 函数 PutExtra 参数支持为 nil
 * BucketManager 新增函数 BatchWithBucket
 * bucket 镜像源/配额 API 使用 UC 域名
+* BucketManager 接口 ListBucket 和 ListBucketContext 内部使用分片 v1 
+* BucketManager 增加接口 ListFileWithContext
 
 ## 7.14.0
 * Go SDK  对七牛回调请求的鉴权验证函数支持 Qiniu 签名
