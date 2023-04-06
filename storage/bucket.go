@@ -8,14 +8,9 @@ package storage
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
-	"os"
-	"strconv"
 	"strings"
 
 	"github.com/qiniu/go-sdk/v7/auth"
@@ -660,71 +655,6 @@ func (m *BucketManager) UnsetImage(bucket string) (err error) {
 	return err
 }
 
-// ListFiles 用来获取空间文件列表，可以根据需要指定文件的前缀 prefix，文件的目录 delimiter，循环列举的时候下次
-// 列举的位置 marker，以及每次返回的文件的最大数量limit，其中limit最大为1000。
-func (m *BucketManager) ListFiles(bucket, prefix, delimiter, marker string,
-	limit int) (entries []ListItem, commonPrefixes []string, nextMarker string, hasNext bool, err error) {
-	if limit <= 0 || limit > 1000 {
-		err = errors.New("invalid list limit, only allow [1, 1000]")
-		return
-	}
-
-	reqHost, reqErr := m.RsfReqHost(bucket)
-	if reqErr != nil {
-		err = reqErr
-		return
-	}
-
-	ret := listFilesRet{}
-	reqURL := fmt.Sprintf("%s%s", reqHost, uriListFiles(bucket, prefix, delimiter, marker, limit))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &ret, "POST", reqURL, nil)
-	if err != nil {
-		return
-	}
-
-	commonPrefixes = ret.CommonPrefixes
-	nextMarker = ret.Marker
-	entries = ret.Items
-	if ret.Marker != "" {
-		hasNext = true
-	}
-
-	return
-}
-
-// ListBucket 用来获取空间文件列表，可以根据需要指定文件的前缀 prefix，文件的目录 delimiter，流式返回每条数据。
-func (m *BucketManager) ListBucket(bucket, prefix, delimiter, marker string) (retCh chan listFilesRet2, err error) {
-
-	ctx := auth.WithCredentialsType(context.Background(), m.Mac, auth.TokenQiniu)
-	reqHost, reqErr := m.RsfReqHost(bucket)
-	if reqErr != nil {
-		err = reqErr
-		return
-	}
-
-	// limit 0 ==> 列举所有文件
-	reqURL := fmt.Sprintf("%s%s", reqHost, uriListFiles2(bucket, prefix, delimiter, marker))
-	retCh, err = callChan(m.Client, ctx, "POST", reqURL, nil)
-	return
-}
-
-// ListBucketContext 用来获取空间文件列表，可以根据需要指定文件的前缀 prefix，文件的目录 delimiter，流式返回每条数据。
-// 接受的context可以用来取消列举操作
-func (m *BucketManager) ListBucketContext(ctx context.Context, bucket, prefix, delimiter, marker string) (retCh chan listFilesRet2, err error) {
-
-	ctx = auth.WithCredentialsType(ctx, m.Mac, auth.TokenQiniu)
-	reqHost, reqErr := m.RsfReqHost(bucket)
-	if reqErr != nil {
-		err = reqErr
-		return
-	}
-
-	// limit 0 ==> 列举所有文件
-	reqURL := fmt.Sprintf("%s%s", reqHost, uriListFiles2(bucket, prefix, delimiter, marker))
-	retCh, err = callChan(m.Client, ctx, "POST", reqURL, nil)
-	return
-}
-
 type AsyncFetchParam struct {
 	Url              string `json:"url"`
 	Host             string `json:"host,omitempty"`
@@ -882,39 +812,6 @@ func uriUnsetImage(bucket string) string {
 	return fmt.Sprintf("/unimage/%s", bucket)
 }
 
-func uriListFiles(bucket, prefix, delimiter, marker string, limit int) string {
-	query := make(url.Values)
-	query.Add("bucket", bucket)
-	if prefix != "" {
-		query.Add("prefix", prefix)
-	}
-	if delimiter != "" {
-		query.Add("delimiter", delimiter)
-	}
-	if marker != "" {
-		query.Add("marker", marker)
-	}
-	if limit > 0 {
-		query.Add("limit", strconv.FormatInt(int64(limit), 10))
-	}
-	return fmt.Sprintf("/list?%s", query.Encode())
-}
-
-func uriListFiles2(bucket, prefix, delimiter, marker string) string {
-	query := make(url.Values)
-	query.Add("bucket", bucket)
-	if prefix != "" {
-		query.Add("prefix", prefix)
-	}
-	if delimiter != "" {
-		query.Add("delimiter", delimiter)
-	}
-	if marker != "" {
-		query.Add("marker", marker)
-	}
-	return fmt.Sprintf("/v2/list?%s", query.Encode())
-}
-
 // EncodedEntry 生成URL Safe Base64编码的 Entry
 func EncodedEntry(bucket, key string) string {
 	entry := fmt.Sprintf("%s:%s", bucket, key)
@@ -1031,121 +928,4 @@ func urlEncodeQuery(str string) (ret string) {
 	str = strings.Replace(str, "%7C", "|", -1)
 	str = strings.Replace(str, "+", "%20", -1)
 	return str
-}
-
-type listFilesRet2 struct {
-	Marker string   `json:"marker"`
-	Item   ListItem `json:"item"`
-	Dir    string   `json:"dir"`
-}
-
-type listFilesRet struct {
-	Marker         string     `json:"marker"`
-	Items          []ListItem `json:"items"`
-	CommonPrefixes []string   `json:"commonPrefixes"`
-}
-
-// ListItem 为文件列举的返回值
-type ListItem struct {
-
-	// 资源名
-	Key string `json:"key"`
-
-	// 上传时间，单位：100纳秒，其值去掉低七位即为Unix时间戳。
-	PutTime int64 `json:"putTime"`
-
-	// 文件的HASH值，使用hash值算法计算。
-	Hash string `json:"hash"`
-
-	// 资源内容的大小，单位：字节。
-	Fsize int64 `json:"fsize"`
-
-	// 资源的 MIME 类型。
-	MimeType string `json:"mimeType"`
-
-	/**
-	 * 文件上传时设置的endUser
-	 */
-	EndUser string `json:"endUser"`
-
-	/**
-	 * 资源的存储类型
-	 * 0 表示标准存储
-	 * 1 表示低频存储
-	 * 2 表示归档存储
-	 * 3 表示深度归档存储
-	 */
-	Type int `json:"type"`
-
-	/**
-	 * 文件的存储状态，即禁用状态和启用状态间的的互相转换，请参考：文件状态。
-	 * 0 表示启用
-	 * 1 表示禁用
-	 */
-	Status int `json:"status"`
-
-	/**
-	 * 文件的 md5 值
-	 */
-	Md5 string `json:"md5"`
-}
-
-// 接口可能返回空的记录
-func (l *ListItem) IsEmpty() (empty bool) {
-	return l.Key == "" && l.Hash == "" && l.Fsize == 0 && l.PutTime == 0
-}
-
-func (l *ListItem) String() string {
-	str := ""
-	str += fmt.Sprintf("Hash:     %s\n", l.Hash)
-	str += fmt.Sprintf("Fsize:    %d\n", l.Fsize)
-	str += fmt.Sprintf("PutTime:  %d\n", l.PutTime)
-	str += fmt.Sprintf("MimeType: %s\n", l.MimeType)
-	str += fmt.Sprintf("Type:     %d\n", l.Type)
-	str += fmt.Sprintf("EndUser:  %s\n", l.EndUser)
-	return str
-}
-
-func callChan(r *client.Client, ctx context.Context, method, reqUrl string, headers http.Header) (chan listFilesRet2, error) {
-
-	resp, err := r.DoRequestWith(ctx, method, reqUrl, headers, nil, 0)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode/100 != 2 {
-		return nil, client.ResponseError(resp)
-	}
-	return callRetChan(ctx, resp)
-}
-
-func callRetChan(ctx context.Context, resp *http.Response) (retCh chan listFilesRet2, err error) {
-
-	retCh = make(chan listFilesRet2)
-	if resp.StatusCode/100 != 2 {
-		return nil, client.ResponseError(resp)
-	}
-
-	go func() {
-		defer resp.Body.Close()
-		defer close(retCh)
-
-		dec := json.NewDecoder(resp.Body)
-		var ret listFilesRet2
-
-		for {
-			err = dec.Decode(&ret)
-			if err != nil {
-				if err != io.EOF {
-					fmt.Fprintf(os.Stderr, "decode error: %v\n", err)
-				}
-				return
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case retCh <- ret:
-			}
-		}
-	}()
-	return
 }
