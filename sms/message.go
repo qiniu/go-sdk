@@ -6,9 +6,9 @@ import (
 )
 
 type Message struct {
-	MessageId string    `json:"message_id"`
+	MessageID string    `json:"message_id"`
 	JobID     string    `json:"job_id"`
-	Mobile    string    `json:"mobiles"`
+	Mobile    string    `json:"mobile"`
 	Content   string    `json:"content"`
 	Status    string    `json:"status"`
 	Type      string    `json:"type"` //短信类型
@@ -53,7 +53,7 @@ type QueryMessageRequest struct {
 	End        int      `json:"end"`       //时间戳，结束时间
 	Type       string   `json:"type"`      //短信类型
 	TemplateID string   `json:"template_id"`
-	MessageId  string   `json:"message_id"`
+	MessageID  string   `json:"message_id"`
 	Mobiles    []string `json:"mobiles"`
 	Status     string   `json:"status"`
 }
@@ -69,10 +69,10 @@ type MessagesResponse struct {
 	JobID string `json:"job_id"`
 }
 type MessageSingleResponse struct {
-	MessageId string `json:"message_id"`
+	MessageID string `json:"message_id"`
 }
 type MessageOverseaResponse struct {
-	MessageId string `json:"message_id"`
+	MessageID string `json:"message_id"`
 }
 type MessagesFulltextResponse struct {
 	JobID string `json:"job_id"`
