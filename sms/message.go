@@ -11,7 +11,7 @@ type Message struct {
 	Mobile    string    `json:"mobile"`
 	Content   string    `json:"content"`
 	Status    string    `json:"status"`
-	Type      string    `json:"type"` //短信类型
+	Type      string    `json:"type"` // 短信类型
 	Error     string    `json:"error"`
 	Count     int       `json:"count"`
 	CreatedAt timestamp `json:"createat"`
@@ -49,9 +49,9 @@ type QueryMessageRequest struct {
 	JobID      string   `json:"job_id"`
 	Page       int      `json:"page"`      // 页码，默认为 1
 	PageSize   int      `json:"page_size"` // 分页大小，默认为 20
-	Start      int      `json:"start"`     //时间戳，开始时间
-	End        int      `json:"end"`       //时间戳，结束时间
-	Type       string   `json:"type"`      //短信类型
+	Start      int      `json:"start"`     // 时间戳，开始时间
+	End        int      `json:"end"`       // 时间戳，结束时间
+	Type       string   `json:"type"`      // 短信类型
 	TemplateID string   `json:"template_id"`
 	MessageID  string   `json:"message_id"`
 	Mobiles    []string `json:"mobiles"`
@@ -90,28 +90,28 @@ func (m *Manager) SendMessage(args MessagesRequest) (ret MessagesResponse, err e
 	return
 }
 
-//SendSingleMessage发送单条短信
+// SendSingleMessage 发送单条短信
 func (m *Manager) SendSingleMessage(args MessagesSingleRequest) (ret MessageSingleResponse, err error) {
 	url := fmt.Sprintf("%s%s", Host, "/v1/message/single")
 	err = m.client.CallWithJSON(&ret, url, args)
 	return
 }
 
-//SendOverseaMessage发送国际/港澳台短信
+// SendOverseaMessage 发送国际/港澳台短信
 func (m *Manager) SendOverseaMessage(args MessagesOverseaRequest) (ret MessageOverseaResponse, err error) {
 	url := fmt.Sprintf("%s%s", Host, "/v1/message/oversea")
 	err = m.client.CallWithJSON(&ret, url, args)
 	return
 }
 
-//SendFulltextMessage发送国际/港澳台短信
+// SendFulltextMessage 发送国际/港澳台短信
 func (m *Manager) SendFulltextMessage(args MessagesFulltextRequest) (ret MessagesFulltextResponse, err error) {
 	url := fmt.Sprintf("%s%s", Host, "/v1/message/fulltext")
 	err = m.client.CallWithJSON(&ret, url, args)
 	return
 }
 
-//QueryMessage 查询短信
+// QueryMessage 查询短信
 func (m *Manager) QueryMessage(args QueryMessageRequest) (pagination MessagePagination, err error) {
 	values := url.Values{}
 

@@ -9,9 +9,9 @@ import (
 
 func TestMessage(t *testing.T) {
 	args := sms.MessagesRequest{
-		SignatureID: os.Getenv("signatureid"),
-		TemplateID:  os.Getenv("templateid"),
-		Mobiles:     []string{"15196436347", "15680767295"},
+		SignatureID: os.Getenv("SIGNATURE_ID"),
+		TemplateID:  os.Getenv("TEMPLATE_ID"),
+		Mobiles:     []string{""},
 	}
 	ret, err := manager.SendMessage(args)
 
@@ -25,9 +25,9 @@ func TestMessage(t *testing.T) {
 }
 func TestSingleMessage(t *testing.T) {
 	args := sms.MessagesSingleRequest{
-		SignatureID: os.Getenv("signatureid"),
-		TemplateID:  os.Getenv("templateid"),
-		Mobile:      "15196436347",
+		SignatureID: os.Getenv("SIGNATURE_ID"),
+		TemplateID:  os.Getenv("TEMPLATE_ID"),
+		Mobile:      "",
 	}
 	ret, err := manager.SendSingleMessage(args)
 
@@ -42,9 +42,9 @@ func TestSingleMessage(t *testing.T) {
 
 func TestOverseaMessage(t *testing.T) {
 	args := sms.MessagesOverseaRequest{
-		SignatureID: os.Getenv("signatureid"),
-		TemplateID:  os.Getenv("templateidOversea"),
-		Mobile:      "+17245678901",
+		SignatureID: os.Getenv("SIGNATURE_ID"),
+		TemplateID:  os.Getenv("TEMPLATE_ID_OVERSEA"),
+		Mobile:      "",
 	}
 	ret, err := manager.SendOverseaMessage(args)
 
@@ -60,8 +60,8 @@ func TestOverseaMessage(t *testing.T) {
 func TestFulltextMessage(t *testing.T) {
 	args := sms.MessagesFulltextRequest{
 		Template_Type: "notification",
-		Content:       os.Getenv("content"),
-		Mobiles:       []string{"15196436347"},
+		Content:       os.Getenv("CONTENT"),
+		Mobiles:       []string{""},
 	}
 	ret, err := manager.SendFulltextMessage(args)
 
