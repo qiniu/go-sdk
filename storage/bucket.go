@@ -476,21 +476,22 @@ func (m *BucketManager) Batch(operations []string) ([]BatchOpRet, error) {
 		return nil, errors.New("can't get one bucket from operations")
 	}
 
-	return m.BatchWithBucket(bucket, operations)
+	return m.BatchWithContext(nil, bucket, operations)
 }
 
-// BatchWithBucket 接口提供了资源管理的批量操作，支持 stat，copy，move，delete，chgm，chtype，deleteAfterDays几个接口
+// BatchWithContext 接口提供了资源管理的批量操作，支持 stat，copy，move，delete，chgm，chtype，deleteAfterDays几个接口
+// @param	ctx		context.Context
 // @param	bucket	operations 列表中任意一个操作对象所属的 bucket
 // @param	operations	操作对象列表，操作对象所属的 bucket 可能会不同，但是必须属于同一个区域
-func (m *BucketManager) BatchWithBucket(bucket string, operations []string) ([]BatchOpRet, error) {
+func (m *BucketManager) BatchWithContext(ctx context.Context, bucket string, operations []string) ([]BatchOpRet, error) {
 	host, err := m.RsReqHost(bucket)
 	if err != nil {
 		return nil, err
 	}
-	return m.batchOperation(host, operations)
+	return m.batchOperation(ctx, host, operations)
 }
 
-func (m *BucketManager) batchOperation(reqURL string, operations []string) (batchOpRet []BatchOpRet, err error) {
+func (m *BucketManager) batchOperation(ctx context.Context, reqURL string, operations []string) (batchOpRet []BatchOpRet, err error) {
 	if len(operations) > 1000 {
 		err = errors.New("batch operation count exceeds the limit of 1000")
 		return
@@ -498,8 +499,11 @@ func (m *BucketManager) batchOperation(reqURL string, operations []string) (batc
 	params := map[string][]string{
 		"op": operations,
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	reqURL = fmt.Sprintf("%s/batch", reqURL)
-	err = m.Client.CredentialedCallWithForm(context.Background(), m.Mac, auth.TokenQiniu, &batchOpRet, "POST", reqURL, nil, params)
+	err = m.Client.CredentialedCallWithForm(ctx, m.Mac, auth.TokenQiniu, &batchOpRet, "POST", reqURL, nil, params)
 	return
 }
 
