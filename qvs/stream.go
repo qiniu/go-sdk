@@ -109,15 +109,17 @@ func (manager *Manager) ListStream(nsId string, offset, line int, prefix, sortBy
 }
 
 type DynamicLiveRoute struct {
-	PublishIP    string `json:"publishIP"`    // 推流端对外IP地址
-	PlayIP       string `json:"playIP"`       // 拉流端对外IP地址
-	UrlExpireSec int64  `json:"urlExpireSec"` // 地址过期时间,urlExpireSec:100代表100秒后过期;  默认urlExpireSec:0,永不过期.
+	PublishIP     string `json:"publishIP"`     // 推流端对外IP地址
+	PlayIP        string `json:"playIP"`        // 拉流端对外IP地址
+	UrlExpireSec  int64  `json:"urlExpireSec"`  // 地址过期时间,urlExpireSec:100代表100秒后过期;  默认urlExpireSec:0,永不过期.
+	PlayExpireSec int64  `json:"playExpireSec"` // 播放过期时间(单位为秒)
 }
 
 type StaticLiveRoute struct {
-	Domain       string `json:"domain"`       // 域名
-	DomainType   string `json:"domainType"`   // 域名类型
-	UrlExpireSec int64  `json:"urlExpireSec"` // 地址过期时间,urlExpireSec:100代表100秒后过期;  默认urlExpireSec:0,永不过期.
+	Domain        string `json:"domain"`        // 域名
+	DomainType    string `json:"domainType"`    // 域名类型
+	UrlExpireSec  int64  `json:"urlExpireSec"`  // 地址过期时间,urlExpireSec:100代表100秒后过期;  默认urlExpireSec:0,永不过期.
+	PlayExpireSec int64  `json:"playExpireSec"` // 播放过期时间(单位为秒)
 }
 
 type RouteRet struct {
