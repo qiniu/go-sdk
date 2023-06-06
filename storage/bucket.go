@@ -330,7 +330,7 @@ func (m *BucketManager) Buckets(shared bool) (buckets []string, err error) {
 	return
 }
 
-// BucketsV4 获取该用户的指定区域内的空间信息，注意该 API 以分页形式返回 Bucket 列表t
+// BucketsV4 获取该用户的指定区域内的空间信息，注意该 API 以分页形式返回 Bucket 列表
 func (m *BucketManager) BucketsV4(input *BucketV4Input) (output BucketsV4Output, err error) {
 	if input == nil {
 		input = &BucketV4Input{}
