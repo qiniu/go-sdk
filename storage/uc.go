@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 )
@@ -83,6 +84,12 @@ type BucketInfo struct {
 
 	// 存储区域
 	Region string
+
+	// 空间备注信息
+	Remark string
+
+	// 空间创建时间
+	Ctime time.Time
 }
 
 // ReferAntiLeechConfig 是用户存储空间的Refer防盗链配置
@@ -217,6 +224,16 @@ func (b *BucketInfo) TokenAntiLeechModeOn() bool {
 func (m *BucketManager) GetBucketInfo(bucketName string) (bucketInfo BucketInfo, err error) {
 	reqURL := fmt.Sprintf("%s/v2/bucketInfo?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucketName)
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &bucketInfo, "POST", reqURL, nil)
+	return
+}
+
+// GetBucketInfo 返回BucketInfo结构
+func (m *BucketManager) SetRemark(bucketName, remark string) (err error) {
+	reqURL := fmt.Sprintf("%s/buckets/%s?remark", getUcHost(m.Cfg.UseHTTPS), bucketName)
+	body := struct {
+		Remark string `json:"remark"`
+	}{Remark: remark}
+	err = m.Client.CredentialedCallWithJson(context.Background(), m.Mac, auth.TokenQiniu, nil, "PUT", reqURL, nil, body)
 	return
 }
 

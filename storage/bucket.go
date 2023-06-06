@@ -10,7 +10,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/qiniu/go-sdk/v7/auth"
@@ -325,6 +327,29 @@ func (m *BucketManager) CreateBucket(bucketName string, regionID RegionID) error
 func (m *BucketManager) Buckets(shared bool) (buckets []string, err error) {
 	reqURL := fmt.Sprintf("%s/buckets?shared=%v", getUcHost(m.Cfg.UseHTTPS), shared)
 	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &buckets, "POST", reqURL, nil)
+	return
+}
+
+// BucketsV4 获取该用户的指定区域内的空间信息，注意该 API 以分页形式返回 Bucket 列表t
+func (m *BucketManager) BucketsV4(input *BucketV4Input) (output BucketsV4Output, err error) {
+	if input == nil {
+		input = &BucketV4Input{}
+	}
+	reqURL := fmt.Sprintf("%s/buckets?apiVersion=v4", getUcHost(m.Cfg.UseHTTPS))
+	query := make(url.Values)
+	if input.Region != "" {
+		query.Add("region", input.Region)
+	}
+	if input.Limit > 0 {
+		query.Add("limit", strconv.FormatUint(input.Limit, 10))
+	}
+	if input.Marker != "" {
+		query.Add("marker", input.Marker)
+	}
+	if len(query) > 0 {
+		reqURL += "&" + query.Encode()
+	}
+	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &output, http.MethodGet, reqURL, nil)
 	return
 }
 

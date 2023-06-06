@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package storage
@@ -67,7 +68,7 @@ func init() {
 	rand.Seed(time.Now().Unix())
 }
 
-//Test get zone
+// Test get zone
 func TestGetZone(t *testing.T) {
 	zone, err := GetZone(testAK, testBucket)
 	if err != nil {
@@ -108,7 +109,7 @@ func TestUpdateObjectStatus(t *testing.T) {
 	}
 }
 
-//Test get bucket list
+// Test get bucket list
 func TestBuckets(t *testing.T) {
 	shared := true
 	buckets, err := bucketManager.Buckets(shared)
@@ -121,7 +122,69 @@ func TestBuckets(t *testing.T) {
 	}
 }
 
-//Test get file info
+// Test get bucket list v4
+func TestBucketsV4(t *testing.T) {
+	var input BucketV4Input
+	for {
+		output, err := bucketManager.BucketsV4(&input)
+		if err != nil {
+			t.Fatalf("Buckets() error, %s", err)
+		}
+
+		for _, bucket := range output.Buckets {
+			t.Log(bucket)
+
+			info, err := bucketManager.GetBucketInfo(bucket.Name)
+			if err != nil {
+				t.Fatalf("GetBucketInfo() error, %s", err)
+			}
+			t.Log(info)
+		}
+		if output.IsTruncated {
+			input.Marker = output.NextMarker
+		} else {
+			break
+		}
+	}
+}
+
+// Test set remark
+func TestSetRemark(t *testing.T) {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	bucketName := fmt.Sprintf("gosdk-test-%d", r.Int())
+	bucketManager.DropBucket(bucketName)
+
+	err := bucketManager.CreateBucket(bucketName, RIDHuadong)
+	defer bucketManager.DropBucket(bucketName)
+	if err != nil {
+		t.Fatalf("CreateBucket() error: %v\n", err)
+	}
+
+	info, err := bucketManager.GetBucketInfo(bucketName)
+	if err != nil {
+		t.Fatalf("GetBucketInfo() error, %s", err)
+	}
+	if info.Remark != "" {
+		t.Logf("GetBucketInfo returns non-empty remark, %s", info.Remark)
+		t.Fail()
+	}
+
+	remark := fmt.Sprintf("test-remark-%d", r.Int())
+	err = bucketManager.SetRemark(bucketName, remark)
+	if err != nil {
+		t.Fatalf("SetRemark() error: %v\n", err)
+	}
+	info, err = bucketManager.GetBucketInfo(bucketName)
+	if err != nil {
+		t.Fatalf("GetBucketInfo() error, %s", err)
+	}
+	if info.Remark != remark {
+		t.Logf("GetBucketInfo returns unexpected remark, %s", info.Remark)
+		t.Fail()
+	}
+}
+
+// Test get file info
 func TestStat(t *testing.T) {
 	key := "qiniu.png"
 	copyKey := "staus_copy_" + key
