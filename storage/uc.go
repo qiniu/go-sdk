@@ -227,7 +227,7 @@ func (m *BucketManager) GetBucketInfo(bucketName string) (bucketInfo BucketInfo,
 	return
 }
 
-// GetBucketInfo 返回BucketInfo结构
+// SetRemark 设置空间备注信息
 func (m *BucketManager) SetRemark(bucketName, remark string) (err error) {
 	reqURL := fmt.Sprintf("%s/buckets/%s?remark", getUcHost(m.Cfg.UseHTTPS), bucketName)
 	body := struct {

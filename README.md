@@ -17,7 +17,7 @@ github.com/qiniu/go-sdk
 在您的项目中的 `go.mod` 文件内添加这行代码
 
 ```
-require github.com/qiniu/go-sdk/v7 v7.15.0
+require github.com/qiniu/go-sdk/v7 v7.16.0
 ```
 
 并且在项目中使用 `"github.com/qiniu/go-sdk/v7"` 引用 Qiniu Go SDK。

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-const Version = "7.15.0"
+const Version = "7.16.0"
 
 const (
 	CONTENT_TYPE_JSON      = "application/json"
