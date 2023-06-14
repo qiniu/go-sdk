@@ -152,7 +152,7 @@ func (p *Base64Uploader) put(
 	}
 
 	var upHostProvider hostprovider.HostProvider
-	upHostProvider, err = p.upHostProvider(ak, bucket)
+	upHostProvider, err = p.upHostProvider(ak, bucket, extra)
 	if err != nil {
 		return
 	}
@@ -167,10 +167,10 @@ func (p *Base64Uploader) put(
 	})
 }
 
-func (p *Base64Uploader) upHost(ak, bucket string) (upHost string, err error) {
-	return getUpHost(p.cfg, ak, bucket)
-}
+//func (p *Base64Uploader) upHost(ak, bucket string) (upHost string, err error) {
+//	return getUpHost(p.cfg, ak, bucket)
+//}
 
-func (p *Base64Uploader) upHostProvider(ak, bucket string) (hostProvider hostprovider.HostProvider, err error) {
-	return getUpHostProvider(p.cfg, ak, bucket)
+func (p *Base64Uploader) upHostProvider(ak, bucket string, extra *Base64PutExtra) (hostProvider hostprovider.HostProvider, err error) {
+	return getUpHostProvider(p.cfg, extra.TryTimes, extra.HostFreezeDuration, ak, bucket)
 }

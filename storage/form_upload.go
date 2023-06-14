@@ -279,7 +279,7 @@ func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upT
 	if extra.UpHost != "" {
 		hostProvider = hostprovider.NewWithHosts([]string{extra.getUpHost(p.Cfg.UseHTTPS)})
 	} else {
-		hostProvider, err = p.getUpHostProviderFromUploadToken(upToken)
+		hostProvider, err = p.getUpHostProviderFromUploadToken(upToken, extra)
 		if err != nil {
 			return err
 		}
@@ -302,22 +302,22 @@ func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upT
 	return nil
 }
 
-func (p *FormUploader) getUpHostFromUploadToken(upToken string) (upHost string, err error) {
-	var ak, bucket string
+//func (p *FormUploader) getUpHostFromUploadToken(upToken string) (upHost string, err error) {
+//	var ak, bucket string
+//
+//	if ak, bucket, err = getAkBucketFromUploadToken(upToken); err != nil {
+//		return
+//	}
+//	upHost, err = p.UpHost(ak, bucket)
+//	return
+//}
 
-	if ak, bucket, err = getAkBucketFromUploadToken(upToken); err != nil {
-		return
-	}
-	upHost, err = p.UpHost(ak, bucket)
-	return
-}
-
-func (p *FormUploader) getUpHostProviderFromUploadToken(upToken string) (hostprovider.HostProvider, error) {
+func (p *FormUploader) getUpHostProviderFromUploadToken(upToken string, extra *PutExtra) (hostprovider.HostProvider, error) {
 	ak, bucket, err := getAkBucketFromUploadToken(upToken)
 	if err != nil {
 		return nil, err
 	}
-	return getUpHostProvider(p.Cfg, ak, bucket)
+	return getUpHostProvider(p.Cfg, extra.TryTimes, extra.HostFreezeDuration, ak, bucket)
 }
 
 type crc32Reader struct {
@@ -357,7 +357,7 @@ func (r crc32Reader) length() (length int64) {
 }
 
 func (p *FormUploader) UpHost(ak, bucket string) (upHost string, err error) {
-	return getUpHost(p.Cfg, ak, bucket)
+	return getUpHost(p.Cfg, 0, 0, ak, bucket)
 }
 
 type readerWithProgress struct {

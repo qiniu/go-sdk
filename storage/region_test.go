@@ -31,6 +31,21 @@ func TestRegionWithNoProtocol(t *testing.T) {
 	}
 }
 
+func TestRegionInfo(t *testing.T) {
+	rs, err := GetRegionsInfo(mac)
+	if err != nil {
+		t.Fatalf("GetRegionsInfo error: %v\n", err)
+	}
+	if len(rs) == 0 {
+		t.Fatal("GetRegionsInfo error: region is empty \n")
+	}
+
+	r := rs[0]
+	if len(r.ID) == 0 {
+		t.Fatalf("GetRegionsInfo error: r id is empty, %+v", r)
+	}
+}
+
 func TestUcQueryRetUnmarshalJSON(t *testing.T) {
 	retJson := `{
   "region": "z2",

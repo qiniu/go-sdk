@@ -120,3 +120,16 @@ func isCancelErr(err error) bool {
 
 	return strings.Contains(err.Error(), "context canceled")
 }
+
+func removeRepeatStringItem(slc []string) []string {
+	var result []string
+	tempMap := map[string]uint8{}
+	for _, e := range slc {
+		l := len(tempMap)
+		tempMap[e] = 0
+		if len(tempMap) != l {
+			result = append(result, e)
+		}
+	}
+	return result
+}

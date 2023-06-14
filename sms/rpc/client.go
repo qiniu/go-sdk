@@ -28,15 +28,15 @@ var UserAgent = "Golang qiniu/rpc package"
 
 // --------------------------------------------------------------------
 
-// Client a golang http client
+// Client a golang http clientv2
 type Client struct {
 	*http.Client
 }
 
-// DefaultClient a golang default http client
+// DefaultClient a golang default http clientv2
 var DefaultClient = Client{&http.Client{Transport: DefaultTransport}}
 
-// NewClientTimeout return a golang http client
+// NewClientTimeout return a golang http clientv2
 func NewClientTimeout(dial, resp time.Duration) Client {
 	return Client{&http.Client{Transport: NewTransportTimeout(dial, resp)}}
 }

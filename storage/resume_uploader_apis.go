@@ -210,11 +210,11 @@ func (p *resumeUploaderAPIs) completeParts(ctx context.Context, upToken, upHost 
 }
 
 func (p *resumeUploaderAPIs) upHost(ak, bucket string) (upHost string, err error) {
-	return getUpHost(p.Cfg, ak, bucket)
+	return getUpHost(p.Cfg, 0, 0, ak, bucket)
 }
 
-func (p *resumeUploaderAPIs) upHostProvider(ak, bucket string) (hostProvider hostprovider.HostProvider, err error) {
-	return getUpHostProvider(p.Cfg, ak, bucket)
+func (p *resumeUploaderAPIs) upHostProvider(ak, bucket string, retryMax int, hostFreezeDuration time.Duration) (hostProvider hostprovider.HostProvider, err error) {
+	return getUpHostProvider(p.Cfg, retryMax, hostFreezeDuration, ak, bucket)
 }
 
 func makeHeadersForUpload(upToken string) http.Header {
