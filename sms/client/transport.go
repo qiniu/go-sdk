@@ -49,7 +49,7 @@ func NewTransport(mac *Mac, transport http.RoundTripper) *Transport {
 	return t
 }
 
-// NewClient return qiniu mac client
+// NewClient return qiniu mac clientv2
 func NewClient(mac *Mac, transport http.RoundTripper) *http.Client {
 
 	t := NewTransport(mac, transport)

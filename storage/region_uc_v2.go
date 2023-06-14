@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/qiniu/go-sdk/v7/client"
+	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"golang.org/x/sync/singleflight"
 	"os"
 	"path/filepath"
@@ -168,7 +168,7 @@ func storeRegionV2Cache() {
 	}
 }
 
-func getRegionByV2(ak, bucket string) (*Region, error) {
+func getRegionByV2(ak, bucket string, options UCClientOptions) (*Region, error) {
 
 	regionV2CacheLock.RLock()
 	if regionV2CacheLoaded {
@@ -193,10 +193,16 @@ func getRegionByV2(ak, bucket string) (*Region, error) {
 	}
 
 	newRegion, err, _ := ucQueryV2Group.Do(regionID, func() (interface{}, error) {
-		reqURL := fmt.Sprintf("%s/v2/query?ak=%s&bucket=%s", getUcHostByDefaultProtocol(), ak, bucket)
+		reqURL := fmt.Sprintf("%s/v2/query?ak=%s&bucket=%s", getUcHost(options.UseHttps), ak, bucket)
 
 		var ret UcQueryRet
-		err := client.DefaultClient.CallWithForm(context.Background(), &ret, "GET", reqURL, nil, nil)
+		_, err := clientv2.DoAndParseJsonResponse(getUCClient(options, nil), clientv2.RequestOptions{
+			Context:     context.Background(),
+			Method:      clientv2.RequestMethodGet,
+			Url:         reqURL,
+			Header:      nil,
+			BodyCreator: nil,
+		}, &ret)
 		if err != nil {
 			return nil, fmt.Errorf("query region error, %s", err.Error())
 		}
