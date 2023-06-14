@@ -302,16 +302,6 @@ func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upT
 	return nil
 }
 
-//func (p *FormUploader) getUpHostFromUploadToken(upToken string) (upHost string, err error) {
-//	var ak, bucket string
-//
-//	if ak, bucket, err = getAkBucketFromUploadToken(upToken); err != nil {
-//		return
-//	}
-//	upHost, err = p.UpHost(ak, bucket)
-//	return
-//}
-
 func (p *FormUploader) getUpHostProviderFromUploadToken(upToken string, extra *PutExtra) (hostprovider.HostProvider, error) {
 	ak, bucket, err := getAkBucketFromUploadToken(upToken)
 	if err != nil {
