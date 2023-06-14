@@ -16,7 +16,7 @@ func (e jsonDecodeError) Error() string { return fmt.Sprintf("%s: %s", e.origina
 
 func (e jsonDecodeError) Unwrap() error { return e.original }
 
-func DecodeJsonFromData(data []byte, v interface{}) error {
+func decodeJsonFromData(data []byte, v interface{}) error {
 	err := json.Unmarshal(data, v)
 	if err != nil {
 		return jsonDecodeError{original: err, data: data}

@@ -237,7 +237,7 @@ func parseError(e *ErrorInfo, r io.Reader) {
 		Key   string `json:"key"`
 		Errno int    `json:"errno"`
 	}
-	if DecodeJsonFromData(body, &ret) == nil && ret.Err != "" {
+	if decodeJsonFromData(body, &ret) == nil && ret.Err != "" {
 		// qiniu error msg style returns here
 		e.Err, e.Key, e.Errno = ret.Err, ret.Key, ret.Errno
 		return

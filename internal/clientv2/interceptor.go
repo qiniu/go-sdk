@@ -60,7 +60,7 @@ func NewSimpleInterceptor(interceptorHandler func(req *http.Request, handler Han
 
 func NewSimpleInterceptorWithPriority(priority InterceptorPriority, interceptorHandler func(req *http.Request, handler Handler) (*http.Response, error)) Interceptor {
 	if priority <= 0 {
-		priority = 100
+		priority = InterceptorPriorityNormal
 	}
 
 	return &simpleInterceptor{
