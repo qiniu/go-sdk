@@ -70,7 +70,7 @@ func (r *simpleRetryInterceptor) Intercept(req *http.Request, handler Handler) (
 	// 可能会被重试多次
 	for i := 0; ; i++ {
 		// Clone 防止后面 Handler 处理对 req 有污染
-		reqBefore := req.Clone(req.Context())
+		reqBefore := cloneReq(req.Context(), req)
 		resp, err = handler(req)
 
 		if !r.options.ShouldRetry(reqBefore, resp, err) {
