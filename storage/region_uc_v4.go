@@ -120,7 +120,7 @@ func storeRegionV4Cache() {
 	}
 }
 
-func getRegionByV4(ak, bucket string, options UCClientOptions) (*RegionGroup, error) {
+func getRegionByV4(ak, bucket string, options UcQueryOptions) (*RegionGroup, error) {
 	regionV4CacheLock.RLock()
 	if regionV4CacheLoaded {
 		regionV4CacheLock.RUnlock()
@@ -148,7 +148,11 @@ func getRegionByV4(ak, bucket string, options UCClientOptions) (*RegionGroup, er
 		reqURL := fmt.Sprintf("%s/v4/query?ak=%s&bucket=%s", getUcHost(options.UseHttps), ak, bucket)
 
 		var ret ucQueryV4Ret
-		_, err := clientv2.DoAndDecodeJsonResponse(getUCClient(options, nil), clientv2.RequestParams{
+		c := getUCClient(ucClientOptions{
+			RetryMax:           options.RetryMax,
+			HostFreezeDuration: options.HostFreezeDuration,
+		}, nil)
+		_, err := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 			Context:     context.Background(),
 			Method:      clientv2.RequestMethodGet,
 			Url:         reqURL,

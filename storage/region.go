@@ -222,7 +222,8 @@ var UcHost = ""
 
 var ucHosts = []string{"uc.qbox.me", "kodo-config.qiniuapi.com"}
 
-// SetUcHost Deprecated
+// SetUcHost
+// Deprecated 使用 SetUcHosts 替换
 func SetUcHost(host string, useHttps bool) {
 	if len(host) == 0 {
 		return
@@ -254,15 +255,16 @@ func getUcHost(useHttps bool) string {
 	return endpoint(useHttps, host)
 }
 
-func getUcHosts(useHttps bool) []string {
+// 不带 host
+func getUcBackupHosts() []string {
 	var hosts []string
 	if len(UcHost) > 0 {
-		hosts = append(hosts, endpoint(useHttps, UcHost))
+		hosts = append(hosts, removeHostScheme(UcHost))
 	}
 
 	for _, host := range ucHosts {
 		if len(host) > 0 {
-			hosts = append(hosts, endpoint(useHttps, host))
+			hosts = append(hosts, removeHostScheme(host))
 		}
 	}
 
@@ -274,20 +276,20 @@ func getUcHosts(useHttps bool) []string {
 // 延用 v2, v2 结构和 v4 结构不同且暂不可替代
 // Deprecated 使用 GetRegionWithOptions 替换
 func GetRegion(ak, bucket string) (*Region, error) {
-	return GetRegionWithOptions(ak, bucket, defaultUCClientOptions())
+	return GetRegionWithOptions(ak, bucket, defaultUcQueryOptions())
 }
 
 // GetRegionWithOptions 用来根据ak和bucket来获取空间相关的机房信息
-func GetRegionWithOptions(ak, bucket string, options UCClientOptions) (*Region, error) {
+func GetRegionWithOptions(ak, bucket string, options UcQueryOptions) (*Region, error) {
 	return getRegionByV2(ak, bucket, options)
 }
 
 // 使用 v4
 func getRegionGroup(ak, bucket string) (*RegionGroup, error) {
-	return getRegionByV4(ak, bucket, defaultUCClientOptions())
+	return getRegionByV4(ak, bucket, defaultUcQueryOptions())
 }
 
-func getRegionGroupWithOptions(ak, bucket string, options UCClientOptions) (*RegionGroup, error) {
+func getRegionGroupWithOptions(ak, bucket string, options UcQueryOptions) (*RegionGroup, error) {
 	return getRegionByV4(ak, bucket, options)
 }
 
@@ -313,7 +315,7 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, useHttps bool) ([]RegionIn
 	}
 
 	reqUrl := getUcHost(useHttps) + "/regions"
-	c := getUCClient(UCClientOptions{UseHttps: useHttps}, mac)
+	c := getUCClient(defaultUCClientOptions(), mac)
 	_, qErr := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context:     nil,
 		Method:      "",
@@ -328,22 +330,20 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, useHttps bool) ([]RegionIn
 	}
 }
 
-type UCClientOptions struct {
-	UseHttps bool //
-	RetryMax int  // 单域名重试次数
+type ucClientOptions struct {
+	RetryMax int // 单域名重试次数
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
 }
 
-func defaultUCClientOptions() UCClientOptions {
-	return UCClientOptions{
-		UseHttps:           true,
+func defaultUCClientOptions() ucClientOptions {
+	return ucClientOptions{
 		RetryMax:           0,
 		HostFreezeDuration: 0,
 	}
 }
-func getUCClient(options UCClientOptions, mac *auth.Credentials) clientv2.Client {
-	hosts := getUcHosts(options.UseHttps)
+func getUCClient(options ucClientOptions, mac *auth.Credentials) clientv2.Client {
+	hosts := getUcBackupHosts()
 	is := []clientv2.Interceptor{
 		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryOptions{
 			RetryOptions: clientv2.RetryOptions{

@@ -438,7 +438,7 @@ func (manager *UploadManager) getRegionGroupWithUploadToken(upToken string, extr
 	if err != nil {
 		return nil, err
 	}
-	return getRegionGroupWithOptions(ak, bucket, UCClientOptions{
+	return getRegionGroupWithOptions(ak, bucket, UcQueryOptions{
 		UseHttps:           manager.cfg.UseHTTPS,
 		RetryMax:           extra.TryTimes,
 		HostFreezeDuration: extra.HostFreezeDuration,

@@ -133,3 +133,9 @@ func removeRepeatStringItem(slc []string) []string {
 	}
 	return result
 }
+
+func removeHostScheme(host string) string {
+	host = strings.TrimLeft(host, "http://")
+	host = strings.TrimLeft(host, "https://")
+	return host
+}

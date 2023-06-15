@@ -90,7 +90,6 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 		if pErr != nil {
 			break
 		}
-		newHost = removeHostScheme(newHost)
 
 		if len(newHost) == 0 {
 			break
@@ -121,10 +120,4 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 
 func isHostRetryable(req *http.Request, resp *http.Response, err error) bool {
 	return isRequestSimpleRetryable(req) && isResponseSimpleRetryable(resp) && isErrorSimpleRetryable(err)
-}
-
-func removeHostScheme(host string) string {
-	host = strings.TrimLeft(host, "http://")
-	host = strings.TrimLeft(host, "https://")
-	return host
 }
