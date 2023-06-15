@@ -14,7 +14,6 @@ func cloneReq(ctx context.Context, r *http.Request) *http.Request {
 	if ctx == nil {
 		panic("nil context")
 	}
-	r.Clone(nil)
 
 	r2 := r.WithContext(ctx)
 	if r.Header != nil {

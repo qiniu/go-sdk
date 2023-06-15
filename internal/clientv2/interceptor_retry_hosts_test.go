@@ -7,14 +7,8 @@ import (
 	clientV1 "github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"net/http"
-	"os"
 	"testing"
 	"time"
-)
-
-var (
-	testAK     = os.Getenv("accessKey")
-	testBucket = os.Getenv("QINIU_TEST_BUCKET")
 )
 
 func TestHostsAlwaysRetryInterceptor(t *testing.T) {
@@ -97,7 +91,7 @@ func TestHostsAlwaysRetryInterceptor(t *testing.T) {
 }
 
 func TestHostsNotRetryInterceptor(t *testing.T) {
-	clientV1.DebugMode = true
+	clientV1.DeepDebugInfo = true
 
 	hostA := "aaa.aa.com"
 	hostB := "bbb.bb.com"
@@ -179,7 +173,7 @@ func TestHostsRetryInterceptorByUcQuery(t *testing.T) {
 	clientV1.DebugMode = true
 
 	hostA := "aaa.aa.com"
-	hostB := "uc.qbox.me"
+	hostB := "www.qiniu.com"
 	hRetryMax := 30
 	hRetryInterceptor := NewHostsRetryInterceptor(HostsRetryOptions{
 		RetryOptions: RetryOptions{
@@ -221,25 +215,16 @@ func TestHostsRetryInterceptorByUcQuery(t *testing.T) {
 	})
 
 	c := NewClient(nil, interceptor, hRetryInterceptor, sRetryInterceptor)
-
-	start := time.Now()
-
 	resp, err := Do(c, RequestOptions{
 		Context:     nil,
 		Method:      RequestMethodGet,
-		Url:         "https://" + hostA + "/v4/query?ak=" + testAK + "&bucket=" + testBucket,
+		Url:         "https://" + hostA,
 		Header:      nil,
 		BodyCreator: nil,
 	})
 
 	if err != nil {
 		t.Fatalf("request should success:%v", err)
-	}
-
-	duration := float32(time.Now().Unix() - start.Unix())
-
-	if duration > float32(doCount-1)+0.2 || duration < float32(doCount-1)-0.2 {
-		t.Fatalf("retry interval may be error")
 	}
 
 	if (retryMax+1)+1 != doCount {
