@@ -272,10 +272,12 @@ func getUcHosts(useHttps bool) []string {
 
 // GetRegion 用来根据ak和bucket来获取空间相关的机房信息
 // 延用 v2, v2 结构和 v4 结构不同且暂不可替代
+// Deprecated 使用 GetRegionWithOptions 替换
 func GetRegion(ak, bucket string) (*Region, error) {
 	return GetRegionWithOptions(ak, bucket, defaultUCClientOptions())
 }
 
+// GetRegionWithOptions 用来根据ak和bucket来获取空间相关的机房信息
 func GetRegionWithOptions(ak, bucket string, options UCClientOptions) (*Region, error) {
 	return getRegionByV2(ak, bucket, options)
 }
@@ -312,7 +314,7 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, useHttps bool) ([]RegionIn
 
 	reqUrl := getUcHost(useHttps) + "/regions"
 	c := getUCClient(UCClientOptions{UseHttps: useHttps}, mac)
-	_, qErr := clientv2.DoAndParseJsonResponse(c, clientv2.RequestOptions{
+	_, qErr := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context:     nil,
 		Method:      "",
 		Url:         reqUrl,
@@ -341,16 +343,17 @@ func defaultUCClientOptions() UCClientOptions {
 	}
 }
 func getUCClient(options UCClientOptions, mac *auth.Credentials) clientv2.Client {
+	hosts := getUcHosts(options.UseHttps)
 	is := []clientv2.Interceptor{
 		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryOptions{
 			RetryOptions: clientv2.RetryOptions{
-				RetryMax:      0,
+				RetryMax:      len(hosts),
 				RetryInterval: nil,
 				ShouldRetry:   nil,
 			},
 			ShouldFreezeHost:   nil,
 			HostFreezeDuration: 0,
-			HostProvider:       hostprovider.NewWithHosts(getUcHosts(options.UseHttps)),
+			HostProvider:       hostprovider.NewWithHosts(hosts),
 		}),
 		clientv2.NewSimpleRetryInterceptor(clientv2.RetryOptions{
 			RetryMax:      options.RetryMax,

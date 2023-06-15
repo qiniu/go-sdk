@@ -196,7 +196,7 @@ func getRegionByV2(ak, bucket string, options UCClientOptions) (*Region, error) 
 		reqURL := fmt.Sprintf("%s/v2/query?ak=%s&bucket=%s", getUcHost(options.UseHttps), ak, bucket)
 
 		var ret UcQueryRet
-		_, err := clientv2.DoAndParseJsonResponse(getUCClient(options, nil), clientv2.RequestOptions{
+		_, err := clientv2.DoAndDecodeJsonResponse(getUCClient(options, nil), clientv2.RequestParams{
 			Context:     context.Background(),
 			Method:      clientv2.RequestMethodGet,
 			Url:         reqURL,

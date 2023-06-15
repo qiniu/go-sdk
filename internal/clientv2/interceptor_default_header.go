@@ -14,11 +14,15 @@ func newDefaultHeaderInterceptor() Interceptor {
 	return &defaultHeaderInterceptor{}
 }
 
-func (r *defaultHeaderInterceptor) Priority() InterceptorPriority {
+func (interceptor *defaultHeaderInterceptor) Priority() InterceptorPriority {
 	return InterceptorPrioritySetHeader
 }
 
-func (r *defaultHeaderInterceptor) Intercept(req *http.Request, handler Handler) (resp *http.Response, err error) {
+func (interceptor *defaultHeaderInterceptor) Intercept(req *http.Request, handler Handler) (resp *http.Response, err error) {
+	if interceptor == nil || req == nil {
+		return handler(req)
+	}
+
 	if req.Header == nil {
 		req.Header = http.Header{}
 	}

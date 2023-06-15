@@ -43,17 +43,6 @@ type simpleInterceptor struct {
 	handler  func(req *http.Request, handler Handler) (*http.Response, error)
 }
 
-func (s *simpleInterceptor) Priority() InterceptorPriority {
-	return s.priority
-}
-
-func (s *simpleInterceptor) Intercept(req *http.Request, handler Handler) (*http.Response, error) {
-	if s == nil || s.handler == nil {
-		return handler(req)
-	}
-	return s.handler(req, handler)
-}
-
 func NewSimpleInterceptor(interceptorHandler func(req *http.Request, handler Handler) (*http.Response, error)) Interceptor {
 	return NewSimpleInterceptorWithPriority(InterceptorPriorityNormal, interceptorHandler)
 }
@@ -67,4 +56,15 @@ func NewSimpleInterceptorWithPriority(priority InterceptorPriority, interceptorH
 		priority: priority,
 		handler:  interceptorHandler,
 	}
+}
+
+func (interceptor *simpleInterceptor) Priority() InterceptorPriority {
+	return interceptor.priority
+}
+
+func (interceptor *simpleInterceptor) Intercept(req *http.Request, handler Handler) (*http.Response, error) {
+	if interceptor == nil || interceptor.handler == nil {
+		return handler(req)
+	}
+	return interceptor.handler(req, handler)
 }

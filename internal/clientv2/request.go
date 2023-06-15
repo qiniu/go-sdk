@@ -17,11 +17,11 @@ const (
 	RequestMethodDelete = "DELETE"
 )
 
-type RequestBodyCreator func(options *RequestOptions) (io.Reader, error)
+type RequestBodyCreator func(options *RequestParams) (io.Reader, error)
 
-func JsonRequestBodyCreator(object interface{}) RequestBodyCreator {
+func RequestBodyCreatorOfJson(object interface{}) RequestBodyCreator {
 	body := object
-	return func(o *RequestOptions) (io.Reader, error) {
+	return func(o *RequestParams) (io.Reader, error) {
 		reqBody, err := json.Marshal(body)
 		if err != nil {
 			return nil, err
@@ -31,22 +31,22 @@ func JsonRequestBodyCreator(object interface{}) RequestBodyCreator {
 	}
 }
 
-func FormRequestBodyCreator(info map[string][]string) RequestBodyCreator {
-	body := FormString(info)
-	return func(o *RequestOptions) (io.Reader, error) {
+func RequestBodyCreatorForm(info map[string][]string) RequestBodyCreator {
+	body := FormStringInfo(info)
+	return func(o *RequestParams) (io.Reader, error) {
 		o.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		return bytes.NewBufferString(body), nil
 	}
 }
 
-func FormString(info map[string][]string) string {
+func FormStringInfo(info map[string][]string) string {
 	if len(info) == 0 {
 		return ""
 	}
 	return url.Values(info).Encode()
 }
 
-type RequestOptions struct {
+type RequestParams struct {
 	Context     context.Context
 	Method      string
 	Url         string
@@ -54,7 +54,7 @@ type RequestOptions struct {
 	BodyCreator RequestBodyCreator
 }
 
-func (o *RequestOptions) init() {
+func (o *RequestParams) init() {
 	if o.Context == nil {
 		o.Context = context.Background()
 	}
@@ -68,14 +68,15 @@ func (o *RequestOptions) init() {
 	}
 
 	if o.BodyCreator == nil {
-		o.BodyCreator = func(options *RequestOptions) (io.Reader, error) {
+		o.BodyCreator = func(options *RequestParams) (io.Reader, error) {
 			return nil, nil
 		}
 	}
 }
 
-func NewRequest(options RequestOptions) (*http.Request, error) {
+func NewRequest(options RequestParams) (*http.Request, error) {
 	options.init()
+
 	body, cErr := options.BodyCreator(&options)
 	if cErr != nil {
 		return nil, cErr

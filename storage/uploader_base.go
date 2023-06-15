@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-// retryMax: 为 0，使用默认值，每个域名之请求一次
-// hostFreezeDuration: 为 0，使用默认值
+// retryMax: 为 0，使用默认值，每个域名只请求一次
+// hostFreezeDuration: 为 0，使用默认值：50ms ~ 100ms
 func getUpHost(config *Config, retryMax int, hostFreezeDuration time.Duration, ak, bucket string) (upHost string, err error) {
 	region := config.GetRegion()
 	if region == nil {
@@ -28,8 +28,8 @@ func getUpHost(config *Config, retryMax int, hostFreezeDuration time.Duration, a
 	return
 }
 
-// retryMax: 为 0，使用默认值，每个域名之请求一次
-// hostFreezeDuration: 为 0，使用默认值
+// retryMax: 为 0，使用默认值，每个域名只请求一次
+// hostFreezeDuration: 为 0，使用默认值：50ms ~ 100ms
 func getUpHostProvider(config *Config, retryMax int, hostFreezeDuration time.Duration, ak, bucket string) (hostprovider.HostProvider, error) {
 	region := config.GetRegion()
 	var err error

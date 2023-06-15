@@ -20,16 +20,16 @@ func NewAuthInterceptor(options AuthOptions) Interceptor {
 	}
 }
 
-func (r *authInterceptor) Priority() InterceptorPriority {
+func (interceptor *authInterceptor) Priority() InterceptorPriority {
 	return InterceptorPriorityAuth
 }
 
-func (r *authInterceptor) Intercept(req *http.Request, handler Handler) (*http.Response, error) {
-	if r == nil {
+func (interceptor *authInterceptor) Intercept(req *http.Request, handler Handler) (*http.Response, error) {
+	if interceptor == nil {
 		return handler(req)
 	}
 
-	err := r.options.Credentials.AddToken(r.options.TokenType, req)
+	err := interceptor.options.Credentials.AddToken(interceptor.options.TokenType, req)
 	if err != nil {
 		return nil, err
 	}

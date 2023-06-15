@@ -77,37 +77,44 @@ func newDebugInterceptor() Interceptor {
 	return &debugInterceptor{}
 }
 
-func (r *debugInterceptor) Priority() InterceptorPriority {
+func (interceptor *debugInterceptor) Priority() InterceptorPriority {
 	return InterceptorPriorityDebug
 }
 
-func (r *debugInterceptor) Intercept(req *http.Request, handler Handler) (*http.Response, error) {
+func (interceptor *debugInterceptor) Intercept(req *http.Request, handler Handler) (*http.Response, error) {
+	if interceptor == nil {
+		return handler(req)
+	}
 
-	label := r.requestLabel(req)
+	label := interceptor.requestLabel(req)
 
-	if e := r.printRequest(label, req); e != nil {
+	if e := interceptor.printRequest(label, req); e != nil {
 		return nil, e
 	}
 
-	req = r.printRequestTrace(label, req)
+	req = interceptor.printRequestTrace(label, req)
 
 	resp, err := handler(req)
 
-	if e := r.printResponse(label, resp); e != nil {
+	if e := interceptor.printResponse(label, resp); e != nil {
 		return nil, e
 	}
 
 	return resp, err
 }
 
-func (r *debugInterceptor) requestLabel(req *http.Request) string {
+func (interceptor *debugInterceptor) requestLabel(req *http.Request) string {
 	if req == nil || req.URL == nil {
 		return ""
 	}
 	return fmt.Sprintf("Url:%s", req.URL.String())
 }
 
-func (r *debugInterceptor) printRequest(label string, req *http.Request) error {
+func (interceptor *debugInterceptor) printRequest(label string, req *http.Request) error {
+	if req == nil {
+		return nil
+	}
+
 	printReq := IsPrintRequest()
 	printReqDetail := IsPrintRequestDetail()
 	if !printReq && !printReqDetail {
@@ -115,18 +122,18 @@ func (r *debugInterceptor) printRequest(label string, req *http.Request) error {
 	}
 
 	info := label + " request:\n"
-	i, dErr := httputil.DumpRequest(req, printReqDetail)
+	d, dErr := httputil.DumpRequest(req, printReqDetail)
 	if dErr != nil {
 		return dErr
 	}
-	info += string(i) + "\n"
+	info += string(d) + "\n"
 
 	log.Debug(info)
 	return nil
 }
 
-func (r *debugInterceptor) printRequestTrace(label string, req *http.Request) *http.Request {
-	if !IsPrintRequestTrace() {
+func (interceptor *debugInterceptor) printRequestTrace(label string, req *http.Request) *http.Request {
+	if !IsPrintRequestTrace() || req == nil {
 		return req
 	}
 
@@ -183,7 +190,7 @@ func (r *debugInterceptor) printRequestTrace(label string, req *http.Request) *h
 	return req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
 }
 
-func (r *debugInterceptor) printResponse(label string, resp *http.Response) error {
+func (interceptor *debugInterceptor) printResponse(label string, resp *http.Response) error {
 	if resp == nil {
 		return nil
 	}
@@ -195,11 +202,11 @@ func (r *debugInterceptor) printResponse(label string, resp *http.Response) erro
 	}
 
 	info := label + " response:\n"
-	i, dErr := httputil.DumpResponse(resp, printRespDetail)
+	d, dErr := httputil.DumpResponse(resp, printRespDetail)
 	if dErr != nil {
 		return dErr
 	}
-	info += string(i) + "\n"
+	info += string(d) + "\n"
 
 	log.Debug(info)
 	return nil

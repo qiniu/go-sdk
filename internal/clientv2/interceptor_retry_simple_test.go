@@ -41,7 +41,7 @@ func TestSimpleAlwaysRetryInterceptor(t *testing.T) {
 	c := NewClient(&testClient{}, rInterceptor, interceptor)
 
 	start := time.Now()
-	resp, _ := Do(c, RequestOptions{
+	resp, _ := Do(c, RequestParams{
 		Context:     nil,
 		Method:      "",
 		Url:         "https://aaa.com",
@@ -97,7 +97,7 @@ func TestSimpleNotRetryInterceptor(t *testing.T) {
 	c := NewClient(&testClient{statusCode: 400}, rInterceptor, interceptor)
 
 	start := time.Now()
-	resp, _ := Do(c, RequestOptions{
+	resp, _ := Do(c, RequestParams{
 		Context:     nil,
 		Method:      "",
 		Url:         "https://aaa.com",

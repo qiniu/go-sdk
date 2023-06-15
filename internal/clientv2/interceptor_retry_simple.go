@@ -12,8 +12,8 @@ import (
 )
 
 type RetryOptions struct {
-	RetryMax      int
-	RetryInterval func() time.Duration
+	RetryMax      int                  // 最大重试次数
+	RetryInterval func() time.Duration // 重试时间间隔
 	ShouldRetry   func(req *http.Request, resp *http.Response, err error) bool
 }
 
@@ -55,15 +55,19 @@ func NewSimpleRetryInterceptor(options RetryOptions) Interceptor {
 	}
 }
 
-func (r *simpleRetryInterceptor) Priority() InterceptorPriority {
+func (interceptor *simpleRetryInterceptor) Priority() InterceptorPriority {
 	return InterceptorPriorityRetrySimple
 }
 
-func (r *simpleRetryInterceptor) Intercept(req *http.Request, handler Handler) (resp *http.Response, err error) {
-	r.options.Init()
+func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler Handler) (resp *http.Response, err error) {
+	if interceptor == nil || req == nil {
+		return handler(req)
+	}
+
+	interceptor.options.Init()
 
 	// 不重试
-	if r.options.RetryMax == 0 {
+	if interceptor.options.RetryMax == 0 {
 		return handler(req)
 	}
 
@@ -73,16 +77,16 @@ func (r *simpleRetryInterceptor) Intercept(req *http.Request, handler Handler) (
 		reqBefore := cloneReq(req.Context(), req)
 		resp, err = handler(req)
 
-		if !r.options.ShouldRetry(reqBefore, resp, err) {
+		if !interceptor.options.ShouldRetry(reqBefore, resp, err) {
 			return resp, err
 		}
 		req = reqBefore
 
-		if i >= r.options.RetryMax {
+		if i >= interceptor.options.RetryMax {
 			break
 		}
 
-		retryInterval := r.options.RetryInterval()
+		retryInterval := interceptor.options.RetryInterval()
 		if retryInterval <= time.Millisecond {
 			continue
 		}

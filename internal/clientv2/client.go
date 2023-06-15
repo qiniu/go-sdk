@@ -27,6 +27,11 @@ func NewClient(cli Client, interceptors ...Interceptor) Client {
 	is = append(is, newDebugInterceptor())
 	sort.Sort(is)
 
+	// 反转
+	for i, j := 0, len(is)-1; i < j; i, j = i+1, j-1 {
+		is[i], is[j] = is[j], is[i]
+	}
+
 	return &client{
 		coreClient:   cli,
 		interceptors: is,
@@ -39,12 +44,6 @@ func (c *client) Do(req *http.Request) (*http.Response, error) {
 	}
 
 	interceptors := c.interceptors
-
-	// 反转
-	for i, j := 0, len(interceptors)-1; i < j; i, j = i+1, j-1 {
-		interceptors[i], interceptors[j] = interceptors[j], interceptors[i]
-	}
-
 	for _, interceptor := range interceptors {
 		h := handler
 		i := interceptor
@@ -72,7 +71,7 @@ func (c *client) Do(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-func Do(c Client, options RequestOptions) (*http.Response, error) {
+func Do(c Client, options RequestParams) (*http.Response, error) {
 	req, err := NewRequest(options)
 	if err != nil {
 		return nil, err
@@ -81,7 +80,7 @@ func Do(c Client, options RequestOptions) (*http.Response, error) {
 	return c.Do(req)
 }
 
-func DoAndParseJsonResponse(c Client, options RequestOptions, ret interface{}) (*http.Response, error) {
+func DoAndDecodeJsonResponse(c Client, options RequestParams, ret interface{}) (*http.Response, error) {
 	resp, err := Do(c, options)
 	if err != nil {
 		return resp, err

@@ -63,7 +63,7 @@ func TestHostsAlwaysRetryInterceptor(t *testing.T) {
 
 	start := time.Now()
 
-	resp, _ := Do(c, RequestOptions{
+	resp, _ := Do(c, RequestParams{
 		Context:     nil,
 		Method:      RequestMethodGet,
 		Url:         "https://" + hostA + "/path/123",
@@ -142,7 +142,7 @@ func TestHostsNotRetryInterceptor(t *testing.T) {
 
 	start := time.Now()
 
-	resp, _ := Do(c, RequestOptions{
+	resp, _ := Do(c, RequestParams{
 		Context:     nil,
 		Method:      RequestMethodGet,
 		Url:         "https://" + hostA + "/path/123",
@@ -169,7 +169,7 @@ func TestHostsNotRetryInterceptor(t *testing.T) {
 	}
 }
 
-func TestHostsRetryInterceptorByUcQuery(t *testing.T) {
+func TestHostsRetryInterceptorByRequest(t *testing.T) {
 	clientV1.DebugMode = true
 
 	hostA := "aaa.aa.com"
@@ -215,7 +215,7 @@ func TestHostsRetryInterceptorByUcQuery(t *testing.T) {
 	})
 
 	c := NewClient(nil, interceptor, hRetryInterceptor, sRetryInterceptor)
-	resp, err := Do(c, RequestOptions{
+	resp, err := Do(c, RequestParams{
 		Context:     nil,
 		Method:      RequestMethodGet,
 		Url:         "https://" + hostA,
