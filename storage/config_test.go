@@ -36,12 +36,12 @@ func TestReqHost(t *testing.T) {
 	}
 	wantRsHosts := []string{
 		"https://rs.qbox.me",
-		"https://rshost.com",
+		"http://rshost.com",
 		"https://rshost.com",
 		"https://rs.qbox.me",
 		"http://rs.qbox.me",
 		"http://rshost.com",
-		"http://rshost.com",
+		"https://rshost.com",
 		"http://rs.qbox.me",
 		"http://rs.qbox.me",
 	}
