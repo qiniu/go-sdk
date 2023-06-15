@@ -81,10 +81,11 @@ func NewRequest(options RequestOptions) (*http.Request, error) {
 		return nil, cErr
 	}
 
-	req, err := http.NewRequestWithContext(options.Context, options.Method, options.Url, body)
+	req, err := http.NewRequest(options.Method, options.Url, body)
 	if err != nil {
 		return nil, err
 	}
+	req = req.WithContext(options.Context)
 	req.Header = options.Header
 	return req, nil
 }

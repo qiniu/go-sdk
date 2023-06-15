@@ -166,9 +166,10 @@ func (r *debugInterceptor) printRequestTrace(label string, req *http.Request) *h
 		TLSHandshakeDone: func(state tls.ConnectionState, err error) {
 			log.Debug(label + fmt.Sprintf("TLSHandshakeDone, state:%+v err:%s \n", state, err))
 		},
-		WroteHeaderField: func(key string, value []string) {
-			log.Debug(label + fmt.Sprintf("WroteHeaderField, key:%s value:%s \n", key, value))
-		},
+		// go1.10 不支持
+		//WroteHeaderField: func(key string, value []string) {
+		//	log.Debug(label + fmt.Sprintf("WroteHeaderField, key:%s value:%s \n", key, value))
+		//},
 		WroteHeaders: func() {
 			log.Debug(label + fmt.Sprint("WroteHeaders \n"))
 		},
