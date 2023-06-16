@@ -40,11 +40,14 @@ func shouldUploadAgain(err error) bool {
 		return false
 	}
 
-	if errInfo, ok := err.(*ErrorInfo); ok {
+	switch t := err.(type) {
+	case *ErrorInfo:
 		// 4xx 不重试
-		return errInfo.Code < 400 || errInfo.Code > 499
-	} else {
-		// 网络异常不重试
+		return t.Code < 400 || t.Code > 499
+	case *api.QError:
+		return t.Code == ErrMaxUpRetry
+	default:
+		// 网络异常可重试
 		return shouldUploadRetryWithOtherHost(err)
 	}
 }
