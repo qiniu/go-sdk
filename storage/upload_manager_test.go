@@ -47,7 +47,9 @@ type Ret struct {
 
 func TestUploadManagerFormUpload(t *testing.T) {
 	clientV1.DebugMode = true
-	clientV1.DeepDebugInfo = true
+	defer func() {
+		clientV1.DebugMode = false
+	}()
 
 	data := []byte("hello, 七牛！！！")
 	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut")

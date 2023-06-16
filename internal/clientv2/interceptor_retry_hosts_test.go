@@ -13,6 +13,9 @@ import (
 
 func TestHostsAlwaysRetryInterceptor(t *testing.T) {
 	clientV1.DebugMode = true
+	defer func() {
+		clientV1.DebugMode = false
+	}()
 
 	hostA := "aaa.aa.com"
 	hostB := "bbb.bb.com"
@@ -91,7 +94,10 @@ func TestHostsAlwaysRetryInterceptor(t *testing.T) {
 }
 
 func TestHostsNotRetryInterceptor(t *testing.T) {
-	clientV1.DeepDebugInfo = true
+	clientV1.DebugMode = true
+	defer func() {
+		clientV1.DebugMode = false
+	}()
 
 	hostA := "aaa.aa.com"
 	hostB := "bbb.bb.com"
@@ -171,6 +177,9 @@ func TestHostsNotRetryInterceptor(t *testing.T) {
 
 func TestHostsRetryInterceptorByRequest(t *testing.T) {
 	clientV1.DebugMode = true
+	defer func() {
+		clientV1.DebugMode = false
+	}()
 
 	hostA := "aaa.aa.com"
 	hostB := "www.qiniu.com"

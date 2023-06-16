@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package storage
@@ -84,7 +85,13 @@ func TestRegionUCQueryV4Test(t *testing.T) {
 }
 
 func TestUCRetry(t *testing.T) {
+	clientV1.DebugMode = true
 	clientV1.DeepDebugInfo = true
+	defer func() {
+		clientV1.DebugMode = false
+		clientV1.DeepDebugInfo = false
+	}()
+
 	SetUcHosts("aaa.aaa.com", "uc.qbox.me")
 	defer SetUcHosts("uc.qbox.me")
 

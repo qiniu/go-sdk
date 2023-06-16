@@ -63,7 +63,12 @@ func TestUcBucketEventRule(t *testing.T) {
 }
 
 func TestBucketTag(t *testing.T) {
+	clientV1.DebugMode = true
 	clientV1.DeepDebugInfo = true
+	defer func() {
+		clientV1.DebugMode = false
+		clientV1.DeepDebugInfo = false
+	}()
 
 	tagKey := "test-tag"
 	tagValue := "tag-can-delete"
@@ -97,7 +102,11 @@ func TestBucketTag(t *testing.T) {
 }
 
 func TestBucketTagWithRetry(t *testing.T) {
-	clientV1.DeepDebugInfo = true
+	clientV1.DebugMode = true
+	defer func() {
+		clientV1.DebugMode = false
+	}()
+
 	SetUcHosts("aaa.aaa.com", "uc.qbox.me")
 	defer SetUcHosts("uc.qbox.me")
 
