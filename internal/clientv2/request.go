@@ -19,6 +19,18 @@ const (
 
 type RequestBodyCreator func(options *RequestParams) (io.Reader, error)
 
+func RequestBodyCreatorOfReader(read io.Reader) RequestBodyCreator {
+	body := read
+	return func(o *RequestParams) (io.Reader, error) {
+		reqBody, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		o.Header.Add("Content-Type", "application/json")
+		return bytes.NewReader(reqBody), nil
+	}
+}
+
 func RequestBodyCreatorOfJson(object interface{}) RequestBodyCreator {
 	body := object
 	return func(o *RequestParams) (io.Reader, error) {

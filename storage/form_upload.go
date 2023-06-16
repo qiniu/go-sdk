@@ -103,7 +103,6 @@ func NewFormUploaderEx(cfg *Config, clt *client.Client) *FormUploader {
 // key       是要上传的文件访问路径。比如："foo/bar.jpg"。注意我们建议 key 不要以 '/' 开头。另外，key 为空字符串是合法的。
 // localFile 是要上传的文件的本地路径。
 // extra     是上传的一些可选项，可以指定为nil。详细见 PutExtra 结构的描述。
-//
 func (p *FormUploader) PutFile(
 	ctx context.Context, ret interface{}, uptoken, key, localFile string, extra *PutExtra) (err error) {
 	return p.putFile(ctx, ret, uptoken, key, true, localFile, extra)
@@ -118,7 +117,6 @@ func (p *FormUploader) PutFile(
 // uptoken   是由业务服务器颁发的上传凭证。
 // localFile 是要上传的文件的本地路径。
 // extra     是上传的一些可选项。可以指定为nil。详细见 PutExtra 结构的描述。
-//
 func (p *FormUploader) PutFileWithoutKey(
 	ctx context.Context, ret interface{}, uptoken, localFile string, extra *PutExtra) (err error) {
 	return p.putFile(ctx, ret, uptoken, "", false, localFile, extra)
@@ -152,7 +150,6 @@ func (p *FormUploader) putFile(
 // data    是文件内容的访问接口（io.Reader）。
 // fsize   是要上传的文件大小。
 // extra   是上传的一些可选项。可以指定为nil。详细见 PutExtra 结构的描述。
-//
 func (p *FormUploader) Put(
 	ctx context.Context, ret interface{}, uptoken, key string, data io.Reader, size int64, extra *PutExtra) (err error) {
 	err = p.put(ctx, ret, uptoken, key, true, data, size, extra, path.Base(key))
@@ -168,7 +165,6 @@ func (p *FormUploader) Put(
 // data    是文件内容的访问接口（io.Reader）。
 // fsize   是要上传的文件大小。
 // extra   是上传的一些可选项。详细见 PutExtra 结构的描述。
-//
 func (p *FormUploader) PutWithoutKey(
 	ctx context.Context, ret interface{}, uptoken string, data io.Reader, size int64, extra *PutExtra) (err error) {
 	err = p.put(ctx, ret, uptoken, "", false, data, size, extra, "filename")
@@ -270,11 +266,8 @@ func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upT
 		}
 		return ioutil.NopCloser(reader), nil
 	}
-	bodyReader, err := getBodyReader()
-	if err != nil {
-		return err
-	}
 
+	var err error
 	var hostProvider hostprovider.HostProvider = nil
 	if extra.UpHost != "" {
 		hostProvider = hostprovider.NewWithHosts([]string{extra.getUpHost(p.Cfg.UseHTTPS)})
@@ -290,7 +283,12 @@ func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upT
 	headers := http.Header{}
 	headers.Add("Content-Type", contentType)
 	err = doUploadAction(hostProvider, extra.TryTimes, extra.HostFreezeDuration, func(host string) error {
-		return p.Client.CallWithBodyGetter(ctx, ret, "POST", host, headers, bodyReader, getBodyReadCloser, formBodyLen)
+		reader, gErr := getBodyReader()
+		if gErr != nil {
+			return gErr
+		}
+
+		return p.Client.CallWithBodyGetter(ctx, ret, "POST", host, headers, reader, getBodyReadCloser, formBodyLen)
 	})
 	if err != nil {
 		return err

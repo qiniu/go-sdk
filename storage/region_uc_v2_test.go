@@ -86,6 +86,8 @@ func TestRegionUCQueryV4Test(t *testing.T) {
 func TestUCRetry(t *testing.T) {
 	clientV1.DeepDebugInfo = true
 	SetUcHosts("aaa.aaa.com", "uc.qbox.me")
+	defer SetUcHosts("uc.qbox.me")
+
 	r, err := GetRegion(testAK, testBucket)
 	if err != nil {
 		t.Fatalf("GetRegion error:%v", err)

@@ -1,6 +1,7 @@
 package clientv2
 
 import (
+	clientv1 "github.com/qiniu/go-sdk/v7/client"
 	"io"
 	"math/rand"
 	"net"
@@ -96,15 +97,24 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 }
 
 func isSimpleRetryable(req *http.Request, resp *http.Response, err error) bool {
-	return isRequestSimpleRetryable(req) && isResponseSimpleRetryable(resp) && isErrorSimpleRetryable(err)
+	return isRequestRetryable(req) && (isResponseRetryable(resp) || IsErrorRetryable(err))
 }
 
-func isRequestSimpleRetryable(req *http.Request) bool {
+func isRequestRetryable(req *http.Request) bool {
 	if req == nil {
 		return false
 	}
 
 	if req.Body == nil {
+		return true
+	}
+
+	if req.GetBody != nil {
+		b, err := req.GetBody()
+		if err != nil || b == nil {
+			return false
+		}
+		req.Body = b
 		return true
 	}
 
@@ -117,12 +127,14 @@ func isRequestSimpleRetryable(req *http.Request) bool {
 	return err == nil
 }
 
-func isResponseSimpleRetryable(resp *http.Response) bool {
+func isResponseRetryable(resp *http.Response) bool {
 	if resp == nil {
-		return true
+		return false
 	}
+	return isStatusCodeRetryable(resp.StatusCode)
+}
 
-	statusCode := resp.StatusCode
+func isStatusCodeRetryable(statusCode int) bool {
 	if statusCode < 500 {
 		return false
 	}
@@ -136,11 +148,7 @@ func isResponseSimpleRetryable(resp *http.Response) bool {
 	return true
 }
 
-func isErrorSimpleRetryable(err error) bool {
-	return err == nil || isNetworkError(err)
-}
-
-func isNetworkError(err error) bool {
+func IsErrorRetryable(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -149,9 +157,11 @@ func isNetworkError(err error) bool {
 	case *net.OpError:
 		return isNetworkErrorWithOpError(t)
 	case *url.Error:
-		return isNetworkError(t.Err)
+		return IsErrorRetryable(t.Err)
 	case net.Error:
 		return t.Timeout()
+	case *clientv1.ErrorInfo:
+		return isStatusCodeRetryable(t.Code)
 	default:
 		return false
 	}

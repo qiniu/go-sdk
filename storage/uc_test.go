@@ -95,3 +95,39 @@ func TestBucketTag(t *testing.T) {
 		t.Fatal("tag should b empty  after clean")
 	}
 }
+
+func TestBucketTagWithRetry(t *testing.T) {
+	clientV1.DeepDebugInfo = true
+	SetUcHosts("aaa.aaa.com", "uc.qbox.me")
+	defer SetUcHosts("uc.qbox.me")
+
+	tagKey := "test-tag"
+	tagValue := "tag-can-delete"
+	err := bucketManager.SetTagging(testBucket, map[string]string{
+		tagKey: tagValue,
+	})
+	if err != nil {
+		t.Fatalf("set tag error:%s", err)
+	}
+
+	tags, err := bucketManager.GetTagging(testBucket)
+	if err != nil {
+		t.Fatalf("get tag error:%s", err)
+	}
+	if tags[tagKey] != tagValue {
+		t.Fatalf("get tag value error:%s", tags)
+	}
+
+	err = bucketManager.ClearTagging(testBucket)
+	if err != nil {
+		t.Fatalf("clear tag error:%s", err)
+	}
+
+	tags, err = bucketManager.GetTagging(testBucket)
+	if err != nil {
+		t.Fatalf("get tag after clean error:%s", err)
+	}
+	if len(tags) > 0 {
+		t.Fatal("tag should b empty  after clean")
+	}
+}

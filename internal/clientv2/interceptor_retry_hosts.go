@@ -119,5 +119,5 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 }
 
 func isHostRetryable(req *http.Request, resp *http.Response, err error) bool {
-	return isRequestSimpleRetryable(req) && isResponseSimpleRetryable(resp) && isErrorSimpleRetryable(err)
+	return isRequestRetryable(req) && (isResponseRetryable(resp) || IsErrorRetryable(err))
 }

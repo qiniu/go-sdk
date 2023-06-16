@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	api "github.com/qiniu/go-sdk/v7"
+	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"strings"
 	"time"
@@ -39,13 +40,13 @@ func shouldUploadAgain(err error) bool {
 		return false
 	}
 
-	errInfo, ok := err.(*ErrorInfo)
-	if !ok {
-		return true
+	if errInfo, ok := err.(*ErrorInfo); ok {
+		// 4xx 不重试
+		return errInfo.Code < 400 || errInfo.Code > 499
+	} else {
+		// 网络异常不重试
+		return shouldUploadRetryWithOtherHost(err)
 	}
-
-	// 4xx 不重试
-	return errInfo.Code < 400 || errInfo.Code > 499
 }
 
 func isContextExpiredError(err error) bool {
@@ -62,20 +63,7 @@ func isContextExpiredError(err error) bool {
 }
 
 func shouldUploadRetryWithOtherHost(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	if isCancelErr(err) {
-		return false
-	}
-
-	errInfo, ok := err.(*ErrorInfo)
-	if !ok {
-		return true
-	}
-
-	return errInfo.Code > 499 && errInfo.Code < 600 && errInfo.Code != 573 && errInfo.Code != 579
+	return clientv2.IsErrorRetryable(err)
 }
 
 func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, freezeDuration time.Duration, action func(host string) error) error {
