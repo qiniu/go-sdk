@@ -21,7 +21,7 @@ func (c *HostsRetryConfig) init() {
 			return isHostRetryable(req, resp, err)
 		}
 	}
-	if c.RetryConfig.RetryMax <= 0 {
+	if c.RetryConfig.RetryMax < 0 {
 		c.RetryConfig.RetryMax = 1
 	}
 

@@ -216,8 +216,7 @@ var regionMap = map[RegionID]Region{
 
 // UcHost 为查询空间相关域名的 API 服务地址
 // 设置 UcHost 时，如果不指定 scheme 默认会使用 https
-// UcHost 已废弃，建议使用 SetUcHosts
-// Deprecated
+// Deprecated 使用 SetUcHosts 替换
 var UcHost = ""
 
 var ucHosts = []string{"uc.qbox.me", "kodo-config.qiniuapi.com"}
@@ -248,8 +247,11 @@ func getUcHostByDefaultProtocol() string {
 }
 
 func getUcHost(useHttps bool) string {
-	host := UcHost
-	if len(ucHosts) > 0 {
+	// 兼容老版本，优先使用 UcHost
+	host := ""
+	if len(UcHost) > 0 {
+		host = UcHost
+	} else if len(ucHosts) > 0 {
 		host = ucHosts[0]
 	}
 	return endpoint(useHttps, host)
@@ -276,7 +278,7 @@ func getUcBackupHosts() []string {
 // 延用 v2, v2 结构和 v4 结构不同且暂不可替代
 // Deprecated 使用 GetRegionWithOptions 替换
 func GetRegion(ak, bucket string) (*Region, error) {
-	return GetRegionWithOptions(ak, bucket, defaultUcQueryOptions())
+	return GetRegionWithOptions(ak, bucket, DefaultUcQueryOptions())
 }
 
 // GetRegionWithOptions 用来根据ak和bucket来获取空间相关的机房信息
@@ -286,7 +288,7 @@ func GetRegionWithOptions(ak, bucket string, options UcQueryOptions) (*Region, e
 
 // 使用 v4
 func getRegionGroup(ak, bucket string) (*RegionGroup, error) {
-	return getRegionByV4(ak, bucket, defaultUcQueryOptions())
+	return getRegionByV4(ak, bucket, DefaultUcQueryOptions())
 }
 
 func getRegionGroupWithOptions(ak, bucket string, options UcQueryOptions) (*RegionGroup, error) {

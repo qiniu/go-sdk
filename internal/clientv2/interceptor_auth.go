@@ -25,7 +25,7 @@ func (interceptor *authInterceptor) Priority() InterceptorPriority {
 }
 
 func (interceptor *authInterceptor) Intercept(req *http.Request, handler Handler) (*http.Response, error) {
-	if interceptor == nil {
+	if interceptor == nil || req == nil {
 		return handler(req)
 	}
 

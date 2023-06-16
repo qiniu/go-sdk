@@ -171,16 +171,10 @@ func isNetworkErrorWithOpError(err *net.OpError) bool {
 		return true
 	case *os.SyscallError:
 		if errno, ok := t.Err.(syscall.Errno); ok {
-			switch errno {
-			case syscall.ECONNABORTED:
-				return true
-			case syscall.ECONNRESET:
-				return true
-			case syscall.ECONNREFUSED:
-				return true
-			case syscall.ETIMEDOUT:
-				return true
-			}
+			return errno == syscall.ECONNABORTED ||
+				errno == syscall.ECONNRESET ||
+				errno == syscall.ECONNREFUSED ||
+				errno == syscall.ETIMEDOUT
 		}
 	}
 

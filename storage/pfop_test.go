@@ -16,6 +16,7 @@ var (
 
 func TestPfop(t *testing.T) {
 	saveBucket := testBucket
+
 	fopAvthumb := fmt.Sprintf("avthumb/mp4/s/480x320/vb/500k|saveas/%s",
 		EncodedEntry(saveBucket, "pfop_test_qiniu.mp4"))
 	fopVframe := fmt.Sprintf("vframe/jpg/offset/10|saveas/%s",

@@ -175,7 +175,7 @@ type UcQueryOptions struct {
 	HostFreezeDuration time.Duration
 }
 
-func defaultUcQueryOptions() UcQueryOptions {
+func DefaultUcQueryOptions() UcQueryOptions {
 	return UcQueryOptions{
 		UseHttps:           true,
 		RetryMax:           0,
