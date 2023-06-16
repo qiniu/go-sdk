@@ -8,41 +8,41 @@ import (
 	"time"
 )
 
-type HostsRetryOptions struct {
-	RetryOptions       RetryOptions              // 主备域名重试参数
-	HostFreezeDuration time.Duration             // 主备域名冻结时间（默认：600s），当一个域名请求失败被冻结的时间
+type HostsRetryConfig struct {
+	RetryConfig        RetryConfig               // 主备域名重试参数
+	HostFreezeDuration time.Duration             // 主备域名冻结时间（默认：600s），当一个域名请求失败被冻结的时间，最小 time.Millisecond
 	HostProvider       hostprovider.HostProvider // 备用域名获取方法
 	ShouldFreezeHost   func(req *http.Request, resp *http.Response, err error) bool
 }
 
-func (o *HostsRetryOptions) init() {
-	if o.RetryOptions.ShouldRetry == nil {
-		o.RetryOptions.ShouldRetry = func(req *http.Request, resp *http.Response, err error) bool {
+func (c *HostsRetryConfig) init() {
+	if c.RetryConfig.ShouldRetry == nil {
+		c.RetryConfig.ShouldRetry = func(req *http.Request, resp *http.Response, err error) bool {
 			return isHostRetryable(req, resp, err)
 		}
 	}
-	if o.RetryOptions.RetryMax <= 0 {
-		o.RetryOptions.RetryMax = 1
+	if c.RetryConfig.RetryMax <= 0 {
+		c.RetryConfig.RetryMax = 1
 	}
 
-	o.RetryOptions.Init()
+	c.RetryConfig.init()
 
-	if o.HostFreezeDuration <= time.Millisecond {
-		o.HostFreezeDuration = 600 * time.Second
+	if c.HostFreezeDuration < time.Millisecond {
+		c.HostFreezeDuration = 600 * time.Second
 	}
 
-	if o.ShouldFreezeHost == nil {
-		o.ShouldFreezeHost = func(req *http.Request, resp *http.Response, err error) bool {
+	if c.ShouldFreezeHost == nil {
+		c.ShouldFreezeHost = func(req *http.Request, resp *http.Response, err error) bool {
 			return true
 		}
 	}
 }
 
 type hostsRetryInterceptor struct {
-	options HostsRetryOptions
+	options HostsRetryConfig
 }
 
-func NewHostsRetryInterceptor(options HostsRetryOptions) Interceptor {
+func NewHostsRetryInterceptor(options HostsRetryConfig) Interceptor {
 	return &hostsRetryInterceptor{
 		options: options,
 	}
@@ -60,7 +60,7 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 	interceptor.options.init()
 
 	// 不重试
-	if interceptor.options.RetryOptions.RetryMax == 0 {
+	if interceptor.options.RetryConfig.RetryMax == 0 {
 		return handler(req)
 	}
 
@@ -69,7 +69,7 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 		reqBefore := cloneReq(req.Context(), req)
 		resp, err = handler(req)
 
-		if !interceptor.options.RetryOptions.ShouldRetry(reqBefore, resp, err) {
+		if !interceptor.options.RetryConfig.ShouldRetry(reqBefore, resp, err) {
 			return resp, err
 		}
 
@@ -81,7 +81,7 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 			}
 		}
 
-		if i >= interceptor.options.RetryOptions.RetryMax {
+		if i >= interceptor.options.RetryConfig.RetryMax {
 			break
 		}
 
@@ -109,7 +109,7 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 
 		req = reqBefore
 
-		retryInterval := interceptor.options.RetryOptions.RetryInterval()
+		retryInterval := interceptor.options.RetryConfig.RetryInterval()
 		if retryInterval <= time.Millisecond {
 			continue
 		}

@@ -739,7 +739,7 @@ func (m *BucketManager) GetTagging(bucket string) (tags map[string]string, err e
 }
 
 func (m *BucketManager) getUCClient() clientv2.Client {
-	return getUCClient(ucClientOptions{
+	return getUCClient(ucClientConfig{
 		RetryMax:           m.options.RetryMax,
 		HostFreezeDuration: m.options.HostFreezeDuration,
 	}, m.Mac)

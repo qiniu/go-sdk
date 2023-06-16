@@ -12,47 +12,41 @@ import (
 	"time"
 )
 
-type RetryOptions struct {
+type RetryConfig struct {
 	RetryMax      int                  // 最大重试次数
 	RetryInterval func() time.Duration // 重试时间间隔
 	ShouldRetry   func(req *http.Request, resp *http.Response, err error) bool
 }
 
-func DefaultOptions() RetryOptions {
-	o := RetryOptions{}
-	o.Init()
-	return o
-}
-
-func (o *RetryOptions) Init() {
-	if o == nil {
+func (c *RetryConfig) init() {
+	if c == nil {
 		return
 	}
 
-	if o.RetryMax < 0 {
-		o.RetryMax = 0
+	if c.RetryMax < 0 {
+		c.RetryMax = 0
 	}
 
-	if o.RetryInterval == nil {
-		o.RetryInterval = func() time.Duration {
+	if c.RetryInterval == nil {
+		c.RetryInterval = func() time.Duration {
 			return time.Duration(50+rand.Int()%50) * time.Millisecond
 		}
 	}
 
-	if o.ShouldRetry == nil {
-		o.ShouldRetry = func(req *http.Request, resp *http.Response, err error) bool {
+	if c.ShouldRetry == nil {
+		c.ShouldRetry = func(req *http.Request, resp *http.Response, err error) bool {
 			return isSimpleRetryable(req, resp, err)
 		}
 	}
 }
 
 type simpleRetryInterceptor struct {
-	options RetryOptions
+	config RetryConfig
 }
 
-func NewSimpleRetryInterceptor(options RetryOptions) Interceptor {
+func NewSimpleRetryInterceptor(config RetryConfig) Interceptor {
 	return &simpleRetryInterceptor{
-		options: options,
+		config: config,
 	}
 }
 
@@ -65,10 +59,10 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 		return handler(req)
 	}
 
-	interceptor.options.Init()
+	interceptor.config.init()
 
 	// 不重试
-	if interceptor.options.RetryMax == 0 {
+	if interceptor.config.RetryMax == 0 {
 		return handler(req)
 	}
 
@@ -78,16 +72,16 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 		reqBefore := cloneReq(req.Context(), req)
 		resp, err = handler(req)
 
-		if !interceptor.options.ShouldRetry(reqBefore, resp, err) {
+		if !interceptor.config.ShouldRetry(reqBefore, resp, err) {
 			return resp, err
 		}
 		req = reqBefore
 
-		if i >= interceptor.options.RetryMax {
+		if i >= interceptor.config.RetryMax {
 			break
 		}
 
-		retryInterval := interceptor.options.RetryInterval()
+		retryInterval := interceptor.config.RetryInterval()
 		if retryInterval <= time.Millisecond {
 			continue
 		}

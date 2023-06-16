@@ -22,7 +22,7 @@ func NewClient(cli Client, interceptors ...Interceptor) Client {
 		cli = http.DefaultClient
 	}
 
-	var is Interceptors = interceptors
+	var is interceptorList = interceptors
 	is = append(is, newDefaultHeaderInterceptor())
 	is = append(is, newDebugInterceptor())
 	sort.Sort(is)
@@ -90,7 +90,7 @@ func DoAndDecodeJsonResponse(c Client, options RequestParams, ret interface{}) (
 		return resp, nil
 	}
 
-	if dErr := clientV1.DecodeJsonFromReader(resp.Body, ret); dErr != nil {
+	if err = clientV1.DecodeJsonFromReader(resp.Body, ret); err != nil {
 		return resp, err
 	}
 

@@ -20,8 +20,8 @@ func TestHostsAlwaysRetryInterceptor(t *testing.T) {
 	hostA := "aaa.aa.com"
 	hostB := "bbb.bb.com"
 	hRetryMax := 2
-	hRetryInterceptor := NewHostsRetryInterceptor(HostsRetryOptions{
-		RetryOptions: RetryOptions{
+	hRetryInterceptor := NewHostsRetryInterceptor(HostsRetryConfig{
+		RetryConfig: RetryConfig{
 			RetryMax: hRetryMax,
 			RetryInterval: func() time.Duration {
 				return time.Second
@@ -36,7 +36,7 @@ func TestHostsAlwaysRetryInterceptor(t *testing.T) {
 	})
 
 	retryMax := 1
-	sRetryInterceptor := NewSimpleRetryInterceptor(RetryOptions{
+	sRetryInterceptor := NewSimpleRetryInterceptor(RetryConfig{
 		RetryMax: retryMax,
 		RetryInterval: func() time.Duration {
 			return time.Second
@@ -102,8 +102,8 @@ func TestHostsNotRetryInterceptor(t *testing.T) {
 	hostA := "aaa.aa.com"
 	hostB := "bbb.bb.com"
 	hRetryMax := 2
-	hRetryInterceptor := NewHostsRetryInterceptor(HostsRetryOptions{
-		RetryOptions: RetryOptions{
+	hRetryInterceptor := NewHostsRetryInterceptor(HostsRetryConfig{
+		RetryConfig: RetryConfig{
 			RetryMax: hRetryMax,
 			RetryInterval: func() time.Duration {
 				return time.Second
@@ -118,7 +118,7 @@ func TestHostsNotRetryInterceptor(t *testing.T) {
 	})
 
 	retryMax := 1
-	sRetryInterceptor := NewSimpleRetryInterceptor(RetryOptions{
+	sRetryInterceptor := NewSimpleRetryInterceptor(RetryConfig{
 		RetryMax: retryMax,
 		RetryInterval: func() time.Duration {
 			return time.Second
@@ -184,8 +184,8 @@ func TestHostsRetryInterceptorByRequest(t *testing.T) {
 	hostA := "aaa.aa.com"
 	hostB := "www.qiniu.com"
 	hRetryMax := 30
-	hRetryInterceptor := NewHostsRetryInterceptor(HostsRetryOptions{
-		RetryOptions: RetryOptions{
+	hRetryInterceptor := NewHostsRetryInterceptor(HostsRetryConfig{
+		RetryConfig: RetryConfig{
 			RetryMax: hRetryMax,
 			RetryInterval: func() time.Duration {
 				return time.Second
@@ -197,7 +197,7 @@ func TestHostsRetryInterceptorByRequest(t *testing.T) {
 	})
 
 	retryMax := 1
-	sRetryInterceptor := NewSimpleRetryInterceptor(RetryOptions{
+	sRetryInterceptor := NewSimpleRetryInterceptor(RetryConfig{
 		RetryMax: retryMax,
 		RetryInterval: func() time.Duration {
 			return time.Second

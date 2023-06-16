@@ -148,7 +148,7 @@ func getRegionByV4(ak, bucket string, options UcQueryOptions) (*RegionGroup, err
 		reqURL := fmt.Sprintf("%s/v4/query?ak=%s&bucket=%s", getUcHost(options.UseHttps), ak, bucket)
 
 		var ret ucQueryV4Ret
-		c := getUCClient(ucClientOptions{
+		c := getUCClient(ucClientConfig{
 			RetryMax:           options.RetryMax,
 			HostFreezeDuration: options.HostFreezeDuration,
 		}, nil)

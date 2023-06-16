@@ -5,18 +5,18 @@ import (
 	"net/http"
 )
 
-type AuthOptions struct {
+type AuthConfig struct {
 	Credentials auth.Credentials //
 	TokenType   auth.TokenType   // 不包含上传
 }
 
 type authInterceptor struct {
-	options AuthOptions
+	config AuthConfig
 }
 
-func NewAuthInterceptor(options AuthOptions) Interceptor {
+func NewAuthInterceptor(config AuthConfig) Interceptor {
 	return &authInterceptor{
-		options: options,
+		config: config,
 	}
 }
 
@@ -29,7 +29,7 @@ func (interceptor *authInterceptor) Intercept(req *http.Request, handler Handler
 		return handler(req)
 	}
 
-	err := interceptor.options.Credentials.AddToken(interceptor.options.TokenType, req)
+	err := interceptor.config.Credentials.AddToken(interceptor.config.TokenType, req)
 	if err != nil {
 		return nil, err
 	}

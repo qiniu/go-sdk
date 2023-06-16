@@ -315,7 +315,7 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, useHttps bool) ([]RegionIn
 	}
 
 	reqUrl := getUcHost(useHttps) + "/regions"
-	c := getUCClient(defaultUCClientOptions(), mac)
+	c := getUCClient(defaultUCClientConfig(), mac)
 	_, qErr := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context:     nil,
 		Method:      "",
@@ -330,23 +330,24 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, useHttps bool) ([]RegionIn
 	}
 }
 
-type ucClientOptions struct {
+type ucClientConfig struct {
 	RetryMax int // 单域名重试次数
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
 }
 
-func defaultUCClientOptions() ucClientOptions {
-	return ucClientOptions{
+func defaultUCClientConfig() ucClientConfig {
+	return ucClientConfig{
 		RetryMax:           0,
 		HostFreezeDuration: 0,
 	}
 }
-func getUCClient(options ucClientOptions, mac *auth.Credentials) clientv2.Client {
+
+func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
 	hosts := getUcBackupHosts()
 	is := []clientv2.Interceptor{
-		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryOptions{
-			RetryOptions: clientv2.RetryOptions{
+		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
+			RetryConfig: clientv2.RetryConfig{
 				RetryMax:      len(hosts),
 				RetryInterval: nil,
 				ShouldRetry:   nil,
@@ -355,15 +356,15 @@ func getUCClient(options ucClientOptions, mac *auth.Credentials) clientv2.Client
 			HostFreezeDuration: 0,
 			HostProvider:       hostprovider.NewWithHosts(hosts),
 		}),
-		clientv2.NewSimpleRetryInterceptor(clientv2.RetryOptions{
-			RetryMax:      options.RetryMax,
+		clientv2.NewSimpleRetryInterceptor(clientv2.RetryConfig{
+			RetryMax:      config.RetryMax,
 			RetryInterval: nil,
 			ShouldRetry:   nil,
 		}),
 	}
 
 	if mac != nil {
-		is = append(is, clientv2.NewAuthInterceptor(clientv2.AuthOptions{
+		is = append(is, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
 			Credentials: *mac,
 			TokenType:   auth.TokenQiniu,
 		}))

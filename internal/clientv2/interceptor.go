@@ -24,18 +24,18 @@ type Interceptor interface {
 	Intercept(req *http.Request, handler Handler) (*http.Response, error)
 }
 
-type Interceptors []Interceptor
+type interceptorList []Interceptor
 
-func (is Interceptors) Less(i, j int) bool {
-	return is[i].Priority() < is[j].Priority()
+func (l interceptorList) Less(i, j int) bool {
+	return l[i].Priority() < l[j].Priority()
 }
 
-func (is Interceptors) Swap(i, j int) {
-	is[i], is[j] = is[j], is[i]
+func (l interceptorList) Swap(i, j int) {
+	l[i], l[j] = l[j], l[i]
 }
 
-func (is Interceptors) Len() int {
-	return len(is)
+func (l interceptorList) Len() int {
+	return len(l)
 }
 
 type simpleInterceptor struct {
