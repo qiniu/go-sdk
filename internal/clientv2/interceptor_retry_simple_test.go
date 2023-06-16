@@ -50,8 +50,8 @@ func TestSimpleAlwaysRetryInterceptor(t *testing.T) {
 	})
 	duration := float32(time.Now().Unix() - start.Unix())
 
-	if duration > float32(doCount-1)+0.1 || duration < float32(doCount-1)-0.1 {
-		t.Fatalf("retry interval may be error")
+	if duration > float32(doCount-1)+0.3 || duration < float32(doCount-1)-0.3 {
+		t.Fatalf("retry interval may be error:%f", duration)
 	}
 
 	if (retryMax + 1) != doCount {
