@@ -120,7 +120,7 @@ func storeRegionV4Cache() {
 	}
 }
 
-func getRegionByV4(ak, bucket string, options UcQueryOptions) (*RegionGroup, error) {
+func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error) {
 	regionV4CacheLock.RLock()
 	if regionV4CacheLoaded {
 		regionV4CacheLock.RUnlock()

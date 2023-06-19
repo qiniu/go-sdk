@@ -10,12 +10,18 @@ import (
 	"net/http/httputil"
 )
 
+type DebugLevel int
+
+const (
+	DebugLevelPrintNone   DebugLevel = 0
+	DebugLevelPrintNormal DebugLevel = 1
+	DebugLevelPrintDetail DebugLevel = 2
+)
+
 var (
-	printRequestTrace         = false
-	printRequest        *bool = nil
-	printRequestDetail  *bool = nil
-	printResponse       *bool = nil
-	printResponseDetail *bool = nil
+	printRequestTrace              = false
+	printRequestLevel  *DebugLevel = nil
+	printResponseLevel *DebugLevel = nil
 )
 
 func PrintRequestTrace(isPrint bool) {
@@ -26,46 +32,38 @@ func IsPrintRequestTrace() bool {
 	return printRequestTrace
 }
 
-func PrintRequest(isPrint bool) {
-	printRequest = &isPrint
+func PrintRequest(level DebugLevel) {
+	printRequestLevel = &level
 }
 
 func IsPrintRequest() bool {
-	if printRequest != nil {
-		return *printRequest
+	if printRequestLevel != nil {
+		return *printRequestLevel == DebugLevelPrintNormal || *printRequestLevel == DebugLevelPrintDetail
 	}
 	return clientV1.DebugMode
 }
 
-func PrintRequestDetail(isPrint bool) {
-	printRequestDetail = &isPrint
-}
-
-func IsPrintRequestDetail() bool {
-	if printRequestDetail != nil {
-		return *printRequestDetail
+func IsPrintRequestBody() bool {
+	if printRequestLevel != nil {
+		return *printRequestLevel == DebugLevelPrintDetail
 	}
 	return clientV1.DeepDebugInfo
 }
 
-func PrintResponse(isPrint bool) {
-	printResponse = &isPrint
+func PrintResponse(level DebugLevel) {
+	printResponseLevel = &level
 }
 
 func IsPrintResponse() bool {
-	if printResponse != nil {
-		return *printResponse
+	if printResponseLevel != nil {
+		return *printResponseLevel == DebugLevelPrintNormal || *printResponseLevel == DebugLevelPrintDetail
 	}
 	return clientV1.DebugMode
 }
 
-func PrintResponseDetail(isPrint bool) {
-	printResponseDetail = &isPrint
-}
-
-func IsPrintResponseDetail() bool {
-	if printResponseDetail != nil {
-		return *printResponseDetail
+func IsPrintResponseBody() bool {
+	if printResponseLevel != nil {
+		return *printResponseLevel == DebugLevelPrintDetail
 	}
 	return clientV1.DeepDebugInfo
 }
@@ -116,13 +114,12 @@ func (interceptor *debugInterceptor) printRequest(label string, req *http.Reques
 	}
 
 	printReq := IsPrintRequest()
-	printReqDetail := IsPrintRequestDetail()
-	if !printReq && !printReqDetail {
+	if !printReq {
 		return nil
 	}
 
 	info := label + " request:\n"
-	d, dErr := httputil.DumpRequest(req, printReqDetail)
+	d, dErr := httputil.DumpRequest(req, IsPrintRequestBody())
 	if dErr != nil {
 		return dErr
 	}
@@ -196,13 +193,12 @@ func (interceptor *debugInterceptor) printResponse(label string, resp *http.Resp
 	}
 
 	printResp := IsPrintResponse()
-	printRespDetail := IsPrintResponseDetail()
-	if !printResp && !printRespDetail {
+	if !printResp {
 		return nil
 	}
 
 	info := label + " response:\n"
-	d, dErr := httputil.DumpResponse(resp, printRespDetail)
+	d, dErr := httputil.DumpResponse(resp, IsPrintResponseBody())
 	if dErr != nil {
 		return dErr
 	}

@@ -10,7 +10,7 @@ import (
 func getUpHost(config *Config, retryMax int, hostFreezeDuration time.Duration, ak, bucket string) (upHost string, err error) {
 	region := config.GetRegion()
 	if region == nil {
-		if region, err = GetRegionWithOptions(ak, bucket, UcQueryOptions{
+		if region, err = GetRegionWithOptions(ak, bucket, UCApiOptions{
 			RetryMax:           retryMax,
 			HostFreezeDuration: hostFreezeDuration,
 		}); err != nil {
@@ -33,7 +33,7 @@ func getUpHostProvider(config *Config, retryMax int, hostFreezeDuration time.Dur
 	region := config.GetRegion()
 	var err error
 	if region == nil {
-		if region, err = GetRegionWithOptions(ak, bucket, UcQueryOptions{
+		if region, err = GetRegionWithOptions(ak, bucket, UCApiOptions{
 			RetryMax:           retryMax,
 			HostFreezeDuration: hostFreezeDuration,
 		}); err != nil {

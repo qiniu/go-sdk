@@ -62,7 +62,7 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 	interceptor.config.init()
 
 	// 不重试
-	if interceptor.config.RetryMax == 0 {
+	if interceptor.config.RetryMax <= 0 {
 		return handler(req)
 	}
 
@@ -82,7 +82,7 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 		}
 
 		retryInterval := interceptor.config.RetryInterval()
-		if retryInterval <= time.Millisecond {
+		if retryInterval < time.Microsecond {
 			continue
 		}
 		time.Sleep(retryInterval)

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
@@ -257,7 +258,7 @@ func getUcHost(useHttps bool) string {
 	return endpoint(useHttps, host)
 }
 
-// 不带 host
+// 不带 scheme
 func getUcBackupHosts() []string {
 	var hosts []string
 	if len(UcHost) > 0 {
@@ -278,20 +279,20 @@ func getUcBackupHosts() []string {
 // 延用 v2, v2 结构和 v4 结构不同且暂不可替代
 // Deprecated 使用 GetRegionWithOptions 替换
 func GetRegion(ak, bucket string) (*Region, error) {
-	return GetRegionWithOptions(ak, bucket, DefaultUcQueryOptions())
+	return GetRegionWithOptions(ak, bucket, DefaultUCApiOptions())
 }
 
 // GetRegionWithOptions 用来根据ak和bucket来获取空间相关的机房信息
-func GetRegionWithOptions(ak, bucket string, options UcQueryOptions) (*Region, error) {
+func GetRegionWithOptions(ak, bucket string, options UCApiOptions) (*Region, error) {
 	return getRegionByV2(ak, bucket, options)
 }
 
 // 使用 v4
 func getRegionGroup(ak, bucket string) (*RegionGroup, error) {
-	return getRegionByV4(ak, bucket, DefaultUcQueryOptions())
+	return getRegionByV4(ak, bucket, DefaultUCApiOptions())
 }
 
-func getRegionGroupWithOptions(ak, bucket string, options UcQueryOptions) (*RegionGroup, error) {
+func getRegionGroupWithOptions(ak, bucket string, options UCApiOptions) (*RegionGroup, error) {
 	return getRegionByV4(ak, bucket, options)
 }
 
@@ -308,19 +309,22 @@ func SetRegionCachePath(newPath string) {
 // GetRegionsInfo Deprecated and use GetRegionsInfoWithOptions instead
 // Deprecated
 func GetRegionsInfo(mac *auth.Credentials) ([]RegionInfo, error) {
-	return GetRegionsInfoWithOptions(mac, true)
+	return GetRegionsInfoWithOptions(mac, DefaultUCApiOptions())
 }
 
-func GetRegionsInfoWithOptions(mac *auth.Credentials, useHttps bool) ([]RegionInfo, error) {
+func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]RegionInfo, error) {
 	var regions struct {
 		Regions []RegionInfo `json:"regions"`
 	}
 
-	reqUrl := getUcHost(useHttps) + "/regions"
-	c := getUCClient(defaultUCClientConfig(), mac)
+	reqUrl := getUcHost(options.UseHttps) + "/regions"
+	c := getUCClient(ucClientConfig{
+		RetryMax:           options.RetryMax,
+		HostFreezeDuration: options.HostFreezeDuration,
+	}, mac)
 	_, qErr := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
-		Context:     nil,
-		Method:      "",
+		Context:     context.Background(),
+		Method:      clientv2.RequestMethodGet,
 		Url:         reqUrl,
 		Header:      nil,
 		BodyCreator: nil,

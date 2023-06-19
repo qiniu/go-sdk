@@ -168,22 +168,22 @@ func storeRegionV2Cache() {
 	}
 }
 
-type UcQueryOptions struct {
+type UCApiOptions struct {
 	UseHttps bool //
 	RetryMax int  // 单域名重试次数
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
 }
 
-func DefaultUcQueryOptions() UcQueryOptions {
-	return UcQueryOptions{
+func DefaultUCApiOptions() UCApiOptions {
+	return UCApiOptions{
 		UseHttps:           true,
 		RetryMax:           0,
 		HostFreezeDuration: 0,
 	}
 }
 
-func getRegionByV2(ak, bucket string, options UcQueryOptions) (*Region, error) {
+func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 
 	regionV2CacheLock.RLock()
 	if regionV2CacheLoaded {
