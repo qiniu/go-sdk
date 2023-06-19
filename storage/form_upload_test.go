@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package storage
@@ -8,6 +9,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -78,7 +80,7 @@ func TestFormUploadPutFileWithBackup(t *testing.T) {
 	}
 
 	// prepare file for test uploading
-	testLocalFile, err := ioutil.TempFile("", "TestFormUploadPutFile")
+	testLocalFile, err := ioutil.TempFile("", "TestFormUploadPutFileWithBackup")
 	if err != nil {
 		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
 	}
@@ -89,6 +91,7 @@ func TestFormUploadPutFileWithBackup(t *testing.T) {
 		t.Fatal("get region error:", err)
 	}
 
+	// mock host
 	customizedHost := []string{"mock.qiniu.com"}
 	customizedHost = append(customizedHost, region.SrcUpHosts...)
 	region.SrcUpHosts = customizedHost
@@ -105,4 +108,27 @@ func TestFormUploadPutFileWithBackup(t *testing.T) {
 		t.Fatalf("FormUploader#PutFile() error, %s", err)
 	}
 	t.Logf("Key: %s, Hash:%s", putRet.Key, putRet.Hash)
+
+	// cancel
+	customizedHost = []string{}
+	customizedHost = append(customizedHost, region.SrcUpHosts...)
+	region.SrcUpHosts = customizedHost
+	cfg = Config{}
+	cfg.UseCdnDomains = false
+	cfg.Region = region
+	uploader = NewFormUploader(&cfg)
+	r = rand.New(rand.NewSource(time.Now().UnixNano()))
+	testKey = fmt.Sprintf("testPutFileKey_%d", r.Int())
+
+	ctx, cancel := context.WithCancel(context.TODO())
+	go func() {
+		time.Sleep(time.Millisecond * 100)
+		cancel()
+	}()
+	upToken = putPolicy.UploadToken(mac)
+	err = uploader.PutFile(ctx, &putRet, upToken, testKey, testLocalFile.Name(), &PutExtra{})
+	if err == nil || !strings.Contains(err.Error(), "canceled") {
+		t.Fatal("FormUploader#PutFile() cancel error:", err)
+	}
+
 }
