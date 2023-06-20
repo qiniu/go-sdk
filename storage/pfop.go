@@ -124,7 +124,6 @@ type FopResult struct {
 //	notifyURL	处理结果通知接收URL
 //	pipeline	多媒体处理队列名称
 //	force		强制执行数据处理
-//
 func (m *OperationManager) Pfop(bucket, key, fops, pipeline, notifyURL string,
 	force bool) (persistentID string, err error) {
 	pfopParams := map[string][]string{

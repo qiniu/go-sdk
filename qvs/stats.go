@@ -13,7 +13,7 @@ type FlowBadwidthData struct {
 }
 
 /*
-   查询流量数据
+查询流量数据
 */
 func (manager *Manager) QueryFlow(nsId, streamId, tu string, start, end int) (*FlowBadwidthData, error) {
 	var ret FlowBadwidthData
@@ -25,7 +25,7 @@ func (manager *Manager) QueryFlow(nsId, streamId, tu string, start, end int) (*F
 }
 
 /*
-   查询带宽数据
+查询带宽数据
 */
 func (manager *Manager) QueryBandwidth(nsId, streamId, tu string, start, end int) (*FlowBadwidthData, error) {
 	var ret FlowBadwidthData

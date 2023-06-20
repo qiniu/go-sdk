@@ -44,7 +44,7 @@ func (manager *Manager) Segments(appid, device string, start, end int, marker st
 	return ret.Items, ret.Marker, nil
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // mqtt rpc
 type RpcRequest struct {
 	Action   int             `json:"action"`

@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package cdn
@@ -45,7 +46,7 @@ func init() {
 	cdnManager = NewCdnManager(mac)
 }
 
-//TestGetBandwidthData
+// TestGetBandwidthData
 func TestGetBandwidthData(t *testing.T) {
 	type args struct {
 		startDate   string
@@ -83,7 +84,7 @@ func TestGetBandwidthData(t *testing.T) {
 	}
 }
 
-//TestGetFluxData
+// TestGetFluxData
 func TestGetFluxData(t *testing.T) {
 	type args struct {
 		startDate   string
@@ -121,7 +122,7 @@ func TestGetFluxData(t *testing.T) {
 	}
 }
 
-//TestRefreshUrls
+// TestRefreshUrls
 func TestRefreshUrls(t *testing.T) {
 	type args struct {
 		urls []string
@@ -152,7 +153,7 @@ func TestRefreshUrls(t *testing.T) {
 	}
 }
 
-//TestRefreshDirs
+// TestRefreshDirs
 func TestRefreshDirs(t *testing.T) {
 	type args struct {
 		dirs []string
@@ -220,7 +221,7 @@ func TestPrefetchUrls(t *testing.T) {
 }
 */
 
-//TestGetCdnLogList
+// TestGetCdnLogList
 func TestGetCdnLogList(t *testing.T) {
 	type args struct {
 		date    string

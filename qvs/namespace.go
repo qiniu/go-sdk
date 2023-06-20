@@ -55,13 +55,13 @@ type NameSpace struct {
 }
 
 /*
-	创建空间API
+创建空间API
 
-	请求参数Body:
-	name必填
-	accessType必填
-	rtmpUrlType当accessType为"rtmp"时必填
-	domains当rtmpUrlType为1时必填
+请求参数Body:
+name必填
+accessType必填
+rtmpUrlType当accessType为"rtmp"时必填
+domains当rtmpUrlType为1时必填
 */
 func (manager *Manager) AddNamespace(ns *NameSpace) (*NameSpace, error) {
 
@@ -74,7 +74,7 @@ func (manager *Manager) AddNamespace(ns *NameSpace) (*NameSpace, error) {
 }
 
 /*
-	查询空间信息API
+查询空间信息API
 */
 func (manager *Manager) QueryNamespace(nsId string) (*NameSpace, error) {
 
@@ -87,9 +87,9 @@ func (manager *Manager) QueryNamespace(nsId string) (*NameSpace, error) {
 }
 
 /*
-	更新空间API
+更新空间API
 
-	可编辑参数: name/desc/callBack/recordTemplateId/snapshotTemplateId/recordTemplateApplyAll/snapshotTemplateApplyAll
+可编辑参数: name/desc/callBack/recordTemplateId/snapshotTemplateId/recordTemplateApplyAll/snapshotTemplateApplyAll
 */
 func (manager *Manager) UpdateNamespace(nsId string, ops []PatchOperation) (*NameSpace, error) {
 
@@ -103,7 +103,7 @@ func (manager *Manager) UpdateNamespace(nsId string, ops []PatchOperation) (*Nam
 }
 
 /*
-	删除空间API
+删除空间API
 */
 func (manager *Manager) DeleteNamespace(nsId string) error {
 
@@ -111,7 +111,7 @@ func (manager *Manager) DeleteNamespace(nsId string) error {
 }
 
 /*
-	列出空间API
+列出空间API
 */
 func (manager *Manager) ListNamespace(offset, line int, sortBy string) ([]NameSpace, int64, error) {
 
@@ -130,7 +130,7 @@ func (manager *Manager) ListNamespace(offset, line int, sortBy string) ([]NameSp
 }
 
 /*
-	禁用空间API
+禁用空间API
 */
 func (manager *Manager) DisableNamespace(nsId string) error {
 
@@ -138,7 +138,7 @@ func (manager *Manager) DisableNamespace(nsId string) error {
 }
 
 /*
-	启用空间API
+启用空间API
 */
 func (manager *Manager) EnableNamespace(nsId string) error {
 
@@ -146,11 +146,11 @@ func (manager *Manager) EnableNamespace(nsId string) error {
 }
 
 /*
-	添加域名API
+添加域名API
 
-	请求参数Body: 只需填入domain和type
+请求参数Body: 只需填入domain和type
 
-	domainType支持四种类型 "publishRtmp":rtmp推流, "liveRtmp": rtmp播放, "liveHls": hls播放, "liveHdl": flv播放
+domainType支持四种类型 "publishRtmp":rtmp推流, "liveRtmp": rtmp播放, "liveHls": hls播放, "liveHdl": flv播放
 */
 func (manager *Manager) AddDomain(nsId string, domainInfo *DomainInfo) error {
 
@@ -158,7 +158,7 @@ func (manager *Manager) AddDomain(nsId string, domainInfo *DomainInfo) error {
 }
 
 /*
-	删除域名API
+删除域名API
 */
 func (manager *Manager) DeleteDomain(nsId string, domain string) error {
 
@@ -166,7 +166,7 @@ func (manager *Manager) DeleteDomain(nsId string, domain string) error {
 }
 
 /*
-	域名列表API
+域名列表API
 */
 func (manager *Manager) ListDomain(nsId string) ([]DomainInfo, error) {
 
