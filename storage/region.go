@@ -352,14 +352,6 @@ type ucClientConfig struct {
 	HostFreezeDuration time.Duration
 }
 
-func defaultUCClientConfig() ucClientConfig {
-	return ucClientConfig{
-		IsUcQueryApi:       true,
-		RetryMax:           0,
-		HostFreezeDuration: 0,
-	}
-}
-
 func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
 	allHosts := getUcBackupHosts()
 	var hosts []string = nil
