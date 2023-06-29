@@ -73,7 +73,7 @@ func TestHostsAlwaysRetryInterceptor(t *testing.T) {
 		Header:      nil,
 		BodyCreator: nil,
 	})
-	duration := float32(time.Now().Unix() - start.Unix())
+	duration := float32(time.Now().UnixNano()-start.UnixNano()) / 1e9
 
 	if (retryMax+1)*2 != doCount {
 		t.Fatalf("retry count is not error:%d", doCount)
@@ -155,7 +155,7 @@ func TestHostsNotRetryInterceptor(t *testing.T) {
 		Header:      nil,
 		BodyCreator: nil,
 	})
-	duration := float32(time.Now().Unix() - start.Unix())
+	duration := float32(time.Now().UnixNano()-start.UnixNano()) / 1e9
 
 	if duration > float32(doCount-1)+0.1 || duration < float32(doCount-1)-0.1 {
 		t.Fatalf("retry interval may be error")

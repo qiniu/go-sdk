@@ -48,7 +48,7 @@ func TestSimpleAlwaysRetryInterceptor(t *testing.T) {
 		Header:      nil,
 		BodyCreator: nil,
 	})
-	duration := float32(time.Now().Unix() - start.Unix())
+	duration := float32(time.Now().UnixNano()-start.UnixNano()) / 1e9
 
 	if duration > float32(doCount-1)+0.3 || duration < float32(doCount-1)-0.3 {
 		t.Fatalf("retry interval may be error:%f", duration)
@@ -104,10 +104,10 @@ func TestSimpleNotRetryInterceptor(t *testing.T) {
 		Header:      nil,
 		BodyCreator: nil,
 	})
-	duration := float32(time.Now().Unix() - start.Unix())
+	duration := float32(time.Now().UnixNano()-start.UnixNano()) / 1e9
 
 	// 不重试，只执行一次，不等待
-	if duration != 0 {
+	if duration > 0.3 {
 		t.Fatalf("retry interval may be error")
 	}
 
