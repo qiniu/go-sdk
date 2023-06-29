@@ -212,6 +212,7 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 
 		var ret UcQueryRet
 		c := getUCClient(ucClientConfig{
+			IsUcQueryApi:       true,
 			RetryMax:           options.RetryMax,
 			HostFreezeDuration: options.HostFreezeDuration,
 		}, nil)

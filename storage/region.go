@@ -215,12 +215,20 @@ var regionMap = map[RegionID]Region{
 	RIDApNortheast1:     regionApNortheast1,
 }
 
+const (
+	defaultApiHost = "api.qiniu.com"
+	defaultUcHost0 = "uc.qbox.me"
+	defaultUcHost1 = "kodo-config.qiniuapi.com"
+)
+
 // UcHost 为查询空间相关域名的 API 服务地址
 // 设置 UcHost 时，如果不指定 scheme 默认会使用 https
 // Deprecated 使用 SetUcHosts 替换
 var UcHost = ""
 
-var ucHosts = []string{"uc.qbox.me", "kodo-config.qiniuapi.com"}
+// 公有云包括 defaultApiHost，非 uc query api 使用时需要移除 defaultApiHost
+// 用户配置时，不能配置 api 域名
+var ucHosts = []string{defaultUcHost0, defaultUcHost1, defaultApiHost}
 
 // SetUcHost
 // Deprecated 使用 SetUcHosts 替换
@@ -241,10 +249,6 @@ func SetUcHosts(hosts ...string) {
 		}
 	}
 	ucHosts = newHosts
-}
-
-func getUcHostByDefaultProtocol() string {
-	return getUcHost(true)
 }
 
 func getUcHost(useHttps bool) string {
@@ -319,6 +323,7 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]R
 
 	reqUrl := getUcHost(options.UseHttps) + "/regions"
 	c := getUCClient(ucClientConfig{
+		IsUcQueryApi:       false,
 		RetryMax:           options.RetryMax,
 		HostFreezeDuration: options.HostFreezeDuration,
 	}, mac)
@@ -337,20 +342,38 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]R
 }
 
 type ucClientConfig struct {
-	RetryMax int // 单域名重试次数
+	// 非 uc query api 需要去除默认域名 defaultApiHost
+	IsUcQueryApi bool
+
+	// 单域名重试次数
+	RetryMax int
+
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
 }
 
 func defaultUCClientConfig() ucClientConfig {
 	return ucClientConfig{
+		IsUcQueryApi:       true,
 		RetryMax:           0,
 		HostFreezeDuration: 0,
 	}
 }
 
 func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
-	hosts := getUcBackupHosts()
+	allHosts := getUcBackupHosts()
+	var hosts []string = nil
+	if !config.IsUcQueryApi {
+		// 非 uc query api 去除 defaultApiHost
+		for _, host := range allHosts {
+			if host != defaultApiHost {
+				hosts = append(hosts, host)
+			}
+		}
+	} else {
+		hosts = allHosts
+	}
+
 	is := []clientv2.Interceptor{
 		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
 			RetryConfig: clientv2.RetryConfig{
