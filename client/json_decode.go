@@ -24,7 +24,7 @@ func decodeJsonFromData(data []byte, v interface{}) error {
 	return nil
 }
 
-func decodeJsonFromReader(reader io.Reader, v interface{}) error {
+func DecodeJsonFromReader(reader io.Reader, v interface{}) error {
 	buf := new(bytes.Buffer)
 	t := io.TeeReader(reader, buf)
 	err := json.NewDecoder(t).Decode(v)

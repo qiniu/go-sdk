@@ -56,16 +56,17 @@ type deviceVideoItem struct {
 }
 
 /*
-   创建设备API
-   参数device需要赋值字段:
-       NamespaceId 必填
-       Name
-       GBId
-       Username 必填
-       Password 必填
-       PullIfRegister
-       Desc
-       Type
+创建设备API
+参数device需要赋值字段:
+
+	NamespaceId 必填
+	Name
+	GBId
+	Username 必填
+	Password 必填
+	PullIfRegister
+	Desc
+	Type
 */
 func (manager *Manager) AddDevice(device *Device) (*Device, error) {
 	var ret Device
@@ -77,14 +78,14 @@ func (manager *Manager) AddDevice(device *Device) (*Device, error) {
 }
 
 /*
-   删除设备API
+删除设备API
 */
 func (manager *Manager) DeleteDevice(nsId string, gbId string) error {
 	return manager.client.Call(context.Background(), nil, "DELETE", manager.url("/namespaces/%s/devices/%s", nsId, gbId), nil)
 }
 
 /*
-   查询设备API
+查询设备API
 */
 func (manager *Manager) QueryDevice(nsId string, gbId string) (*Device, error) {
 	var ret Device
@@ -96,7 +97,7 @@ func (manager *Manager) QueryDevice(nsId string, gbId string) (*Device, error) {
 }
 
 /*
-   查询设备列表API
+查询设备列表API
 */
 func (manager *Manager) ListDevice(nsId string, offset, line int, prefix, state string, qType int) ([]Device, int64, error) {
 	ret := struct {
@@ -116,7 +117,7 @@ func (manager *Manager) ListDevice(nsId string, offset, line int, prefix, state 
 }
 
 /*
-   更新设备API
+更新设备API
 */
 func (manager *Manager) UpdateDevice(nsId string, gbId string, ops []PatchOperation) (*Device, error) {
 	req := M{"operations": ops}
@@ -129,7 +130,7 @@ func (manager *Manager) UpdateDevice(nsId string, gbId string, ops []PatchOperat
 }
 
 /*
-   启动设备拉流API
+启动设备拉流API
 */
 func (manager *Manager) StartDevice(nsId string, gbId string, channels []string) error {
 	req := M{"channels": channels}
@@ -137,7 +138,7 @@ func (manager *Manager) StartDevice(nsId string, gbId string, channels []string)
 }
 
 /*
-   停止设备拉流API
+停止设备拉流API
 */
 func (manager *Manager) StopDevice(nsId string, gbId string, channels []string) error {
 	req := M{"channels": channels}
@@ -145,7 +146,7 @@ func (manager *Manager) StopDevice(nsId string, gbId string, channels []string) 
 }
 
 /*
-   查询通道列表
+查询通道列表
 */
 func (manager *Manager) ListChannels(nsId string, gbId string, prefix string) (*DeviceChannels, error) {
 	var ret DeviceChannels
@@ -157,14 +158,14 @@ func (manager *Manager) ListChannels(nsId string, gbId string, prefix string) (*
 }
 
 /*
-   同步设备通道
+同步设备通道
 */
 func (manager *Manager) FetchCatalog(nsId, gbId string) error {
 	return manager.client.CallWithJson(context.Background(), nil, "POST", manager.url("/namespaces/%s/devices/%s/catalog/fetch", nsId, gbId), nil, nil)
 }
 
 /*
-   查询通道详情
+查询通道详情
 */
 func (manager *Manager) QueryChannel(nsId, gbId, channelId string) (*Channel, error) {
 	var ret Channel
@@ -176,15 +177,15 @@ func (manager *Manager) QueryChannel(nsId, gbId, channelId string) (*Channel, er
 }
 
 /*
-   删除通道
+删除通道
 */
 func (manager *Manager) DeleteChannel(nsId, gbId, channelId string) error {
 	return manager.client.Call(context.Background(), nil, "DELETE", manager.url("/namespaces/%s/devices/%s/channels/%s", nsId, gbId, channelId), nil)
 }
 
 /*
-   查询本地录像列表
-   普通设备chId可以忽略, 置为空字符串即可
+查询本地录像列表
+普通设备chId可以忽略, 置为空字符串即可
 */
 func (manager *Manager) QueryGBRecordHistories(nsId, gbId, chId string, start, end int) (*DeviceVideoItems, error) {
 	var ret DeviceVideoItems

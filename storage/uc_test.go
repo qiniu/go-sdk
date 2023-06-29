@@ -1,12 +1,39 @@
-// +build unit
+//go:build integration
+// +build integration
 
 package storage
 
 import (
 	"encoding/json"
 	"fmt"
+	clientV1 "github.com/qiniu/go-sdk/v7/client"
+	"strings"
 	"testing"
 )
+
+func TestIndexPage(t *testing.T) {
+	err := bucketManager.TurnOnIndexPage("not-exist")
+	errInfo := fmt.Sprintf("%v", err)
+	if !strings.Contains(errInfo, "no such bucket") {
+		t.Fatalf("turn on not exist bucket index page should error:%v", err)
+	}
+
+	err = bucketManager.TurnOffIndexPage("not-exist")
+	errInfo = fmt.Sprintf("%v", err)
+	if !strings.Contains(errInfo, "no such bucket") {
+		t.Fatalf("turn off not exist bucket index page should error:%v", err)
+	}
+
+	err = bucketManager.TurnOnIndexPage(testBucket)
+	if err != nil {
+		t.Fatalf("turn on index page error:%v", err)
+	}
+
+	err = bucketManager.TurnOffIndexPage(testBucket)
+	if err != nil {
+		t.Fatalf("turn off index page error:%v", err)
+	}
+}
 
 func TestUcBucketEventRule(t *testing.T) {
 
@@ -32,5 +59,84 @@ func TestUcBucketEventRule(t *testing.T) {
 	err = json.Unmarshal(ruleData, ruleNew)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestBucketTag(t *testing.T) {
+	clientV1.DebugMode = true
+	clientV1.DeepDebugInfo = true
+	defer func() {
+		clientV1.DebugMode = false
+		clientV1.DeepDebugInfo = false
+	}()
+
+	tagKey := "test-tag"
+	tagValue := "tag-can-delete"
+	err := bucketManager.SetTagging(testBucket, map[string]string{
+		tagKey: tagValue,
+	})
+	if err != nil {
+		t.Fatalf("set tag error:%s", err)
+	}
+
+	tags, err := bucketManager.GetTagging(testBucket)
+	if err != nil {
+		t.Fatalf("get tag error:%s", err)
+	}
+	if tags[tagKey] != tagValue {
+		t.Fatalf("get tag value error:%s", tags)
+	}
+
+	err = bucketManager.ClearTagging(testBucket)
+	if err != nil {
+		t.Fatalf("clear tag error:%s", err)
+	}
+
+	tags, err = bucketManager.GetTagging(testBucket)
+	if err != nil {
+		t.Fatalf("get tag after clean error:%s", err)
+	}
+	if len(tags) > 0 {
+		t.Fatal("tag should b empty  after clean")
+	}
+}
+
+func TestBucketTagWithRetry(t *testing.T) {
+	clientV1.DebugMode = true
+	defer func() {
+		clientV1.DebugMode = false
+	}()
+
+	SetUcHosts("aaa.aaa.com", "uc.qbox.me")
+	defer SetUcHosts("uc.qbox.me")
+
+	tagKey := "test-tag"
+	tagValue := "tag-can-delete"
+	err := bucketManager.SetTagging(testBucket, map[string]string{
+		tagKey: tagValue,
+	})
+	if err != nil {
+		t.Fatalf("set tag error:%s", err)
+	}
+
+	tags, err := bucketManager.GetTagging(testBucket)
+	if err != nil {
+		t.Fatalf("get tag error:%s", err)
+	}
+	if tags[tagKey] != tagValue {
+		t.Fatalf("get tag value error:%s", tags)
+	}
+
+	err = bucketManager.ClearTagging(testBucket)
+	if err != nil {
+		t.Fatalf("clear tag error:%s", err)
+	}
+
+	tags, err = bucketManager.GetTagging(testBucket)
+	if err != nil {
+		t.Fatalf("get tag after clean error:%s", err)
+	}
+	if len(tags) > 0 {
+		t.Fatal("tag should b empty  after clean")
 	}
 }

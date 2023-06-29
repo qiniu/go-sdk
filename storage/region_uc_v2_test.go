@@ -1,9 +1,11 @@
+//go:build integration
 // +build integration
 
 package storage
 
 import (
 	"encoding/json"
+	clientV1 "github.com/qiniu/go-sdk/v7/client"
 	"testing"
 )
 
@@ -79,5 +81,26 @@ func TestRegionUCQueryV4Test(t *testing.T) {
 
 	if len(host.IoSrc.getOneServer()) == 0 {
 		t.Fatalf("io src empty:%v", ret)
+	}
+}
+
+func TestUCRetry(t *testing.T) {
+	clientV1.DebugMode = true
+	clientV1.DeepDebugInfo = true
+	defer func() {
+		clientV1.DebugMode = false
+		clientV1.DeepDebugInfo = false
+	}()
+
+	SetUcHosts("aaa.aaa.com", "uc.qbox.me")
+	defer SetUcHosts("uc.qbox.me")
+
+	r, err := GetRegion(testAK, testBucket)
+	if err != nil {
+		t.Fatalf("GetRegion error:%v", err)
+	}
+
+	if len(r.SrcUpHosts) == 0 {
+		t.Fatalf("GetRegion up hosts empty:%+v", r)
 	}
 }

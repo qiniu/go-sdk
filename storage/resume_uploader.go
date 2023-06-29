@@ -50,7 +50,6 @@ func NewResumeUploaderEx(cfg *Config, clt *client.Client) *ResumeUploader {
 // f       是文件内容的访问接口。考虑到需要支持分块上传和断点续传，要的是 io.ReaderAt 接口，而不是 io.Reader。
 // fsize   是要上传的文件大小。
 // extra   是上传的一些可选项。详细见 RputExtra 结构的描述。
-//
 func (p *ResumeUploader) Put(ctx context.Context, ret interface{}, upToken string, key string, f io.ReaderAt, fsize int64, extra *RputExtra) error {
 	return p.rput(ctx, ret, upToken, key, true, f, fsize, nil, extra)
 }
@@ -68,7 +67,6 @@ func (p *ResumeUploader) PutWithoutSize(ctx context.Context, ret interface{}, up
 // f       是文件内容的访问接口。考虑到需要支持分块上传和断点续传，要的是 io.ReaderAt 接口，而不是 io.Reader。
 // fsize   是要上传的文件大小。
 // extra   是上传的一些可选项。详细见 RputExtra 结构的描述。
-//
 func (p *ResumeUploader) PutWithoutKey(ctx context.Context, ret interface{}, upToken string, f io.ReaderAt, fsize int64, extra *RputExtra) error {
 	return p.rput(ctx, ret, upToken, "", false, f, fsize, nil, extra)
 }
@@ -81,7 +79,6 @@ func (p *ResumeUploader) PutWithoutKey(ctx context.Context, ret interface{}, upT
 // upToken 是由业务服务器颁发的上传凭证。
 // f       是文件内容的访问接口。
 // extra   是上传的一些可选项。详细见 RputExtra 结构的描述。
-//
 func (p *ResumeUploader) PutWithoutKeyAndSize(ctx context.Context, ret interface{}, upToken string, f io.Reader, extra *RputExtra) error {
 	return p.rputWithoutSize(ctx, ret, upToken, "", false, f, extra)
 }
@@ -95,7 +92,6 @@ func (p *ResumeUploader) PutWithoutKeyAndSize(ctx context.Context, ret interface
 // key       是要上传的文件访问路径。比如："foo/bar.jpg"。注意我们建议 key 不要以 '/' 开头。另外，key 为空字符串是合法的。
 // localFile 是要上传的文件的本地路径。
 // extra     是上传的一些可选项。详细见 RputExtra 结构的描述。
-//
 func (p *ResumeUploader) PutFile(ctx context.Context, ret interface{}, upToken, key, localFile string, extra *RputExtra) error {
 	return p.rputFile(ctx, ret, upToken, key, true, localFile, extra)
 }
@@ -109,7 +105,6 @@ func (p *ResumeUploader) PutFile(ctx context.Context, ret interface{}, upToken, 
 // upToken   是由业务服务器颁发的上传凭证。
 // localFile 是要上传的文件的本地路径。
 // extra     是上传的一些可选项。详细见 RputExtra 结构的描述。
-//
 func (p *ResumeUploader) PutFileWithoutKey(ctx context.Context, ret interface{}, upToken, localFile string, extra *RputExtra) error {
 	return p.rputFile(ctx, ret, upToken, "", false, localFile, extra)
 }
@@ -141,7 +136,7 @@ func (p *ResumeUploader) rput(ctx context.Context, ret interface{}, upToken stri
 	if extra.UpHost != "" {
 		hostProvider = hostprovider.NewWithHosts([]string{extra.getUpHost(p.Cfg.UseHTTPS)})
 	} else {
-		hostProvider, err = p.resumeUploaderAPIs().upHostProvider(accessKey, bucket)
+		hostProvider, err = p.resumeUploaderAPIs().upHostProvider(accessKey, bucket, extra.TryTimes, extra.HostFreezeDuration)
 		if err != nil {
 			return
 		}
@@ -172,7 +167,7 @@ func (p *ResumeUploader) rputWithoutSize(ctx context.Context, ret interface{}, u
 	if extra.UpHost != "" {
 		hostProvider = hostprovider.NewWithHosts([]string{extra.getUpHost(p.Cfg.UseHTTPS)})
 	} else {
-		hostProvider, err = p.resumeUploaderAPIs().upHostProvider(accessKey, bucket)
+		hostProvider, err = p.resumeUploaderAPIs().upHostProvider(accessKey, bucket, extra.TryTimes, extra.HostFreezeDuration)
 		if err != nil {
 			return
 		}

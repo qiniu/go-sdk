@@ -129,21 +129,20 @@ func ListInputOptionsLimit(limit int) ListInputOption {
 	}
 }
 
-//
 // ListFilesWithContext
-//  @Description: 用来获取空间文件列表，可以根据需要指定文件的列举条件
-//  @receiver m BucketManager
-//  @param ctx context
-//  @param bucket 列举的 bucket
-//  @param options 列举的可选条件
-// 				列举条件-需要列举 Key 的前缀：ListInputOptionsPrefix(prefix)
-// 				列举条件-文件的目录分隔符：ListInputOptionsDelimiter(delimiter)
-// 				列举条件-下次列举的位置：ListInputOptionsMarker(marker)
-// 				列举条件-每次返回的文件的最大数量：ListInputOptionsLimit(limit) 范围：1~1000
-//  @return ret 列举的对象数据
-//  @return hasNext 是否还有数据未被列举
-//  @return err 列举时的错误信息
 //
+//	 @Description: 用来获取空间文件列表，可以根据需要指定文件的列举条件
+//	 @receiver m BucketManager
+//	 @param ctx context
+//	 @param bucket 列举的 bucket
+//	 @param options 列举的可选条件
+//					列举条件-需要列举 Key 的前缀：ListInputOptionsPrefix(prefix)
+//					列举条件-文件的目录分隔符：ListInputOptionsDelimiter(delimiter)
+//					列举条件-下次列举的位置：ListInputOptionsMarker(marker)
+//					列举条件-每次返回的文件的最大数量：ListInputOptionsLimit(limit) 范围：1~1000
+//	 @return ret 列举的对象数据
+//	 @return hasNext 是否还有数据未被列举
+//	 @return err 列举时的错误信息
 func (m *BucketManager) ListFilesWithContext(ctx context.Context, bucket string, options ...ListInputOption) (ret *ListFilesRet, hasNext bool, err error) {
 	if len(bucket) == 0 {
 		return nil, false, errors.New("bucket can't empty")
@@ -181,12 +180,14 @@ type listFilesRet2 struct {
 }
 
 // ListBucket 用来获取空间文件列表，可以根据需要指定文件的前缀 prefix，文件的目录 delimiter，流式返回每条数据。
+// Deprecated
 func (m *BucketManager) ListBucket(bucket, prefix, delimiter, marker string) (retCh chan listFilesRet2, err error) {
 	return m.ListBucketContext(context.Background(), bucket, prefix, delimiter, marker)
 }
 
 // ListBucketContext 用来获取空间文件列表，可以根据需要指定文件的前缀 prefix，文件的目录 delimiter，流式返回每条数据。
 // 接受的context可以用来取消列举操作
+// Deprecated
 func (m *BucketManager) ListBucketContext(ctx context.Context, bucket, prefix, delimiter, marker string) (retCh chan listFilesRet2, err error) {
 
 	ret, _, lErr := m.ListFilesWithContext(ctx, bucket,

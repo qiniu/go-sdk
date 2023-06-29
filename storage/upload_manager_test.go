@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package storage
@@ -5,6 +6,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	clientV1 "github.com/qiniu/go-sdk/v7/client"
 	"io"
 	"io/ioutil"
 	"os"
@@ -44,6 +46,11 @@ type Ret struct {
 }
 
 func TestUploadManagerFormUpload(t *testing.T) {
+	clientV1.DebugMode = true
+	defer func() {
+		clientV1.DebugMode = false
+	}()
+
 	data := []byte("hello, 七牛！！！")
 	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut")
 	if err != nil {

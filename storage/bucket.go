@@ -10,13 +10,14 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"net/http"
+	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/qiniu/go-sdk/v7/auth"
-	"github.com/qiniu/go-sdk/v7/client"
+	clientv1 "github.com/qiniu/go-sdk/v7/client"
 )
 
 // 资源管理相关的默认域名
@@ -243,11 +244,18 @@ type BatchOpRet struct {
 	} `json:"data,omitempty"`
 }
 
+type BucketManagerOptions struct {
+	RetryMax int // 单域名重试次数，当前只有 uc 相关的服务有多域名
+	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
+	HostFreezeDuration time.Duration
+}
+
 // BucketManager 提供了对资源进行管理的操作
 type BucketManager struct {
-	Client *client.Client
-	Mac    *auth.Credentials
-	Cfg    *Config
+	Client  *clientv1.Client
+	Mac     *auth.Credentials
+	Cfg     *Config
+	options BucketManagerOptions
 }
 
 // NewBucketManager 用来构建一个新的资源管理对象
@@ -260,20 +268,20 @@ func NewBucketManager(mac *auth.Credentials, cfg *Config) *BucketManager {
 	}
 
 	return &BucketManager{
-		Client: &client.DefaultClient,
+		Client: &clientv1.DefaultClient,
 		Mac:    mac,
 		Cfg:    cfg,
 	}
 }
 
 // NewBucketManagerEx 用来构建一个新的资源管理对象
-func NewBucketManagerEx(mac *auth.Credentials, cfg *Config, clt *client.Client) *BucketManager {
+func NewBucketManagerEx(mac *auth.Credentials, cfg *Config, clt *clientv1.Client) *BucketManager {
 	if cfg == nil {
 		cfg = &Config{}
 	}
 
 	if clt == nil {
-		clt = &client.DefaultClient
+		clt = &clientv1.DefaultClient
 	}
 	if cfg.CentralRsHost == "" {
 		cfg.CentralRsHost = DefaultRsHost
@@ -283,6 +291,26 @@ func NewBucketManagerEx(mac *auth.Credentials, cfg *Config, clt *client.Client) 
 		Client: clt,
 		Mac:    mac,
 		Cfg:    cfg,
+	}
+}
+
+func NewBucketManagerExWithOptions(mac *auth.Credentials, cfg *Config, clt *clientv1.Client, options BucketManagerOptions) *BucketManager {
+	if cfg == nil {
+		cfg = &Config{}
+	}
+
+	if clt == nil {
+		clt = &clientv1.DefaultClient
+	}
+	if cfg.CentralRsHost == "" {
+		cfg.CentralRsHost = DefaultRsHost
+	}
+
+	return &BucketManager{
+		Client:  clt,
+		Mac:     mac,
+		Cfg:     cfg,
+		options: options,
 	}
 }
 
@@ -320,14 +348,27 @@ func (m *BucketManager) UpdateObjectStatus(bucketName string, key string, enable
 // CreateBucket 创建一个七牛存储空间
 func (m *BucketManager) CreateBucket(bucketName string, regionID RegionID) error {
 	reqURL := fmt.Sprintf("%s/mkbucketv3/%s/region/%s", getUcHost(m.Cfg.UseHTTPS), bucketName, string(regionID))
-	return m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
+	_, err := clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+		Context:     context.Background(),
+		Method:      clientv2.RequestMethodPost,
+		Url:         reqURL,
+		Header:      nil,
+		BodyCreator: nil,
+	})
+	return err
 }
 
 // Buckets 用来获取空间列表，如果指定了 shared 参数为 true，那么一同列表被授权访问的空间
 func (m *BucketManager) Buckets(shared bool) (buckets []string, err error) {
 	reqURL := fmt.Sprintf("%s/buckets?shared=%v", getUcHost(m.Cfg.UseHTTPS), shared)
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &buckets, "POST", reqURL, nil)
-	return
+	_, err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+		Context:     context.Background(),
+		Method:      clientv2.RequestMethodPost,
+		Url:         reqURL,
+		Header:      nil,
+		BodyCreator: nil,
+	}, &buckets)
+	return buckets, err
 }
 
 // BucketsV4 获取该用户的指定区域内的空间信息，注意该 API 以分页形式返回 Bucket 列表
@@ -349,15 +390,27 @@ func (m *BucketManager) BucketsV4(input *BucketV4Input) (output BucketsV4Output,
 	if len(query) > 0 {
 		reqURL += "&" + query.Encode()
 	}
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &output, http.MethodGet, reqURL, nil)
-	return
+	_, err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+		Context:     context.Background(),
+		Method:      clientv2.RequestMethodGet,
+		Url:         reqURL,
+		Header:      nil,
+		BodyCreator: nil,
+	}, &output)
+	return output, err
 }
 
 // DropBucket 删除七牛存储空间
 func (m *BucketManager) DropBucket(bucketName string) (err error) {
 	reqURL := fmt.Sprintf("%s/drop/%s", getUcHost(m.Cfg.UseHTTPS), bucketName)
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
-	return
+	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+		Context:     context.Background(),
+		Method:      clientv2.RequestMethodPost,
+		Url:         reqURL,
+		Header:      nil,
+		BodyCreator: nil,
+	})
+	return err
 }
 
 // Stat 用来获取一个文件的基本信息
@@ -644,10 +697,15 @@ type DomainInfo struct {
 
 // ListBucketDomains 返回绑定在存储空间中的域名信息
 func (m *BucketManager) ListBucketDomains(bucket string) (info []DomainInfo, err error) {
-	host := getUcHost(m.Cfg.UseHTTPS)
-	reqURL := fmt.Sprintf("%s/v3/domains?tbl=%s", host, bucket)
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &info, "GET", reqURL, nil)
-	return
+	reqURL := fmt.Sprintf("%s/v3/domains?tbl=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
+	_, err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+		Context:     context.Background(),
+		Method:      clientv2.RequestMethodGet,
+		Url:         reqURL,
+		Header:      nil,
+		BodyCreator: nil,
+	}, &info)
+	return info, err
 }
 
 // Prefetch 用来同步镜像空间的资源和镜像源资源内容
@@ -665,22 +723,40 @@ func (m *BucketManager) Prefetch(bucket, key string) (err error) {
 // SetImage 用来设置空间镜像源
 func (m *BucketManager) SetImage(siteURL, bucket string) (err error) {
 	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriSetImage(siteURL, bucket))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
-	return
+	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+		Context:     context.Background(),
+		Method:      clientv2.RequestMethodPost,
+		Url:         reqURL,
+		Header:      nil,
+		BodyCreator: nil,
+	})
+	return err
 }
 
 // SetImageWithHost 用来设置空间镜像源，额外添加回源Host头部
 func (m *BucketManager) SetImageWithHost(siteURL, bucket, host string) (err error) {
 	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS),
 		uriSetImageWithHost(siteURL, bucket, host))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
-	return
+	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+		Context:     context.Background(),
+		Method:      clientv2.RequestMethodPost,
+		Url:         reqURL,
+		Header:      nil,
+		BodyCreator: nil,
+	})
+	return err
 }
 
 // UnsetImage 用来取消空间镜像源设置
 func (m *BucketManager) UnsetImage(bucket string) (err error) {
 	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriUnsetImage(bucket))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
+	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+		Context:     context.Background(),
+		Method:      clientv2.RequestMethodPost,
+		Url:         reqURL,
+		Header:      nil,
+		BodyCreator: nil,
+	})
 	return err
 }
 

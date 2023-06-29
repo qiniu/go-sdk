@@ -1,11 +1,19 @@
 package storage
 
-import "github.com/qiniu/go-sdk/v7/internal/hostprovider"
+import (
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
+	"time"
+)
 
-func getUpHost(config *Config, ak, bucket string) (upHost string, err error) {
+// retryMax: 为 0，使用默认值，每个域名只请求一次
+// hostFreezeDuration: 为 0，使用默认值：50ms ~ 100ms
+func getUpHost(config *Config, retryMax int, hostFreezeDuration time.Duration, ak, bucket string) (upHost string, err error) {
 	region := config.GetRegion()
 	if region == nil {
-		if region, err = GetRegion(ak, bucket); err != nil {
+		if region, err = GetRegionWithOptions(ak, bucket, UCApiOptions{
+			RetryMax:           retryMax,
+			HostFreezeDuration: hostFreezeDuration,
+		}); err != nil {
 			return "", err
 		}
 	}
@@ -19,11 +27,16 @@ func getUpHost(config *Config, ak, bucket string) (upHost string, err error) {
 	return
 }
 
-func getUpHostProvider(config *Config, ak, bucket string) (hostprovider.HostProvider, error) {
+// retryMax: 为 0，使用默认值，每个域名只请求一次
+// hostFreezeDuration: 为 0，使用默认值：50ms ~ 100ms
+func getUpHostProvider(config *Config, retryMax int, hostFreezeDuration time.Duration, ak, bucket string) (hostprovider.HostProvider, error) {
 	region := config.GetRegion()
 	var err error
 	if region == nil {
-		if region, err = GetRegion(ak, bucket); err != nil {
+		if region, err = GetRegionWithOptions(ak, bucket, UCApiOptions{
+			RetryMax:           retryMax,
+			HostFreezeDuration: hostFreezeDuration,
+		}); err != nil {
 			return nil, err
 		}
 	}

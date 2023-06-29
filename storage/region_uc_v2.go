@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/qiniu/go-sdk/v7/client"
+	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"golang.org/x/sync/singleflight"
 	"os"
 	"path/filepath"
@@ -168,7 +168,22 @@ func storeRegionV2Cache() {
 	}
 }
 
-func getRegionByV2(ak, bucket string) (*Region, error) {
+type UCApiOptions struct {
+	UseHttps bool //
+	RetryMax int  // 单域名重试次数
+	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
+	HostFreezeDuration time.Duration
+}
+
+func DefaultUCApiOptions() UCApiOptions {
+	return UCApiOptions{
+		UseHttps:           true,
+		RetryMax:           0,
+		HostFreezeDuration: 0,
+	}
+}
+
+func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 
 	regionV2CacheLock.RLock()
 	if regionV2CacheLoaded {
@@ -193,10 +208,20 @@ func getRegionByV2(ak, bucket string) (*Region, error) {
 	}
 
 	newRegion, err, _ := ucQueryV2Group.Do(regionID, func() (interface{}, error) {
-		reqURL := fmt.Sprintf("%s/v2/query?ak=%s&bucket=%s", getUcHostByDefaultProtocol(), ak, bucket)
+		reqURL := fmt.Sprintf("%s/v2/query?ak=%s&bucket=%s", getUcHost(options.UseHttps), ak, bucket)
 
 		var ret UcQueryRet
-		err := client.DefaultClient.CallWithForm(context.Background(), &ret, "GET", reqURL, nil, nil)
+		c := getUCClient(ucClientConfig{
+			RetryMax:           options.RetryMax,
+			HostFreezeDuration: options.HostFreezeDuration,
+		}, nil)
+		_, err := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
+			Context:     context.Background(),
+			Method:      clientv2.RequestMethodGet,
+			Url:         reqURL,
+			Header:      nil,
+			BodyCreator: nil,
+		}, &ret)
 		if err != nil {
 			return nil, fmt.Errorf("query region error, %s", err.Error())
 		}

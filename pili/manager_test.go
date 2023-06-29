@@ -1,3 +1,4 @@
+//go:build uint || integration
 // +build uint integration
 
 package pili

@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/qiniu/go-sdk/v7/auth"
-	"github.com/qiniu/go-sdk/v7/client"
+	"github.com/qiniu/go-sdk/v7/internal/clientv2"
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"strings"
+	"time"
 )
 
 // 存储所在的地区，例如华东，华南，华北
@@ -55,11 +57,15 @@ func (r *Region) String() string {
 
 func endpoint(useHttps bool, host string) string {
 	host = strings.TrimSpace(host)
-	host = strings.TrimLeft(host, "http://")
-	host = strings.TrimLeft(host, "https://")
 	if host == "" {
 		return ""
 	}
+
+	if strings.HasPrefix(host, "http://") ||
+		strings.HasPrefix(host, "https://") {
+		return host
+	}
+
 	scheme := "http://"
 	if useHttps {
 		scheme = "https://"
@@ -209,16 +215,32 @@ var regionMap = map[RegionID]Region{
 	RIDApNortheast1:     regionApNortheast1,
 }
 
-/// UcHost 为查询空间相关域名的API服务地址
-/// 设置 UcHost 时，如果不指定 scheme 默认会使用 https
-/// UcHost 已废弃，建议使用 SetUcHost
-//Deprecated
-var UcHost = "https://uc.qbox.me"
+// UcHost 为查询空间相关域名的 API 服务地址
+// 设置 UcHost 时，如果不指定 scheme 默认会使用 https
+// Deprecated 使用 SetUcHosts 替换
+var UcHost = ""
 
-var ucHost = ""
+var ucHosts = []string{"uc.qbox.me", "kodo-config.qiniuapi.com"}
 
+// SetUcHost
+// Deprecated 使用 SetUcHosts 替换
 func SetUcHost(host string, useHttps bool) {
-	ucHost = endpoint(useHttps, host)
+	if len(host) == 0 {
+		return
+	}
+	host = endpoint(useHttps, host)
+	ucHosts = []string{host}
+}
+
+// SetUcHosts 配置多个 UC 域名
+func SetUcHosts(hosts ...string) {
+	var newHosts []string
+	for _, host := range hosts {
+		if len(host) > 0 {
+			newHosts = append(newHosts, host)
+		}
+	}
+	ucHosts = newHosts
 }
 
 func getUcHostByDefaultProtocol() string {
@@ -226,26 +248,52 @@ func getUcHostByDefaultProtocol() string {
 }
 
 func getUcHost(useHttps bool) string {
-	if ucHost != "" {
-		return ucHost
+	// 兼容老版本，优先使用 UcHost
+	host := ""
+	if len(UcHost) > 0 {
+		host = UcHost
+	} else if len(ucHosts) > 0 {
+		host = ucHosts[0]
+	}
+	return endpoint(useHttps, host)
+}
+
+// 不带 scheme
+func getUcBackupHosts() []string {
+	var hosts []string
+	if len(UcHost) > 0 {
+		hosts = append(hosts, removeHostScheme(UcHost))
 	}
 
-	if strings.Contains(UcHost, "://") {
-		return UcHost
-	} else {
-		return endpoint(useHttps, UcHost)
+	for _, host := range ucHosts {
+		if len(host) > 0 {
+			hosts = append(hosts, removeHostScheme(host))
+		}
 	}
+
+	hosts = removeRepeatStringItem(hosts)
+	return hosts
 }
 
 // GetRegion 用来根据ak和bucket来获取空间相关的机房信息
 // 延用 v2, v2 结构和 v4 结构不同且暂不可替代
+// Deprecated 使用 GetRegionWithOptions 替换
 func GetRegion(ak, bucket string) (*Region, error) {
-	return getRegionByV2(ak, bucket)
+	return GetRegionWithOptions(ak, bucket, DefaultUCApiOptions())
+}
+
+// GetRegionWithOptions 用来根据ak和bucket来获取空间相关的机房信息
+func GetRegionWithOptions(ak, bucket string, options UCApiOptions) (*Region, error) {
+	return getRegionByV2(ak, bucket, options)
 }
 
 // 使用 v4
 func getRegionGroup(ak, bucket string) (*RegionGroup, error) {
-	return getRegionByV4(ak, bucket)
+	return getRegionByV4(ak, bucket, DefaultUCApiOptions())
+}
+
+func getRegionGroupWithOptions(ak, bucket string, options UCApiOptions) (*RegionGroup, error) {
+	return getRegionByV4(ak, bucket, options)
 }
 
 type RegionInfo struct {
@@ -258,14 +306,75 @@ func SetRegionCachePath(newPath string) {
 	setRegionV4CachePath(newPath)
 }
 
+// GetRegionsInfo Deprecated and use GetRegionsInfoWithOptions instead
+// Deprecated
 func GetRegionsInfo(mac *auth.Credentials) ([]RegionInfo, error) {
+	return GetRegionsInfoWithOptions(mac, DefaultUCApiOptions())
+}
+
+func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]RegionInfo, error) {
 	var regions struct {
 		Regions []RegionInfo `json:"regions"`
 	}
-	qErr := client.DefaultClient.CredentialedCallWithForm(context.Background(), mac, auth.TokenQiniu, &regions, "GET", getUcHostByDefaultProtocol()+"/regions", nil, nil)
+
+	reqUrl := getUcHost(options.UseHttps) + "/regions"
+	c := getUCClient(ucClientConfig{
+		RetryMax:           options.RetryMax,
+		HostFreezeDuration: options.HostFreezeDuration,
+	}, mac)
+	_, qErr := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
+		Context:     context.Background(),
+		Method:      clientv2.RequestMethodGet,
+		Url:         reqUrl,
+		Header:      nil,
+		BodyCreator: nil,
+	}, &regions)
 	if qErr != nil {
 		return nil, fmt.Errorf("query region error, %s", qErr.Error())
 	} else {
 		return regions.Regions, nil
 	}
+}
+
+type ucClientConfig struct {
+	RetryMax int // 单域名重试次数
+	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
+	HostFreezeDuration time.Duration
+}
+
+func defaultUCClientConfig() ucClientConfig {
+	return ucClientConfig{
+		RetryMax:           0,
+		HostFreezeDuration: 0,
+	}
+}
+
+func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
+	hosts := getUcBackupHosts()
+	is := []clientv2.Interceptor{
+		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
+			RetryConfig: clientv2.RetryConfig{
+				RetryMax:      len(hosts),
+				RetryInterval: nil,
+				ShouldRetry:   nil,
+			},
+			ShouldFreezeHost:   nil,
+			HostFreezeDuration: 0,
+			HostProvider:       hostprovider.NewWithHosts(hosts),
+		}),
+		clientv2.NewSimpleRetryInterceptor(clientv2.RetryConfig{
+			RetryMax:      config.RetryMax,
+			RetryInterval: nil,
+			ShouldRetry:   nil,
+		}),
+	}
+
+	if mac != nil {
+		is = append(is, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
+			Credentials: *mac,
+			TokenType:   auth.TokenQiniu,
+		}))
+	}
+
+	return clientv2.NewClient(nil, is...)
 }

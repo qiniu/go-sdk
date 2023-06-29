@@ -20,7 +20,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/reqid"
 )
 
-var UserAgent = "Golang qiniu/client package"
+var UserAgent = getUserAgentWithAppName("default")
 var DefaultClient = Client{&http.Client{Transport: http.DefaultTransport}}
 
 // 用来打印调试信息
@@ -41,9 +41,13 @@ func TurnOnDebug() {
 
 // userApp should be [A-Za-z0-9_\ \-\.]*
 func SetAppName(userApp string) error {
-	UserAgent = fmt.Sprintf(
-		"QiniuGo/%s (%s; %s; %s) %s", conf.Version, runtime.GOOS, runtime.GOARCH, userApp, runtime.Version())
+	UserAgent = getUserAgentWithAppName(userApp)
 	return nil
+}
+
+func getUserAgentWithAppName(userApp string) string {
+	return fmt.Sprintf("QiniuGo/%s (%s; %s; %s) %s",
+		conf.Version, runtime.GOOS, runtime.GOARCH, userApp, runtime.Version())
 }
 
 // --------------------------------------------------------------------
@@ -281,7 +285,7 @@ func CallRet(ctx context.Context, ret interface{}, resp *http.Response) (err err
 	}
 	if resp.StatusCode/100 == 2 {
 		if ret != nil && resp.ContentLength != 0 {
-			err = decodeJsonFromReader(resp.Body, ret)
+			err = DecodeJsonFromReader(resp.Body, ret)
 			if err != nil {
 				return
 			}

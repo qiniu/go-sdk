@@ -81,7 +81,6 @@ func (r *Base64PutExtra) init() {
 // key        是要上传的文件访问路径。比如："foo/bar.jpg"。注意我们建议 key 不要以 '/' 开头。另外，key 为空字符串是合法的。
 // base64Data 是要上传的Base64数据，一般为图片数据的Base64编码字符串
 // extra      是上传的一些可选项，可以指定为nil。详细见 Base64PutExtra 结构的描述。
-//
 func (p *Base64Uploader) Put(
 	ctx context.Context, ret interface{}, uptoken, key string, base64Data []byte, extra *Base64PutExtra) (err error) {
 	return p.put(ctx, ret, uptoken, key, true, base64Data, extra)
@@ -152,7 +151,7 @@ func (p *Base64Uploader) put(
 	}
 
 	var upHostProvider hostprovider.HostProvider
-	upHostProvider, err = p.upHostProvider(ak, bucket)
+	upHostProvider, err = p.upHostProvider(ak, bucket, extra)
 	if err != nil {
 		return
 	}
@@ -167,10 +166,6 @@ func (p *Base64Uploader) put(
 	})
 }
 
-func (p *Base64Uploader) upHost(ak, bucket string) (upHost string, err error) {
-	return getUpHost(p.cfg, ak, bucket)
-}
-
-func (p *Base64Uploader) upHostProvider(ak, bucket string) (hostProvider hostprovider.HostProvider, err error) {
-	return getUpHostProvider(p.cfg, ak, bucket)
+func (p *Base64Uploader) upHostProvider(ak, bucket string, extra *Base64PutExtra) (hostProvider hostprovider.HostProvider, err error) {
+	return getUpHostProvider(p.cfg, extra.TryTimes, extra.HostFreezeDuration, ak, bucket)
 }

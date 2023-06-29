@@ -44,7 +44,7 @@ type Template struct {
 }
 
 /*
-	创建模板API
+创建模板API
 */
 func (manager *Manager) AddTemplate(tmpl *Template) (*Template, error) {
 
@@ -57,7 +57,7 @@ func (manager *Manager) AddTemplate(tmpl *Template) (*Template, error) {
 }
 
 /*
-	查询模板信息API
+查询模板信息API
 */
 func (manager *Manager) QueryTemplate(templId string) (*Template, error) {
 
@@ -70,7 +70,7 @@ func (manager *Manager) QueryTemplate(templId string) (*Template, error) {
 }
 
 /*
-	修改模板API
+修改模板API
 */
 func (manager *Manager) UpdateTemplate(templId string, ops []PatchOperation) (*Template, error) {
 
@@ -84,7 +84,7 @@ func (manager *Manager) UpdateTemplate(templId string, ops []PatchOperation) (*T
 }
 
 /*
-	删除模板API
+删除模板API
 */
 func (manager *Manager) DeleteTemplate(templId string) error {
 
@@ -92,7 +92,7 @@ func (manager *Manager) DeleteTemplate(templId string) error {
 }
 
 /*
-	获取模版列表API
+获取模版列表API
 */
 func (manager *Manager) ListTemplate(offset, line int, sortBy string, templateType int, match string) ([]Template, int64, error) {
 

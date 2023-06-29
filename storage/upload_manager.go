@@ -184,8 +184,13 @@ func (manager *UploadManager) Put(ctx context.Context, ret interface{}, upToken 
 }
 
 func (manager *UploadManager) putRetryBetweenRegion(ctx context.Context, ret interface{}, upToken string, key *string, source UploadSource, extra *UploadExtra) error {
+	if extra == nil {
+		extra = &UploadExtra{}
+	}
+	extra.init()
+
 	if manager.cfg.Regions == nil {
-		regions, err := manager.getRegionGroupWithUploadToken(upToken)
+		regions, err := manager.getRegionGroupWithUploadToken(upToken, extra)
 		if err != nil {
 			return err
 		}
@@ -428,12 +433,16 @@ func (manager *UploadManager) getResumeV2Uploader(region *Region) *ResumeUploade
 	}, manager.client)
 }
 
-func (manager *UploadManager) getRegionGroupWithUploadToken(upToken string) (*RegionGroup, error) {
+func (manager *UploadManager) getRegionGroupWithUploadToken(upToken string, extra *UploadExtra) (*RegionGroup, error) {
 	ak, bucket, err := getAkBucketFromUploadToken(upToken)
 	if err != nil {
 		return nil, err
 	}
-	return getRegionGroup(ak, bucket)
+	return getRegionGroupWithOptions(ak, bucket, UCApiOptions{
+		UseHttps:           manager.cfg.UseHTTPS,
+		RetryMax:           extra.TryTimes,
+		HostFreezeDuration: extra.HostFreezeDuration,
+	})
 }
 
 func uploadKey(keyQuote *string) (key string, hashKey bool) {

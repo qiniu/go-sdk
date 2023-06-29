@@ -24,7 +24,8 @@ const (
 	AuthorizationPrefixQBox  = "QBox "
 )
 
-//  七牛鉴权类，用于生成Qbox, Qiniu, Upload签名
+//	七牛鉴权类，用于生成Qbox, Qiniu, Upload签名
+//
 // AK/SK可以从 https://portal.qiniu.com/user/key 获取
 type Credentials struct {
 	AccessKey string

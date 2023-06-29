@@ -28,6 +28,7 @@ func NewCdnManager(mac *auth.Credentials) *CdnManager {
 }
 
 // TrafficReq 为批量查询带宽/流量的API请求内容
+//
 //	StartDate 	开始日期，格式例如：2016-07-01
 //	EndDate 	结束日期，格式例如：2016-07-03
 //	Granularity	取值粒度，取值可选值：5min/hour/day
@@ -54,6 +55,7 @@ type TrafficData struct {
 }
 
 // GetBandwidthData 方法用来获取域名访问带宽数据
+//
 //	StartDate	string		必须	开始日期，例如：2016-07-01
 //	EndDate		string		必须	结束日期，例如：2016-07-03
 //	Granularity	string		必须	粒度，取值：5min ／ hour ／day
@@ -82,6 +84,7 @@ func (m *CdnManager) GetBandwidthData(startDate, endDate, granularity string,
 }
 
 // GetFluxData 方法用来获取域名访问流量数据
+//
 //	StartDate	string		必须	开始日期，例如：2016-07-01
 //	EndDate		string		必须	结束日期，例如：2016-07-03
 //	Granularity	string		必须	粒度，取值：5min ／ hour ／day
