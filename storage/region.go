@@ -177,20 +177,6 @@ var (
 		ApiHost:   "api-as0.qiniuapi.com",
 		IovipHost: "iovip-as0.qbox.me",
 	}
-
-	// regionApNortheast1 表示亚太-首尔机房
-	regionApNortheast1 = Region{
-		SrcUpHosts: []string{
-			"up-ap-northeast-1.qiniup.com",
-		},
-		CdnUpHosts: []string{
-			"upload-ap-northeast-1.qiniup.com",
-		},
-		RsHost:    "rs-ap-northeast-1.qiniuapi.com",
-		RsfHost:   "rsf-ap-northeast-1.qiniuapi.com",
-		ApiHost:   "api-ap-northeast-1.qiniuapi.com",
-		IovipHost: "iovip-ap-northeast-1.qiniuio.com",
-	}
 )
 
 const (
@@ -201,7 +187,6 @@ const (
 	RIDHuanan           = RegionID("z2")
 	RIDNorthAmerica     = RegionID("na0")
 	RIDSingapore        = RegionID("as0")
-	RIDApNortheast1     = RegionID("ap-northeast-1")
 )
 
 // regionMap 是RegionID到具体的Region的映射
@@ -212,7 +197,6 @@ var regionMap = map[RegionID]Region{
 	RIDHuabei:           regionHuabei,
 	RIDSingapore:        regionSingapore,
 	RIDNorthAmerica:     regionNorthAmerica,
-	RIDApNortheast1:     regionApNortheast1,
 }
 
 const (
