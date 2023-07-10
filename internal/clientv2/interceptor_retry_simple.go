@@ -171,6 +171,9 @@ func isNetworkErrorWithOpError(err *net.OpError) bool {
 	if strings.Contains(desc, "connection reset by peer") {
 		return true
 	}
+	if strings.Contains(desc, "use of closed network connection") {
+		return true
+	}
 
 	switch t := err.Err.(type) {
 	case *net.DNSError:
