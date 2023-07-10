@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -164,6 +165,11 @@ func IsErrorRetryable(err error) bool {
 func isNetworkErrorWithOpError(err *net.OpError) bool {
 	if err == nil {
 		return false
+	}
+
+	desc := err.Error()
+	if strings.Contains(desc, "connection reset by peer") {
+		return true
 	}
 
 	switch t := err.Err.(type) {
