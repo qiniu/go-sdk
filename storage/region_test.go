@@ -5,6 +5,7 @@ package storage
 
 import (
 	"encoding/json"
+	"github.com/qiniu/go-sdk/v7/client"
 	"strings"
 	"testing"
 )
@@ -163,7 +164,13 @@ func TestRegionV4(t *testing.T) {
 }
 
 func TestRegionV4WithNoProtocol(t *testing.T) {
-	UcHost = "uc.qbox.me"
+	client.DebugMode = true
+	ucHosts = []string{"aa.qiniu.com", "uc.qbox.me"}
+	defer func() {
+		client.DebugMode = false
+		ucHosts = []string{"uc.qbox.me"}
+	}()
+	regionV4CacheLoaded = true
 	regionGroup, err := getRegionGroup(testAK, testBucket)
 	if err != nil {
 		t.Fatalf("GetRegion error: %v\n", err)

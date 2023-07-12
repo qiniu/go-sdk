@@ -84,6 +84,20 @@ func TestRegionUCQueryV4Test(t *testing.T) {
 	}
 }
 
+func TestRegionUCQueryV4ErrorTest(t *testing.T) {
+	jsonString := "{\"hosts\":[{\"region_a\":\"z0\",\"ttl\":86400,\"features\":{\"http3\":{\"enabled\":true},\"ipv6\":{\"enabled\":false}},\"io\":{\"domains\":[\"iovip.qbox.me\"]},\"io_src\":{\"domains\":[\"kodo-phone-zone0-space.kodo-cn-east-1.qiniucs.com\"]},\"up\":{\"domains\":[\"upload.qiniup.com\",\"up.qiniup.com\"],\"old\":[\"upload.qbox.me\",\"up.qbox.me\"]},\"uc\":{\"domains\":[\"uc.qbox.me\"]},\"rs\":{\"domains\":[\"rs-z0.qbox.me\"]},\"rsf\":{\"domains\":[\"rsf-z0.qbox.me\"]},\"api\":{\"domains\":[\"api.qiniu.com\"]},\"s3\":{\"domains\":[\"s3-cn-east-1.qiniucs.com\"],\"region_alias\":\"cn-east-1\"}}]}"
+
+	var ret ucQueryV4Ret
+	if err := json.Unmarshal([]byte(jsonString), &ret); err != nil {
+		t.Fatalf("json unmarshal error:%v", ret)
+	}
+
+	jsonString = "<>"
+	if err := json.Unmarshal([]byte(jsonString), &ret); err == nil {
+		t.Fatalf("json unmarshal should error:%v", ret)
+	}
+}
+
 func TestUCRetry(t *testing.T) {
 	clientV1.DebugMode = true
 	clientV1.DeepDebugInfo = true
