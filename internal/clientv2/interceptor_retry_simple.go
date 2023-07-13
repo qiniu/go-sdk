@@ -1,6 +1,7 @@
 package clientv2
 
 import (
+	"fmt"
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
 	"io"
 	"math/rand"
@@ -8,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -167,23 +167,25 @@ func isNetworkErrorWithOpError(err *net.OpError) bool {
 		return false
 	}
 
-	desc := err.Error()
-	if strings.Contains(desc, "connection reset by peer") {
-		return true
-	}
-	if strings.Contains(desc, "use of closed network connection") {
-		return true
-	}
+	//desc := err.Error()
+	//if strings.Contains(desc, "connection reset by peer") {
+	//	return true
+	//}
+	//if strings.Contains(desc, "use of closed network connection") {
+	//	return true
+	//}
 
 	switch t := err.Err.(type) {
 	case *net.DNSError:
 		return true
 	case *os.SyscallError:
 		if errno, ok := t.Err.(syscall.Errno); ok {
-			return errno == syscall.ECONNABORTED ||
+			hit := errno == syscall.ECONNABORTED ||
 				errno == syscall.ECONNRESET ||
 				errno == syscall.ECONNREFUSED ||
 				errno == syscall.ETIMEDOUT
+			fmt.Printf("error code:%d hit:%t", errno, hit)
+			return hit
 		}
 	}
 
