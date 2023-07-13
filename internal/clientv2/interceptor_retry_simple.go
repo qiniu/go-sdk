@@ -148,6 +148,7 @@ func IsErrorRetryable(err error) bool {
 		return false
 	}
 
+	fmt.Printf("IsErrorRetryable: error：%+v \n", err)
 	switch t := err.(type) {
 	case *net.OpError:
 		return isNetworkErrorWithOpError(t)
@@ -184,7 +185,7 @@ func isNetworkErrorWithOpError(err *net.OpError) bool {
 				errno == syscall.ECONNRESET ||
 				errno == syscall.ECONNREFUSED ||
 				errno == syscall.ETIMEDOUT
-			fmt.Printf("error code:%d hit:%t", errno, hit)
+			fmt.Printf("OpError error code:%d hit:%t \n", errno, hit)
 			return hit
 		}
 	}
