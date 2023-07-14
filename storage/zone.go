@@ -34,9 +34,6 @@ var (
 	// 华东浙江 2 区
 	ZoneHuadongZheJiang2, _ = GetRegionByID(RIDHuadongZheJiang2)
 
-	// 亚太首尔 1 区
-	ZoneShouEr1, _ = GetRegionByID(RIDApNortheast1)
-
 	// 兼容保留
 	Zone_z0 = ZoneHuadong
 	// 兼容保留
