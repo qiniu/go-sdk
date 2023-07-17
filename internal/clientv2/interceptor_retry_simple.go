@@ -159,6 +159,9 @@ func IsErrorRetryable(err error) bool {
 	case *clientv1.ErrorInfo:
 		return isStatusCodeRetryable(t.Code)
 	default:
+		if err == io.EOF {
+			return true
+		}
 		return false
 	}
 }
