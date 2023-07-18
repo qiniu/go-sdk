@@ -162,6 +162,7 @@ func IsErrorRetryable(err error) bool {
 		if err == io.EOF {
 			return true
 		}
+		fmt.Printf("IsErrorRetryable default error type:%+v \n", t)
 		return false
 	}
 }
@@ -191,6 +192,8 @@ func isNetworkErrorWithOpError(err *net.OpError) bool {
 			fmt.Printf("OpError error code:%d hit:%t \n", errno, hit)
 			return hit
 		}
+	default:
+		fmt.Printf("isNetworkErrorWithOpError default error type:%+v \n", t)
 	}
 
 	return false
