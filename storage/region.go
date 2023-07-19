@@ -202,8 +202,8 @@ var regionMap = map[RegionID]Region{
 
 const (
 	defaultApiHost = "api.qiniu.com"
-	defaultUcHost0 = "uc.qbox.me"
-	defaultUcHost1 = "kodo-config.qiniuapi.com"
+	defaultUcHost0 = "kodo-config.qiniuapi.com"
+	defaultUcHost1 = "uc.qbox.me"
 )
 
 // UcHost 为查询空间相关域名的 API 服务地址
