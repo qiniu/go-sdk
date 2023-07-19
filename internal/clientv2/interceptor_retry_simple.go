@@ -2,7 +2,6 @@ package clientv2
 
 import (
 	"fmt"
-	clientv1 "github.com/qiniu/go-sdk/v7/client"
 	"io"
 	"math/rand"
 	"net"
@@ -11,6 +10,8 @@ import (
 	"os"
 	"syscall"
 	"time"
+
+	clientv1 "github.com/qiniu/go-sdk/v7/client"
 )
 
 type RetryConfig struct {
@@ -192,6 +193,7 @@ func isNetworkErrorWithOpError(err *net.OpError) bool {
 			fmt.Printf("OpError error code:%d hit:%t \n", errno, hit)
 			return hit
 		}
+		fmt.Printf("isNetworkErrorWithOpError SyscallError type:%v \n", t.Err)
 	default:
 		fmt.Printf("isNetworkErrorWithOpError default error type:%+v \n", t)
 	}
