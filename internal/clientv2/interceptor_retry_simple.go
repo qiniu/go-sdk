@@ -149,7 +149,6 @@ func IsErrorRetryable(err error) bool {
 		return false
 	}
 
-	fmt.Printf("IsErrorRetryable: error：%+v \n", err)
 	switch t := err.(type) {
 	case *net.OpError:
 		return isNetworkErrorWithOpError(t)
@@ -163,17 +162,17 @@ func IsErrorRetryable(err error) bool {
 		if err == io.EOF {
 			return true
 		}
-		fmt.Printf("IsErrorRetryable default error type:%+v \n", t)
 		return false
 	}
 }
 
 func isNetworkErrorWithOpError(err *net.OpError) bool {
-	if err == nil {
+	if err == nil || err.Err == nil {
 		return false
 	}
 
-	//desc := err.Error()
+	fmt.Printf("isNetworkErrorWithOpError: %#v", err.Err)
+	//desc := err.Err.Error()
 	//if strings.Contains(desc, "connection reset by peer") {
 	//	return true
 	//}
@@ -186,16 +185,11 @@ func isNetworkErrorWithOpError(err *net.OpError) bool {
 		return true
 	case *os.SyscallError:
 		if errno, ok := t.Err.(syscall.Errno); ok {
-			hit := errno == syscall.ECONNABORTED ||
+			return errno == syscall.ECONNABORTED ||
 				errno == syscall.ECONNRESET ||
 				errno == syscall.ECONNREFUSED ||
 				errno == syscall.ETIMEDOUT
-			fmt.Printf("OpError error code:%d hit:%t \n", errno, hit)
-			return hit
 		}
-		fmt.Printf("isNetworkErrorWithOpError SyscallError type:%v \n", t.Err)
-	default:
-		fmt.Printf("isNetworkErrorWithOpError default error type:%+v \n", t)
 	}
 
 	return false
