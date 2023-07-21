@@ -1,13 +1,13 @@
 package clientv2
 
 import (
-	"fmt"
 	"io"
 	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"syscall"
 	"time"
 
@@ -171,15 +171,6 @@ func isNetworkErrorWithOpError(err *net.OpError) bool {
 		return false
 	}
 
-	fmt.Printf("isNetworkErrorWithOpError: %#v", err.Err)
-	//desc := err.Err.Error()
-	//if strings.Contains(desc, "connection reset by peer") {
-	//	return true
-	//}
-	//if strings.Contains(desc, "use of closed network connection") {
-	//	return true
-	//}
-
 	switch t := err.Err.(type) {
 	case *net.DNSError:
 		return true
@@ -189,6 +180,13 @@ func isNetworkErrorWithOpError(err *net.OpError) bool {
 				errno == syscall.ECONNRESET ||
 				errno == syscall.ECONNREFUSED ||
 				errno == syscall.ETIMEDOUT
+		}
+	case *net.OpError:
+		return isNetworkErrorWithOpError(t)
+	default:
+		desc := err.Err.Error()
+		if strings.Contains(desc, "use of closed network connection") {
+			return true
 		}
 	}
 
