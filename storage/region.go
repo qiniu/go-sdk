@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/qiniu/go-sdk/v7/auth"
+	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"strings"
@@ -201,8 +202,8 @@ var regionMap = map[RegionID]Region{
 
 const (
 	defaultApiHost = "api.qiniu.com"
-	defaultUcHost0 = "uc.qbox.me"
-	defaultUcHost1 = "kodo-config.qiniuapi.com"
+	defaultUcHost0 = "kodo-config.qiniuapi.com"
+	defaultUcHost1 = "uc.qbox.me"
 )
 
 // UcHost 为查询空间相关域名的 API 服务地址
@@ -334,6 +335,8 @@ type ucClientConfig struct {
 
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
+
+	Client *client.Client
 }
 
 func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
@@ -375,5 +378,5 @@ func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
 		}))
 	}
 
-	return clientv2.NewClient(nil, is...)
+	return clientv2.NewClient(clientv2.NewClientWithClientV1(config.Client), is...)
 }

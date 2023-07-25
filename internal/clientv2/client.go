@@ -19,7 +19,13 @@ type client struct {
 
 func NewClient(cli Client, interceptors ...Interceptor) Client {
 	if cli == nil {
-		cli = http.DefaultClient
+		if clientV1.DefaultClient.Client != nil {
+			cli = NewClientWithClientV1(&clientV1.DefaultClient)
+		} else if http.DefaultClient != nil {
+			cli = http.DefaultClient
+		} else {
+			cli = &http.Client{}
+		}
 	}
 
 	var is interceptorList = interceptors
@@ -95,4 +101,30 @@ func DoAndDecodeJsonResponse(c Client, options RequestParams, ret interface{}) (
 	}
 
 	return resp, nil
+}
+
+type clientV1Wrapper struct {
+	c *clientV1.Client
+}
+
+func (c *clientV1Wrapper) Do(req *http.Request) (*http.Response, error) {
+	return c.c.Do(req.Context(), req)
+}
+
+func NewClientWithClientV1(c *clientV1.Client) Client {
+	if c == nil {
+		c = &clientV1.DefaultClient
+	}
+
+	if c.Client == nil {
+		if clientV1.DefaultClient.Client != nil {
+			c.Client = clientV1.DefaultClient.Client
+		} else {
+			c.Client = &http.Client{}
+		}
+	}
+
+	return &clientV1Wrapper{
+		c: c,
+	}
 }

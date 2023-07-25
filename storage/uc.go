@@ -743,5 +743,6 @@ func (m *BucketManager) getUCClient() clientv2.Client {
 		IsUcQueryApi:       false,
 		RetryMax:           m.options.RetryMax,
 		HostFreezeDuration: m.options.HostFreezeDuration,
+		Client:             m.Client,
 	}, m.Mac)
 }

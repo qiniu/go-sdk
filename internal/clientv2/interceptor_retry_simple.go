@@ -1,7 +1,6 @@
 package clientv2
 
 import (
-	clientv1 "github.com/qiniu/go-sdk/v7/client"
 	"io"
 	"math/rand"
 	"net"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	clientv1 "github.com/qiniu/go-sdk/v7/client"
 )
 
 type RetryConfig struct {
@@ -158,21 +159,16 @@ func IsErrorRetryable(err error) bool {
 	case *clientv1.ErrorInfo:
 		return isStatusCodeRetryable(t.Code)
 	default:
+		if err == io.EOF {
+			return true
+		}
 		return false
 	}
 }
 
 func isNetworkErrorWithOpError(err *net.OpError) bool {
-	if err == nil {
+	if err == nil || err.Err == nil {
 		return false
-	}
-
-	desc := err.Error()
-	if strings.Contains(desc, "connection reset by peer") {
-		return true
-	}
-	if strings.Contains(desc, "use of closed network connection") {
-		return true
 	}
 
 	switch t := err.Err.(type) {
@@ -184,6 +180,13 @@ func isNetworkErrorWithOpError(err *net.OpError) bool {
 				errno == syscall.ECONNRESET ||
 				errno == syscall.ECONNREFUSED ||
 				errno == syscall.ETIMEDOUT
+		}
+	case *net.OpError:
+		return isNetworkErrorWithOpError(t)
+	default:
+		desc := err.Err.Error()
+		if strings.Contains(desc, "use of closed network connection") {
+			return true
 		}
 	}
 
