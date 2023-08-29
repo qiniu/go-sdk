@@ -267,6 +267,98 @@ func TestStatWithOption(t *testing.T) {
 	}
 }
 
+func TestStatWithMeta(t *testing.T) {
+
+	key := "meta_test_" + time.Now().String()
+
+	data := make([]byte, 1024*1024*5)
+	err := putDataByResumableV2(key, data)
+	if err != nil {
+		t.Logf("TestStatWithMeta test upload data error, %s", err)
+		return
+	}
+
+	info, err := bucketManager.Stat(testBucket, key)
+	if err != nil {
+		t.Logf("TestStatWithMeta() Stat error, %s", err)
+		t.Fail()
+	}
+	if len(info.MetaData) == 0 {
+		t.Log("TestStatWithMeta() MetaData is empty")
+		t.Fail()
+	}
+
+	// 同时修改 mime 和 meta
+	err = bucketManager.ChangeMimeAndMeta(testBucket, key, "application/abc", map[string]string{
+		"x-qn-meta-b": "x-qn-meta-bb-value",
+		"x-qn-meta-c": "x-qn-meta-c-value",
+	})
+	if err != nil {
+		t.Logf("TestStatWithMeta() ChangeMimeAndMeta error, %s", err)
+		t.Fail()
+	}
+
+	info, err = bucketManager.Stat(testBucket, key)
+	if err != nil {
+		t.Logf("TestStatWithMeta() Stat 2 error, %s", err)
+		t.Fail()
+	}
+
+	if info.MimeType != "application/abc" {
+		t.Log("TestStatWithMeta() MimeType c is error")
+		t.Fail()
+	}
+
+	if len(info.MetaData) == 0 {
+		t.Log("TestStatWithMeta() MetaData 2 is empty")
+		t.Fail()
+	}
+
+	if info.MetaData["b"] != "x-qn-meta-bb-value" {
+		t.Log("TestStatWithMeta() MetaData b is empty")
+		t.Fail()
+	}
+
+	if info.MetaData["c"] != "x-qn-meta-c-value" {
+		t.Log("TestStatWithMeta() MetaData c is empty")
+		t.Fail()
+	}
+
+	// 只修改 meta
+	err = bucketManager.ChangeMeta(testBucket, key, map[string]string{
+		"x-qn-meta-c": "x-qn-meta-cc-value",
+	})
+	if err != nil {
+		t.Logf("TestStatWithMeta() ChangeMimeAndMeta error, %s", err)
+		t.Fail()
+	}
+	info, err = bucketManager.Stat(testBucket, key)
+	if err != nil {
+		t.Logf("TestStatWithMeta() Stat 2 error, %s", err)
+		t.Fail()
+	}
+
+	if info.MimeType != "application/abc" {
+		t.Log("TestStatWithMeta() MimeType c is error")
+		t.Fail()
+	}
+
+	if len(info.MetaData) == 0 {
+		t.Log("TestStatWithMeta() MetaData 2 is empty")
+		t.Fail()
+	}
+
+	if info.MetaData["b"] != "x-qn-meta-bb-value" {
+		t.Log("TestStatWithMeta() MetaData b is empty")
+		t.Fail()
+	}
+
+	if info.MetaData["c"] != "x-qn-meta-cc-value" {
+		t.Log("TestStatWithMeta() MetaData c is empty")
+		t.Fail()
+	}
+}
+
 func putDataByResumableV2(key string, data []byte) (err error) {
 	var putRet PutRet
 	putPolicy := PutPolicy{
@@ -277,6 +369,14 @@ func putDataByResumableV2(key string, data []byte) (err error) {
 	partSize := int64(1024 * 1024)
 	err = resumeUploaderV2.Put(context.Background(), &putRet, upToken, key, bytes.NewReader(data), int64(len(data)), &RputV2Extra{
 		PartSize: partSize,
+		Metadata: map[string]string{
+			"x-qn-meta-a": "x-qn-meta-a-value",
+			"x-qn-meta-b": "x-qn-meta-b-value",
+		},
+		CustomVars: map[string]string{
+			"x:var-a": "x:var-a-value",
+			"x:var-b": "x:var-b-value",
+		},
 	})
 	return
 }
