@@ -496,12 +496,34 @@ func (m *BucketManager) ChangeMime(bucket, key, newMime string) (err error) {
 	return
 }
 
-// ChangeMeta 用来修改或者增加 metas，metas 只包含需要修改的，未涉及的保存不变
+// ChangeMeta
+//
+//	@Description: 用来修改或者增加 metas，metas 只包含需要修改的，未涉及的保存不变
+//	@receiver m BucketManager
+//	@param bucket 对象所属空间
+//	@param key 对象保存的 key
+//	@param newMime 新的 Mime
+//	@param metas 需要修改的 metas，只包含需要更改的 metas，可增加；
+//				 服务接口中 key 必须包含 x-qn-meta- 前缀，SDK 会对 metas 参数中的 key 进行检测;
+//				 key 如果包含了 x-qn-meta- 前缀，则直接使用 key；
+//				 key 如果不包含了 x-qn-meta- 前缀，则内部会为 key 拼接 x-qn-meta- 前缀。
+//	@return err 错误信息
 func (m *BucketManager) ChangeMeta(bucket, key string, metas map[string]string) (err error) {
 	return m.ChangeMimeAndMeta(bucket, key, "", metas)
 }
 
-// ChangeMimeAndMeta 用来更新文件的 MimeType 以及修改或者增加 metas，metas 只包含需要修改的
+// ChangeMimeAndMeta
+//
+//	@Description: 用用来更新文件的 MimeType 以及修改或者增加 metas，metas 只包含需要修改的
+//	@receiver m BucketManager
+//	@param bucket 对象所属空间
+//	@param key 对象保存的 key
+//	@param newMime 新的 Mime
+//	@param metas 需要修改的 metas，只包含需要更改的 metas，可增加；
+//				 服务接口中 key 必须包含 x-qn-meta- 前缀，SDK 会对 metas 参数中的 key 进行检测;
+//				 key 如果包含了 x-qn-meta- 前缀，则直接使用 key；
+//				 key 如果不包含了 x-qn-meta- 前缀，则内部会为 key 拼接 x-qn-meta- 前缀。
+//	@return err 错误信息
 func (m *BucketManager) ChangeMimeAndMeta(bucket, key, newMime string, metas map[string]string) (err error) {
 	reqHost, reqErr := m.RsReqHost(bucket)
 	if reqErr != nil {
@@ -906,6 +928,9 @@ func URIChangeMime(bucket, key, newMime string) string {
 //	@param bucket 空间
 //	@param key 文件保存的 key
 //	@param metas 需要修改的 metas，只包含需要更改的 metas，可增加
+//				 服务接口中 key 必须包含 x-qn-meta- 前缀，SDK 会对 metas 中的 key 进行检测
+//				 - key 如果包含了 x-qn-meta- 前缀，则直接使用 key
+//	             - key 如果不包含了 x-qn-meta- 前缀，则内部会为 key 拼接 x-qn-meta- 前缀
 //	@return string URI
 func URIChangeMeta(bucket, key string, changeMetas map[string]string) string {
 	return URIChangeMimeAndMeta(bucket, key, "", changeMetas)
@@ -918,6 +943,9 @@ func URIChangeMeta(bucket, key string, changeMetas map[string]string) string {
 //	@param key 文件保存的 key
 //	@param newMime 新的 mime
 //	@param metas 需要修改的 metas，只包含需要更改的 metas，可增加
+//				 服务接口中 key 必须包含 x-qn-meta- 前缀，SDK 会对 metas 中的 key 进行检测
+//				 - key 如果包含了 x-qn-meta- 前缀，则直接使用 key
+//	             - key 如果不包含了 x-qn-meta- 前缀，则内部会为 key 拼接 x-qn-meta- 前缀
 //	@return string URI
 func URIChangeMimeAndMeta(bucket, key, newMime string, metas map[string]string) string {
 	uri := fmt.Sprintf("/chgm/%s", EncodedEntry(bucket, key))
@@ -926,6 +954,9 @@ func URIChangeMimeAndMeta(bucket, key, newMime string, metas map[string]string) 
 	}
 	if len(metas) > 0 {
 		for k, v := range metas {
+			if !strings.HasPrefix(k, "x-qn-meta-") {
+				k = "x-qn-meta-" + k
+			}
 			uri = fmt.Sprintf("%s/%s/%s", uri, k, base64.URLEncoding.EncodeToString([]byte(v)))
 		}
 	}

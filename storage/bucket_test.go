@@ -315,12 +315,12 @@ func TestStatWithMeta(t *testing.T) {
 	}
 
 	if info.MetaData["b"] != "x-qn-meta-bb-value" {
-		t.Log("TestStatWithMeta() MetaData b is empty")
+		t.Log("TestStatWithMeta() MetaData b is error")
 		t.Fail()
 	}
 
 	if info.MetaData["c"] != "x-qn-meta-c-value" {
-		t.Log("TestStatWithMeta() MetaData c is empty")
+		t.Log("TestStatWithMeta() MetaData c is error")
 		t.Fail()
 	}
 
@@ -349,12 +349,41 @@ func TestStatWithMeta(t *testing.T) {
 	}
 
 	if info.MetaData["b"] != "x-qn-meta-bb-value" {
-		t.Log("TestStatWithMeta() MetaData b is empty")
+		t.Log("TestStatWithMeta() MetaData b is error")
 		t.Fail()
 	}
 
 	if info.MetaData["c"] != "x-qn-meta-cc-value" {
-		t.Log("TestStatWithMeta() MetaData c is empty")
+		t.Log("TestStatWithMeta() MetaData c is error")
+		t.Fail()
+	}
+
+	// 只修改 meta， 不带 x-qn-meta-
+	err = bucketManager.ChangeMeta(testBucket, key, map[string]string{
+		"d": "x-qn-meta-d-value",
+	})
+	if err != nil {
+		t.Logf("TestStatWithMeta() ChangeMeta error, %s", err)
+		t.Fail()
+	}
+	info, err = bucketManager.Stat(testBucket, key)
+	if err != nil {
+		t.Logf("TestStatWithMeta() Stat 2 error, %s", err)
+		t.Fail()
+	}
+
+	if info.MimeType != "application/abc" {
+		t.Log("TestStatWithMeta() MimeType c is error")
+		t.Fail()
+	}
+
+	if len(info.MetaData) == 0 {
+		t.Log("TestStatWithMeta() MetaData 2 is empty")
+		t.Fail()
+	}
+
+	if info.MetaData["d"] != "x-qn-meta-d-value" {
+		t.Log("TestStatWithMeta() MetaData d is error")
 		t.Fail()
 	}
 }
