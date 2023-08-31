@@ -277,6 +277,14 @@ func putDataByResumableV2(key string, data []byte) (err error) {
 	partSize := int64(1024 * 1024)
 	err = resumeUploaderV2.Put(context.Background(), &putRet, upToken, key, bytes.NewReader(data), int64(len(data)), &RputV2Extra{
 		PartSize: partSize,
+		Metadata: map[string]string{
+			"x-qn-meta-a": "x-qn-meta-a-value",
+			"x-qn-meta-b": "x-qn-meta-b-value",
+		},
+		CustomVars: map[string]string{
+			"x:var-a": "x:var-a-value",
+			"x:var-b": "x:var-b-value",
+		},
 	})
 	return
 }
