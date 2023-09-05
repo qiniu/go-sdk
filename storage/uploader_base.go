@@ -53,7 +53,7 @@ func getUpHostProvider(config *Config, retryMax int, hostFreezeDuration time.Dur
 		}
 	}
 
-	hosts := make([]string, 0, 0)
+	hosts := make([]string, 0)
 	if config.UseCdnDomains && len(region.CdnUpHosts) > 0 {
 		hosts = append(hosts, region.CdnUpHosts...)
 	} else if len(region.SrcUpHosts) > 0 {

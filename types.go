@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-// BytesFromRequest 读取http.Request.Body的内容到slice中
+// BytesFromRequest 读取 http.Request.Body 的内容到 slice 中
 func BytesFromRequest(r *http.Request) (b []byte, err error) {
 	if r.ContentLength == 0 {
 		return
@@ -19,6 +19,7 @@ func BytesFromRequest(r *http.Request) (b []byte, err error) {
 	return ioutil.ReadAll(r.Body)
 }
 
+// SeekerLen 通过 io.Seeker 获取数据大小
 func SeekerLen(s io.Seeker) (int64, error) {
 
 	curOffset, err := s.Seek(0, io.SeekCurrent)

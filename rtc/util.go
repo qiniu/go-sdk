@@ -113,7 +113,7 @@ func callReq(httpClient *http.Client, req *http.Request, mac *auth.Credentials,
 	info.Code = resp.StatusCode
 	reqid := getReqid(&resp.Header)
 	rebuildErr := func(msg string) error {
-		return fmt.Errorf("Code: %v, Reqid: %v, %v", info.Code, reqid, msg)
+		return fmt.Errorf("code: %v, reqid: %v, %v", info.Code, reqid, msg)
 	}
 
 	if resp.ContentLength > 2*1024*1024 {

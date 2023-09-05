@@ -599,7 +599,7 @@ func (m *BucketManager) Batch(operations []string) ([]BatchOpRet, error) {
 		return nil, errors.New("can't get one bucket from operations")
 	}
 
-	return m.BatchWithContext(nil, bucket, operations)
+	return m.BatchWithContext(context.Background(), bucket, operations)
 }
 
 // BatchWithContext 接口提供了资源管理的批量操作，支持 stat，copy，move，delete，chgm，chtype，deleteAfterDays几个接口
@@ -1069,7 +1069,7 @@ func MakePublicURLv2WithQuery(domain, key string, query url.Values) string {
 }
 
 // MakePublicURLv2WithQueryString 用来生成公开空间资源下载链接，并且该方法确保 key 将会被 escape，并在 URL 后直接追加查询参数
-func makePublicURLv2WithQueryString(domain, key, query string) string {
+func MakePublicURLv2WithQueryString(domain, key, query string) string {
 	return makePublicURLv2WithRawQuery(domain, key, urlEncodeQuery(query))
 }
 

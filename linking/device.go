@@ -26,13 +26,13 @@ type Device struct {
 	// 0 不录制
 	// -1 永久
 	// -2 继承app配置
-	SegmentExpireDays int `json:"segmentExpireDays,has,omitempty"`
+	SegmentExpireDays int `json:"segmentExpireDays,omitempty"`
 
 	// -1 继承app配置
 	// 0 遵循设备端配置
 	// 1 强制持续上传
 	// 2 强制关闭上传
-	UploadMode int `json:"uploadMode,has,omitempty"`
+	UploadMode int `json:"uploadMode,omitempty"`
 
 	State int `json:"state,omitempty"`
 

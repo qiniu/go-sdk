@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/qiniu/go-sdk/v7/client"
-	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"hash/crc32"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"sync"
+
+	"github.com/qiniu/go-sdk/v7/client"
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 )
 
 // ResumeUploader 表示一个分片上传的对象
@@ -467,7 +468,7 @@ func (impl *resumeUploaderImpl) save(ctx context.Context) {
 		return
 	}
 
-	err = impl.extra.Recorder.Set(impl.recorderKey, recoveredData)
+	_ = impl.extra.Recorder.Set(impl.recorderKey, recoveredData)
 }
 
 func (impl *resumeUploaderImpl) resumeUploaderAPIs() *resumeUploaderAPIs {

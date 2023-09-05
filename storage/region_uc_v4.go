@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/qiniu/go-sdk/v7/internal/clientv2"
-	"golang.org/x/sync/singleflight"
 	"math"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/qiniu/go-sdk/v7/internal/clientv2"
+	"golang.org/x/sync/singleflight"
 )
 
 type ucQueryV4Ret struct {
@@ -165,7 +166,7 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 		}
 
 		ttl := math.MaxInt32
-		regions := make([]*Region, 0, 0)
+		regions := make([]*Region, 0)
 		for _, host := range ret.Hosts {
 			if ttl > host.TTL {
 				ttl = host.TTL
