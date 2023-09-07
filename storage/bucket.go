@@ -10,11 +10,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
@@ -75,6 +76,11 @@ type FileInfo struct {
 	 * 文件上传时设置的endUser
 	 */
 	EndUser string `json:"endUser"`
+
+	/**
+	 * 自定义元数据，含 meta_key 参数 及对应 metaValue 值；仅当自定义元数据后返回该字段。
+	 */
+	MetaData map[string]string `json:"x-qn-meta"`
 
 	/**
 	 * 文件过期删除日期，int64 类型，Unix 时间戳格式，具体文件过期日期计算参考 生命周期管理。
@@ -490,6 +496,45 @@ func (m *BucketManager) ChangeMime(bucket, key, newMime string) (err error) {
 	return
 }
 
+// ChangeMeta
+//
+//	@Description: 用来修改或者增加 metas，metas 只包含需要修改的，未涉及的保存不变
+//	@receiver m BucketManager
+//	@param bucket 对象所属空间
+//	@param key 对象保存的 key
+//	@param newMime 新的 Mime
+//	@param metas 需要修改的 metas，只包含需要更改的 metas，可增加；
+//				 服务接口中 key 必须包含 x-qn-meta- 前缀，SDK 会对 metas 参数中的 key 进行检测;
+//				 - key 如果包含了 x-qn-meta- 前缀，则直接使用 key；
+//				 - key 如果不包含了 x-qn-meta- 前缀，则内部会为 key 拼接 x-qn-meta- 前缀。
+//	@return err 错误信息
+func (m *BucketManager) ChangeMeta(bucket, key string, metas map[string]string) (err error) {
+	return m.ChangeMimeAndMeta(bucket, key, "", metas)
+}
+
+// ChangeMimeAndMeta
+//
+//	@Description: 用用来更新文件的 MimeType 以及修改或者增加 metas，metas 只包含需要修改的
+//	@receiver m BucketManager
+//	@param bucket 对象所属空间
+//	@param key 对象保存的 key
+//	@param newMime 新的 Mime
+//	@param metas 需要修改的 metas，只包含需要更改的 metas，可增加；
+//				 服务接口中 key 必须包含 x-qn-meta- 前缀，SDK 会对 metas 参数中的 key 进行检测;
+//				 - key 如果包含了 x-qn-meta- 前缀，则直接使用 key；
+//				 - key 如果不包含了 x-qn-meta- 前缀，则内部会为 key 拼接 x-qn-meta- 前缀。
+//	@return err 错误信息
+func (m *BucketManager) ChangeMimeAndMeta(bucket, key, newMime string, metas map[string]string) (err error) {
+	reqHost, reqErr := m.RsReqHost(bucket)
+	if reqErr != nil {
+		err = reqErr
+		return
+	}
+	reqURL := fmt.Sprintf("%s%s", reqHost, URIChangeMimeAndMeta(bucket, key, newMime, metas))
+	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
+	return
+}
+
 // ChangeType 用来更新文件的存储类型，0 表示普通存储，1 表示低频存储，2 表示归档存储，3 表示深度归档存储
 func (m *BucketManager) ChangeType(bucket, key string, fileType int) (err error) {
 	reqHost, reqErr := m.RsReqHost(bucket)
@@ -875,6 +920,47 @@ func URIDeleteAfterDays(bucket, key string, days int) string {
 func URIChangeMime(bucket, key, newMime string) string {
 	return fmt.Sprintf("/chgm/%s/mime/%s", EncodedEntry(bucket, key),
 		base64.URLEncoding.EncodeToString([]byte(newMime)))
+}
+
+// URIChangeMeta
+//
+//	@Description: 构建 chgm 接口的请求命令，修改 meta
+//	@param bucket 空间
+//	@param key 文件保存的 key
+//	@param metas 需要修改的 metas，只包含需要更改的 metas，可增加
+//				 服务接口中 key 必须包含 x-qn-meta- 前缀，SDK 会对 metas 中的 key 进行检测
+//				 - key 如果包含了 x-qn-meta- 前缀，则直接使用 key
+//				 - key 如果不包含了 x-qn-meta- 前缀，则内部会为 key 拼接 x-qn-meta- 前缀
+//	@return string URI
+func URIChangeMeta(bucket, key string, changeMetas map[string]string) string {
+	return URIChangeMimeAndMeta(bucket, key, "", changeMetas)
+}
+
+// URIChangeMimeAndMeta
+//
+//	@Description: 构建 chgm 接口的请求命令
+//	@param bucket 空间
+//	@param key 文件保存的 key
+//	@param newMime 新的 mime
+//	@param metas 需要修改的 metas，只包含需要更改的 metas，可增加
+//				 服务接口中 key 必须包含 x-qn-meta- 前缀，SDK 会对 metas 中的 key 进行检测
+//				 - key 如果包含了 x-qn-meta- 前缀，则直接使用 key
+//				 - key 如果不包含了 x-qn-meta- 前缀，则内部会为 key 拼接 x-qn-meta- 前缀
+//	@return string URI
+func URIChangeMimeAndMeta(bucket, key, newMime string, metas map[string]string) string {
+	uri := fmt.Sprintf("/chgm/%s", EncodedEntry(bucket, key))
+	if len(newMime) > 0 {
+		uri = fmt.Sprintf("%s/mime/%s", uri, base64.URLEncoding.EncodeToString([]byte(newMime)))
+	}
+	if len(metas) > 0 {
+		for k, v := range metas {
+			if !strings.HasPrefix(k, "x-qn-meta-") {
+				k = "x-qn-meta-" + k
+			}
+			uri = fmt.Sprintf("%s/%s/%s", uri, k, base64.URLEncoding.EncodeToString([]byte(v)))
+		}
+	}
+	return uri
 }
 
 // URIChangeType 构建 chtype 接口的请求命令
