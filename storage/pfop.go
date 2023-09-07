@@ -2,11 +2,13 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/conf"
-	"net/http"
 )
 
 // OperationManager 提供了数据处理相关的方法
@@ -184,6 +186,10 @@ func (m *OperationManager) ApiHost(bucket string) (apiHost string, err error) {
 		} else {
 			zone = v
 		}
+	}
+
+	if zone == nil || len(zone.ApiHost) == 0 {
+		return "", errors.New("can't get region api host with bucket:" + bucket)
 	}
 
 	apiHost = endpoint(m.Cfg.UseHTTPS, zone.ApiHost)
