@@ -235,9 +235,6 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 		}
 
 		ioSrcHost := ret.getOneHostFromInfo(ret.IoSrcInfo)
-		if len(ioSrcHost) == 0 {
-			return nil, fmt.Errorf("empty io src host list")
-		}
 
 		rsHost := ret.getOneHostFromInfo(ret.RsInfo)
 		if len(rsHost) == 0 {
