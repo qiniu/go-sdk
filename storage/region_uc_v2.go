@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/qiniu/go-sdk/v7/internal/clientv2"
-	"golang.org/x/sync/singleflight"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"golang.org/x/sync/singleflight"
+
+	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 )
 
 // 此处废弃，但为了兼容老版本，单独放置一个文件
@@ -233,8 +235,8 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 		}
 
 		ioSrcHost := ret.getOneHostFromInfo(ret.IoSrcInfo)
-		if len(ioHost) == 0 {
-			return nil, fmt.Errorf("empty io host list")
+		if len(ioSrcHost) == 0 {
+			return nil, fmt.Errorf("empty io src host list")
 		}
 
 		rsHost := ret.getOneHostFromInfo(ret.RsInfo)
