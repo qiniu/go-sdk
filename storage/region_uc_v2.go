@@ -2,14 +2,16 @@ package storage
 
 import (
 	"context"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"github.com/qiniu/go-sdk/v7/internal/clientv2"
-	"golang.org/x/sync/singleflight"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/qiniu/go-sdk/v7/internal/clientv2"
+	"golang.org/x/sync/singleflight"
 )
 
 // 此处废弃，但为了兼容老版本，单独放置一个文件
@@ -201,13 +203,13 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 		}()
 	}
 
-	regionID := fmt.Sprintf("%s:%s", ak, bucket)
+	regionCacheKey := makeRegionCacheKey(ak, bucket)
 	//check from cache
-	if v, ok := regionV2Cache.Load(regionID); ok && time.Now().Before(v.(regionV2CacheValue).Deadline) {
+	if v, ok := regionV2Cache.Load(regionCacheKey); ok && time.Now().Before(v.(regionV2CacheValue).Deadline) {
 		return v.(regionV2CacheValue).Region, nil
 	}
 
-	newRegion, err, _ := ucQueryV2Group.Do(regionID, func() (interface{}, error) {
+	newRegion, err, _ := ucQueryV2Group.Do(regionCacheKey, func() (interface{}, error) {
 		reqURL := fmt.Sprintf("%s/v2/query?ak=%s&bucket=%s", getUcHost(options.UseHttps), ak, bucket)
 
 		var ret UcQueryRet
@@ -271,7 +273,7 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 			IoSrcHost:  ioSrcHost,
 		}
 
-		regionV2Cache.Store(regionID, regionV2CacheValue{
+		regionV2Cache.Store(regionCacheKey, regionV2CacheValue{
 			Region:   region,
 			Deadline: time.Now().Add(time.Duration(ret.TTL) * time.Second),
 		})
@@ -287,4 +289,8 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 	}
 
 	return newRegion.(*Region), err
+}
+
+func makeRegionCacheKey(ak, bucket string) string {
+	return fmt.Sprintf("%s:%s:%x", ak, bucket, md5.Sum([]byte(getUcHost(false))))
 }
