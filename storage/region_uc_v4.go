@@ -138,14 +138,14 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 		}()
 	}
 
-	regionID := fmt.Sprintf("%s:%s", ak, bucket)
+	regionCacheKey := makeRegionCacheKey(ak, bucket)
 	//check from cache
-	if v, ok := regionV4Cache.Load(regionID); ok && time.Now().Before(v.(regionV4CacheValue).Deadline) {
+	if v, ok := regionV4Cache.Load(regionCacheKey); ok && time.Now().Before(v.(regionV4CacheValue).Deadline) {
 		cacheValue, _ := v.(regionV4CacheValue)
 		return NewRegionGroup(cacheValue.getRegions()...), nil
 	}
 
-	newRegion, err, _ := ucQueryV4Group.Do(regionID, func() (interface{}, error) {
+	newRegion, err, _ := ucQueryV4Group.Do(regionCacheKey, func() (interface{}, error) {
 		reqURL := fmt.Sprintf("%s/v4/query?ak=%s&bucket=%s", getUcHost(options.UseHttps), ak, bucket)
 
 		var ret ucQueryV4Ret
@@ -182,7 +182,7 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 			})
 		}
 
-		regionV4Cache.Store(regionID, regionV4CacheValue{
+		regionV4Cache.Store(regionCacheKey, regionV4CacheValue{
 			Regions:  regions,
 			Deadline: time.Now().Add(time.Duration(ttl) * time.Second),
 		})
