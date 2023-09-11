@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/qiniu/go-sdk/v7/internal/clientv2"
-	"golang.org/x/sync/singleflight"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"golang.org/x/sync/singleflight"
+
+	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 )
 
 // 此处废弃，但为了兼容老版本，单独放置一个文件
@@ -63,15 +65,51 @@ func (uc *UcQueryRet) setup() {
 }
 
 func (uc *UcQueryRet) getOneHostFromInfo(info map[string]UcQueryIo) string {
-	if len(info["src"].Main) > 0 {
-		return info["src"].Main[0]
+	hosts := uc.getSrcHostsFromInfo(info)
+	if len(hosts) > 0 {
+		return hosts[0]
 	}
 
-	if len(info["acc"].Main) > 0 {
-		return info["acc"].Main[0]
+	hosts = uc.getAccHostsFromInfo(info)
+	if len(hosts) > 0 {
+		return hosts[0]
 	}
 
 	return ""
+}
+
+func (uc *UcQueryRet) getSrcHostsFromInfo(info map[string]UcQueryIo) []string {
+	ret := make([]string, 0)
+	if info == nil {
+		return ret
+	}
+
+	if len(info["src"].Main) > 0 {
+		ret = append(ret, info["src"].Main...)
+	}
+
+	if len(info["src"].Backup) > 0 {
+		ret = append(ret, info["src"].Backup...)
+	}
+
+	return ret
+}
+
+func (uc *UcQueryRet) getAccHostsFromInfo(info map[string]UcQueryIo) []string {
+	ret := make([]string, 0)
+	if info == nil {
+		return ret
+	}
+
+	if len(info["acc"].Main) > 0 {
+		ret = append(ret, info["acc"].Main...)
+	}
+
+	if len(info["acc"].Backup) > 0 {
+		ret = append(ret, info["acc"].Backup...)
+	}
+
+	return ret
 }
 
 type UcQueryUp = UcQueryServerInfo
@@ -227,48 +265,14 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 			return nil, fmt.Errorf("query region error, %s", err.Error())
 		}
 
-		ioHost := ret.getOneHostFromInfo(ret.IoInfo)
-		if len(ioHost) == 0 {
-			return nil, fmt.Errorf("empty io host list")
-		}
-
-		ioSrcHost := ret.getOneHostFromInfo(ret.IoSrcInfo)
-		if len(ioHost) == 0 {
-			return nil, fmt.Errorf("empty io host list")
-		}
-
-		rsHost := ret.getOneHostFromInfo(ret.RsInfo)
-		if len(rsHost) == 0 {
-			return nil, fmt.Errorf("empty rs host list")
-		}
-
-		rsfHost := ret.getOneHostFromInfo(ret.RsfInfo)
-		if len(rsfHost) == 0 {
-			return nil, fmt.Errorf("empty rsf host list")
-		}
-
-		apiHost := ret.getOneHostFromInfo(ret.ApiInfo)
-		if len(apiHost) == 0 {
-			return nil, fmt.Errorf("empty api host list")
-		}
-
-		srcUpHosts := ret.Up["src"].Main
-		if ret.Up["src"].Backup != nil {
-			srcUpHosts = append(srcUpHosts, ret.Up["src"].Backup...)
-		}
-		cdnUpHosts := ret.Up["acc"].Main
-		if ret.Up["acc"].Backup != nil {
-			cdnUpHosts = append(cdnUpHosts, ret.Up["acc"].Backup...)
-		}
-
 		region := &Region{
-			SrcUpHosts: srcUpHosts,
-			CdnUpHosts: cdnUpHosts,
-			IovipHost:  ioHost,
-			RsHost:     rsHost,
-			RsfHost:    rsfHost,
-			ApiHost:    apiHost,
-			IoSrcHost:  ioSrcHost,
+			SrcUpHosts: ret.getSrcHostsFromInfo(ret.Up),
+			CdnUpHosts: ret.getAccHostsFromInfo(ret.Up),
+			IovipHost:  ret.getOneHostFromInfo(ret.IoInfo),
+			RsHost:     ret.getOneHostFromInfo(ret.RsInfo),
+			RsfHost:    ret.getOneHostFromInfo(ret.RsfInfo),
+			ApiHost:    ret.getOneHostFromInfo(ret.ApiInfo),
+			IoSrcHost:  ret.getOneHostFromInfo(ret.IoSrcInfo),
 		}
 
 		regionV2Cache.Store(regionID, regionV2CacheValue{

@@ -842,6 +842,10 @@ func (m *BucketManager) RsHost(bucket string) (rsHost string, err error) {
 		return
 	}
 
+	if len(zone.RsHost) == 0 {
+		return "", errors.New("can't get region rs host with bucket:" + bucket)
+	}
+
 	rsHost = zone.GetRsHost(m.Cfg.UseHTTPS)
 	return
 }
@@ -850,6 +854,10 @@ func (m *BucketManager) RsfHost(bucket string) (rsfHost string, err error) {
 	zone, err := m.Zone(bucket)
 	if err != nil {
 		return
+	}
+
+	if len(zone.RsfHost) == 0 {
+		return "", errors.New("can't get region rsf host with bucket:" + bucket)
 	}
 
 	rsfHost = zone.GetRsfHost(m.Cfg.UseHTTPS)
@@ -862,6 +870,10 @@ func (m *BucketManager) IovipHost(bucket string) (iovipHost string, err error) {
 		return
 	}
 
+	if len(zone.IovipHost) == 0 {
+		return "", errors.New("can't get region io host with bucket:" + bucket)
+	}
+
 	iovipHost = zone.GetIoHost(m.Cfg.UseHTTPS)
 	return
 }
@@ -870,6 +882,10 @@ func (m *BucketManager) ApiHost(bucket string) (apiHost string, err error) {
 	zone, err := m.Zone(bucket)
 	if err != nil {
 		return
+	}
+
+	if len(zone.ApiHost) == 0 {
+		return "", errors.New("can't get region api host with bucket:" + bucket)
 	}
 
 	apiHost = zone.GetApiHost(m.Cfg.UseHTTPS)
