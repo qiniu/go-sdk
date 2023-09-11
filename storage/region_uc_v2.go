@@ -9,9 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sync/singleflight"
-
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
+	"golang.org/x/sync/singleflight"
 )
 
 // 此处废弃，但为了兼容老版本，单独放置一个文件
@@ -54,12 +53,12 @@ func (uc *UcQueryRet) setup() {
 
 	uc.Io = make(map[string]map[string][]string)
 	ioSrc := uc.IoInfo["src"].toMapWithoutInfo()
-	if ioSrc != nil && len(ioSrc) > 0 {
+	if len(ioSrc) > 0 {
 		uc.Io["src"] = ioSrc
 	}
 
 	ioOldSrc := uc.IoInfo["old_src"].toMapWithoutInfo()
-	if ioOldSrc != nil && len(ioOldSrc) > 0 {
+	if len(ioOldSrc) > 0 {
 		uc.Io["old_src"] = ioOldSrc
 	}
 }

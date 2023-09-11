@@ -106,12 +106,6 @@ type (
 		reader io.ReaderAt
 	}
 
-	// 代表一块分片的上传错误信息
-	chunkError struct {
-		chunk
-		err error
-	}
-
 	// 通用分片上传接口，同时适用于分片上传 v1 和 v2 接口
 	resumeUploaderBase interface {
 		// 开始上传前调用一次用于初始化，在 v1 中该接口不做任何事情，而在 v2 中该接口对应 initParts

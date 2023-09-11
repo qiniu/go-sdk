@@ -9,5 +9,5 @@ var (
 	ErrBucketNotExist = errors.New("bucket not exist")
 
 	// ErrNoSuchFile 文件已经存在
-	ErrNoSuchFile = errors.New("No such file or directory")
+	ErrNoSuchFile = errors.New("no such file or directory")
 )

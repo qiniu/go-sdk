@@ -1007,7 +1007,7 @@ func TestMakeURL(t *testing.T) {
 		t.Fatalf("TestMakeURL: %q\n", s)
 	}
 
-	s = makePublicURLv2WithQueryString("http://abc.com:123/", "123/def?@#|", "123/def?@#|")
+	s = MakePublicURLv2WithQueryString("http://abc.com:123/", "123/def?@#|", "123/def?@#|")
 	if s != "http://abc.com:123/123/def%3F@%23%7C?123/def%3F%40%23|" {
 		t.Fatalf("TestMakeURL: %q\n", s)
 	}

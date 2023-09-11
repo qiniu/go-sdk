@@ -343,10 +343,6 @@ func (r *crc32Reader) Read(p []byte) (int, error) {
 	return r.r.Read(p)
 }
 
-func (r crc32Reader) length() (length int64) {
-	return int64(len(r.nlDashBoundaryNl+r.header)) + r.crc32PadLen
-}
-
 func (p *FormUploader) UpHost(ak, bucket string) (upHost string, err error) {
 	return getUpHost(p.Cfg, 0, 0, ak, bucket)
 }
