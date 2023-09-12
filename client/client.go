@@ -259,9 +259,10 @@ func ResponseError(resp *http.Response) error {
 			} else {
 				bs, err := ioutil.ReadAll(resp.Body)
 				if err != nil {
-					return err
+					e.Err = fmt.Sprintf("failed to read from response body: %s", err)
+				} else {
+					e.Err = strings.TrimRight(string(bs), "\n")
 				}
-				e.Err = strings.TrimRight(string(bs), "\n")
 			}
 		}
 	}
