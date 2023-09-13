@@ -297,38 +297,12 @@ type BucketManager struct {
 
 // NewBucketManager 用来构建一个新的资源管理对象
 func NewBucketManager(mac *auth.Credentials, cfg *Config) *BucketManager {
-	if cfg == nil {
-		cfg = &Config{}
-	}
-	if cfg.CentralRsHost == "" {
-		cfg.CentralRsHost = DefaultRsHost
-	}
-
-	return &BucketManager{
-		Client: &clientv1.DefaultClient,
-		Mac:    mac,
-		Cfg:    cfg,
-	}
+	return NewBucketManagerEx(mac, cfg, &clientv1.DefaultClient)
 }
 
 // NewBucketManagerEx 用来构建一个新的资源管理对象
 func NewBucketManagerEx(mac *auth.Credentials, cfg *Config, clt *clientv1.Client) *BucketManager {
-	if cfg == nil {
-		cfg = &Config{}
-	}
-
-	if clt == nil {
-		clt = &clientv1.DefaultClient
-	}
-	if cfg.CentralRsHost == "" {
-		cfg.CentralRsHost = DefaultRsHost
-	}
-
-	return &BucketManager{
-		Client: clt,
-		Mac:    mac,
-		Cfg:    cfg,
-	}
+	return NewBucketManagerExWithOptions(mac, cfg, clt, BucketManagerOptions{})
 }
 
 func NewBucketManagerExWithOptions(mac *auth.Credentials, cfg *Config, clt *clientv1.Client, options BucketManagerOptions) *BucketManager {
