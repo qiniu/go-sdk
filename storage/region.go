@@ -364,7 +364,7 @@ func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
 				ShouldRetry:   nil,
 			},
 			ShouldFreezeHost:   nil,
-			HostFreezeDuration: 0,
+			HostFreezeDuration: config.HostFreezeDuration,
 			HostProvider:       hostprovider.NewWithHosts(hosts),
 		}),
 		clientv2.NewSimpleRetryInterceptor(clientv2.RetryConfig{
