@@ -2,11 +2,13 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/conf"
-	"net/http"
 )
 
 // OperationManager 提供了数据处理相关的方法
@@ -66,16 +68,16 @@ type PrefopRet struct {
 func (r *PrefopRet) String() string {
 	strData := fmt.Sprintf("Id: %s\r\nCode: %d\r\nDesc: %s\r\n", r.ID, r.Code, r.Desc)
 	if r.InputBucket != "" {
-		strData += fmt.Sprintln(fmt.Sprintf("InputBucket: %s", r.InputBucket))
+		strData += fmt.Sprintf("InputBucket: %s\n", r.InputBucket)
 	}
 	if r.InputKey != "" {
-		strData += fmt.Sprintln(fmt.Sprintf("InputKey: %s", r.InputKey))
+		strData += fmt.Sprintf("InputKey: %s\n", r.InputKey)
 	}
 	if r.Pipeline != "" {
-		strData += fmt.Sprintln(fmt.Sprintf("Pipeline: %s", r.Pipeline))
+		strData += fmt.Sprintf("Pipeline: %s\n", r.Pipeline)
 	}
 	if r.Reqid != "" {
-		strData += fmt.Sprintln(fmt.Sprintf("Reqid: %s", r.Reqid))
+		strData += fmt.Sprintf("Reqid: %s\n", r.Reqid)
 	}
 
 	strData = fmt.Sprintln(strData)
@@ -184,6 +186,10 @@ func (m *OperationManager) ApiHost(bucket string) (apiHost string, err error) {
 		} else {
 			zone = v
 		}
+	}
+
+	if zone == nil || len(zone.ApiHost) == 0 {
+		return "", errors.New("can't get region api host with bucket:" + bucket)
 	}
 
 	apiHost = endpoint(m.Cfg.UseHTTPS, zone.ApiHost)

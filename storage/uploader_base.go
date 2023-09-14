@@ -1,8 +1,10 @@
 package storage
 
 import (
-	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
+	"errors"
 	"time"
+
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 )
 
 // retryMax: 为 0，使用默认值，每个域名只请求一次
@@ -18,13 +20,23 @@ func getUpHost(config *Config, retryMax int, hostFreezeDuration time.Duration, a
 		}
 	}
 
-	host := region.SrcUpHosts[0]
-	if config.UseCdnDomains {
-		host = region.CdnUpHosts[0]
+	if region == nil {
+		return "", errors.New("can't get region with bucket:" + bucket)
 	}
 
-	upHost = endpoint(config.UseHTTPS, host)
-	return
+	if config.UseCdnDomains {
+		if len(region.CdnUpHosts) == 0 {
+			return "", errors.New("can't get region cdn host with bucket:" + bucket)
+		}
+
+		return endpoint(config.UseHTTPS, region.CdnUpHosts[0]), nil
+	}
+
+	if len(region.SrcUpHosts) == 0 {
+		return "", errors.New("can't get region src host with bucket:" + bucket)
+	}
+
+	return endpoint(config.UseHTTPS, region.SrcUpHosts[0]), nil
 }
 
 // retryMax: 为 0，使用默认值，每个域名只请求一次
@@ -41,7 +53,7 @@ func getUpHostProvider(config *Config, retryMax int, hostFreezeDuration time.Dur
 		}
 	}
 
-	hosts := make([]string, 0, 0)
+	hosts := make([]string, 0)
 	if config.UseCdnDomains && len(region.CdnUpHosts) > 0 {
 		hosts = append(hosts, region.CdnUpHosts...)
 	} else if len(region.SrcUpHosts) > 0 {

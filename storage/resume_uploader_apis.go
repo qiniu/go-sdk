@@ -3,12 +3,13 @@ package storage
 import (
 	"context"
 	"encoding/base64"
-	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/conf"
@@ -46,8 +47,12 @@ func (p *resumeUploaderAPIs) bput(ctx context.Context, upToken string, ret *Blkp
 
 // RputExtra 表示分片上传额外可以指定的参数
 type RputExtra struct {
-	Recorder           Recorder          // 可选。上传进度记录
-	Params             map[string]string // 可选。用户自定义参数，以"x:"开头，而且值不能为空，否则忽略
+	Recorder Recorder // 可选。上传进度记录
+
+	// 可选。
+	// 用户自定义参数：key 以"x:"开头，而且 value 不能为空 eg: key为x:qqq
+	// 自定义 meta：key 以"x-qn-meta-"开头，而且 value 不能为空 eg: key为x-qn-meta-aaa
+	Params             map[string]string
 	UpHost             string
 	MimeType           string                                        // 可选。
 	ChunkSize          int                                           // 可选。每次上传的Chunk大小

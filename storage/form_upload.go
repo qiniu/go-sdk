@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"hash"
 	"hash/crc32"
 	"io"
@@ -18,12 +17,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
+
 	"github.com/qiniu/go-sdk/v7/client"
 )
 
 // PutExtra 为表单上传的额外可选项
 type PutExtra struct {
-	// 可选，用户自定义参数，必须以 "x:" 开头。若不以x:开头，则忽略。
+	// 可选。
+	// 用户自定义参数：key 以"x:"开头，而且 value 不能为空 eg: key为x:qqq
+	// 自定义 meta：key 以"x-qn-meta-"开头，而且 value 不能为空 eg: key为x-qn-meta-aaa
 	Params map[string]string
 
 	UpHost string
@@ -338,10 +341,6 @@ func (r *crc32Reader) Read(p []byte) (int, error) {
 		r.inited = true
 	}
 	return r.r.Read(p)
-}
-
-func (r crc32Reader) length() (length int64) {
-	return int64(len(r.nlDashBoundaryNl+r.header)) + r.crc32PadLen
 }
 
 func (p *FormUploader) UpHost(ak, bucket string) (upHost string, err error) {

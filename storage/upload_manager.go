@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/qiniu/go-sdk/v7/client"
 	"io"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/qiniu/go-sdk/v7/client"
 )
 
 type UploadResumeVersion = int
@@ -32,9 +33,9 @@ func (config *UploadConfig) init() {
 }
 
 type UploadExtra struct {
-	// 【可选】参数，
-	// 用户自定义参数，必须以 "x:" 开头。若不以 "x:" 开头，则忽略。
-	// meta-data 参数，必须以 "x-qn-meta-" 开头。若不以 "x-qn-meta-" 开头，则忽略。
+	// 可选。
+	// 用户自定义参数：key 以"x:"开头，而且 value 不能为空 eg: key为x:qqq
+	// 自定义 meta：key 以"x-qn-meta-"开头，而且 value 不能为空 eg: key为x-qn-meta-aaa
 	Params map[string]string
 
 	// 【可选】尝试次数

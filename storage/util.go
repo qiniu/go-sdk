@@ -2,12 +2,20 @@ package storage
 
 import (
 	"context"
+	"strings"
+	"time"
+
 	api "github.com/qiniu/go-sdk/v7"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
-	"strings"
-	"time"
 )
+
+func parseEtag(etag string) string {
+	etag = strings.TrimPrefix(etag, "\"")
+	etag = strings.TrimSuffix(etag, "\"")
+	etag = strings.TrimSuffix(etag, ".gz")
+	return etag
+}
 
 // ParsePutTime 提供了将PutTime转换为 time.Time 的功能
 func ParsePutTime(putTime int64) (t time.Time) {
@@ -126,7 +134,7 @@ func removeRepeatStringItem(slc []string) []string {
 }
 
 func removeHostScheme(host string) string {
-	host = strings.TrimLeft(host, "http://")
-	host = strings.TrimLeft(host, "https://")
+	host = strings.TrimPrefix(host, "http://")
+	host = strings.TrimPrefix(host, "https://")
 	return host
 }

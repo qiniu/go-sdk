@@ -1,7 +1,6 @@
 package api
 
-// QINIU SDK error type
-
+// QError QINIU SDK error type
 // 可以根据Code判断是何种类型错误
 type QError struct {
 	Code    string

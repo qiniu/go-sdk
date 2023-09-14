@@ -19,8 +19,10 @@ jobs:
           go-version: '1.10.x'
       - name: Format
         run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
+        working-directory: src/github.com/qiniu/go-sdk
       - name: Run unit cases
         run: |
+          set -e
           GOPATH=$GITHUB_WORKSPACE go get github.com/qiniu/x
           GOPATH=$GITHUB_WORKSPACE go get golang.org/x/sync/singleflight
           GOPATH=$GITHUB_WORKSPACE go get github.com/qiniu/dyn
@@ -69,8 +71,16 @@ jobs:
           go-version: ${{ matrix.go_version }}
       - name: Format
         run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
+      - name: Golint
+        run: |
+          if [ "${{ matrix.go_version }}" = "1.20.x" ]; then
+            set -e
+            go install honnef.co/go/tools/cmd/staticcheck@latest
+            make staticcheck
+          fi
       - name: Run unit cases
         run: |
+          set -e
           make unittest
         env:
           GO111MODULE: 'on'

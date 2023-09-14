@@ -5,8 +5,10 @@ package storage
 
 import (
 	"encoding/json"
-	clientV1 "github.com/qiniu/go-sdk/v7/client"
+	"strings"
 	"testing"
+
+	clientV1 "github.com/qiniu/go-sdk/v7/client"
 )
 
 func TestRegionUCQueryV2Test(t *testing.T) {
@@ -114,7 +116,31 @@ func TestUCRetry(t *testing.T) {
 		t.Fatalf("GetRegion error:%v", err)
 	}
 
-	if len(r.SrcUpHosts) == 0 {
-		t.Fatalf("GetRegion up hosts empty:%+v", r)
+	if !strings.Contains(r.SrcUpHosts[0], "up-") {
+		t.Fatal("GetRegion: SrcUpHosts error")
+	}
+
+	if !strings.Contains(r.CdnUpHosts[0], "upload-") {
+		t.Fatal("GetRegion: CdnUpHosts error")
+	}
+
+	if !strings.Contains(r.RsHost, "rs-") {
+		t.Fatal("GetRegion: RsHost error")
+	}
+
+	if !strings.Contains(r.RsfHost, "rsf-") {
+		t.Fatal("GetRegion: RsfHost error")
+	}
+
+	if !strings.Contains(r.ApiHost, "api-") {
+		t.Fatal("GetRegion: ApiHost error")
+	}
+
+	if !strings.Contains(r.IovipHost, "iovip-") {
+		t.Fatal("GetRegion: IovipHost error")
+	}
+
+	if !strings.Contains(r.IoSrcHost, testBucket) {
+		t.Fatal("GetRegion: IoSrcHost error")
 	}
 }

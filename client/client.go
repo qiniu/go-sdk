@@ -245,7 +245,7 @@ func parseError(e *ErrorInfo, r io.Reader) {
 	e.Err = string(body)
 }
 
-func ResponseError(resp *http.Response) (err error) {
+func ResponseError(resp *http.Response) error {
 
 	e := &ErrorInfo{
 		Reqid: resp.Header.Get("X-Reqid"),
@@ -257,11 +257,12 @@ func ResponseError(resp *http.Response) (err error) {
 			if ok && strings.HasPrefix(ct[0], "application/json") {
 				parseError(e, resp.Body)
 			} else {
-				bs, rErr := ioutil.ReadAll(resp.Body)
-				if rErr != nil {
-					err = rErr
+				bs, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					e.Err = fmt.Sprintf("failed to read from response body: %s", err)
+				} else {
+					e.Err = strings.TrimRight(string(bs), "\n")
 				}
-				e.Err = strings.TrimRight(string(bs), "\n")
 			}
 		}
 	}

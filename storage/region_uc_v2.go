@@ -2,14 +2,16 @@ package storage
 
 import (
 	"context"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"github.com/qiniu/go-sdk/v7/internal/clientv2"
-	"golang.org/x/sync/singleflight"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/qiniu/go-sdk/v7/internal/clientv2"
+	"golang.org/x/sync/singleflight"
 )
 
 // 此处废弃，但为了兼容老版本，单独放置一个文件
@@ -52,26 +54,62 @@ func (uc *UcQueryRet) setup() {
 
 	uc.Io = make(map[string]map[string][]string)
 	ioSrc := uc.IoInfo["src"].toMapWithoutInfo()
-	if ioSrc != nil && len(ioSrc) > 0 {
+	if len(ioSrc) > 0 {
 		uc.Io["src"] = ioSrc
 	}
 
 	ioOldSrc := uc.IoInfo["old_src"].toMapWithoutInfo()
-	if ioOldSrc != nil && len(ioOldSrc) > 0 {
+	if len(ioOldSrc) > 0 {
 		uc.Io["old_src"] = ioOldSrc
 	}
 }
 
 func (uc *UcQueryRet) getOneHostFromInfo(info map[string]UcQueryIo) string {
-	if len(info["src"].Main) > 0 {
-		return info["src"].Main[0]
+	hosts := uc.getSrcHostsFromInfo(info)
+	if len(hosts) > 0 {
+		return hosts[0]
 	}
 
-	if len(info["acc"].Main) > 0 {
-		return info["acc"].Main[0]
+	hosts = uc.getAccHostsFromInfo(info)
+	if len(hosts) > 0 {
+		return hosts[0]
 	}
 
 	return ""
+}
+
+func (uc *UcQueryRet) getSrcHostsFromInfo(info map[string]UcQueryIo) []string {
+	ret := make([]string, 0)
+	if info == nil {
+		return ret
+	}
+
+	if len(info["src"].Main) > 0 {
+		ret = append(ret, info["src"].Main...)
+	}
+
+	if len(info["src"].Backup) > 0 {
+		ret = append(ret, info["src"].Backup...)
+	}
+
+	return ret
+}
+
+func (uc *UcQueryRet) getAccHostsFromInfo(info map[string]UcQueryIo) []string {
+	ret := make([]string, 0)
+	if info == nil {
+		return ret
+	}
+
+	if len(info["acc"].Main) > 0 {
+		ret = append(ret, info["acc"].Main...)
+	}
+
+	if len(info["acc"].Backup) > 0 {
+		ret = append(ret, info["acc"].Backup...)
+	}
+
+	return ret
 }
 
 type UcQueryUp = UcQueryServerInfo
@@ -201,13 +239,13 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 		}()
 	}
 
-	regionID := fmt.Sprintf("%s:%s", ak, bucket)
+	regionCacheKey := makeRegionCacheKey(ak, bucket)
 	//check from cache
-	if v, ok := regionV2Cache.Load(regionID); ok && time.Now().Before(v.(regionV2CacheValue).Deadline) {
+	if v, ok := regionV2Cache.Load(regionCacheKey); ok && time.Now().Before(v.(regionV2CacheValue).Deadline) {
 		return v.(regionV2CacheValue).Region, nil
 	}
 
-	newRegion, err, _ := ucQueryV2Group.Do(regionID, func() (interface{}, error) {
+	newRegion, err, _ := ucQueryV2Group.Do(regionCacheKey, func() (interface{}, error) {
 		reqURL := fmt.Sprintf("%s/v2/query?ak=%s&bucket=%s", getUcHost(options.UseHttps), ak, bucket)
 
 		var ret UcQueryRet
@@ -227,51 +265,17 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 			return nil, fmt.Errorf("query region error, %s", err.Error())
 		}
 
-		ioHost := ret.getOneHostFromInfo(ret.IoInfo)
-		if len(ioHost) == 0 {
-			return nil, fmt.Errorf("empty io host list")
-		}
-
-		ioSrcHost := ret.getOneHostFromInfo(ret.IoSrcInfo)
-		if len(ioHost) == 0 {
-			return nil, fmt.Errorf("empty io host list")
-		}
-
-		rsHost := ret.getOneHostFromInfo(ret.RsInfo)
-		if len(rsHost) == 0 {
-			return nil, fmt.Errorf("empty rs host list")
-		}
-
-		rsfHost := ret.getOneHostFromInfo(ret.RsfInfo)
-		if len(rsfHost) == 0 {
-			return nil, fmt.Errorf("empty rsf host list")
-		}
-
-		apiHost := ret.getOneHostFromInfo(ret.ApiInfo)
-		if len(apiHost) == 0 {
-			return nil, fmt.Errorf("empty api host list")
-		}
-
-		srcUpHosts := ret.Up["src"].Main
-		if ret.Up["src"].Backup != nil {
-			srcUpHosts = append(srcUpHosts, ret.Up["src"].Backup...)
-		}
-		cdnUpHosts := ret.Up["acc"].Main
-		if ret.Up["acc"].Backup != nil {
-			cdnUpHosts = append(cdnUpHosts, ret.Up["acc"].Backup...)
-		}
-
 		region := &Region{
-			SrcUpHosts: srcUpHosts,
-			CdnUpHosts: cdnUpHosts,
-			IovipHost:  ioHost,
-			RsHost:     rsHost,
-			RsfHost:    rsfHost,
-			ApiHost:    apiHost,
-			IoSrcHost:  ioSrcHost,
+			SrcUpHosts: ret.getSrcHostsFromInfo(ret.Up),
+			CdnUpHosts: ret.getAccHostsFromInfo(ret.Up),
+			IovipHost:  ret.getOneHostFromInfo(ret.IoInfo),
+			RsHost:     ret.getOneHostFromInfo(ret.RsInfo),
+			RsfHost:    ret.getOneHostFromInfo(ret.RsfInfo),
+			ApiHost:    ret.getOneHostFromInfo(ret.ApiInfo),
+			IoSrcHost:  ret.getOneHostFromInfo(ret.IoSrcInfo),
 		}
 
-		regionV2Cache.Store(regionID, regionV2CacheValue{
+		regionV2Cache.Store(regionCacheKey, regionV2CacheValue{
 			Region:   region,
 			Deadline: time.Now().Add(time.Duration(ret.TTL) * time.Second),
 		})
@@ -287,4 +291,8 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 	}
 
 	return newRegion.(*Region), err
+}
+
+func makeRegionCacheKey(ak, bucket string) string {
+	return fmt.Sprintf("%s:%s:%x", ak, bucket, md5.Sum([]byte(getUcHost(false))))
 }

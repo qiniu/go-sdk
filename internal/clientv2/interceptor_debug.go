@@ -3,11 +3,12 @@ package clientv2
 import (
 	"crypto/tls"
 	"fmt"
-	clientV1 "github.com/qiniu/go-sdk/v7/client"
-	"github.com/qiniu/go-sdk/v7/internal/log"
 	"net/http"
 	"net/http/httptrace"
 	"net/http/httputil"
+
+	clientV1 "github.com/qiniu/go-sdk/v7/client"
+	"github.com/qiniu/go-sdk/v7/internal/log"
 )
 
 type DebugLevel int
@@ -147,10 +148,10 @@ func (interceptor *debugInterceptor) printRequestTrace(label string, req *http.R
 			log.Debug(label + fmt.Sprintf("PutIdleConn, err:%v \n", err))
 		},
 		GotFirstResponseByte: func() {
-			log.Debug(label + fmt.Sprint("GotFirstResponseByte \n"))
+			log.Debug(label + "GotFirstResponseByte \n")
 		},
 		Got100Continue: func() {
-			log.Debug(label + fmt.Sprint("Got100Continue \n"))
+			log.Debug(label + "Got100Continue \n")
 		},
 		DNSStart: func(info httptrace.DNSStartInfo) {
 			log.Debug(label + fmt.Sprintf("DNSStart, host:%s \n", info.Host))
@@ -165,7 +166,7 @@ func (interceptor *debugInterceptor) printRequestTrace(label string, req *http.R
 			log.Debug(label + fmt.Sprintf("ConnectDone, network:%s ip:%s err:%v \n", network, addr, err))
 		},
 		TLSHandshakeStart: func() {
-			log.Debug(label + fmt.Sprint("TLSHandshakeStart \n"))
+			log.Debug(label + "TLSHandshakeStart \n")
 		},
 		TLSHandshakeDone: func(state tls.ConnectionState, err error) {
 			log.Debug(label + fmt.Sprintf("TLSHandshakeDone, state:%+v err:%s \n", state, err))
@@ -175,10 +176,10 @@ func (interceptor *debugInterceptor) printRequestTrace(label string, req *http.R
 		//	log.Debug(label + fmt.Sprintf("WroteHeaderField, key:%s value:%s \n", key, value))
 		//},
 		WroteHeaders: func() {
-			log.Debug(label + fmt.Sprint("WroteHeaders \n"))
+			log.Debug(label + "WroteHeaders \n")
 		},
 		Wait100Continue: func() {
-			log.Debug(label + fmt.Sprint("Wait100Continue \n"))
+			log.Debug(label + "Wait100Continue \n")
 		},
 		WroteRequest: func(info httptrace.WroteRequestInfo) {
 			log.Debug(label + fmt.Sprintf("WroteRequest, err:%v \n", info.Err))
