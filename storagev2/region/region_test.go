@@ -9,7 +9,7 @@ import (
 
 func TestRegion(t *testing.T) {
 	region := GetRegionByID("z0", true)
-	iter, err := region.IterServiceHosts(ServiceUp)
+	iter, err := region.EndpointsIter([]ServiceName{ServiceUp})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestRegion(t *testing.T) {
 		t.Fatalf("should not get next domain")
 	}
 
-	iter, err = region.IterServiceHosts(ServiceUp)
+	iter, err = region.EndpointsIter([]ServiceName{ServiceUp})
 	if err != nil {
 		t.Fatal(err)
 	}

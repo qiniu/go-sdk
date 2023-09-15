@@ -226,11 +226,11 @@ func (b *BucketInfo) TokenAntiLeechModeOn() bool {
 func (m *BucketManager) GetBucketInfo(bucketName string) (bucketInfo BucketInfo, err error) {
 	reqURL := fmt.Sprintf("%s/v2/bucketInfo?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucketName)
 	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, &bucketInfo)
 	return bucketInfo, err
 }
@@ -241,12 +241,16 @@ func (m *BucketManager) SetRemark(bucketName, remark string) (err error) {
 	body := struct {
 		Remark string `json:"remark"`
 	}{Remark: remark}
+	getBody, err := clientv2.GetJsonRequestBody(body)
+	if err != nil {
+		return
+	}
 	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPut,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: clientv2.RequestBodyCreatorOfJson(body),
+		Context: nil,
+		Method:  clientv2.RequestMethodPut,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: getBody,
 	}, nil)
 	return err
 }
@@ -255,11 +259,11 @@ func (m *BucketManager) SetRemark(bucketName, remark string) (err error) {
 func (m *BucketManager) BucketInfosInRegion(region RegionID, statistics bool) (bucketInfos []BucketSummary, err error) {
 	reqURL := fmt.Sprintf("%s/v2/bucketInfos?region=%s&fs=%t", getUcHost(m.Cfg.UseHTTPS), string(region), statistics)
 	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, &bucketInfos)
 	return bucketInfos, err
 }
@@ -324,11 +328,11 @@ func (m *BucketManager) AddBucketLifeCycleRule(bucketName string, lifeCycleRule 
 
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/add"
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: clientv2.RequestBodyCreatorForm(params),
+		Context: nil,
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: clientv2.GetFormRequestBody(params),
 	}, nil)
 }
 
@@ -341,11 +345,11 @@ func (m *BucketManager) DelBucketLifeCycleRule(bucketName, ruleName string) (err
 
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/delete"
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: clientv2.RequestBodyCreatorForm(params),
+		Context: nil,
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: clientv2.GetFormRequestBody(params),
 	}, nil)
 }
 
@@ -364,11 +368,11 @@ func (m *BucketManager) UpdateBucketLifeCycleRule(bucketName string, rule *Bucke
 
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/update"
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: clientv2.RequestBodyCreatorForm(params),
+		Context: nil,
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: clientv2.GetFormRequestBody(params),
 	}, nil)
 }
 
@@ -376,11 +380,11 @@ func (m *BucketManager) UpdateBucketLifeCycleRule(bucketName string, rule *Bucke
 func (m *BucketManager) GetBucketLifeCycleRule(bucketName string) (rules []BucketLifeCycleRule, err error) {
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/get?bucket=" + bucketName
 	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodGet,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  clientv2.RequestMethodGet,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, &rules)
 	return rules, err
 }
@@ -441,11 +445,11 @@ func (m *BucketManager) AddBucketEvent(bucket string, rule *BucketEventRule) (er
 	params := rule.Params(bucket)
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/add"
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: clientv2.RequestBodyCreatorForm(params),
+		Context: nil,
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: clientv2.GetFormRequestBody(params),
 	}, nil)
 }
 
@@ -457,11 +461,11 @@ func (m *BucketManager) DelBucketEvent(bucket, ruleName string) (err error) {
 
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/delete"
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: clientv2.RequestBodyCreatorForm(params),
+		Context: nil,
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: clientv2.GetFormRequestBody(params),
 	}, nil)
 }
 
@@ -470,11 +474,11 @@ func (m *BucketManager) UpdateBucketEnvent(bucket string, rule *BucketEventRule)
 	params := rule.Params(bucket)
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/update"
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: clientv2.RequestBodyCreatorForm(params),
+		Context: nil,
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: clientv2.GetFormRequestBody(params),
 	}, nil)
 }
 
@@ -482,11 +486,11 @@ func (m *BucketManager) UpdateBucketEnvent(bucket string, rule *BucketEventRule)
 func (m *BucketManager) GetBucketEvent(bucket string) (rule []BucketEventRule, err error) {
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/get?bucket=" + bucket
 	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodGet,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  clientv2.RequestMethodGet,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, &rule)
 	return rule, err
 }
@@ -523,12 +527,16 @@ type CorsRule struct {
 // AddCorsRules 设置指定存储空间的跨域规则
 func (m *BucketManager) AddCorsRules(bucket string, corsRules []CorsRule) (err error) {
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/corsRules/set/" + bucket
+	getBody, err := clientv2.GetJsonRequestBody(corsRules)
+	if err != nil {
+		return
+	}
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: clientv2.RequestBodyCreatorOfJson(corsRules),
+		Context: nil,
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: getBody,
 	}, nil)
 }
 
@@ -536,11 +544,11 @@ func (m *BucketManager) AddCorsRules(bucket string, corsRules []CorsRule) (err e
 func (m *BucketManager) GetCorsRules(bucket string) (corsRules []CorsRule, err error) {
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/corsRules/get/" + bucket
 	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodGet,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  clientv2.RequestMethodGet,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, &corsRules)
 	return corsRules, err
 }
@@ -563,11 +571,11 @@ type BucketQuota struct {
 func (m *BucketManager) SetBucketQuota(bucket string, size, count int64) (err error) {
 	reqURL := fmt.Sprintf("%s/setbucketquota/%s/size/%d/count/%d", getUcHost(m.Cfg.UseHTTPS), bucket, size, count)
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, nil)
 }
 
@@ -575,11 +583,11 @@ func (m *BucketManager) SetBucketQuota(bucket string, size, count int64) (err er
 func (m *BucketManager) GetBucketQuota(bucket string) (quota BucketQuota, err error) {
 	reqURL := fmt.Sprintf("%s/getbucketquota/%s", getUcHost(m.Cfg.UseHTTPS), bucket)
 	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, &quota)
 	return quota, err
 }
@@ -590,11 +598,11 @@ func (m *BucketManager) GetBucketQuota(bucket string) (quota BucketQuota, err er
 func (m *BucketManager) SetBucketAccessStyle(bucket string, mode int) error {
 	reqURL := fmt.Sprintf("%s/accessMode/%s/mode/%d", getUcHost(m.Cfg.UseHTTPS), bucket, mode)
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, nil)
 }
 
@@ -613,11 +621,11 @@ func (m *BucketManager) TurnOffBucketProtected(bucket string) error {
 func (m *BucketManager) SetBucketMaxAge(bucket string, maxAge int64) error {
 	reqURL := fmt.Sprintf("%s/maxAge?bucket=%s&maxAge=%d", getUcHost(m.Cfg.UseHTTPS), bucket, maxAge)
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, nil)
 }
 
@@ -628,11 +636,11 @@ func (m *BucketManager) SetBucketMaxAge(bucket string, maxAge int64) error {
 func (m *BucketManager) SetBucketAccessMode(bucket string, mode int) error {
 	reqURL := fmt.Sprintf("%s/private?bucket=%s&private=%d", getUcHost(m.Cfg.UseHTTPS), bucket, mode)
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, nil)
 }
 
@@ -659,11 +667,11 @@ func (m *BucketManager) TurnOffIndexPage(bucket string) error {
 func (m *BucketManager) setIndexPage(bucket string, noIndexPage int) error {
 	reqURL := fmt.Sprintf("%s/noIndexPage?bucket=%s&noIndexPage=%d", getUcHost(m.Cfg.UseHTTPS), bucket, noIndexPage)
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     nil,
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, nil)
 }
 
@@ -686,14 +694,18 @@ func (m *BucketManager) SetTagging(bucket string, tags map[string]string) error 
 	for key, value := range tags {
 		tagging.Tags = append(tagging.Tags, BucketTag{Key: key, Value: value})
 	}
+	getBody, err := clientv2.GetJsonRequestBody(tagging)
+	if err != nil {
+		return err
+	}
 
 	reqURL := fmt.Sprintf("%s/bucketTagging?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     context.Background(),
-		Method:      clientv2.RequestMethodPut,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: clientv2.RequestBodyCreatorOfJson(tagging),
+		Context: context.Background(),
+		Method:  clientv2.RequestMethodPut,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: getBody,
 	}, nil)
 }
 
@@ -701,11 +713,11 @@ func (m *BucketManager) SetTagging(bucket string, tags map[string]string) error 
 func (m *BucketManager) ClearTagging(bucket string) error {
 	reqURL := fmt.Sprintf("%s/bucketTagging?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     context.Background(),
-		Method:      clientv2.RequestMethodDelete,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: context.Background(),
+		Method:  clientv2.RequestMethodDelete,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, nil)
 }
 
@@ -714,11 +726,11 @@ func (m *BucketManager) GetTagging(bucket string) (tags map[string]string, err e
 	var tagging BucketTagging
 	reqURL := fmt.Sprintf("%s/bucketTagging?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
 	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     context.Background(),
-		Method:      clientv2.RequestMethodGet,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: context.Background(),
+		Method:  clientv2.RequestMethodGet,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, &tagging)
 	if err != nil {
 		return

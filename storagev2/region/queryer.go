@@ -21,7 +21,7 @@ import (
 
 type (
 	BucketRegionsQueryer struct {
-		bucketHosts ServiceHosts
+		bucketHosts Endpoints
 		cache       *cache.Cache
 		client      clientv2.Client
 		useHttps    bool
@@ -86,7 +86,7 @@ type (
 const cacheFileName = "query_v4_01.cache.json"
 
 // NewBucketRegionsQueryer 创建空间区域查询器
-func NewBucketRegionsQueryer(bucketHosts ServiceHosts, opts *BucketRegionsQueryerOptions) (*BucketRegionsQueryer, error) {
+func NewBucketRegionsQueryer(bucketHosts Endpoints, opts *BucketRegionsQueryerOptions) (*BucketRegionsQueryer, error) {
 	if opts == nil {
 		opts = &BucketRegionsQueryerOptions{}
 	}
@@ -192,18 +192,18 @@ func (response *v4QueryRegion) toCacheValue() *Region {
 	}
 }
 
-func (response *v4QueryServiceHosts) toCacheValue() ServiceHosts {
-	return ServiceHosts{
+func (response *v4QueryServiceHosts) toCacheValue() Endpoints {
+	return Endpoints{
 		Preferred:   response.Domains,
 		Alternative: response.Old,
 	}
 }
 
-func makeRegionCacheKey(accessKey, bucketName string, bucketHosts ServiceHosts) string {
+func makeRegionCacheKey(accessKey, bucketName string, bucketHosts Endpoints) string {
 	return fmt.Sprintf("%s:%s:%s", accessKey, bucketName, makeBucketHostsCacheKey(bucketHosts))
 }
 
-func makeBucketHostsCacheKey(serviceHosts ServiceHosts) string {
+func makeBucketHostsCacheKey(serviceHosts Endpoints) string {
 	return fmt.Sprintf("%s:%s", makeHostsCacheKey(serviceHosts.Preferred), makeHostsCacheKey(serviceHosts.Alternative))
 }
 
@@ -213,7 +213,7 @@ func makeHostsCacheKey(hosts []string) string {
 	return fmt.Sprintf("%x", md5.Sum([]byte(strings.Join(sortedHosts, ","))))
 }
 
-func makeBucketQueryClient(client *client.Client, bucketHosts ServiceHosts, useHttps bool, retryMax int, hostFreezeDuration time.Duration) clientv2.Client {
+func makeBucketQueryClient(client *client.Client, bucketHosts Endpoints, useHttps bool, retryMax int, hostFreezeDuration time.Duration) clientv2.Client {
 	is := []clientv2.Interceptor{
 		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
 			RetryConfig: clientv2.RetryConfig{

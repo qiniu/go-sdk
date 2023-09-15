@@ -360,11 +360,11 @@ func (m *BucketManager) UpdateObjectStatus(bucketName string, key string, enable
 func (m *BucketManager) CreateBucket(bucketName string, regionID RegionID) error {
 	reqURL := fmt.Sprintf("%s/mkbucketv3/%s/region/%s", getUcHost(m.Cfg.UseHTTPS), bucketName, string(regionID))
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     context.Background(),
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: context.Background(),
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, nil)
 }
 
@@ -372,11 +372,11 @@ func (m *BucketManager) CreateBucket(bucketName string, regionID RegionID) error
 func (m *BucketManager) Buckets(shared bool) (buckets []string, err error) {
 	reqURL := fmt.Sprintf("%s/buckets?shared=%v", getUcHost(m.Cfg.UseHTTPS), shared)
 	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     context.Background(),
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: context.Background(),
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, &buckets)
 	return buckets, err
 }
@@ -401,11 +401,11 @@ func (m *BucketManager) BucketsV4(input *BucketV4Input) (output BucketsV4Output,
 		reqURL += "&" + query.Encode()
 	}
 	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     context.Background(),
-		Method:      clientv2.RequestMethodGet,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: context.Background(),
+		Method:  clientv2.RequestMethodGet,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, &output)
 	return output, err
 }
@@ -414,11 +414,11 @@ func (m *BucketManager) BucketsV4(input *BucketV4Input) (output BucketsV4Output,
 func (m *BucketManager) DropBucket(bucketName string) (err error) {
 	reqURL := fmt.Sprintf("%s/drop/%s", getUcHost(m.Cfg.UseHTTPS), bucketName)
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     context.Background(),
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: context.Background(),
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, nil)
 }
 
@@ -747,11 +747,11 @@ type DomainInfo struct {
 func (m *BucketManager) ListBucketDomains(bucket string) (info []DomainInfo, err error) {
 	reqURL := fmt.Sprintf("%s/v3/domains?tbl=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
 	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     context.Background(),
-		Method:      clientv2.RequestMethodGet,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: context.Background(),
+		Method:  clientv2.RequestMethodGet,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, &info)
 	return info, err
 }
@@ -772,11 +772,11 @@ func (m *BucketManager) Prefetch(bucket, key string) (err error) {
 func (m *BucketManager) SetImage(siteURL, bucket string) (err error) {
 	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriSetImage(siteURL, bucket))
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     context.Background(),
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: context.Background(),
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, nil)
 }
 
@@ -785,11 +785,11 @@ func (m *BucketManager) SetImageWithHost(siteURL, bucket, host string) (err erro
 	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS),
 		uriSetImageWithHost(siteURL, bucket, host))
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     context.Background(),
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: context.Background(),
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, nil)
 }
 
@@ -797,11 +797,11 @@ func (m *BucketManager) SetImageWithHost(siteURL, bucket, host string) (err erro
 func (m *BucketManager) UnsetImage(bucket string) (err error) {
 	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriUnsetImage(bucket))
 	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context:     context.Background(),
-		Method:      clientv2.RequestMethodPost,
-		Url:         reqURL,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: context.Background(),
+		Method:  clientv2.RequestMethodPost,
+		Url:     reqURL,
+		Header:  nil,
+		GetBody: nil,
 	}, nil)
 }
 

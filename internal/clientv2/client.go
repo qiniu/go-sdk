@@ -17,7 +17,7 @@ type Handler func(req *http.Request) (*http.Response, error)
 
 type client struct {
 	coreClient   Client
-	interceptors []Interceptor
+	interceptors interceptorList
 }
 
 func NewClient(cli Client, interceptors ...Interceptor) Client {
@@ -36,11 +36,6 @@ func NewClient(cli Client, interceptors ...Interceptor) Client {
 	is = append(is, newDebugInterceptor())
 	sort.Sort(is)
 
-	// 反转
-	for i, j := 0, len(is)-1; i < j; i, j = i+1, j-1 {
-		is[i], is[j] = is[j], is[i]
-	}
-
 	return &client{
 		coreClient:   cli,
 		interceptors: is,
@@ -52,12 +47,13 @@ func (c *client) Do(req *http.Request) (*http.Response, error) {
 		return c.coreClient.Do(req)
 	}
 
-	interceptors := c.interceptors
-	for _, interceptor := range interceptors {
-		h := handler
-		i := interceptor
-		handler = func(r *http.Request) (*http.Response, error) {
-			return i.Intercept(r, h)
+	for _, interceptors := range []interceptorList{c.interceptors, getIntercetorsFromRequest(req)} {
+		for _, interceptor := range interceptors {
+			h := handler
+			i := interceptor
+			handler = func(r *http.Request) (*http.Response, error) {
+				return i.Intercept(r, h)
+			}
 		}
 	}
 

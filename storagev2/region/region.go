@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
+
+	"github.com/qiniu/go-sdk/v7/internal/freezer"
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 )
 
 type (
@@ -15,7 +19,7 @@ type (
 	// 服务地址
 	//
 	// 可以存储域名或 IP，端口和协议可选
-	ServiceHosts struct {
+	Endpoints struct {
 		Preferred   []string `json:"preferred,omitempty"`
 		Alternative []string `json:"alternative,omitempty"`
 	}
@@ -24,24 +28,40 @@ type (
 	//
 	// 可能有多个机房信息，每个机房可能有多个服务地址
 	Region struct {
-		RegionID RegionID     `json:"region_id,omitempty"`
-		Up       ServiceHosts `json:"up,omitempty"`
-		Io       ServiceHosts `json:"io,omitempty"`
-		IoSrc    ServiceHosts `json:"io_src,omitempty"`
-		Rs       ServiceHosts `json:"rs,omitempty"`
-		Rsf      ServiceHosts `json:"rsf,omitempty"`
-		Api      ServiceHosts `json:"api,omitempty"`
-		Bucket   ServiceHosts `json:"bucket,omitempty"`
+		RegionID RegionID  `json:"region_id,omitempty"`
+		Up       Endpoints `json:"up,omitempty"`
+		Io       Endpoints `json:"io,omitempty"`
+		IoSrc    Endpoints `json:"io_src,omitempty"`
+		Rs       Endpoints `json:"rs,omitempty"`
+		Rsf      Endpoints `json:"rsf,omitempty"`
+		Api      Endpoints `json:"api,omitempty"`
+		Bucket   Endpoints `json:"bucket,omitempty"`
+	}
+
+	// 区域提供者
+	RegionsProvider interface {
+		GetRegions(context.Context) ([]*Region, error)
 	}
 
 	// 服务名称
 	ServiceName string
 
 	// 服务地址迭代器
-	ServiceHostsIter struct {
-		hosts         ServiceHosts
+	EndpointsIter struct {
+		endpoints     Endpoints
 		index         int
 		isAlternative bool
+	}
+
+	// 服务地址提供者
+	EndpointsProvider interface {
+		GetEndpoints(context.Context) (Endpoints, error)
+	}
+
+	endpointsHostProvider struct {
+		iter          *EndpointsIter
+		freezer       freezer.Freezer
+		lastFreezeErr error
 	}
 )
 
@@ -97,25 +117,37 @@ func (region *Region) GetRegions(context.Context) ([]*Region, error) {
 	return []*Region{region}, nil
 }
 
-func (region *Region) IterServiceHosts(serviceName ServiceName) (*ServiceHostsIter, error) {
-	switch serviceName {
-	case ServiceUp:
-		return region.Up.Iter(), nil
-	case ServiceIo:
-		return region.Io.Iter(), nil
-	case ServiceIoSrc:
-		return region.IoSrc.Iter(), nil
-	case ServiceRs:
-		return region.Rs.Iter(), nil
-	case ServiceRsf:
-		return region.Rsf.Iter(), nil
-	case ServiceApi:
-		return region.Api.Iter(), nil
-	case ServiceBucket:
-		return region.Bucket.Iter(), nil
-	default:
-		return nil, ErrUnrecognizedServiceName
+func (region *Region) Endpoints(serviceNames []ServiceName) (Endpoints, error) {
+	var endpoint Endpoints
+	for _, serviceName := range serviceNames {
+		switch serviceName {
+		case ServiceUp:
+			endpoint = endpoint.Join(region.Up)
+		case ServiceIo:
+			endpoint = endpoint.Join(region.Io)
+		case ServiceIoSrc:
+			endpoint = endpoint.Join(region.IoSrc)
+		case ServiceRs:
+			endpoint = endpoint.Join(region.Rs)
+		case ServiceRsf:
+			endpoint = endpoint.Join(region.Rsf)
+		case ServiceApi:
+			endpoint = endpoint.Join(region.Api)
+		case ServiceBucket:
+			endpoint = endpoint.Join(region.Bucket)
+		default:
+			return endpoint, ErrUnrecognizedServiceName
+		}
 	}
+	return endpoint, nil
+}
+
+func (region *Region) EndpointsIter(serviceNames []ServiceName) (*EndpointsIter, error) {
+	endpoints, err := region.Endpoints(serviceNames)
+	if err != nil {
+		return nil, err
+	}
+	return endpoints.Iter(), nil
 }
 
 func (left *Region) IsEqual(right *Region) bool {
@@ -129,34 +161,67 @@ func (left *Region) IsEqual(right *Region) bool {
 		left.Bucket.IsEqual(right.Bucket)
 }
 
-func (left ServiceHosts) IsEqual(right ServiceHosts) bool {
+func (left Endpoints) Join(rights ...Endpoints) Endpoints {
+	newEndpoint := left
+	for _, right := range rights {
+		if len(newEndpoint.Preferred) == 0 {
+			newEndpoint.Preferred = right.Preferred
+		} else {
+			newEndpoint.Preferred = append(newEndpoint.Preferred, right.Preferred...)
+		}
+		if len(newEndpoint.Alternative) == 0 {
+			newEndpoint.Alternative = right.Alternative
+		} else {
+			newEndpoint.Alternative = append(newEndpoint.Alternative, right.Alternative...)
+		}
+	}
+
+	return newEndpoint
+}
+
+func (left Endpoints) IsEqual(right Endpoints) bool {
 	return reflect.DeepEqual(left.Preferred, right.Preferred) &&
 		reflect.DeepEqual(left.Alternative, right.Alternative)
 }
 
-func (hosts ServiceHosts) Iter() *ServiceHostsIter {
-	return &ServiceHostsIter{hosts: hosts}
+func (hosts Endpoints) Iter() *EndpointsIter {
+	return &EndpointsIter{endpoints: hosts}
 }
 
-func (hosts ServiceHosts) firstUrl(useHttps bool) string {
-	for _, preferred := range hosts.Preferred {
+func (endpoints Endpoints) IsEmpty() bool {
+	return len(endpoints.Preferred) == 0 && len(endpoints.Alternative) == 0
+}
+
+func (endpoints Endpoints) firstUrl(useHttps bool) string {
+	for _, preferred := range endpoints.Preferred {
 		return makeUrlFromHost(preferred, useHttps)
 	}
-	for _, alternative := range hosts.Alternative {
+	for _, alternative := range endpoints.Alternative {
 		return makeUrlFromHost(alternative, useHttps)
 	}
 	return ""
 }
 
-func (hosts ServiceHosts) allUrls(useHttps bool) []string {
-	allHosts := make([]string, 0, len(hosts.Preferred)+len(hosts.Alternative))
-	for _, preferred := range hosts.Preferred {
+func (endpoints Endpoints) GetEndpoints(context.Context) (Endpoints, error) {
+	return endpoints, nil
+}
+
+func (endpoints Endpoints) allUrls(useHttps bool) []string {
+	allHosts := make([]string, 0, len(endpoints.Preferred)+len(endpoints.Alternative))
+	for _, preferred := range endpoints.Preferred {
 		allHosts = append(allHosts, makeUrlFromHost(preferred, useHttps))
 	}
-	for _, alternative := range hosts.Alternative {
+	for _, alternative := range endpoints.Alternative {
 		allHosts = append(allHosts, makeUrlFromHost(alternative, useHttps))
 	}
 	return allHosts
+}
+
+func (hosts Endpoints) ToHostProvider() hostprovider.HostProvider {
+	return &endpointsHostProvider{
+		iter:    hosts.Iter(),
+		freezer: freezer.New(),
+	}
 }
 
 func makeUrlFromHost(host string, useHttps bool) string {
@@ -170,39 +235,63 @@ func makeUrlFromHost(host string, useHttps bool) string {
 	}
 }
 
-func (iter *ServiceHostsIter) Next(nextHost *string) bool {
+func (iter *EndpointsIter) Next(nextHost *string) bool {
 	if iter.isAlternative {
-		if iter.index >= len(iter.hosts.Alternative) {
+		if iter.index >= len(iter.endpoints.Alternative) {
 			return false
 		}
-		host := iter.hosts.Alternative[iter.index]
+		host := iter.endpoints.Alternative[iter.index]
 		iter.index += 1
 		*nextHost = host
 		return true
 	}
-	if iter.index >= len(iter.hosts.Preferred) {
+	if iter.index >= len(iter.endpoints.Preferred) {
 		iter.isAlternative = true
 		iter.index = 0
 		return iter.Next(nextHost)
 	}
-	host := iter.hosts.Preferred[iter.index]
+	host := iter.endpoints.Preferred[iter.index]
 	iter.index += 1
 	*nextHost = host
 	return true
 }
 
-func (iter *ServiceHostsIter) More() bool {
+func (iter *EndpointsIter) More() bool {
 	if iter.isAlternative {
-		return iter.index < len(iter.hosts.Alternative)
-	} else if iter.index >= len(iter.hosts.Preferred) {
-		return len(iter.hosts.Alternative) > 0
+		return iter.index < len(iter.endpoints.Alternative)
+	} else if iter.index >= len(iter.endpoints.Preferred) {
+		return len(iter.endpoints.Alternative) > 0
 	}
 	return true
 }
 
-func (iter *ServiceHostsIter) SwitchToAlternative() {
-	if len(iter.hosts.Alternative) > 0 && !iter.isAlternative {
+func (iter *EndpointsIter) SwitchToAlternative() {
+	if len(iter.endpoints.Alternative) > 0 && !iter.isAlternative {
 		iter.isAlternative = true
 		iter.index = 0
+	}
+}
+
+func (provider *endpointsHostProvider) Freeze(host string, cause error, duration time.Duration) error {
+	if duration <= 0 {
+		return nil
+	}
+
+	provider.lastFreezeErr = cause
+	return provider.freezer.Freeze(host, duration)
+}
+
+func (provider *endpointsHostProvider) Provider() (string, error) {
+	var host string
+	for provider.iter.Next(&host) {
+		if provider.freezer.Available(host) {
+			return host, nil
+		}
+	}
+
+	if provider.lastFreezeErr != nil {
+		return "", provider.lastFreezeErr
+	} else {
+		return "", hostprovider.ErrAllHostsFrozen
 	}
 }

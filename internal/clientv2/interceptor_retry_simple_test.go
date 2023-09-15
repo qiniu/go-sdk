@@ -42,11 +42,11 @@ func TestSimpleAlwaysRetryInterceptor(t *testing.T) {
 
 	start := time.Now()
 	resp, _ := Do(c, RequestParams{
-		Context:     nil,
-		Method:      "",
-		Url:         "https://aaa.com",
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  "",
+		Url:     "https://aaa.com",
+		Header:  nil,
+		GetBody: nil,
 	})
 	duration := float32(time.Now().UnixNano()-start.UnixNano()) / 1e9
 
@@ -98,11 +98,11 @@ func TestSimpleNotRetryInterceptor(t *testing.T) {
 
 	start := time.Now()
 	resp, _ := Do(c, RequestParams{
-		Context:     nil,
-		Method:      "",
-		Url:         "https://aaa.com",
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  "",
+		Url:     "https://aaa.com",
+		Header:  nil,
+		GetBody: nil,
 	})
 	duration := float32(time.Now().UnixNano()-start.UnixNano()) / 1e9
 

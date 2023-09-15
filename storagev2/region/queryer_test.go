@@ -42,7 +42,7 @@ func TestBucketRegionsQueryer(t *testing.T) {
 	defer os.Remove(cacheFile.Name())
 	defer cacheFile.Close()
 
-	queryer, err := NewBucketRegionsQueryer(ServiceHosts{Preferred: []string{server.URL}}, &BucketRegionsQueryerOptions{
+	queryer, err := NewBucketRegionsQueryer(Endpoints{Preferred: []string{server.URL}}, &BucketRegionsQueryerOptions{
 		PersistentFilePath: cacheFile.Name(),
 	})
 	if err != nil {

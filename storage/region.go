@@ -316,11 +316,11 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]R
 		HostFreezeDuration: options.HostFreezeDuration,
 	}, mac)
 	qErr := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
-		Context:     context.Background(),
-		Method:      clientv2.RequestMethodGet,
-		Url:         reqUrl,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: context.Background(),
+		Method:  clientv2.RequestMethodGet,
+		Url:     reqUrl,
+		Header:  nil,
+		GetBody: nil,
 	}, &regions)
 	if qErr != nil {
 		return nil, fmt.Errorf("query region error, %s", qErr.Error())

@@ -27,7 +27,7 @@ type Interceptor interface {
 type interceptorList []Interceptor
 
 func (l interceptorList) Less(i, j int) bool {
-	return l[i].Priority() < l[j].Priority()
+	return l[i].Priority() >= l[j].Priority()
 }
 
 func (l interceptorList) Swap(i, j int) {
