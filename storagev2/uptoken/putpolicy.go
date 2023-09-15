@@ -1,4 +1,4 @@
-package uploadtoken
+package uptoken
 
 import (
 	"errors"
@@ -12,7 +12,7 @@ type PutPolicy map[string]interface{}
 const (
 	// PutPolicyKeyScope 指定上传的目标资源空间 Bucket 和资源键 Key
 	PutPolicyKeyScope = "scope"
-	// PutPolicyKeyDeadline 上传凭证有效截止时间
+	// PutPolicyKeyDeadline 上传策略有效截止时间
 	PutPolicyKeyDeadline = "deadline"
 	// PutPolicyKeyIsPrefixalScope 是否允许用户上传以 scope 的 keyPrefix 为前缀的文件
 	PutPolicyKeyIsPrefixalScope = "isPrefixalScope"
@@ -106,13 +106,13 @@ func NewPutPolicyWithKeyPrefix(bucket, keyPrefix string, expiry time.Time) (PutP
 	return putPolicy, nil
 }
 
-// Get 获取上传凭证的值
+// Get 获取上传策略的值
 func (putPolicy PutPolicy) Get(key string) (value interface{}, ok bool) {
 	value, ok = putPolicy[key]
 	return
 }
 
-// GetString 获取上传凭证的值作为字符串
+// GetString 获取上传策略的值作为字符串
 func (putPolicy PutPolicy) GetString(key string) (string, bool) {
 	v, ok := putPolicy[key]
 	if !ok {
@@ -122,7 +122,7 @@ func (putPolicy PutPolicy) GetString(key string) (string, bool) {
 	return s, ok
 }
 
-// GetBool 获取上传凭证的值作为布尔值
+// GetBool 获取上传策略的值作为布尔值
 func (putPolicy PutPolicy) GetBool(key string) (bool, bool) {
 	v, ok := putPolicy[key]
 	if !ok {
@@ -132,7 +132,7 @@ func (putPolicy PutPolicy) GetBool(key string) (bool, bool) {
 	return b, ok
 }
 
-// GetInt64 获取上传凭证的值作为整型
+// GetInt64 获取上传策略的值作为整型
 func (putPolicy PutPolicy) GetInt64(key string) (int64, bool) {
 	if v, ok := putPolicy[key]; ok {
 		switch i := v.(type) {
@@ -165,7 +165,7 @@ func (putPolicy PutPolicy) GetInt64(key string) (int64, bool) {
 	return 0, false
 }
 
-// Set 设置上传凭证的值
+// Set 设置上传策略的值
 func (putPolicy PutPolicy) Set(key string, value interface{}) error {
 	if value == nil {
 		return &FieldError{Err: ErrInvalidPolicyValue}
@@ -174,7 +174,7 @@ func (putPolicy PutPolicy) Set(key string, value interface{}) error {
 	return nil
 }
 
-// Delete 删除上传凭证的值
+// Delete 删除上传策略的值
 func (putPolicy PutPolicy) Delete(key string) (value interface{}, ok bool) {
 	value, ok = putPolicy[key]
 	delete(putPolicy, key)
