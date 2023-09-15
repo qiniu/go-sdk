@@ -25,11 +25,11 @@ type CredentialsProvider interface {
 
 // StaticCredentialsProvider 存储 Credentials 同时实现了 CredentialsProvider 接口
 type StaticCredentialsProvider struct {
-	auth.Credentials
+	*auth.Credentials
 }
 
 func (provider *StaticCredentialsProvider) Get(context.Context) (*Credentials, error) {
-	return &provider.Credentials, nil
+	return provider.Credentials, nil
 }
 
 var _ CredentialsProvider = (*StaticCredentialsProvider)(nil)
@@ -48,6 +48,8 @@ func (provider *EnvironmentVariableCredentialProvider) Get(ctx context.Context) 
 	}
 	return NewCredentials(accessKey, secretKey), nil
 }
+
+var _ CredentialsProvider = (*EnvironmentVariableCredentialProvider)(nil)
 
 // ChainedCredentialsProvider 存储多个 CredentialsProvider，逐个尝试直到成功获取第一个 Credentials 为止
 type ChainedCredentialsProvider struct {
