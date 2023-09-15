@@ -13,6 +13,7 @@ jobs:
         with:
           path: src/github.com/qiniu/go-sdk
           ref: ${{ github.ref }}
+          submodules: recursive
       - name: Install Go
         uses: actions/setup-go@v2
         with:
@@ -35,13 +36,13 @@ jobs:
           # new package name don't work in non-module mode
           rm -rf $GITHUB_WORKSPACE/src/github.com/go-playground/validator/v10 && git clone -b v10.9.0 --depth 1 https://github.com/go-playground/validator.git $GITHUB_WORKSPACE/src/github.com/go-playground/validator/v10
           rm -rf $GITHUB_WORKSPACE/src/github.com/universal-translator && git clone -b v0.18.0 --depth 1 https://github.com/go-playground/universal-translator.git $GITHUB_WORKSPACE/src/github.com/go-playground/universal-translator
-          
+
           rm -rf $GITHUB_WORKSPACE/src/golang.org/x/crypto && git clone -b v0.10.0 --depth 1 https://go.googlesource.com/crypto $GITHUB_WORKSPACE/src/golang.org/x/crypto
           # GOPATH=$GITHUB_WORKSPACE go get golang.org/x/crypto/sha3
-          
+
           rm -rf $GITHUB_WORKSPACE/src/golang.org/x/text && git clone -b v0.10.0 --depth 1 https://github.com/golang/text $GITHUB_WORKSPACE/src/golang.org/x/text
           # GOPATH=$GITHUB_WORKSPACE go get golang.org/x/text/language
-          
+
           GOPATH=$GITHUB_WORKSPACE go get github.com/leodido/go-urn
           GOPATH=$GITHUB_WORKSPACE go get github.com/go-playground/locales
 
@@ -51,7 +52,7 @@ jobs:
           GOPATH=$GITHUB_WORKSPACE go get github.com/davecgh/go-spew/spew
           GOPATH=$GITHUB_WORKSPACE go get github.com/pmezard/go-difflib/difflib
           GOPATH=$GITHUB_WORKSPACE go get gopkg.in/yaml.v3
-  
+
           GOPATH=$GITHUB_WORKSPACE make unittest
         working-directory: src/github.com/qiniu/go-sdk
   go-mod-test:
@@ -71,6 +72,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: ${{ github.ref }}
+          submodules: recursive
       - name: Install Go
         uses: actions/setup-go@v2
         with:

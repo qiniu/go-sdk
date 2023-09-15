@@ -7,35 +7,51 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 const (
-	RequestMethodGet    = "GET"
-	RequestMethodPut    = "PUT"
-	RequestMethodPost   = "POST"
-	RequestMethodHead   = "HEAD"
-	RequestMethodDelete = "DELETE"
+	RequestMethodGet    = http.MethodGet
+	RequestMethodPut    = http.MethodPut
+	RequestMethodPost   = http.MethodPost
+	RequestMethodHead   = http.MethodHead
+	RequestMethodDelete = http.MethodDelete
 )
 
-type RequestBodyCreator func(options *RequestParams) (io.Reader, error)
-
-func RequestBodyCreatorOfJson(object interface{}) RequestBodyCreator {
-	body := object
-	return func(o *RequestParams) (io.Reader, error) {
-		reqBody, err := json.Marshal(body)
-		if err != nil {
-			return nil, err
-		}
-		o.Header.Add("Content-Type", "application/json")
-		return bytes.NewReader(reqBody), nil
-	}
+type nopCloser struct {
+	r io.ReadSeeker
 }
 
-func RequestBodyCreatorForm(info map[string][]string) RequestBodyCreator {
+func (nc nopCloser) Read(p []byte) (n int, err error) {
+	return nc.r.Read(p)
+}
+
+func (nc nopCloser) Seek(offset int64, whence int) (int64, error) {
+	return nc.r.Seek(offset, whence)
+}
+
+func (nc nopCloser) Close() error {
+	return nil
+}
+
+type GetRequestBody func(options *RequestParams) io.ReadCloser
+
+func GetJsonRequestBody(object interface{}) (GetRequestBody, error) {
+	reqBody, err := json.Marshal(object)
+	if err != nil {
+		return nil, err
+	}
+	return func(o *RequestParams) io.ReadCloser {
+		o.Header.Add("Content-Type", "application/json")
+		return nopCloser{r: bytes.NewReader(reqBody)}
+	}, nil
+}
+
+func GetFormRequestBody(info map[string][]string) GetRequestBody {
 	body := FormStringInfo(info)
-	return func(o *RequestParams) (io.Reader, error) {
+	return func(o *RequestParams) io.ReadCloser {
 		o.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-		return bytes.NewBufferString(body), nil
+		return nopCloser{r: strings.NewReader(body)}
 	}
 }
 
@@ -47,11 +63,11 @@ func FormStringInfo(info map[string][]string) string {
 }
 
 type RequestParams struct {
-	Context     context.Context
-	Method      string
-	Url         string
-	Header      http.Header
-	BodyCreator RequestBodyCreator
+	Context context.Context
+	Method  string
+	Url     string
+	Header  http.Header
+	GetBody GetRequestBody
 }
 
 func (o *RequestParams) init() {
@@ -67,9 +83,9 @@ func (o *RequestParams) init() {
 		o.Header = http.Header{}
 	}
 
-	if o.BodyCreator == nil {
-		o.BodyCreator = func(options *RequestParams) (io.Reader, error) {
-			return nil, nil
+	if o.GetBody == nil {
+		o.GetBody = func(options *RequestParams) io.ReadCloser {
+			return nil
 		}
 	}
 }
@@ -77,16 +93,17 @@ func (o *RequestParams) init() {
 func NewRequest(options RequestParams) (*http.Request, error) {
 	options.init()
 
-	body, cErr := options.BodyCreator(&options)
-	if cErr != nil {
-		return nil, cErr
-	}
-
+	body := options.GetBody(&options)
 	req, err := http.NewRequest(options.Method, options.Url, body)
 	if err != nil {
 		return nil, err
 	}
 	req = req.WithContext(options.Context)
 	req.Header = options.Header
+	if body != nil {
+		req.GetBody = func() (io.ReadCloser, error) {
+			return options.GetBody(&options), nil
+		}
+	}
 	return req, nil
 }

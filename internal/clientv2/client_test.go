@@ -87,6 +87,6 @@ func TestInterceptor(t *testing.T) {
 
 	v = resp.Header.Get(headerKey)
 	if v != " -> request-01 -> request-02 -> request-03 -> Do -> response-03 -> response-02 -> response-01" {
-		t.Fatal()
+		t.Fatalf("Unexpected header value: %s", v)
 	}
 }

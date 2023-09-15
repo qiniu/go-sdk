@@ -69,7 +69,7 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 
 	for i := 0; ; i++ {
 		// Clone 防止后面 Handler 处理对 req 有污染
-		reqBefore := cloneReq(req.Context(), req)
+		reqBefore := cloneReq(req)
 		resp, err = handler(req)
 
 		if !interceptor.options.RetryConfig.ShouldRetry(reqBefore, resp, err) {
@@ -93,7 +93,12 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 		if pErr != nil {
 			break
 		}
-
+		if index := strings.Index(newHost, "://"); index >= 0 {
+			newHost = newHost[(index + len("://")):]
+		}
+		if index := strings.Index(newHost, "/"); index >= 0 {
+			newHost = newHost[:index]
+		}
 		if len(newHost) == 0 {
 			break
 		}

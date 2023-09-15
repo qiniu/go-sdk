@@ -2,14 +2,28 @@ package hostprovider
 
 import (
 	"errors"
-	"github.com/qiniu/go-sdk/v7/internal/freezer"
 	"time"
+
+	"github.com/qiniu/go-sdk/v7/internal/freezer"
 )
 
-type HostProvider interface {
-	Provider() (string, error)
-	Freeze(host string, cause error, duration time.Duration) error
-}
+var (
+	ErrNoHostFound    = errors.New("no host found")
+	ErrAllHostsFrozen = errors.New("all hosts are frozen")
+)
+
+type (
+	HostProvider interface {
+		Provider() (string, error)
+		Freeze(host string, cause error, duration time.Duration) error
+	}
+
+	arrayHostProvider struct {
+		hosts         []string
+		freezer       freezer.Freezer
+		lastFreezeErr error
+	}
+)
 
 func NewWithHosts(hosts []string) HostProvider {
 	return &arrayHostProvider{
@@ -18,15 +32,9 @@ func NewWithHosts(hosts []string) HostProvider {
 	}
 }
 
-type arrayHostProvider struct {
-	hosts         []string
-	freezer       freezer.Freezer
-	lastFreezeErr error
-}
-
 func (a *arrayHostProvider) Provider() (string, error) {
 	if len(a.hosts) == 0 {
-		return "", errors.New("no host found")
+		return "", ErrNoHostFound
 	}
 
 	for _, host := range a.hosts {
@@ -38,7 +46,7 @@ func (a *arrayHostProvider) Provider() (string, error) {
 	if a.lastFreezeErr != nil {
 		return "", a.lastFreezeErr
 	} else {
-		return "", errors.New("all hosts are frozen")
+		return "", ErrAllHostsFrozen
 	}
 }
 
