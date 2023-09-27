@@ -1,9 +1,10 @@
 package client
 
 import (
-	"github.com/qiniu/go-sdk/v7/conf"
 	"net/http"
 	"time"
+
+	"github.com/qiniu/go-sdk/v7/conf"
 )
 
 const (
@@ -11,10 +12,10 @@ const (
 )
 
 func addDefaultHeader(headers http.Header) error {
-	return addXQiniuDate(headers)
+	return addHttpHeaderXQiniuDate(headers)
 }
 
-func addXQiniuDate(headers http.Header) error {
+func addHttpHeaderXQiniuDate(headers http.Header) error {
 	if conf.IsDisableQiniuTimestampSignature() {
 		return nil
 	}
@@ -22,4 +23,12 @@ func addXQiniuDate(headers http.Header) error {
 	timeString := time.Now().UTC().Format("20060102T150405Z")
 	headers.Set(RequestHeaderKeyXQiniuDate, timeString)
 	return nil
+}
+
+func AddHttpHeaderRange(header http.Header, contentRange string) {
+	if len(contentRange) == 0 {
+		return
+	}
+
+	header.Set("Range", contentRange)
 }

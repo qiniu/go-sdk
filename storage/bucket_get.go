@@ -5,8 +5,12 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
+
+	clientV1 "github.com/qiniu/go-sdk/v7/client"
 )
 
 type GetObjectInput struct {
@@ -14,6 +18,7 @@ type GetObjectInput struct {
 	DownloadDomains []string        // 下载域名列表，如果不填则使用默认源站域名，下载域名可以接受直接填写<HOST>，或是 <protocol>://<HOST> 的格式，如果设置了 protocol 则忽略 UseHttps 的设置；当前仅使用第一个域名
 	PresignUrl      bool            // 下载域名是否需要签名，如果使用源站域名则总是签名
 	Range           string          // 获取范围，格式同 HTTP 协议的 Range Header
+	TrafficLimit    uint64          // 下载单链限速，单位：bit/s；范围：819200 - 838860800（即800Kb/s - 800Mb/s），如果超出该范围将返回 400 错误
 }
 
 type GetObjectOutput struct {
@@ -41,6 +46,15 @@ func (g *GetObjectOutput) Close() error {
 	return g.Body.Close()
 }
 
+// Get
+//  @Description: 下载文件
+//  @receiver m BucketManager
+//  @param bucket 文件所在 bucket
+//  @param key 文件的 key
+//  @param options 下载可选配置
+//  @return *GetObjectOutput 响应，注：GetObjectOutput 和 error 可能同时存在，有 GetObjectOutput 时请尝试 close
+//  @return error 请求错误信息
+//
 func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetObjectOutput, error) {
 	if options == nil {
 		options = &GetObjectInput{
@@ -74,34 +88,43 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 		return nil, errors.New("download domain is empty")
 	}
 
+	query := url.Values{}
+	if options.TrafficLimit > 0 {
+		query.Add("X-Qiniu-Traffic-Limit", strconv.FormatUint(options.TrafficLimit, 10))
+	}
 	downloadUrl := endpoint(m.Cfg.UseHTTPS, domain)
 	if options.PresignUrl {
 		deadline := time.Now().Unix() + 3*60
-		downloadUrl = MakePrivateURL(m.Mac, downloadUrl, key, deadline)
+		downloadUrl = MakePrivateURLv2WithQuery(m.Mac, downloadUrl, key, query, deadline)
 	} else {
-		downloadUrl = MakePublicURL(key, downloadUrl)
+		downloadUrl = MakePublicURLv2WithQuery(key, downloadUrl, query)
 	}
 
-	resp, err := m.getWithDownloadUrl(options.Context, downloadUrl, options.Range)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp == nil {
+	resp, err := m.getWithDownloadUrl(options.Context, downloadUrl, options.Range, options.TrafficLimit)
+	if err == nil && resp == nil {
 		return nil, errors.New("response is empty")
 	}
 
-	if resp.StatusCode/100 != 2 {
-		return nil, ResponseError(resp)
+	// err 和 resp 必须有一个有值
+	var output *GetObjectOutput = nil
+	if resp != nil {
+		output = &GetObjectOutput{
+			ContentType:   "",
+			ContentLength: resp.ContentLength,
+			ETag:          "",
+			Metadata:      nil,
+			LastModified:  time.Time{},
+			Body:          resp.Body,
+		}
 	}
 
-	output := &GetObjectOutput{
-		ContentType:   "",
-		ContentLength: resp.ContentLength,
-		ETag:          "",
-		Metadata:      nil,
-		LastModified:  time.Time{},
-		Body:          resp.Body,
+	if err != nil {
+		return output, err
+	}
+
+	// err 为空， resp 必有值
+	if resp.StatusCode/100 != 2 {
+		return output, ResponseError(resp)
 	}
 
 	if resp.Header != nil {
@@ -127,7 +150,7 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 	return output, nil
 }
 
-func (m *BucketManager) getWithDownloadUrl(ctx context.Context, downloadUrl string, r string) (*http.Response, error) {
+func (m *BucketManager) getWithDownloadUrl(ctx context.Context, downloadUrl string, contentRange string, trafficLimit uint64) (*http.Response, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -138,9 +161,7 @@ func (m *BucketManager) getWithDownloadUrl(ctx context.Context, downloadUrl stri
 	}
 	req = req.WithContext(ctx)
 
-	if len(r) > 0 {
-		req.Header.Set("Range", r)
-	}
+	clientV1.AddHttpHeaderRange(req.Header, contentRange)
 
 	return m.Client.Do(ctx, req)
 }
