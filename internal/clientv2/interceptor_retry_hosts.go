@@ -82,10 +82,6 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 			}
 		}
 
-		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
-		}
-
 		if i >= interceptor.options.RetryConfig.RetryMax {
 			break
 		}
@@ -113,6 +109,10 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 		}
 
 		req = reqBefore
+
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
 
 		retryInterval := interceptor.options.RetryConfig.RetryInterval()
 		if retryInterval < time.Microsecond {

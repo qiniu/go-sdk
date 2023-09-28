@@ -79,12 +79,12 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 		}
 		req = reqBefore
 
-		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
-		}
-
 		if i >= interceptor.config.RetryMax {
 			break
+		}
+
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
 		}
 
 		retryInterval := interceptor.config.RetryInterval()
