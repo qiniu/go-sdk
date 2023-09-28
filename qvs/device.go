@@ -6,22 +6,35 @@ import (
 )
 
 type Device struct {
-	NamespaceId     string `json:"nsId"`
-	Name            string `json:"name"`
-	GBId            string `json:"gbId"`
-	Type            int    `json:"type"`
-	Username        string `json:"username"`
-	Password        string `json:"password"`
-	PullIfRegister  bool   `json:"pullIfRegister"` //按需拉流
-	Desc            string `json:"desc"`
-	NamespaceName   string `json:"nsName"`
-	State           string `json:"state"`
-	Channels        int    `json:"channels"`
-	Vendor          string `json:"vendor"`
-	CreatedAt       int64  `json:"createdAt"`
-	UpdatedAt       int64  `json:"updatedAt"`
-	LastRegisterAt  int64  `json:"lastRegisterAt"`
-	LastKeepaliveAt int64  `json:"lastKeepaliveAt"`
+	NamespaceId       string   `json:"nsId"`
+	Name              string   `json:"name"`
+	GBId              string   `json:"gbId"`
+	Type              int      `json:"type"`
+	Username          string   `json:"username"`
+	Password          string   `json:"password"`
+	PullIfRegister    bool     `json:"pullIfRegister"` // 注册成功后启动拉流
+	OnDemandPull      bool     `json:"onDemandPull"`   // 按需拉流
+	Desc              string   `json:"desc"`
+	NamespaceName     string   `json:"nsName"`
+	State             string   `json:"state"`
+	Channels          int      `json:"channels"`
+	Vendor            string   `json:"vendor"`
+	RTPProtocol       string   `json:"rtpProtocol"`
+	RTPAudio          bool     `json:"rtpAudio"`
+	RTPAudioTranscode bool     `json:"rtpAudioTranscode"`
+	Location          Location `json:"location"`
+	CreatedAt         int64    `json:"createdAt"`
+	UpdatedAt         int64    `json:"updatedAt"`
+	LastRegisterAt    int64    `json:"lastRegisterAt"`
+	LastKeepaliveAt   int64    `json:"lastKeepaliveAt"`
+}
+
+type Location struct {
+	Enable    bool    `json:"enable"`
+	Type      int     `json:"type"`
+	Interval  int     `json:"interval"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
 }
 
 type QueryChannelsArgs struct {
