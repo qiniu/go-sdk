@@ -68,6 +68,15 @@ type deviceVideoItem struct {
 	Type     string        `json:"type"`
 }
 
+type DeviceLocation struct {
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	Speed     float64 `json:"speed"`
+	Direction float64 `json:"direction"`
+	Altitude  int     `json:"altitude"`
+	UpdatedAt int64   `json:"updatedAt"`
+}
+
 /*
 创建设备API
 参数device需要赋值字段:
@@ -203,6 +212,18 @@ func (manager *Manager) DeleteChannel(nsId, gbId, channelId string) error {
 func (manager *Manager) QueryGBRecordHistories(nsId, gbId, chId string, start, end int) (*DeviceVideoItems, error) {
 	var ret DeviceVideoItems
 	err := manager.client.Call(context.Background(), &ret, "GET", manager.url("/namespaces/%s/devices/%s/recordhistories?start=%d&end=%d&chId=%s", nsId, gbId, start, end, chId), nil)
+	if err != nil {
+		return nil, err
+	}
+	return &ret, nil
+}
+
+/*
+获取设备地理位置
+*/
+func (manager *Manager) QueryDeviceLocation(nsId, gbId string) (*DeviceLocation, error) {
+	var ret DeviceLocation
+	err := manager.client.Call(context.Background(), &ret, "GET", manager.url("/namespaces/%s/devices/%s/location", nsId, gbId), nil)
 	if err != nil {
 		return nil, err
 	}
