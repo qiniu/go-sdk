@@ -204,3 +204,15 @@ func (manager *Manager) QueryGBRecordHistories(nsId, gbId, chId string, start, e
 	}
 	return &ret, nil
 }
+
+/*
+获取设备地理位置
+*/
+func (manager *Manager) QueryDeviceLocation(nsId, gbId string) (*Location, error) {
+	var ret Location
+	err := manager.client.Call(context.Background(), &ret, "GET", manager.url("/namespaces/%s/devices/%s/location", nsId, gbId), nil)
+	if err != nil {
+		return nil, err
+	}
+	return &ret, nil
+}
