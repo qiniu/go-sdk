@@ -4,11 +4,12 @@ package storage
 import (
 	"context"
 	"fmt"
-	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 )
@@ -224,7 +225,7 @@ func (b *BucketInfo) TokenAntiLeechModeOn() bool {
 // GetBucketInfo 返回BucketInfo结构
 func (m *BucketManager) GetBucketInfo(bucketName string) (bucketInfo BucketInfo, err error) {
 	reqURL := fmt.Sprintf("%s/v2/bucketInfo?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucketName)
-	_, err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
@@ -240,20 +241,20 @@ func (m *BucketManager) SetRemark(bucketName, remark string) (err error) {
 	body := struct {
 		Remark string `json:"remark"`
 	}{Remark: remark}
-	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPut,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: clientv2.RequestBodyCreatorOfJson(body),
-	})
+	}, nil)
 	return err
 }
 
 // BucketInfosForRegion 获取指定区域的该用户的所有bucketInfo信息
 func (m *BucketManager) BucketInfosInRegion(region RegionID, statistics bool) (bucketInfos []BucketSummary, err error) {
 	reqURL := fmt.Sprintf("%s/v2/bucketInfos?region=%s&fs=%t", getUcHost(m.Cfg.UseHTTPS), string(region), statistics)
-	_, err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
@@ -318,14 +319,13 @@ func (m *BucketManager) AddBucketLifeCycleRule(bucketName string, lifeCycleRule 
 	params["to_deep_archive_after_days"] = []string{strconv.Itoa(lifeCycleRule.ToDeepArchiveAfterDays)}
 
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/add"
-	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: clientv2.RequestBodyCreatorForm(params),
-	})
-	return err
+	}, nil)
 }
 
 // DelBucketLifeCycleRule 删除特定存储空间上设定的规则
@@ -336,14 +336,13 @@ func (m *BucketManager) DelBucketLifeCycleRule(bucketName, ruleName string) (err
 	params["name"] = []string{ruleName}
 
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/delete"
-	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: clientv2.RequestBodyCreatorForm(params),
-	})
-	return err
+	}, nil)
 }
 
 // UpdateBucketLifeCycleRule 更新特定存储空间上的生命周期规则
@@ -359,20 +358,19 @@ func (m *BucketManager) UpdateBucketLifeCycleRule(bucketName string, rule *Bucke
 	params["to_deep_archive_after_days"] = []string{strconv.Itoa(rule.ToDeepArchiveAfterDays)}
 
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/update"
-	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: clientv2.RequestBodyCreatorForm(params),
-	})
-	return err
+	}, nil)
 }
 
 // GetBucketLifeCycleRule 获取指定空间上设置的生命周期规则
 func (m *BucketManager) GetBucketLifeCycleRule(bucketName string) (rules []BucketLifeCycleRule, err error) {
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/get?bucket=" + bucketName
-	_, err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodGet,
 		Url:         reqURL,
@@ -437,14 +435,13 @@ func (r *BucketEventRule) Params(bucket string) map[string][]string {
 func (m *BucketManager) AddBucketEvent(bucket string, rule *BucketEventRule) (err error) {
 	params := rule.Params(bucket)
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/add"
-	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: clientv2.RequestBodyCreatorForm(params),
-	})
-	return err
+	}, nil)
 }
 
 // DelBucketEvent 删除指定存储空间的通知事件规则
@@ -454,34 +451,32 @@ func (m *BucketManager) DelBucketEvent(bucket, ruleName string) (err error) {
 	params["name"] = []string{ruleName}
 
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/delete"
-	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: clientv2.RequestBodyCreatorForm(params),
-	})
-	return err
+	}, nil)
 }
 
 // UpdateBucketEnvent 更新指定存储空间的事件通知规则
 func (m *BucketManager) UpdateBucketEnvent(bucket string, rule *BucketEventRule) (err error) {
 	params := rule.Params(bucket)
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/update"
-	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: clientv2.RequestBodyCreatorForm(params),
-	})
-	return err
+	}, nil)
 }
 
 // GetBucketEvent 获取指定存储空间的事件通知规则
 func (m *BucketManager) GetBucketEvent(bucket string) (rule []BucketEventRule, err error) {
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/get?bucket=" + bucket
-	_, err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodGet,
 		Url:         reqURL,
@@ -523,20 +518,19 @@ type CorsRule struct {
 // AddCorsRules 设置指定存储空间的跨域规则
 func (m *BucketManager) AddCorsRules(bucket string, corsRules []CorsRule) (err error) {
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/corsRules/set/" + bucket
-	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: clientv2.RequestBodyCreatorOfJson(corsRules),
-	})
-	return err
+	}, nil)
 }
 
 // GetCorsRules 获取指定存储空间的跨域规则
 func (m *BucketManager) GetCorsRules(bucket string) (corsRules []CorsRule, err error) {
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/corsRules/get/" + bucket
-	_, err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodGet,
 		Url:         reqURL,
@@ -563,20 +557,19 @@ type BucketQuota struct {
 // 配额限制主要是两块， 空间存储量的限制和空间文件数限制
 func (m *BucketManager) SetBucketQuota(bucket string, size, count int64) (err error) {
 	reqURL := fmt.Sprintf("%s/setbucketquota/%s/size/%d/count/%d", getUcHost(m.Cfg.UseHTTPS), bucket, size, count)
-	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: nil,
-	})
-	return err
+	}, nil)
 }
 
 // GetBucketQuota 获取存储空间的配额信息
 func (m *BucketManager) GetBucketQuota(bucket string) (quota BucketQuota, err error) {
 	reqURL := fmt.Sprintf("%s/getbucketquota/%s", getUcHost(m.Cfg.UseHTTPS), bucket)
-	_, err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
@@ -591,14 +584,13 @@ func (m *BucketManager) GetBucketQuota(bucket string) (quota BucketQuota, err er
 // mode - 0 ==> 关闭原图保护
 func (m *BucketManager) SetBucketAccessStyle(bucket string, mode int) error {
 	reqURL := fmt.Sprintf("%s/accessMode/%s/mode/%d", getUcHost(m.Cfg.UseHTTPS), bucket, mode)
-	_, err := clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: nil,
-	})
-	return err
+	}, nil)
 }
 
 // TurnOffBucketProtected 开启指定存储空间的原图保护
@@ -615,14 +607,13 @@ func (m *BucketManager) TurnOffBucketProtected(bucket string) error {
 // maxAge <= 0时，表示使用默认值31536000
 func (m *BucketManager) SetBucketMaxAge(bucket string, maxAge int64) error {
 	reqURL := fmt.Sprintf("%s/maxAge?bucket=%s&maxAge=%d", getUcHost(m.Cfg.UseHTTPS), bucket, maxAge)
-	_, err := clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: nil,
-	})
-	return err
+	}, nil)
 }
 
 // SetBucketAccessMode 设置指定空间的私有属性
@@ -631,14 +622,13 @@ func (m *BucketManager) SetBucketMaxAge(bucket string, maxAge int64) error {
 // mode - 0 表示设置空间为公开空间
 func (m *BucketManager) SetBucketAccessMode(bucket string, mode int) error {
 	reqURL := fmt.Sprintf("%s/private?bucket=%s&private=%d", getUcHost(m.Cfg.UseHTTPS), bucket, mode)
-	_, err := clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: nil,
-	})
-	return err
+	}, nil)
 }
 
 // MakeBucketPublic 设置空间为公有空间
@@ -663,14 +653,13 @@ func (m *BucketManager) TurnOffIndexPage(bucket string) error {
 
 func (m *BucketManager) setIndexPage(bucket string, noIndexPage int) error {
 	reqURL := fmt.Sprintf("%s/noIndexPage?bucket=%s&noIndexPage=%d", getUcHost(m.Cfg.UseHTTPS), bucket, noIndexPage)
-	_, err := clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     nil,
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: nil,
-	})
-	return err
+	}, nil)
 }
 
 // BucketTagging 为 Bucket 设置标签
@@ -694,34 +683,32 @@ func (m *BucketManager) SetTagging(bucket string, tags map[string]string) error 
 	}
 
 	reqURL := fmt.Sprintf("%s/bucketTagging?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
-	_, err := clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     context.Background(),
 		Method:      clientv2.RequestMethodPut,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: clientv2.RequestBodyCreatorOfJson(tagging),
-	})
-	return err
+	}, nil)
 }
 
 // ClearTagging 清空 Bucket 标签
 func (m *BucketManager) ClearTagging(bucket string) error {
 	reqURL := fmt.Sprintf("%s/bucketTagging?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
-	_, err := clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     context.Background(),
 		Method:      clientv2.RequestMethodDelete,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: nil,
-	})
-	return err
+	}, nil)
 }
 
 // GetTagging 获取 Bucket 标签
 func (m *BucketManager) GetTagging(bucket string) (tags map[string]string, err error) {
 	var tagging BucketTagging
 	reqURL := fmt.Sprintf("%s/bucketTagging?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
-	_, err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     context.Background(),
 		Method:      clientv2.RequestMethodGet,
 		Url:         reqURL,

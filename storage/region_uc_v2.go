@@ -10,8 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"golang.org/x/sync/singleflight"
+
+	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 )
 
 // 此处废弃，但为了兼容老版本，单独放置一个文件
@@ -254,7 +255,7 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 			RetryMax:           options.RetryMax,
 			HostFreezeDuration: options.HostFreezeDuration,
 		}, nil)
-		_, err := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
+		err := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 			Context:     context.Background(),
 			Method:      clientv2.RequestMethodGet,
 			Url:         reqURL,

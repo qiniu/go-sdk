@@ -1,9 +1,12 @@
 package clientv2
 
 import (
-	clientV1 "github.com/qiniu/go-sdk/v7/client"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"sort"
+
+	clientV1 "github.com/qiniu/go-sdk/v7/client"
 )
 
 type Client interface {
@@ -58,7 +61,19 @@ func (c *client) Do(req *http.Request) (*http.Response, error) {
 		}
 	}
 
-	resp, err := handler(req)
+	return handleResponseAndError(handler(req))
+}
+
+func Do(c Client, options RequestParams) (*http.Response, error) {
+	req, err := NewRequest(options)
+	if err != nil {
+		return nil, err
+	}
+
+	return handleResponseAndError(c.Do(req))
+}
+
+func handleResponseAndError(resp *http.Response, err error) (*http.Response, error) {
 	if err != nil {
 		return resp, err
 	}
@@ -77,30 +92,28 @@ func (c *client) Do(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-func Do(c Client, options RequestParams) (*http.Response, error) {
-	req, err := NewRequest(options)
-	if err != nil {
-		return nil, err
-	}
-
-	return c.Do(req)
-}
-
-func DoAndDecodeJsonResponse(c Client, options RequestParams, ret interface{}) (*http.Response, error) {
+func DoAndDecodeJsonResponse(c Client, options RequestParams, ret interface{}) error {
 	resp, err := Do(c, options)
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			io.Copy(ioutil.Discard, resp.Body)
+			resp.Body.Close()
+		}
+	}()
+
 	if err != nil {
-		return resp, err
+		return err
 	}
 
 	if ret == nil || resp.ContentLength == 0 {
-		return resp, nil
+		return nil
 	}
 
 	if err = clientV1.DecodeJsonFromReader(resp.Body, ret); err != nil {
-		return resp, err
+		return err
 	}
 
-	return resp, nil
+	return nil
 }
 
 type clientV1Wrapper struct {
