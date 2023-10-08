@@ -47,14 +47,14 @@ func (g *GetObjectOutput) Close() error {
 }
 
 // Get
-//  @Description: 下载文件
-//  @receiver m BucketManager
-//  @param bucket 文件所在 bucket
-//  @param key 文件的 key
-//  @param options 下载可选配置
-//  @return *GetObjectOutput 响应，注：GetObjectOutput 和 error 可能同时存在，有 GetObjectOutput 时请尝试 close
-//  @return error 请求错误信息
 //
+//	@Description: 下载文件
+//	@receiver m BucketManager
+//	@param bucket 文件所在 bucket
+//	@param key 文件的 key
+//	@param options 下载可选配置
+//	@return *GetObjectOutput 响应，注：GetObjectOutput 和 error 可能同时存在，有 GetObjectOutput 时请尝试 close
+//	@return error 请求错误信息
 func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetObjectOutput, error) {
 	if options == nil {
 		options = &GetObjectInput{
