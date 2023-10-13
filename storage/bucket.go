@@ -354,20 +354,19 @@ func (m *BucketManager) UpdateObjectStatus(bucketName string, key string, enable
 // CreateBucket 创建一个七牛存储空间
 func (m *BucketManager) CreateBucket(bucketName string, regionID RegionID) error {
 	reqURL := fmt.Sprintf("%s/mkbucketv3/%s/region/%s", getUcHost(m.Cfg.UseHTTPS), bucketName, string(regionID))
-	_, err := clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     context.Background(),
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: nil,
-	})
-	return err
+	}, nil)
 }
 
 // Buckets 用来获取空间列表，如果指定了 shared 参数为 true，那么一同列表被授权访问的空间
 func (m *BucketManager) Buckets(shared bool) (buckets []string, err error) {
 	reqURL := fmt.Sprintf("%s/buckets?shared=%v", getUcHost(m.Cfg.UseHTTPS), shared)
-	_, err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     context.Background(),
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
@@ -396,7 +395,7 @@ func (m *BucketManager) BucketsV4(input *BucketV4Input) (output BucketsV4Output,
 	if len(query) > 0 {
 		reqURL += "&" + query.Encode()
 	}
-	_, err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     context.Background(),
 		Method:      clientv2.RequestMethodGet,
 		Url:         reqURL,
@@ -409,14 +408,13 @@ func (m *BucketManager) BucketsV4(input *BucketV4Input) (output BucketsV4Output,
 // DropBucket 删除七牛存储空间
 func (m *BucketManager) DropBucket(bucketName string) (err error) {
 	reqURL := fmt.Sprintf("%s/drop/%s", getUcHost(m.Cfg.UseHTTPS), bucketName)
-	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     context.Background(),
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: nil,
-	})
-	return err
+	}, nil)
 }
 
 // Stat 用来获取一个文件的基本信息
@@ -743,7 +741,7 @@ type DomainInfo struct {
 // ListBucketDomains 返回绑定在存储空间中的域名信息
 func (m *BucketManager) ListBucketDomains(bucket string) (info []DomainInfo, err error) {
 	reqURL := fmt.Sprintf("%s/v3/domains?tbl=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
-	_, err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     context.Background(),
 		Method:      clientv2.RequestMethodGet,
 		Url:         reqURL,
@@ -768,41 +766,38 @@ func (m *BucketManager) Prefetch(bucket, key string) (err error) {
 // SetImage 用来设置空间镜像源
 func (m *BucketManager) SetImage(siteURL, bucket string) (err error) {
 	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriSetImage(siteURL, bucket))
-	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     context.Background(),
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: nil,
-	})
-	return err
+	}, nil)
 }
 
 // SetImageWithHost 用来设置空间镜像源，额外添加回源Host头部
 func (m *BucketManager) SetImageWithHost(siteURL, bucket, host string) (err error) {
 	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS),
 		uriSetImageWithHost(siteURL, bucket, host))
-	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     context.Background(),
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: nil,
-	})
-	return err
+	}, nil)
 }
 
 // UnsetImage 用来取消空间镜像源设置
 func (m *BucketManager) UnsetImage(bucket string) (err error) {
 	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriUnsetImage(bucket))
-	_, err = clientv2.Do(m.getUCClient(), clientv2.RequestParams{
+	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context:     context.Background(),
 		Method:      clientv2.RequestMethodPost,
 		Url:         reqURL,
 		Header:      nil,
 		BodyCreator: nil,
-	})
-	return err
+	}, nil)
 }
 
 type AsyncFetchParam struct {

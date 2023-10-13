@@ -10,8 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"golang.org/x/sync/singleflight"
+
+	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 )
 
 type ucQueryV4Ret struct {
@@ -154,7 +155,7 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 			RetryMax:           options.RetryMax,
 			HostFreezeDuration: options.HostFreezeDuration,
 		}, nil)
-		_, err := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
+		err := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 			Context:     context.Background(),
 			Method:      clientv2.RequestMethodGet,
 			Url:         reqURL,

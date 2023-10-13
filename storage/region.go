@@ -315,7 +315,7 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]R
 		RetryMax:           options.RetryMax,
 		HostFreezeDuration: options.HostFreezeDuration,
 	}, mac)
-	_, qErr := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
+	qErr := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context:     context.Background(),
 		Method:      clientv2.RequestMethodGet,
 		Url:         reqUrl,

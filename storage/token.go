@@ -109,6 +109,9 @@ type PutPolicy struct {
 	CallbackFetchKey uint8 `json:"callbackFetchKey,omitempty"`
 
 	DeleteAfterDays int `json:"deleteAfterDays,omitempty"`
+
+	// 上传单链接限速，单位：bit/s；范围：819200 - 838860800（即800Kb/s - 800Mb/s），如果超出该范围将返回 400 错误
+	TrafficLimit uint64 `json:"trafficLimit,omitempty"`
 }
 
 // UploadToken 方法用来进行上传凭证的生成
