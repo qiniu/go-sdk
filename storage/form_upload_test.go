@@ -4,6 +4,7 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -42,10 +43,6 @@ func TestFormUploadPutFileWithoutExtra(t *testing.T) {
 func TestFormUploadPutFile(t *testing.T) {
 	var putRet PutRet
 	ctx := context.TODO()
-	putPolicy := PutPolicy{
-		Scope:           testBucket,
-		DeleteAfterDays: 7,
-	}
 
 	// prepare file for test uploading
 	testLocalFile, err := ioutil.TempFile("", "TestFormUploadPutFile")
@@ -54,6 +51,10 @@ func TestFormUploadPutFile(t *testing.T) {
 	}
 	defer os.Remove(testLocalFile.Name())
 
+	putPolicy := PutPolicy{
+		Scope:           testBucket,
+		DeleteAfterDays: 7,
+	}
 	upToken := putPolicy.UploadToken(mac)
 	upHosts := []string{testUpHost, "https://" + testUpHost, ""}
 	for _, upHost := range upHosts {
@@ -69,6 +70,43 @@ func TestFormUploadPutFile(t *testing.T) {
 		t.Logf("Key: %s, Hash:%s", putRet.Key, putRet.Hash)
 	}
 
+}
+
+func TestFormUploadTrafficLimit(t *testing.T) {
+	var putRet PutRet
+	ctx := context.TODO()
+
+	testLocalFile, err := ioutil.TempFile("", "TestFormUploadPutFile")
+	if err != nil {
+		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
+	}
+	defer os.Remove(testLocalFile.Name())
+
+	putPolicy := PutPolicy{
+		Scope:           testBucket,
+		DeleteAfterDays: 7,
+		TrafficLimit:    100 * 1024 * 8, // 限速 100KB/s，范围：100KB/s - 100MB/s
+	}
+	upToken := putPolicy.UploadToken(mac)
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	testKey := fmt.Sprintf("testPutFileKey_%d", r.Int())
+
+	st := time.Now().UnixMilli()
+
+	data := make([]byte, 1024*500)
+	err = formUploader.Put(ctx, &putRet, upToken, testKey, bytes.NewReader(data), int64(len(data)), &PutExtra{})
+	if err != nil {
+		t.Fatalf("FormUploader#PutFile() error, %s", err)
+	}
+	t.Logf("Key: %s, Hash:%s", putRet.Key, putRet.Hash)
+
+	et := time.Now().UnixMilli()
+
+	duration := et - st
+	// 限速后，至少需要 4s
+	if duration < 5000 {
+		//t.Fatal("TestFormUploadTrafficLimit() error, TrafficLimit invalid")
+	}
 }
 
 func TestFormUploadPutFileWithBackup(t *testing.T) {

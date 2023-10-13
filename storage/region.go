@@ -315,7 +315,7 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]R
 		RetryMax:           options.RetryMax,
 		HostFreezeDuration: options.HostFreezeDuration,
 	}, mac)
-	_, qErr := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
+	qErr := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context:     context.Background(),
 		Method:      clientv2.RequestMethodGet,
 		Url:         reqUrl,
@@ -364,7 +364,7 @@ func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
 				ShouldRetry:   nil,
 			},
 			ShouldFreezeHost:   nil,
-			HostFreezeDuration: 0,
+			HostFreezeDuration: config.HostFreezeDuration,
 			HostProvider:       hostprovider.NewWithHosts(hosts),
 		}),
 		clientv2.NewSimpleRetryInterceptor(clientv2.RetryConfig{

@@ -83,6 +83,10 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 			break
 		}
 
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+
 		retryInterval := interceptor.config.RetryInterval()
 		if retryInterval < time.Microsecond {
 			continue

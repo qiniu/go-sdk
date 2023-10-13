@@ -1,11 +1,12 @@
 package clientv2
 
 import (
-	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 )
 
 type HostsRetryConfig struct {
@@ -108,6 +109,10 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 		}
 
 		req = reqBefore
+
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
 
 		retryInterval := interceptor.options.RetryConfig.RetryInterval()
 		if retryInterval < time.Microsecond {
