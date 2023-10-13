@@ -58,7 +58,7 @@ func init() {
 	}
 	mac = auth.New(testAK, testSK)
 	cfg := Config{}
-	cfg.UseCdnDomains = true
+	cfg.UseCdnDomains = false
 	bucketManager = NewBucketManagerEx(mac, &cfg, &clt)
 	operationManager = NewOperationManagerEx(mac, &cfg, &clt)
 	formUploader = NewFormUploaderEx(&cfg, &clt)
