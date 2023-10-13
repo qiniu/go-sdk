@@ -38,7 +38,7 @@ jobs:
           rm -rf $GITHUB_WORKSPACE/src/golang.org/x/crypto && git clone -b v0.10.0 --depth 1 https://go.googlesource.com/crypto $GITHUB_WORKSPACE/src/golang.org/x/crypto
           # GOPATH=$GITHUB_WORKSPACE go get golang.org/x/crypto/sha3
           
-          rm -rf $GITHUB_WORKSPACE/src/golang.org/x/text && git clone -b v0.10.0 --depth 1 https://cs.opensource.google/go/x/text $GITHUB_WORKSPACE/src/golang.org/x/text
+          rm -rf $GITHUB_WORKSPACE/src/golang.org/x/text && git clone -b v0.10.0 --depth 1 https://github.com/golang/text $GITHUB_WORKSPACE/src/golang.org/x/text
           # GOPATH=$GITHUB_WORKSPACE go get golang.org/x/text/language
           
           GOPATH=$GITHUB_WORKSPACE go get github.com/leodido/go-urn
