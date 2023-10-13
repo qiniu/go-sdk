@@ -2,6 +2,7 @@ package clientv2
 
 import (
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"net"
 	"net/http"
@@ -84,6 +85,7 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 		}
 
 		if resp != nil && resp.Body != nil {
+			io.Copy(ioutil.Discard, resp.Body)
 			resp.Body.Close()
 		}
 
