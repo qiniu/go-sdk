@@ -1,4 +1,12 @@
 # Changelog
+## 7.18.0
+* 新增
+  * BucketManager  支持下载
+  * BucketManager 支持获取和修改对象 meta data
+  * 上传和下载支持单链限速
+* 优化
+  * 区域缓存信息 ID 和查询域名相关
+
 ## 7.17.1
 * 优化
   * 调整在获取 Bucket 所在区域服务域名时的主备域名顺序
