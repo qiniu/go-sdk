@@ -1,4 +1,8 @@
 # Changelog
+## 7.18.1
+* 调整
+  * PutPolicy 的 DetectMime 支持配置为 -1
+
 ## 7.18.0
 * 新增
   * BucketManager  支持下载
