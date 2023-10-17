@@ -1,6 +1,8 @@
 package clientv2
 
 import (
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -111,6 +113,7 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 		req = reqBefore
 
 		if resp != nil && resp.Body != nil {
+			io.Copy(ioutil.Discard, resp.Body)
 			resp.Body.Close()
 		}
 
