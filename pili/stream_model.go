@@ -157,11 +157,29 @@ type GetStreamLiveStatusResponse struct {
 	// StreamLiveStatus 直播流实时状态
 	StreamLiveStatus
 
+	// 最近30秒内GOP最大值，单位：毫秒
+	MaxGop int `json:"maxGop"`
+
+	// 最近30秒内GOP平均值，单位：毫秒
+	AvgGop int `json:"avgGop"`
+
 	// VideoBitRate 视频码率，单位：bps
 	VideoBitRate int `json:"videoBitRate"`
 
 	// AudioBitRate 音频码率，单位：bps
 	AudioBitRate int `json:"audioBitRate"`
+
+	// 播放人数
+	PlayCount int64 `json:"playCount"`
+
+	// 播放带宽
+	Bandwidth int64 `json:"bandwidth"`
+
+	// 推流端所在地区
+	Location string `json:"location"`
+
+	// 推流端所在运营商
+	Isp string `json:"isp"`
 }
 
 // BatchGetStreamLiveStatusRequest 批量查询直播实时状态请求参数
