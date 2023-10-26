@@ -59,16 +59,13 @@ func TestHttpClient(t *testing.T) {
 	server_3 := httptest.NewServer(mux_3)
 	defer server_3.Close()
 
-	httpClient, err := NewApiClient(&HttpClientOptions{
+	httpClient := NewHttpClient(&HttpClientOptions{
 		Endpoints: region.Endpoints{
 			Preferred:   []string{server_1.URL, server_2.URL},
 			Alternative: []string{server_3.URL},
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = httpClient.Do(context.Background(), &Request{
+	_, err := httpClient.Do(context.Background(), &Request{
 		Method:   http.MethodGet,
 		Path:     "/test",
 		RawQuery: "fakeRawQuery",
@@ -80,9 +77,7 @@ func TestHttpClient(t *testing.T) {
 			"x-qiniu-1": {"x-value-1"},
 			"x-qiniu-2": {"x-value-2"},
 		},
-		Credentials: &credentials.StaticCredentialsProvider{
-			Credentials: credentials.NewCredentials("TestAk", "TestSk"),
-		},
+		Credentials: credentials.NewCredentials("TestAk", "TestSk"),
 	})
 	if err == nil {
 		t.Fatalf("Expected error")
@@ -102,7 +97,7 @@ func TestHttpClient(t *testing.T) {
 	}
 }
 
-func TestApiClientJson(t *testing.T) {
+func TestHttpClientJson(t *testing.T) {
 	mux_1 := http.NewServeMux()
 	mux_1.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 		if auth := r.Header.Get("Authorization"); !strings.HasPrefix(auth, "Qiniu TestAk:") {
@@ -113,20 +108,17 @@ func TestApiClientJson(t *testing.T) {
 	server_1 := httptest.NewServer(mux_1)
 	defer server_1.Close()
 
-	httpClient, err := NewApiClient(&HttpClientOptions{
+	httpClient := NewHttpClient(&HttpClientOptions{
 		Endpoints: region.Endpoints{
 			Preferred: []string{server_1.URL},
 		},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	var body struct {
 		Test string `json:"Test"`
 	}
 
-	_, err = httpClient.AcceptJson(context.Background(), &Request{
+	_, err := httpClient.AcceptJson(context.Background(), &Request{
 		Method:   http.MethodGet,
 		Path:     "/test",
 		RawQuery: "fakeRawQuery",
@@ -138,9 +130,7 @@ func TestApiClientJson(t *testing.T) {
 			"x-qiniu-1": {"x-value-1"},
 			"x-qiniu-2": {"x-value-2"},
 		},
-		Credentials: &credentials.StaticCredentialsProvider{
-			Credentials: credentials.NewCredentials("TestAk", "TestSk"),
-		},
+		Credentials: credentials.NewCredentials("TestAk", "TestSk"),
 	}, &body)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)

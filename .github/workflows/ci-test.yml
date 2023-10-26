@@ -46,6 +46,11 @@ jobs:
           GOPATH=$GITHUB_WORKSPACE go get github.com/leodido/go-urn
           GOPATH=$GITHUB_WORKSPACE go get github.com/go-playground/locales
 
+          rm -rf $GITHUB_WORKSPACE/src/github.com/dave/jennifer && git clone -b v1.6.1 --depth 1 https://github.com/dave/jennifer $GITHUB_WORKSPACE/src/github.com/dave/jennifer
+          # GOPATH=$GITHUB_WORKSPACE go get github.com/dave/jennifer
+
+          GOPATH=$GITHUB_WORKSPACE go get github.com/iancoleman/strcase
+
           # github.com/stretchr/testify
           # newer version require newer go feature
           rm -rf $GITHUB_WORKSPACE/src/github.com/stretchr/testify && git clone -b v1.6.1 --depth 1 https://github.com/stretchr/testify.git $GITHUB_WORKSPACE/src/github.com/stretchr/testify

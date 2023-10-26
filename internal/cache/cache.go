@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"sync"
@@ -67,6 +68,10 @@ func NewPersistentCache(
 	persistentDuration time.Duration,
 	handleError func(error),
 ) (*Cache, error) {
+	err := os.MkdirAll(filepath.Dir(persistentFilePath), 0700)
+	if err != nil {
+		return nil, err
+	}
 	unlockFunc, err := lockCachePersistentFile(persistentFilePath, false, handleError)
 	if err != nil {
 		return nil, err

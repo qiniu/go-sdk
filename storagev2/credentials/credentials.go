@@ -23,17 +23,6 @@ type CredentialsProvider interface {
 	Get(context.Context) (*Credentials, error)
 }
 
-// StaticCredentialsProvider 存储 Credentials 同时实现了 CredentialsProvider 接口
-type StaticCredentialsProvider struct {
-	*auth.Credentials
-}
-
-func (provider *StaticCredentialsProvider) Get(context.Context) (*Credentials, error) {
-	return provider.Credentials, nil
-}
-
-var _ CredentialsProvider = (*StaticCredentialsProvider)(nil)
-
 // EnvironmentVariableCredentialProvider 从环境变量中获取 Credential
 type EnvironmentVariableCredentialProvider struct{}
 

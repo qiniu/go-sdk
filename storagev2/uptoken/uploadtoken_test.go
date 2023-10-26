@@ -31,7 +31,7 @@ func TestSignPutPolicy(t *testing.T) {
 		t.Fatalf("unexpected deadline: %d", actualDeadline)
 	}
 
-	signer := uptoken.NewSigner(putPolicy, &credentials.StaticCredentialsProvider{Credentials: credentials.NewCredentials(expectedAccessKey, expectedSecretKey)})
+	signer := uptoken.NewSigner(putPolicy, credentials.NewCredentials(expectedAccessKey, expectedSecretKey))
 	upToken, err := signer.RetrieveUpToken(context.Background())
 	if err != nil {
 		t.Fatalf("failed to retrieve uptoken: %s", err)

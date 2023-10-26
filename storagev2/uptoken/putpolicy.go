@@ -3,6 +3,7 @@ package uptoken
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -179,4 +180,17 @@ func (putPolicy PutPolicy) Delete(key string) (value interface{}, ok bool) {
 	value, ok = putPolicy[key]
 	delete(putPolicy, key)
 	return
+}
+
+// GetBucketName 获取上传策略内的空间名称
+func (putPolicy PutPolicy) GetBucketName() (string, error) {
+	if scope, ok := putPolicy.GetString(PutPolicyKeyScope); !ok {
+		return "", ErrInvalidPolicyValue
+	} else {
+		fields := strings.SplitN(scope, ":", 2)
+		if len(fields) == 0 {
+			return "", ErrEmptyBucketName
+		}
+		return fields[0], nil
+	}
 }
