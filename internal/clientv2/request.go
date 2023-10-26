@@ -34,24 +34,24 @@ func (nc nopCloser) Close() error {
 	return nil
 }
 
-type GetRequestBody func(options *RequestParams) io.ReadCloser
+type GetRequestBody func(options *RequestParams) (io.ReadCloser, error)
 
 func GetJsonRequestBody(object interface{}) (GetRequestBody, error) {
 	reqBody, err := json.Marshal(object)
 	if err != nil {
 		return nil, err
 	}
-	return func(o *RequestParams) io.ReadCloser {
+	return func(o *RequestParams) (io.ReadCloser, error) {
 		o.Header.Add("Content-Type", "application/json")
-		return nopCloser{r: bytes.NewReader(reqBody)}
+		return nopCloser{r: bytes.NewReader(reqBody)}, nil
 	}, nil
 }
 
 func GetFormRequestBody(info map[string][]string) GetRequestBody {
 	body := formStringInfo(info)
-	return func(o *RequestParams) io.ReadCloser {
+	return func(o *RequestParams) (io.ReadCloser, error) {
 		o.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-		return nopCloser{r: strings.NewReader(body)}
+		return nopCloser{r: strings.NewReader(body)}, nil
 	}
 }
 
@@ -84,8 +84,8 @@ func (o *RequestParams) init() {
 	}
 
 	if o.GetBody == nil {
-		o.GetBody = func(options *RequestParams) io.ReadCloser {
-			return nil
+		o.GetBody = func(options *RequestParams) (io.ReadCloser, error) {
+			return nil, nil
 		}
 	}
 }
@@ -93,7 +93,10 @@ func (o *RequestParams) init() {
 func NewRequest(options RequestParams) (req *http.Request, err error) {
 	options.init()
 
-	body := options.GetBody(&options)
+	body, err := options.GetBody(&options)
+	if err != nil {
+		return nil, err
+	}
 	req, err = http.NewRequest(options.Method, options.Url, body)
 	if err != nil {
 		return
@@ -102,7 +105,7 @@ func NewRequest(options RequestParams) (req *http.Request, err error) {
 	req.Header = options.Header
 	if options.GetBody != nil && body != nil && body != http.NoBody {
 		req.GetBody = func() (io.ReadCloser, error) {
-			return options.GetBody(&options), nil
+			return options.GetBody(&options)
 		}
 	}
 	return

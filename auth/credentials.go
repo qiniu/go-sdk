@@ -2,6 +2,7 @@ package auth
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
@@ -231,4 +232,9 @@ func (ath *Credentials) VerifyCallback(req *http.Request) (bool, error) {
 		}
 		return auth == AuthorizationPrefixQBox+token, nil
 	}
+}
+
+// Get 实现 CredentialsProvider 接口
+func (c *Credentials) Get(ctx context.Context) (*Credentials, error) {
+	return c, nil
 }

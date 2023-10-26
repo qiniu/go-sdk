@@ -217,10 +217,17 @@ func (endpoints Endpoints) allUrls(useHttps bool) []string {
 	return allHosts
 }
 
-func (hosts Endpoints) ToHostProvider() hostprovider.HostProvider {
+func (endpoints Endpoints) ToHostProvider() hostprovider.HostProvider {
 	return &endpointsHostProvider{
-		iter:    hosts.Iter(),
+		iter:    endpoints.Iter(),
 		freezer: freezer.New(),
+	}
+}
+
+func (endpoints Endpoints) Clone() Endpoints {
+	return Endpoints{
+		Preferred:   append([]string{}, endpoints.Preferred...),
+		Alternative: append([]string{}, endpoints.Alternative...),
 	}
 }
 

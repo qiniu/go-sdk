@@ -99,6 +99,7 @@ func NewBucketRegionsQueryer(bucketHosts Endpoints, opts *BucketRegionsQueryerOp
 	if opts.PersistentDuration == time.Duration(0) {
 		opts.PersistentDuration = time.Minute
 	}
+
 	persistentCache, err := cache.NewPersistentCache(reflect.TypeOf(&v4QueryCacheValue{}), opts.PersistentFilePath, opts.CompactInterval, opts.PersistentDuration, func(err error) {
 		log.Warn(fmt.Sprintf("BucketRegionsQueryer persist error: %s", err))
 	})
