@@ -10,6 +10,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
+	region_v2 "github.com/qiniu/go-sdk/v7/storagev2/region"
 )
 
 // 存储所在的地区，例如华东，华南，华北
@@ -93,6 +94,28 @@ func (r *Region) GetRsHost(useHttps bool) string {
 // 获取api host
 func (r *Region) GetApiHost(useHttps bool) string {
 	return endpoint(useHttps, r.ApiHost)
+}
+
+func (r *Region) GetRegions(ctx context.Context) ([]*region_v2.Region, error) {
+	newRegion := &region_v2.Region{
+		Up: region_v2.Endpoints{Preferred: append(r.CdnUpHosts, r.SrcUpHosts...)},
+	}
+	if host := r.IovipHost; host != "" {
+		newRegion.Io = region_v2.Endpoints{Preferred: []string{host}}
+	}
+	if host := r.IoSrcHost; host != "" {
+		newRegion.IoSrc = region_v2.Endpoints{Preferred: []string{host}}
+	}
+	if host := r.RsHost; host != "" {
+		newRegion.Rs = region_v2.Endpoints{Preferred: []string{host}}
+	}
+	if host := r.RsfHost; host != "" {
+		newRegion.Rsf = region_v2.Endpoints{Preferred: []string{host}}
+	}
+	if host := r.ApiHost; host != "" {
+		newRegion.Api = region_v2.Endpoints{Preferred: []string{host}}
+	}
+	return []*region_v2.Region{newRegion}, nil
 }
 
 var (
