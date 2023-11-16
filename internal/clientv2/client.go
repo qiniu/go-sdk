@@ -46,14 +46,21 @@ func (c *client) Do(req *http.Request) (*http.Response, error) {
 	handler := func(req *http.Request) (*http.Response, error) {
 		return c.coreClient.Do(req)
 	}
+	var newInterceptorList interceptorList
+	if intercetorsFromRequest := getIntercetorsFromRequest(req); len(intercetorsFromRequest) == 0 {
+		newInterceptorList = c.interceptors
+	} else if len(c.interceptors) == 0 {
+		newInterceptorList = intercetorsFromRequest
+	} else {
+		newInterceptorList = append(c.interceptors, intercetorsFromRequest...)
+		sort.Sort(newInterceptorList)
+	}
 
-	for _, interceptors := range []interceptorList{c.interceptors, getIntercetorsFromRequest(req)} {
-		for _, interceptor := range interceptors {
-			h := handler
-			i := interceptor
-			handler = func(r *http.Request) (*http.Response, error) {
-				return i.Intercept(r, h)
-			}
+	for _, interceptor := range newInterceptorList {
+		h := handler
+		i := interceptor
+		handler = func(r *http.Request) (*http.Response, error) {
+			return i.Intercept(r, h)
 		}
 	}
 

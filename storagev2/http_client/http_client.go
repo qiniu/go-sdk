@@ -137,9 +137,13 @@ func (httpClient *HttpClient) Do(ctx context.Context, request *Request) (*http.R
 	if credentialsProvider != nil {
 		if credentials, err := credentialsProvider.Get(ctx); err != nil {
 			return nil, err
-		} else if err = credentials.AddToken(request.AuthType, req); err != nil {
-			return nil, err
+		} else {
+			req = clientv2.WithInterceptors(req, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
+				Credentials: credentials,
+				TokenType:   request.AuthType,
+			}))
 		}
+
 	} else if request.UpToken != nil {
 		if upToken, err := request.UpToken.RetrieveUpToken(ctx); err != nil {
 			return nil, err

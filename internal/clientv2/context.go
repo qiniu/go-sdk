@@ -9,7 +9,13 @@ import (
 type intercetorsContextKey struct{}
 
 func WithInterceptors(req *http.Request, interceptors ...Interceptor) *http.Request {
-	return req.WithContext(context.WithValue(req.Context(), intercetorsContextKey{}, interceptorList(interceptors)))
+	newInterceptors, ok := req.Context().Value(intercetorsContextKey{}).(interceptorList)
+	if !ok {
+		newInterceptors = interceptorList(interceptors)
+	} else {
+		newInterceptors = append(newInterceptors, interceptors...)
+	}
+	return req.WithContext(context.WithValue(req.Context(), intercetorsContextKey{}, newInterceptors))
 }
 
 func getIntercetorsFromRequest(req *http.Request) interceptorList {
