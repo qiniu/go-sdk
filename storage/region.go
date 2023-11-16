@@ -376,7 +376,7 @@ func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
 
 	if mac != nil {
 		is = append(is, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
-			Credentials: *mac,
+			Credentials: mac,
 			TokenType:   auth.TokenQiniu,
 		}))
 	}
