@@ -4,13 +4,17 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
+	"hash/crc64"
 	"math"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/cache"
@@ -85,33 +89,48 @@ type (
 
 const cacheFileName = "query_v4_01.cache.json"
 
+var (
+	queryerCaches     map[uint64]*BucketRegionsQueryer
+	queryerCachesLock sync.Mutex
+)
+
 // NewBucketRegionsQueryer 创建空间区域查询器
 func NewBucketRegionsQueryer(bucketHosts Endpoints, opts *BucketRegionsQueryerOptions) (*BucketRegionsQueryer, error) {
 	if opts == nil {
 		opts = &BucketRegionsQueryerOptions{}
 	}
-	if opts.CompactInterval == time.Duration(0) {
-		opts.CompactInterval = time.Minute
-	}
-	if opts.PersistentFilePath == "" {
-		opts.PersistentFilePath = filepath.Join(os.TempDir(), "qiniu-golang-sdk", cacheFileName)
-	}
-	if opts.PersistentDuration == time.Duration(0) {
-		opts.PersistentDuration = time.Minute
-	}
 
-	persistentCache, err := cache.NewPersistentCache(reflect.TypeOf(&v4QueryCacheValue{}), opts.PersistentFilePath, opts.CompactInterval, opts.PersistentDuration, func(err error) {
-		log.Warn(fmt.Sprintf("BucketRegionsQueryer persist error: %s", err))
-	})
-	if err != nil {
-		return nil, err
+	crc64Value := calcBucketRegionsQueryerCrc64(bucketHosts, opts)
+	queryerCachesLock.Lock()
+	defer queryerCachesLock.Unlock()
+
+	if queryer, ok := queryerCaches[crc64Value]; ok {
+		return queryer, nil
+	} else {
+		if opts.CompactInterval == time.Duration(0) {
+			opts.CompactInterval = time.Minute
+		}
+		if opts.PersistentFilePath == "" {
+			opts.PersistentFilePath = filepath.Join(os.TempDir(), "qiniu-golang-sdk", cacheFileName)
+		}
+		if opts.PersistentDuration == time.Duration(0) {
+			opts.PersistentDuration = time.Minute
+		}
+		persistentCache, err := cache.NewPersistentCache(reflect.TypeOf(&v4QueryCacheValue{}), opts.PersistentFilePath, opts.CompactInterval, opts.PersistentDuration, func(err error) {
+			log.Warn(fmt.Sprintf("BucketRegionsQueryer persist error: %s", err))
+		})
+		if err != nil {
+			return nil, err
+		}
+		queryer := &BucketRegionsQueryer{
+			bucketHosts: bucketHosts,
+			cache:       persistentCache,
+			client:      makeBucketQueryClient(opts.Client, bucketHosts, opts.UseHttps, opts.RetryMax, opts.HostFreezeDuration),
+			useHttps:    opts.UseHttps,
+		}
+		queryerCaches[crc64Value] = queryer
+		return queryer, nil
 	}
-	return &BucketRegionsQueryer{
-		bucketHosts: bucketHosts,
-		cache:       persistentCache,
-		client:      makeBucketQueryClient(opts.Client, bucketHosts, opts.UseHttps, opts.RetryMax, opts.HostFreezeDuration),
-		useHttps:    opts.UseHttps,
-	}, nil
 }
 
 // Query 查询空间区域，返回 region.RegionsProvider
@@ -233,4 +252,23 @@ func makeBucketQueryClient(client *client.Client, bucketHosts Endpoints, useHttp
 		}),
 	}
 	return clientv2.NewClient(clientv2.NewClientWithClientV1(client), is...)
+}
+
+func (opts *BucketRegionsQueryerOptions) toBytes() []byte {
+	bytes := make([]byte, 0, 1024)
+	bytes = strconv.AppendBool(bytes, opts.UseHttps)
+	bytes = strconv.AppendInt(bytes, int64(opts.CompactInterval), 10)
+	bytes = append(bytes, []byte(opts.PersistentFilePath)...)
+	bytes = strconv.AppendInt(bytes, int64(opts.PersistentDuration), 10)
+	bytes = strconv.AppendInt(bytes, int64(opts.RetryMax), 10)
+	bytes = strconv.AppendInt(bytes, int64(opts.HostFreezeDuration), 10)
+	bytes = strconv.AppendUint(bytes, *(*uint64)(unsafe.Pointer(opts.Client)), 10)
+	return bytes
+}
+
+func calcBucketRegionsQueryerCrc64(bucketHosts Endpoints, opts *BucketRegionsQueryerOptions) uint64 {
+	hasher := crc64.New(crc64.MakeTable(crc64.ISO))
+	hasher.Write(bucketHosts.toBytes())
+	hasher.Write(opts.toBytes())
+	return hasher.Sum64()
 }
