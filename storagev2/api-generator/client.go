@@ -306,7 +306,7 @@ func (description *ApiDetailedDescription) generateClient(group *jen.Group) erro
 							}
 						}),
 				)
-				group.Add(jen.Var().Id("queryer").Op("*").Qual("github.com/qiniu/go-sdk/v7/storagev2/region", "BucketRegionsQueryer"))
+				group.Add(jen.Var().Id("queryer").Qual("github.com/qiniu/go-sdk/v7/storagev2/region", "BucketRegionsQueryer"))
 				group.Add(
 					jen.If(
 						jen.Id("client").Dot("client").Dot("GetRegions").Call().Op("==").Nil().Op("&&").
@@ -316,35 +316,48 @@ func (description *ApiDetailedDescription) generateClient(group *jen.Group) erro
 							group.Add(
 								jen.If(jen.Id("queryer").Op("==").Nil()).BlockFunc(func(group *jen.Group) {
 									group.Add(jen.Id("bucketHosts").Op(":=").Qual("github.com/qiniu/go-sdk/v7/storagev2/http_client", "DefaultBucketHosts").Call())
-									group.Add(jen.Var().Id("err").Error())
-									group.Add(
-										jen.If(jen.Id("request").Dot("BucketHosts").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
-											group.Add(
-												jen.If(
-													jen.List(jen.Id("bucketHosts"), jen.Err()).
-														Op("=").
-														Id("request").
-														Dot("BucketHosts").
-														Dot("GetEndpoints").
-														Call(jen.Id("ctx")),
-													jen.Err().Op("!=").Nil(),
-												).BlockFunc(func(group *jen.Group) {
-													group.Add(jen.Return(jen.Nil(), jen.Err()))
+									if description.isBucketService() {
+										group.Add(
+											jen.If(jen.Id("request").Dot("BucketHosts").Op("!=").Nil()).
+												BlockFunc(func(group *jen.Group) {
+													group.Add(jen.Id("req").Dot("Endpoints").Op("=").Id("request").Dot("BucketHosts"))
+												}).
+												Else().
+												BlockFunc(func(group *jen.Group) {
+													group.Add(jen.Id("req").Dot("Endpoints").Op("=").Id("bucketHosts"))
 												}),
-											)
-										}),
-									)
-									group.Add(
-										jen.If(
-											jen.List(jen.Id("queryer"), jen.Err()).
-												Op("=").
-												Qual("github.com/qiniu/go-sdk/v7/storagev2/region", "NewBucketRegionsQueryer").
-												Call(jen.Id("bucketHosts"), jen.Nil()),
-											jen.Err().Op("!=").Nil(),
-										).BlockFunc(func(group *jen.Group) {
-											group.Add(jen.Return(jen.Nil(), jen.Err()))
-										}),
-									)
+										)
+									} else {
+										group.Add(jen.Var().Id("err").Error())
+										group.Add(
+											jen.If(jen.Id("request").Dot("BucketHosts").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+												group.Add(
+													jen.If(
+														jen.List(jen.Id("bucketHosts"), jen.Err()).
+															Op("=").
+															Id("request").
+															Dot("BucketHosts").
+															Dot("GetEndpoints").
+															Call(jen.Id("ctx")),
+														jen.Err().Op("!=").Nil(),
+													).BlockFunc(func(group *jen.Group) {
+														group.Add(jen.Return(jen.Nil(), jen.Err()))
+													}),
+												)
+											}),
+										)
+										group.Add(
+											jen.If(
+												jen.List(jen.Id("queryer"), jen.Err()).
+													Op("=").
+													Qual("github.com/qiniu/go-sdk/v7/storagev2/region", "NewBucketRegionsQueryer").
+													Call(jen.Id("bucketHosts"), jen.Nil()),
+												jen.Err().Op("!=").Nil(),
+											).BlockFunc(func(group *jen.Group) {
+												group.Add(jen.Return(jen.Nil(), jen.Err()))
+											}),
+										)
+									}
 								}),
 							)
 						}),
@@ -370,7 +383,12 @@ func (description *ApiDetailedDescription) generateClient(group *jen.Group) erro
 								}),
 						)
 						group.Add(
-							jen.Id("req").Dot("Region").Op("=").Id("queryer").Dot("Query").Call(jen.Id("accessKey"), jen.Id("bucketName")),
+							jen.If(jen.Id("accessKey").Op("!=").Lit("").Op("&&").Id("bucketName").Op("!=").Lit("")).
+								BlockFunc(func(group *jen.Group) {
+									group.Add(
+										jen.Id("req").Dot("Region").Op("=").Id("queryer").Dot("Query").Call(jen.Id("accessKey"), jen.Id("bucketName")),
+									)
+								}),
 						)
 					}),
 				)
@@ -473,4 +491,13 @@ func (description *ApiDetailedDescription) getPathSuffixSegments() []string {
 	pathSuffix := strings.TrimPrefix(description.PathSuffix, "/")
 	pathSuffix = strings.TrimSuffix(pathSuffix, "/")
 	return strings.Split(pathSuffix, "/")
+}
+
+func (description *ApiDetailedDescription) isBucketService() bool {
+	for _, service := range description.ServiceNames {
+		if service == ServiceNameBucket {
+			return true
+		}
+	}
+	return false
 }

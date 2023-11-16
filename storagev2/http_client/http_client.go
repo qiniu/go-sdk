@@ -3,11 +3,15 @@ package http_client
 import (
 	"context"
 	"errors"
+	"hash/crc64"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
@@ -34,7 +38,7 @@ type (
 	HttpClient struct {
 		useHttps           bool
 		client             Client
-		bucketQueryer      *region.BucketRegionsQueryer
+		bucketQueryer      region.BucketRegionsQueryer
 		endpoints          region.EndpointsProvider
 		regions            region.RegionsProvider
 		credentials        credentials.CredentialsProvider
@@ -47,7 +51,7 @@ type (
 	// HttpClientOptions 为构建 HttpClient 提供了可选参数
 	HttpClientOptions struct {
 		Client             Client
-		BucketQueryer      *region.BucketRegionsQueryer
+		BucketQueryer      region.BucketRegionsQueryer
 		Endpoints          region.EndpointsProvider
 		Regions            region.RegionsProvider
 		Credentials        credentials.CredentialsProvider
@@ -75,32 +79,48 @@ type (
 	}
 )
 
+var (
+	httpClientCaches     map[uint64]*HttpClient
+	httpClientCachesLock sync.Mutex
+)
+
 // NewHttpClient 用来构建一个新的七牛 HTTP 客户端
 func NewHttpClient(options *HttpClientOptions) *HttpClient {
 	if options == nil {
 		options = &HttpClientOptions{}
 	}
-
 	if options.HostFreezeDuration < time.Millisecond {
 		options.HostFreezeDuration = 600 * time.Second
 	}
 	if options.ShouldFreezeHost == nil {
-		options.ShouldFreezeHost = func(req *http.Request, resp *http.Response, err error) bool {
-			return true
-		}
+		options.ShouldFreezeHost = defaultShouldFreezeHost
 	}
 
-	return &HttpClient{
-		client:             clientv2.NewClient(options.Client, options.Interceptors...),
-		useHttps:           options.UseHttps,
-		bucketQueryer:      options.BucketQueryer,
-		endpoints:          options.Endpoints,
-		regions:            options.Regions,
-		credentials:        options.Credentials,
-		hostRetryConfig:    options.HostRetryConfig,
-		hostsRetryConfig:   options.HostsRetryConfig,
-		hostFreezeDuration: options.HostFreezeDuration,
-		shouldFreezeHost:   options.ShouldFreezeHost,
+	crc64Value := calcHttpClientOptions(options)
+	httpClientCachesLock.Lock()
+	defer httpClientCachesLock.Unlock()
+
+	if httpClientCaches == nil {
+		httpClientCaches = make(map[uint64]*HttpClient)
+	}
+
+	if httpClient, ok := httpClientCaches[crc64Value]; ok {
+		return httpClient
+	} else {
+		httpClient = &HttpClient{
+			client:             clientv2.NewClient(options.Client, options.Interceptors...),
+			useHttps:           options.UseHttps,
+			bucketQueryer:      options.BucketQueryer,
+			endpoints:          options.Endpoints,
+			regions:            options.Regions,
+			credentials:        options.Credentials,
+			hostRetryConfig:    options.HostRetryConfig,
+			hostsRetryConfig:   options.HostsRetryConfig,
+			hostFreezeDuration: options.HostFreezeDuration,
+			shouldFreezeHost:   options.ShouldFreezeHost,
+		}
+		httpClientCaches[crc64Value] = httpClient
+		return httpClient
 	}
 }
 
@@ -145,7 +165,7 @@ func (httpClient *HttpClient) AcceptJson(ctx context.Context, request *Request, 
 	return resp, nil
 }
 
-func (httpClient *HttpClient) GetBucketQueryer() *region.BucketRegionsQueryer {
+func (httpClient *HttpClient) GetBucketQueryer() region.BucketRegionsQueryer {
 	return httpClient.bucketQueryer
 }
 
@@ -291,14 +311,72 @@ func GetRequestBodyFromReadSeekCloser(r compatible_io.ReadSeekCloser) GetRequest
 	}
 }
 
-var (
-	defaultBucketHosts = region.Endpoints{
-		Preferred:   []string{"uc.qiniuapi.com", "kodo-config.qiniuapi.com"},
-		Alternative: []string{"uc.qbox.me"},
-	}
-)
+var defaultBucketHosts = region.Endpoints{
+	Preferred:   []string{"uc.qiniuapi.com", "kodo-config.qiniuapi.com"},
+	Alternative: []string{"uc.qbox.me"},
+}
 
 // DefaultBucketHosts 默认的 Bucket 域名列表
 func DefaultBucketHosts() region.Endpoints {
 	return defaultBucketHosts.Clone()
+}
+
+func defaultShouldFreezeHost(*http.Request, *http.Response, error) bool {
+	return true
+}
+
+func (opts *HttpClientOptions) toBytes() []byte {
+	bytes := make([]byte, 0, 1024)
+	if opts.Client != nil {
+		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(&opts.Client))), 10)
+	} else {
+		bytes = strconv.AppendUint(bytes, 0, 10)
+	}
+	if opts.BucketQueryer != nil {
+		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(&opts.BucketQueryer))), 10)
+	} else {
+		bytes = strconv.AppendUint(bytes, 0, 10)
+	}
+	if opts.Endpoints != nil {
+		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(&opts.Endpoints))), 10)
+	} else {
+		bytes = strconv.AppendUint(bytes, 0, 10)
+	}
+	if opts.Regions != nil {
+		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(&opts.Regions))), 10)
+	} else {
+		bytes = strconv.AppendUint(bytes, 0, 10)
+	}
+	bytes = strconv.AppendInt(bytes, int64(len(opts.Interceptors)), 10)
+	for i := range opts.Interceptors {
+		if opts.Interceptors[i] != nil {
+			bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(&opts.Interceptors[i]))), 10)
+		} else {
+			bytes = strconv.AppendUint(bytes, 0, 10)
+		}
+	}
+	bytes = strconv.AppendBool(bytes, opts.UseHttps)
+	if opts.HostRetryConfig != nil {
+		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(opts.HostRetryConfig))), 10)
+	} else {
+		bytes = strconv.AppendUint(bytes, 0, 10)
+	}
+	if opts.HostsRetryConfig != nil {
+		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(opts.HostsRetryConfig))), 10)
+	} else {
+		bytes = strconv.AppendUint(bytes, 0, 10)
+	}
+	bytes = strconv.AppendInt(bytes, int64(opts.HostFreezeDuration), 36)
+	if opts.ShouldFreezeHost != nil {
+		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(&opts.ShouldFreezeHost))), 10)
+	} else {
+		bytes = strconv.AppendUint(bytes, 0, 10)
+	}
+	return bytes
+}
+
+func calcHttpClientOptions(opts *HttpClientOptions) uint64 {
+	hasher := crc64.New(crc64.MakeTable(crc64.ISO))
+	hasher.Write(opts.toBytes())
+	return hasher.Sum64()
 }

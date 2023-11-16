@@ -24,13 +24,19 @@ import (
 )
 
 type (
-	BucketRegionsQueryer struct {
+	// BucketRegionsQueryer 空间区域查询器
+	BucketRegionsQueryer interface {
+		Query(accessKey, bucketName string) RegionsProvider
+	}
+
+	bucketRegionsQueryer struct {
 		bucketHosts Endpoints
 		cache       *cache.Cache
 		client      clientv2.Client
 		useHttps    bool
 	}
 
+	// BucketRegionsQueryer 空间区域查询器选项
 	BucketRegionsQueryerOptions struct {
 		// 使用 HTTPS 协议
 		UseHttps bool
@@ -57,7 +63,7 @@ type (
 		accessKey  string
 		bucketName string
 		cacheKey   string
-		queryer    *BucketRegionsQueryer
+		queryer    *bucketRegionsQueryer
 	}
 
 	v4QueryCacheValue struct {
@@ -90,14 +96,23 @@ type (
 const cacheFileName = "query_v4_01.cache.json"
 
 var (
-	queryerCaches     map[uint64]*BucketRegionsQueryer
+	queryerCaches     map[uint64]BucketRegionsQueryer
 	queryerCachesLock sync.Mutex
 )
 
 // NewBucketRegionsQueryer 创建空间区域查询器
-func NewBucketRegionsQueryer(bucketHosts Endpoints, opts *BucketRegionsQueryerOptions) (*BucketRegionsQueryer, error) {
+func NewBucketRegionsQueryer(bucketHosts Endpoints, opts *BucketRegionsQueryerOptions) (BucketRegionsQueryer, error) {
 	if opts == nil {
 		opts = &BucketRegionsQueryerOptions{}
+	}
+	if opts.CompactInterval == time.Duration(0) {
+		opts.CompactInterval = time.Minute
+	}
+	if opts.PersistentFilePath == "" {
+		opts.PersistentFilePath = filepath.Join(os.TempDir(), "qiniu-golang-sdk", cacheFileName)
+	}
+	if opts.PersistentDuration == time.Duration(0) {
+		opts.PersistentDuration = time.Minute
 	}
 
 	crc64Value := calcBucketRegionsQueryerCrc64(bucketHosts, opts)
@@ -105,28 +120,19 @@ func NewBucketRegionsQueryer(bucketHosts Endpoints, opts *BucketRegionsQueryerOp
 	defer queryerCachesLock.Unlock()
 
 	if queryerCaches == nil {
-		queryerCaches = make(map[uint64]*BucketRegionsQueryer)
+		queryerCaches = make(map[uint64]BucketRegionsQueryer)
 	}
 
 	if queryer, ok := queryerCaches[crc64Value]; ok {
 		return queryer, nil
 	} else {
-		if opts.CompactInterval == time.Duration(0) {
-			opts.CompactInterval = time.Minute
-		}
-		if opts.PersistentFilePath == "" {
-			opts.PersistentFilePath = filepath.Join(os.TempDir(), "qiniu-golang-sdk", cacheFileName)
-		}
-		if opts.PersistentDuration == time.Duration(0) {
-			opts.PersistentDuration = time.Minute
-		}
 		persistentCache, err := cache.NewPersistentCache(reflect.TypeOf(&v4QueryCacheValue{}), opts.PersistentFilePath, opts.CompactInterval, opts.PersistentDuration, func(err error) {
 			log.Warn(fmt.Sprintf("BucketRegionsQueryer persist error: %s", err))
 		})
 		if err != nil {
 			return nil, err
 		}
-		queryer := &BucketRegionsQueryer{
+		queryer = &bucketRegionsQueryer{
 			bucketHosts: bucketHosts,
 			cache:       persistentCache,
 			client:      makeBucketQueryClient(opts.Client, bucketHosts, opts.UseHttps, opts.RetryMax, opts.HostFreezeDuration),
@@ -138,7 +144,7 @@ func NewBucketRegionsQueryer(bucketHosts Endpoints, opts *BucketRegionsQueryerOp
 }
 
 // Query 查询空间区域，返回 region.RegionsProvider
-func (queryer *BucketRegionsQueryer) Query(accessKey, bucketName string) RegionsProvider {
+func (queryer *bucketRegionsQueryer) Query(accessKey, bucketName string) RegionsProvider {
 	return &bucketRegionsProvider{
 		accessKey:  accessKey,
 		bucketName: bucketName,
@@ -263,11 +269,12 @@ func (opts *BucketRegionsQueryerOptions) toBytes() []byte {
 	bytes = strconv.AppendBool(bytes, opts.UseHttps)
 	bytes = strconv.AppendInt(bytes, int64(opts.CompactInterval), 36)
 	bytes = append(bytes, []byte(opts.PersistentFilePath)...)
+	bytes = append(bytes, byte(0))
 	bytes = strconv.AppendInt(bytes, int64(opts.PersistentDuration), 36)
 	bytes = strconv.AppendInt(bytes, int64(opts.RetryMax), 36)
 	bytes = strconv.AppendInt(bytes, int64(opts.HostFreezeDuration), 36)
 	if opts.Client != nil {
-		bytes = strconv.AppendUint(bytes, *(*uint64)(unsafe.Pointer(opts.Client)), 10)
+		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(opts.Client))), 10)
 	} else {
 		bytes = strconv.AppendUint(bytes, 0, 10)
 	}
