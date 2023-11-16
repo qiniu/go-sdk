@@ -1,9 +1,11 @@
 package region
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"strings"
 	"time"
@@ -229,6 +231,20 @@ func (endpoints Endpoints) Clone() Endpoints {
 		Preferred:   append([]string{}, endpoints.Preferred...),
 		Alternative: append([]string{}, endpoints.Alternative...),
 	}
+}
+
+func (endpoints Endpoints) toBytes() []byte {
+	var buffer bytes.Buffer
+	buffer.Grow(1024)
+	for _, host := range endpoints.Preferred {
+		io.WriteString(&buffer, "\nP\n")
+		io.WriteString(&buffer, host)
+	}
+	for _, host := range endpoints.Alternative {
+		io.WriteString(&buffer, "\nA\n")
+		io.WriteString(&buffer, host)
+	}
+	return buffer.Bytes()
 }
 
 func makeUrlFromHost(host string, useHttps bool) string {
