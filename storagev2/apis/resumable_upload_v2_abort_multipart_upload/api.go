@@ -6,6 +6,7 @@ package resumable_upload_v2_abort_multipart_upload
 import (
 	"context"
 	"encoding/base64"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
@@ -39,10 +40,12 @@ func (pp *RequestPath) SetUploadId(value string) *RequestPath {
 	pp.fieldUploadId = value
 	return pp
 }
-func (path *RequestPath) build() []string {
+func (path *RequestPath) build() ([]string, error) {
 	var allSegments []string
 	if path.fieldBucketName != "" {
 		allSegments = append(allSegments, path.fieldBucketName)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
 	}
 	if path.fieldObjectName != "" {
 		allSegments = append(allSegments, "objects", base64.URLEncoding.EncodeToString([]byte(path.fieldObjectName)))
@@ -51,8 +54,10 @@ func (path *RequestPath) build() []string {
 	}
 	if path.fieldUploadId != "" {
 		allSegments = append(allSegments, "uploads", path.fieldUploadId)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "UploadId"}
 	}
-	return allSegments
+	return allSegments, nil
 }
 
 // 调用 API 所用的请求
@@ -96,7 +101,11 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	serviceNames := []region.ServiceName{region.ServiceUp}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "buckets")
-	pathSegments = append(pathSegments, request.Path.build()...)
+	if segments, err := request.Path.build(); err != nil {
+		return nil, err
+	} else {
+		pathSegments = append(pathSegments, segments...)
+	}
 	path := "/" + strings.Join(pathSegments, "/")
 	req := httpclient.Request{Method: "DELETE", ServiceNames: serviceNames, Path: path, UpToken: request.UpToken}
 	var queryer *region.BucketRegionsQueryer

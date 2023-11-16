@@ -104,6 +104,10 @@ func NewBucketRegionsQueryer(bucketHosts Endpoints, opts *BucketRegionsQueryerOp
 	queryerCachesLock.Lock()
 	defer queryerCachesLock.Unlock()
 
+	if queryerCaches == nil {
+		queryerCaches = make(map[uint64]*BucketRegionsQueryer)
+	}
+
 	if queryer, ok := queryerCaches[crc64Value]; ok {
 		return queryer, nil
 	} else {
@@ -257,12 +261,16 @@ func makeBucketQueryClient(client *client.Client, bucketHosts Endpoints, useHttp
 func (opts *BucketRegionsQueryerOptions) toBytes() []byte {
 	bytes := make([]byte, 0, 1024)
 	bytes = strconv.AppendBool(bytes, opts.UseHttps)
-	bytes = strconv.AppendInt(bytes, int64(opts.CompactInterval), 10)
+	bytes = strconv.AppendInt(bytes, int64(opts.CompactInterval), 36)
 	bytes = append(bytes, []byte(opts.PersistentFilePath)...)
-	bytes = strconv.AppendInt(bytes, int64(opts.PersistentDuration), 10)
-	bytes = strconv.AppendInt(bytes, int64(opts.RetryMax), 10)
-	bytes = strconv.AppendInt(bytes, int64(opts.HostFreezeDuration), 10)
-	bytes = strconv.AppendUint(bytes, *(*uint64)(unsafe.Pointer(opts.Client)), 10)
+	bytes = strconv.AppendInt(bytes, int64(opts.PersistentDuration), 36)
+	bytes = strconv.AppendInt(bytes, int64(opts.RetryMax), 36)
+	bytes = strconv.AppendInt(bytes, int64(opts.HostFreezeDuration), 36)
+	if opts.Client != nil {
+		bytes = strconv.AppendUint(bytes, *(*uint64)(unsafe.Pointer(opts.Client)), 10)
+	} else {
+		bytes = strconv.AppendUint(bytes, 0, 10)
+	}
 	return bytes
 }
 

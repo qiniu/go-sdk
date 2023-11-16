@@ -21,6 +21,7 @@ type (
 		Documentation string             `yaml:"documentation,omitempty"`
 		Encode        *EncodeType        `yaml:"encode,omitempty"`
 		ServiceBucket *ServiceBucketType `yaml:"service_bucket,omitempty"`
+		Optional      bool               `yaml:"optional,omitempty"`
 	}
 
 	FreePathParams struct {
@@ -110,68 +111,85 @@ func (pp *PathParams) Generate(group *jen.Group, options CodeGeneratorOptions) e
 			Params(jen.Id("path").Op("*").Id(options.Name)).
 			Id("build").
 			Params().
-			Params(jen.Index().Add(jen.String())).BlockFunc(func(group *jen.Group) {
-			group.Add(jen.Var().Id("allSegments").Index().Add(jen.String()))
-			for _, namedPathParam := range pp.Named {
-				var code jen.Code
-				var isNone bool
-				field := jen.Id("path").Dot("field" + strcase.ToCamel(namedPathParam.FieldName))
-				switch namedPathParam.Type.ToStringLikeType() {
-				case StringLikeTypeString:
-					switch namedPathParam.Encode.ToEncodeType() {
-					case EncodeTypeNone:
-						code = field.Clone()
-					case EncodeTypeUrlsafeBase64, EncodeTypeUrlsafeBase64OrNone:
-						code = jen.Qual("encoding/base64", "URLEncoding").Dot("EncodeToString").Call(jen.Index().Byte().Parens(field.Clone()))
-						if namedPathParam.Encode.ToEncodeType() == EncodeTypeUrlsafeBase64OrNone {
-							isNone = true
+			Params(jen.Index().Add(jen.String()), jen.Error()).
+			BlockFunc(func(group *jen.Group) {
+				group.Add(jen.Var().Id("allSegments").Index().Add(jen.String()))
+				for _, namedPathParam := range pp.Named {
+					var (
+						code      jen.Code
+						isNone    bool
+						isNumeric bool
+						field     = jen.Id("path").Dot("field" + strcase.ToCamel(namedPathParam.FieldName))
+					)
+					switch namedPathParam.Type.ToStringLikeType() {
+					case StringLikeTypeString:
+						switch namedPathParam.Encode.ToEncodeType() {
+						case EncodeTypeNone:
+							code = field.Clone()
+						case EncodeTypeUrlsafeBase64, EncodeTypeUrlsafeBase64OrNone:
+							code = jen.Qual("encoding/base64", "URLEncoding").Dot("EncodeToString").Call(jen.Index().Byte().Parens(field.Clone()))
+							if namedPathParam.Encode.ToEncodeType() == EncodeTypeUrlsafeBase64OrNone {
+								isNone = true
+							}
 						}
+					case StringLikeTypeInteger, StringLikeTypeFloat, StringLikeTypeBoolean:
+						code, _ = namedPathParam.Type.GenerateConvertCodeToString(field)
+						isNumeric = true
+					default:
+						err = errors.New("unknown type")
+						return
 					}
-				case StringLikeTypeInteger, StringLikeTypeFloat, StringLikeTypeBoolean:
-					code, _ = namedPathParam.Type.GenerateConvertCodeToString(field)
-				default:
-					err = errors.New("unknown type")
-					return
+					zeroValue, e := namedPathParam.Type.ZeroValue()
+					if e != nil {
+						err = e
+						return
+					}
+					condition := field.Clone()
+					if v, ok := zeroValue.(bool); !ok || v {
+						condition = condition.Op("!=").Lit(zeroValue)
+					}
+					statement :=
+						jen.If(condition).BlockFunc(func(group *jen.Group) {
+							codes := []jen.Code{jen.Id("allSegments")}
+							if namedPathParam.PathSegment != "" {
+								codes = append(codes, jen.Lit(namedPathParam.PathSegment))
+							}
+							codes = append(codes, code)
+							group.Add(
+								jen.Id("allSegments").Op("=").Append(codes...),
+							)
+						})
+					if isNone {
+						statement = statement.Else().BlockFunc(func(group *jen.Group) {
+							codes := []jen.Code{jen.Id("allSegments")}
+							if namedPathParam.PathSegment != "" {
+								codes = append(codes, jen.Lit(namedPathParam.PathSegment))
+							}
+							codes = append(codes, jen.Lit("~"))
+							group.Add(
+								jen.Id("allSegments").Op("=").Append(codes...),
+							)
+						})
+					} else if !isNumeric && !namedPathParam.Optional {
+						statement = statement.Else().BlockFunc(func(group *jen.Group) {
+							group.Add(
+								jen.Return(
+									jen.Nil(),
+									jen.Qual("github.com/qiniu/go-sdk/v7/storagev2/errors", "MissingRequiredFieldError").
+										ValuesFunc(func(group *jen.Group) {
+											group.Add(jen.Id("Name").Op(":").Lit(strcase.ToCamel(namedPathParam.FieldName)))
+										}),
+								),
+							)
+						})
+					}
+					group.Add(statement)
 				}
-				zeroValue, e := namedPathParam.Type.ZeroValue()
-				if e != nil {
-					err = e
-					return
+				if pp.Free != nil {
+					group.Add(jen.Id("allSegments").Op("=").Append(jen.Id("allSegments"), jen.Id("path").Dot("extendedSegments").Op("...")))
 				}
-				condition := field.Clone()
-				if v, ok := zeroValue.(bool); !ok || v {
-					condition = condition.Op("!=").Lit(zeroValue)
-				}
-				statement :=
-					jen.If(condition).BlockFunc(func(group *jen.Group) {
-						codes := []jen.Code{jen.Id("allSegments")}
-						if namedPathParam.PathSegment != "" {
-							codes = append(codes, jen.Lit(namedPathParam.PathSegment))
-						}
-						codes = append(codes, code)
-						group.Add(
-							jen.Id("allSegments").Op("=").Append(codes...),
-						)
-					})
-				if isNone {
-					statement.Else().BlockFunc(func(group *jen.Group) {
-						codes := []jen.Code{jen.Id("allSegments")}
-						if namedPathParam.PathSegment != "" {
-							codes = append(codes, jen.Lit(namedPathParam.PathSegment))
-						}
-						codes = append(codes, jen.Lit("~"))
-						group.Add(
-							jen.Id("allSegments").Op("=").Append(codes...),
-						)
-					})
-				}
-				group.Add(statement)
-			}
-			if pp.Free != nil {
-				group.Add(jen.Id("allSegments").Op("=").Append(jen.Id("allSegments"), jen.Id("path").Dot("extendedSegments").Op("...")))
-			}
-			group.Add(jen.Return(jen.Id("allSegments")))
-		}),
+				group.Add(jen.Return(jen.Id("allSegments"), jen.Nil()))
+			}),
 	)
 	return err
 }

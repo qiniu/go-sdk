@@ -133,6 +133,10 @@ func (t *StringLikeType) ZeroValue() (interface{}, error) {
 	}
 }
 
+func (t *StringLikeType) IsNumeric() bool {
+	return t.ToStringLikeType() != StringLikeTypeString
+}
+
 func (t *MultipartFormDataType) ToMultipartFormDataType() MultipartFormDataType {
 	if t == nil {
 		return MultipartFormDataTypeString
@@ -160,6 +164,10 @@ func (t *MultipartFormDataType) ZeroValue() (interface{}, error) {
 	default:
 		return nil, errors.New("unknown type")
 	}
+}
+
+func (t *MultipartFormDataType) IsNumeric() bool {
+	return t.ToMultipartFormDataType() == MultipartFormDataTypeInteger
 }
 
 func (t *MultipartFormDataType) AddTypeToStatement(statement *jen.Statement) (*jen.Statement, error) {

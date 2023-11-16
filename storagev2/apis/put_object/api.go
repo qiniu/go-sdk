@@ -6,6 +6,7 @@ package put_object
 import (
 	"context"
 	io "github.com/qiniu/go-sdk/v7/internal/io"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
@@ -77,12 +78,16 @@ func (form *RequestBody) build(ctx context.Context) (*httpclient.MultipartForm, 
 			return nil, err
 		}
 		multipartForm.SetValue("token", upToken)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "UploadToken"}
 	}
 	if form.fieldCrc32 != 0 {
 		multipartForm.SetValue("crc32", strconv.FormatInt(form.fieldCrc32, 10))
 	}
 	if form.fieldFile != nil {
 		multipartForm.SetFile("file", form.fieldFile_FileName, form.fieldFile)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "File"}
 	}
 	for key, value := range form.extendedMap {
 		multipartForm.SetValue(key, value)
@@ -134,12 +139,12 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	serviceNames := []region.ServiceName{region.ServiceUp}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "")
-	multipartForm, err := request.Body.build(ctx)
+	path := "/" + strings.Join(pathSegments, "/")
+	body, err := request.Body.build(ctx)
 	if err != nil {
 		return nil, err
 	}
-	path := "/" + strings.Join(pathSegments, "/")
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RequestBody: httpclient.GetMultipartFormRequestBody(multipartForm)}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RequestBody: httpclient.GetMultipartFormRequestBody(body)}
 	var queryer *region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()

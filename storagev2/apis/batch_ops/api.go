@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"net/url"
@@ -25,12 +26,16 @@ func (form *RequestBody) SetOperations(value []string) *RequestBody {
 	form.fieldOperations = value
 	return form
 }
-func (form *RequestBody) build() url.Values {
+func (form *RequestBody) build() (url.Values, error) {
 	formValues := make(url.Values)
-	for _, value := range form.fieldOperations {
-		formValues.Add("op", value)
+	if len(form.fieldOperations) > 0 {
+		for _, value := range form.fieldOperations {
+			formValues.Add("op", value)
+		}
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "Operations"}
 	}
-	return formValues
+	return formValues, nil
 }
 
 type innerOperationResponseData struct {
@@ -144,6 +149,11 @@ func (j *OperationResponseData) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
 }
 
+//lint:ignore U1000 may not call it
+func (j *OperationResponseData) validate() error {
+	return nil
+}
+
 // 响应数据
 type Data = OperationResponseData
 type innerOperationResponse struct {
@@ -175,6 +185,14 @@ func (j *OperationResponse) MarshalJSON() ([]byte, error) {
 }
 func (j *OperationResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
+}
+
+//lint:ignore U1000 may not call it
+func (j *OperationResponse) validate() error {
+	if j.inner.Code == 0 {
+		return errors.MissingRequiredFieldError{Name: "Code"}
+	}
+	return nil
 }
 
 // 所有管理指令的响应信息
@@ -224,7 +242,11 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	var pathSegments []string
 	pathSegments = append(pathSegments, "batch")
 	path := "/" + strings.Join(pathSegments, "/")
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.Credentials, RequestBody: httpclient.GetFormRequestBody(request.Body.build())}
+	body, err := request.Body.build()
+	if err != nil {
+		return nil, err
+	}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.Credentials, RequestBody: httpclient.GetFormRequestBody(body)}
 	var queryer *region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()

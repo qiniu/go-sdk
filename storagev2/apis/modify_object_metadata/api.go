@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"strings"
@@ -49,19 +50,25 @@ func (path *RequestPath) Append(key string, value string) *RequestPath {
 	path.extendedSegments = append(path.extendedSegments, base64.URLEncoding.EncodeToString([]byte(value)))
 	return path
 }
-func (path *RequestPath) build() []string {
+func (path *RequestPath) build() ([]string, error) {
 	var allSegments []string
 	if path.fieldEntry != "" {
 		allSegments = append(allSegments, base64.URLEncoding.EncodeToString([]byte(path.fieldEntry)))
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "Entry"}
 	}
 	if path.fieldMimeType != "" {
 		allSegments = append(allSegments, "mime", base64.URLEncoding.EncodeToString([]byte(path.fieldMimeType)))
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "MimeType"}
 	}
 	if path.fieldCondition != "" {
 		allSegments = append(allSegments, "cond", base64.URLEncoding.EncodeToString([]byte(path.fieldCondition)))
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "Condition"}
 	}
 	allSegments = append(allSegments, path.extendedSegments...)
-	return allSegments
+	return allSegments, nil
 }
 
 // 调用 API 所用的请求
@@ -105,7 +112,11 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	serviceNames := []region.ServiceName{region.ServiceRs}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "chgm")
-	pathSegments = append(pathSegments, request.Path.build()...)
+	if segments, err := request.Path.build(); err != nil {
+		return nil, err
+	} else {
+		pathSegments = append(pathSegments, segments...)
+	}
 	path := "/" + strings.Join(pathSegments, "/")
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.Credentials}
 	var queryer *region.BucketRegionsQueryer

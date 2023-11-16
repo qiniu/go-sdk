@@ -155,10 +155,24 @@ func (description *ApiDetailedDescription) generateClient(group *jen.Group) erro
 					}))
 				}
 				if description.Request.PathParams != nil {
-					group.Add(jen.Id("pathSegments").Op("=").Append(
-						jen.Id("pathSegments"),
-						jen.Id("request").Dot("Path").Dot("build").Call().Op("..."),
-					))
+					group.Add(
+						jen.If(
+							jen.List(jen.Id("segments"), jen.Err()).
+								Op(":=").
+								Id("request").
+								Dot("Path").
+								Dot("build").
+								Call(),
+							jen.Err().Op("!=").Nil(),
+						).BlockFunc(func(group *jen.Group) {
+							group.Add(jen.Return(jen.Nil(), jen.Err()))
+						}).Else().BlockFunc(func(group *jen.Group) {
+							group.Add(jen.Id("pathSegments").Op("=").Append(
+								jen.Id("pathSegments"),
+								jen.Id("segments").Op("..."),
+							))
+						}),
+					)
 				}
 				if description.PathSuffix != "" {
 					group.Add(jen.Id("pathSegments").Op("=").AppendFunc(func(group *jen.Group) {
@@ -168,8 +182,34 @@ func (description *ApiDetailedDescription) generateClient(group *jen.Group) erro
 						}
 					}))
 				}
+				group.Add(jen.Id("path").Op(":=").Lit("/").Op("+").Qual("strings", "Join").Call(jen.Id("pathSegments"), jen.Lit("/")))
+				if description.Request.QueryNames != nil {
+					group.Add(jen.List(jen.Id("query"), jen.Err()).Op(":=").Id("request").Dot("Query").Dot("build").Call())
+					group.Add(
+						jen.If(jen.Err().Op("!=").Nil()).
+							BlockFunc(func(group *jen.Group) {
+								group.Add(jen.Return(jen.Nil(), jen.Err()))
+							}),
+					)
+				}
+
 				if requestBody := description.Request.Body; requestBody != nil {
 					if json := requestBody.Json; json != nil {
+						if json.Struct != nil {
+							group.Add(
+								jen.If(
+									jen.Err().
+										Op(":=").
+										Id("request").
+										Dot("Body").
+										Dot("validate").
+										Call(),
+									jen.Err().Op("!=").Nil(),
+								).BlockFunc(func(group *jen.Group) {
+									group.Add(jen.Return(jen.Nil(), jen.Err()))
+								}),
+							)
+						}
 						group.Add(
 							jen.List(jen.Id("body"), jen.Err()).
 								Op(":=").
@@ -184,7 +224,7 @@ func (description *ApiDetailedDescription) generateClient(group *jen.Group) erro
 						)
 					} else if multipartForm := requestBody.MultipartFormData; multipartForm != nil {
 						group.Add(
-							jen.List(jen.Id("multipartForm"), jen.Err()).
+							jen.List(jen.Id("body"), jen.Err()).
 								Op(":=").
 								Id("request").
 								Dot("Body").
@@ -197,9 +237,23 @@ func (description *ApiDetailedDescription) generateClient(group *jen.Group) erro
 									group.Add(jen.Return(jen.Nil(), jen.Err()))
 								}),
 						)
+					} else if form := requestBody.FormUrlencoded; form != nil {
+						group.Add(
+							jen.List(jen.Id("body"), jen.Err()).
+								Op(":=").
+								Id("request").
+								Dot("Body").
+								Dot("build").
+								Call(),
+						)
+						group.Add(
+							jen.If(jen.Err().Op("!=").Nil()).
+								BlockFunc(func(group *jen.Group) {
+									group.Add(jen.Return(jen.Nil(), jen.Err()))
+								}),
+						)
 					}
 				}
-				group.Add(jen.Id("path").Op(":=").Lit("/").Op("+").Qual("strings", "Join").Call(jen.Id("pathSegments"), jen.Lit("/")))
 				group.Add(
 					jen.Id("req").
 						Op(":=").
@@ -209,7 +263,7 @@ func (description *ApiDetailedDescription) generateClient(group *jen.Group) erro
 							group.Add(jen.Id("ServiceNames").Op(":").Id("serviceNames"))
 							group.Add(jen.Id("Path").Op(":").Id("path"))
 							if description.Request.QueryNames != nil {
-								group.Add(jen.Id("RawQuery").Op(":").Id("request").Dot("Query").Dot("build").Call().Dot("Encode").Call())
+								group.Add(jen.Id("RawQuery").Op(":").Id("query").Dot("Encode").Call())
 							}
 							if description.Request.HeaderNames != nil {
 								group.Add(jen.Id("Header").Op(":").Id("request").Dot("Headers").Dot("build").Call())
@@ -232,14 +286,14 @@ func (description *ApiDetailedDescription) generateClient(group *jen.Group) erro
 										jen.Id("RequestBody").
 											Op(":").
 											Qual("github.com/qiniu/go-sdk/v7/storagev2/http_client", "GetFormRequestBody").
-											Call(jen.Id("request").Dot("Body").Dot("build").Call()),
+											Call(jen.Id("body")),
 									)
 								} else if multipartFormData := requestBody.MultipartFormData; multipartFormData != nil {
 									group.Add(
 										jen.Id("RequestBody").
 											Op(":").
 											Qual("github.com/qiniu/go-sdk/v7/storagev2/http_client", "GetMultipartFormRequestBody").
-											Call(jen.Id("multipartForm")),
+											Call(jen.Id("body")),
 									)
 								} else if requestBody.BinaryData {
 									group.Add(

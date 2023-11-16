@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	io "github.com/qiniu/go-sdk/v7/internal/io"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
@@ -51,10 +52,12 @@ func (pp *RequestPath) SetPartNumber(value int64) *RequestPath {
 	pp.fieldPartNumber = value
 	return pp
 }
-func (path *RequestPath) build() []string {
+func (path *RequestPath) build() ([]string, error) {
 	var allSegments []string
 	if path.fieldBucketName != "" {
 		allSegments = append(allSegments, path.fieldBucketName)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
 	}
 	if path.fieldObjectName != "" {
 		allSegments = append(allSegments, "objects", base64.URLEncoding.EncodeToString([]byte(path.fieldObjectName)))
@@ -63,11 +66,13 @@ func (path *RequestPath) build() []string {
 	}
 	if path.fieldUploadId != "" {
 		allSegments = append(allSegments, "uploads", path.fieldUploadId)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "UploadId"}
 	}
 	if path.fieldPartNumber != 0 {
 		allSegments = append(allSegments, strconv.FormatInt(path.fieldPartNumber, 10))
 	}
-	return allSegments
+	return allSegments, nil
 }
 
 // 调用 API 所用的 HTTP 头参数
@@ -121,6 +126,17 @@ func (j *NewPartInfo) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
 }
 
+//lint:ignore U1000 may not call it
+func (j *NewPartInfo) validate() error {
+	if j.inner.Etag == "" {
+		return errors.MissingRequiredFieldError{Name: "Etag"}
+	}
+	if j.inner.Md5 == "" {
+		return errors.MissingRequiredFieldError{Name: "Md5"}
+	}
+	return nil
+}
+
 // 获取 API 所用的响应体参数
 type ResponseBody = NewPartInfo
 
@@ -169,7 +185,11 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	serviceNames := []region.ServiceName{region.ServiceUp}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "buckets")
-	pathSegments = append(pathSegments, request.Path.build()...)
+	if segments, err := request.Path.build(); err != nil {
+		return nil, err
+	} else {
+		pathSegments = append(pathSegments, segments...)
+	}
 	path := "/" + strings.Join(pathSegments, "/")
 	req := httpclient.Request{Method: "PUT", ServiceNames: serviceNames, Path: path, Header: request.Headers.build(), UpToken: request.UpToken, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(request.Body)}
 	var queryer *region.BucketRegionsQueryer

@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	io "github.com/qiniu/go-sdk/v7/internal/io"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
@@ -55,22 +56,28 @@ func (path *RequestPath) Append(key string, value string) *RequestPath {
 	path.extendedSegments = append(path.extendedSegments, base64.URLEncoding.EncodeToString([]byte(value)))
 	return path
 }
-func (path *RequestPath) build() []string {
+func (path *RequestPath) build() ([]string, error) {
 	var allSegments []string
 	if path.fieldSize != 0 {
 		allSegments = append(allSegments, strconv.FormatInt(path.fieldSize, 10))
 	}
 	if path.fieldObjectName != "" {
 		allSegments = append(allSegments, "key", base64.URLEncoding.EncodeToString([]byte(path.fieldObjectName)))
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "ObjectName"}
 	}
 	if path.fieldFileName != "" {
 		allSegments = append(allSegments, "fname", base64.URLEncoding.EncodeToString([]byte(path.fieldFileName)))
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "FileName"}
 	}
 	if path.fieldMimeType != "" {
 		allSegments = append(allSegments, "mimeType", base64.URLEncoding.EncodeToString([]byte(path.fieldMimeType)))
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "MimeType"}
 	}
 	allSegments = append(allSegments, path.extendedSegments...)
-	return allSegments
+	return allSegments, nil
 }
 
 type ResponseBody = interface{}
@@ -119,7 +126,11 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	serviceNames := []region.ServiceName{region.ServiceUp}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "mkfile")
-	pathSegments = append(pathSegments, request.Path.build()...)
+	if segments, err := request.Path.build(); err != nil {
+		return nil, err
+	} else {
+		pathSegments = append(pathSegments, segments...)
+	}
 	path := "/" + strings.Join(pathSegments, "/")
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, UpToken: request.UpToken, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(request.Body)}
 	var queryer *region.BucketRegionsQueryer

@@ -14,6 +14,7 @@ type (
 		Documentation string             `yaml:"documentation,omitempty"`
 		QueryType     *StringLikeType    `yaml:"query_type,omitempty"`
 		ServiceBucket *ServiceBucketType `yaml:"service_bucket,omitempty"`
+		Optional      bool               `yaml:"optional,omitempty"`
 	}
 	QueryNames []QueryName
 )
@@ -65,7 +66,7 @@ func (names QueryNames) Generate(group *jen.Group, options CodeGeneratorOptions)
 			Params(jen.Id("query").Op("*").Id(options.Name)).
 			Id("build").
 			Params().
-			Params(jen.Qual("net/url", "Values")).
+			Params(jen.Qual("net/url", "Values"), jen.Error()).
 			BlockFunc(func(group *jen.Group) {
 				group.Add(
 					jen.Id("allQuery").Op(":=").Make(jen.Qual("net/url", "Values")),
@@ -78,7 +79,7 @@ func (names QueryNames) Generate(group *jen.Group, options CodeGeneratorOptions)
 						group.Add(code)
 					}
 				}
-				group.Add(jen.Return(jen.Id("allQuery")))
+				group.Add(jen.Return(jen.Id("allQuery"), jen.Nil()))
 			}),
 	)
 
@@ -126,7 +127,8 @@ func (names QueryNames) generateSetterFunc(queryName QueryName, options CodeGene
 }
 
 func (names QueryNames) generateSetCall(queryName QueryName, options CodeGeneratorOptions) (jen.Code, error) {
-	field := jen.Id("query").Dot("field" + strcase.ToCamel(queryName.FieldName))
+	fieldName := strcase.ToCamel(queryName.FieldName)
+	field := jen.Id("query").Dot("field" + fieldName)
 	valueConvertCode, err := queryName.QueryType.GenerateConvertCodeToString(field)
 	if err != nil {
 		return nil, err
@@ -140,9 +142,21 @@ func (names QueryNames) generateSetCall(queryName QueryName, options CodeGenerat
 	if v, ok := zeroValue.(bool); !ok || v {
 		condition = condition.Op("!=").Lit(zeroValue)
 	}
-	return jen.If(condition).BlockFunc(func(group *jen.Group) {
+	code := jen.If(condition).BlockFunc(func(group *jen.Group) {
 		group.Add(jen.Id("allQuery").Dot("Set").Call(jen.Lit(queryName.QueryName), valueConvertCode))
-	}), nil
+	})
+	if !queryName.Optional && !queryName.QueryType.IsNumeric() {
+		code = code.Else().BlockFunc(func(group *jen.Group) {
+			group.Add(jen.Return(
+				jen.Nil(),
+				jen.Qual("github.com/qiniu/go-sdk/v7/storagev2/errors", "MissingRequiredFieldError").
+					ValuesFunc(func(group *jen.Group) {
+						group.Add(jen.Id("Name").Op(":").Lit(fieldName))
+					}),
+			))
+		})
+	}
+	return code, nil
 }
 
 func (names QueryNames) getServiceBucketField() QueryName {

@@ -7,6 +7,7 @@ import (
 	"context"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"net/url"
@@ -36,15 +37,17 @@ func (form *RequestBody) SetIsPrivate(value int64) *RequestBody {
 func (form *RequestBody) getBucketName() (string, error) {
 	return form.fieldBucket, nil
 }
-func (form *RequestBody) build() url.Values {
+func (form *RequestBody) build() (url.Values, error) {
 	formValues := make(url.Values)
 	if form.fieldBucket != "" {
 		formValues.Set("bucket", form.fieldBucket)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "Bucket"}
 	}
 	if form.fieldIsPrivate != 0 {
 		formValues.Set("private", strconv.FormatInt(form.fieldIsPrivate, 10))
 	}
-	return formValues
+	return formValues, nil
 }
 
 // 调用 API 所用的请求
@@ -89,7 +92,11 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	var pathSegments []string
 	pathSegments = append(pathSegments, "private")
 	path := "/" + strings.Join(pathSegments, "/")
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.Credentials, RequestBody: httpclient.GetFormRequestBody(request.Body.build())}
+	body, err := request.Body.build()
+	if err != nil {
+		return nil, err
+	}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.Credentials, RequestBody: httpclient.GetFormRequestBody(body)}
 	var queryer *region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()

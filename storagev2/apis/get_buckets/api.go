@@ -9,8 +9,29 @@ import (
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
+	"net/url"
 	"strings"
 )
+
+// 调用 API 所用的 URL 查询参数
+type RequestQuery struct {
+	fieldShared string // 包含共享存储空间，如果为 "rd" 则包含具有读权限空间，如果为 "rw" 则包含读写权限空间
+}
+
+func (query *RequestQuery) GetShared() string {
+	return query.fieldShared
+}
+func (query *RequestQuery) SetShared(value string) *RequestQuery {
+	query.fieldShared = value
+	return query
+}
+func (query *RequestQuery) build() (url.Values, error) {
+	allQuery := make(url.Values)
+	if query.fieldShared != "" {
+		allQuery.Set("shared", query.fieldShared)
+	}
+	return allQuery, nil
+}
 
 // 存储空间列表
 type BucketNames = []string
@@ -21,6 +42,7 @@ type ResponseBody = BucketNames
 // 调用 API 所用的请求
 type Request struct {
 	BucketHosts region.EndpointsProvider
+	Query       RequestQuery
 	Credentials credentials.CredentialsProvider
 }
 
@@ -58,7 +80,11 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	var pathSegments []string
 	pathSegments = append(pathSegments, "buckets")
 	path := "/" + strings.Join(pathSegments, "/")
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.Credentials}
+	query, err := request.Query.build()
+	if err != nil {
+		return nil, err
+	}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: query.Encode(), AuthType: auth.TokenQiniu, Credentials: request.Credentials}
 	var queryer *region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()

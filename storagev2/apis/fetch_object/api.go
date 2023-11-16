@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"strings"
@@ -44,18 +45,22 @@ func (pp *RequestPath) SetHost(value string) *RequestPath {
 func (pp *RequestPath) getBucketName() (string, error) {
 	return strings.SplitN(pp.fieldToEntry, ":", 2)[0], nil
 }
-func (path *RequestPath) build() []string {
+func (path *RequestPath) build() ([]string, error) {
 	var allSegments []string
 	if path.fieldFromUrl != "" {
 		allSegments = append(allSegments, base64.URLEncoding.EncodeToString([]byte(path.fieldFromUrl)))
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "FromUrl"}
 	}
 	if path.fieldToEntry != "" {
 		allSegments = append(allSegments, "to", base64.URLEncoding.EncodeToString([]byte(path.fieldToEntry)))
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "ToEntry"}
 	}
 	if path.fieldHost != "" {
 		allSegments = append(allSegments, "host", base64.URLEncoding.EncodeToString([]byte(path.fieldHost)))
 	}
-	return allSegments
+	return allSegments, nil
 }
 
 type innerFetchedObjectMetadata struct {
@@ -105,6 +110,23 @@ func (j *FetchedObjectMetadata) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
 }
 
+//lint:ignore U1000 may not call it
+func (j *FetchedObjectMetadata) validate() error {
+	if j.inner.Hash == "" {
+		return errors.MissingRequiredFieldError{Name: "Hash"}
+	}
+	if j.inner.ObjectName == "" {
+		return errors.MissingRequiredFieldError{Name: "ObjectName"}
+	}
+	if j.inner.Size == 0 {
+		return errors.MissingRequiredFieldError{Name: "Size"}
+	}
+	if j.inner.MimeType == "" {
+		return errors.MissingRequiredFieldError{Name: "MimeType"}
+	}
+	return nil
+}
+
 // 获取 API 所用的响应体参数
 type ResponseBody = FetchedObjectMetadata
 
@@ -151,7 +173,11 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	serviceNames := []region.ServiceName{region.ServiceIo}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "fetch")
-	pathSegments = append(pathSegments, request.Path.build()...)
+	if segments, err := request.Path.build(); err != nil {
+		return nil, err
+	} else {
+		pathSegments = append(pathSegments, segments...)
+	}
 	path := "/" + strings.Join(pathSegments, "/")
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.Credentials}
 	var queryer *region.BucketRegionsQueryer

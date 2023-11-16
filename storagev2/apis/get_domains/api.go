@@ -7,6 +7,7 @@ import (
 	"context"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"net/url"
@@ -28,12 +29,14 @@ func (query *RequestQuery) SetBucketName(value string) *RequestQuery {
 func (query *RequestQuery) getBucketName() (string, error) {
 	return query.fieldBucketName, nil
 }
-func (query *RequestQuery) build() url.Values {
+func (query *RequestQuery) build() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.fieldBucketName != "" {
 		allQuery.Set("tbl", query.fieldBucketName)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
 	}
-	return allQuery
+	return allQuery, nil
 }
 
 // 存储空间的域名列表
@@ -86,7 +89,11 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	var pathSegments []string
 	pathSegments = append(pathSegments, "v2", "domains")
 	path := "/" + strings.Join(pathSegments, "/")
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: request.Query.build().Encode(), AuthType: auth.TokenQiniu, Credentials: request.Credentials}
+	query, err := request.Query.build()
+	if err != nil {
+		return nil, err
+	}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: query.Encode(), AuthType: auth.TokenQiniu, Credentials: request.Credentials}
 	var queryer *region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()

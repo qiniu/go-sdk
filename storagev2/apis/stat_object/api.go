@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"net/url"
@@ -30,12 +31,14 @@ func (pp *RequestPath) SetEntry(value string) *RequestPath {
 func (pp *RequestPath) getBucketName() (string, error) {
 	return strings.SplitN(pp.fieldEntry, ":", 2)[0], nil
 }
-func (path *RequestPath) build() []string {
+func (path *RequestPath) build() ([]string, error) {
 	var allSegments []string
 	if path.fieldEntry != "" {
 		allSegments = append(allSegments, base64.URLEncoding.EncodeToString([]byte(path.fieldEntry)))
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "Entry"}
 	}
-	return allSegments
+	return allSegments, nil
 }
 
 // 调用 API 所用的 URL 查询参数
@@ -50,12 +53,12 @@ func (query *RequestQuery) SetNeedParts(value bool) *RequestQuery {
 	query.fieldNeedParts = value
 	return query
 }
-func (query *RequestQuery) build() url.Values {
+func (query *RequestQuery) build() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.fieldNeedParts {
 		allQuery.Set("needparts", strconv.FormatBool(query.fieldNeedParts))
 	}
-	return allQuery
+	return allQuery, nil
 }
 
 // 每个分片的大小
@@ -174,6 +177,26 @@ func (j *ObjectMetadata) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
 }
 
+//lint:ignore U1000 may not call it
+func (j *ObjectMetadata) validate() error {
+	if j.inner.Size == 0 {
+		return errors.MissingRequiredFieldError{Name: "Size"}
+	}
+	if j.inner.Hash == "" {
+		return errors.MissingRequiredFieldError{Name: "Hash"}
+	}
+	if j.inner.MimeType == "" {
+		return errors.MissingRequiredFieldError{Name: "MimeType"}
+	}
+	if j.inner.Type == 0 {
+		return errors.MissingRequiredFieldError{Name: "Type"}
+	}
+	if j.inner.PutTime == 0 {
+		return errors.MissingRequiredFieldError{Name: "PutTime"}
+	}
+	return nil
+}
+
 // 获取 API 所用的响应体参数
 type ResponseBody = ObjectMetadata
 
@@ -221,9 +244,17 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	serviceNames := []region.ServiceName{region.ServiceRs}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "stat")
-	pathSegments = append(pathSegments, request.Path.build()...)
+	if segments, err := request.Path.build(); err != nil {
+		return nil, err
+	} else {
+		pathSegments = append(pathSegments, segments...)
+	}
 	path := "/" + strings.Join(pathSegments, "/")
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: request.Query.build().Encode(), AuthType: auth.TokenQiniu, Credentials: request.Credentials}
+	query, err := request.Query.build()
+	if err != nil {
+		return nil, err
+	}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: query.Encode(), AuthType: auth.TokenQiniu, Credentials: request.Credentials}
 	var queryer *region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()
