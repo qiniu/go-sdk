@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
@@ -40,10 +41,12 @@ func (pp *RequestPath) SetUploadId(value string) *RequestPath {
 	pp.fieldUploadId = value
 	return pp
 }
-func (path *RequestPath) build() []string {
+func (path *RequestPath) build() ([]string, error) {
 	var allSegments []string
 	if path.fieldBucketName != "" {
 		allSegments = append(allSegments, path.fieldBucketName)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
 	}
 	if path.fieldObjectName != "" {
 		allSegments = append(allSegments, "objects", base64.URLEncoding.EncodeToString([]byte(path.fieldObjectName)))
@@ -52,8 +55,10 @@ func (path *RequestPath) build() []string {
 	}
 	if path.fieldUploadId != "" {
 		allSegments = append(allSegments, "uploads", path.fieldUploadId)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "UploadId"}
 	}
-	return allSegments
+	return allSegments, nil
 }
 
 type innerPartInfo struct {
@@ -85,6 +90,17 @@ func (j *PartInfo) MarshalJSON() ([]byte, error) {
 }
 func (j *PartInfo) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
+}
+
+//lint:ignore U1000 may not call it
+func (j *PartInfo) validate() error {
+	if j.inner.PartNumber == 0 {
+		return errors.MissingRequiredFieldError{Name: "PartNumber"}
+	}
+	if j.inner.Etag == "" {
+		return errors.MissingRequiredFieldError{Name: "Etag"}
+	}
+	return nil
 }
 
 // 分片信息列表
@@ -144,6 +160,19 @@ func (j *ObjectInfo) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
 }
 
+//lint:ignore U1000 may not call it
+func (j *ObjectInfo) validate() error {
+	if len(j.inner.Parts) > 0 {
+		return errors.MissingRequiredFieldError{Name: "Parts"}
+	}
+	for _, value := range j.inner.Parts {
+		if err := value.validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // 调用 API 所用的请求体
 type RequestBody = ObjectInfo
 type ResponseBody = interface{}
@@ -192,12 +221,19 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	serviceNames := []region.ServiceName{region.ServiceUp}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "buckets")
-	pathSegments = append(pathSegments, request.Path.build()...)
+	if segments, err := request.Path.build(); err != nil {
+		return nil, err
+	} else {
+		pathSegments = append(pathSegments, segments...)
+	}
+	path := "/" + strings.Join(pathSegments, "/")
+	if err := request.Body.validate(); err != nil {
+		return nil, err
+	}
 	body, err := httpclient.GetJsonRequestBody(&request.Body)
 	if err != nil {
 		return nil, err
 	}
-	path := "/" + strings.Join(pathSegments, "/")
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, UpToken: request.UpToken, RequestBody: body}
 	var queryer *region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {

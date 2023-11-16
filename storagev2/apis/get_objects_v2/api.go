@@ -7,6 +7,7 @@ import (
 	"context"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"io"
@@ -70,10 +71,12 @@ func (query *RequestQuery) SetNeedParts(value bool) *RequestQuery {
 func (query *RequestQuery) getBucketName() (string, error) {
 	return query.fieldBucket, nil
 }
-func (query *RequestQuery) build() url.Values {
+func (query *RequestQuery) build() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.fieldBucket != "" {
 		allQuery.Set("bucket", query.fieldBucket)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "Bucket"}
 	}
 	if query.fieldMarker != "" {
 		allQuery.Set("marker", query.fieldMarker)
@@ -90,7 +93,7 @@ func (query *RequestQuery) build() url.Values {
 	if query.fieldNeedParts {
 		allQuery.Set("needparts", strconv.FormatBool(query.fieldNeedParts))
 	}
-	return allQuery
+	return allQuery, nil
 }
 
 // 调用 API 所用的请求
@@ -137,7 +140,11 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	var pathSegments []string
 	pathSegments = append(pathSegments, "v2", "list")
 	path := "/" + strings.Join(pathSegments, "/")
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: request.Query.build().Encode(), AuthType: auth.TokenQiniu, Credentials: request.Credentials}
+	query, err := request.Query.build()
+	if err != nil {
+		return nil, err
+	}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: query.Encode(), AuthType: auth.TokenQiniu, Credentials: request.Credentials}
 	var queryer *region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()

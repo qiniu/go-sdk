@@ -62,7 +62,7 @@ func writeGolangPackages(apiSpecName, apiSpecPath, generatedDirPath string) erro
 
 	var apiSpec ApiDetailedDescription
 	decoder := yaml.NewDecoder(apiSpecFile)
-	decoder.KnownFields(false)
+	decoder.KnownFields(true)
 	if err = decoder.Decode(&apiSpec); err != nil {
 		return err
 	}

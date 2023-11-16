@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
@@ -32,17 +33,19 @@ func (pp *RequestPath) SetObjectName(value string) *RequestPath {
 	pp.fieldObjectName = value
 	return pp
 }
-func (path *RequestPath) build() []string {
+func (path *RequestPath) build() ([]string, error) {
 	var allSegments []string
 	if path.fieldBucketName != "" {
 		allSegments = append(allSegments, path.fieldBucketName)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
 	}
 	if path.fieldObjectName != "" {
 		allSegments = append(allSegments, "objects", base64.URLEncoding.EncodeToString([]byte(path.fieldObjectName)))
 	} else {
 		allSegments = append(allSegments, "objects", "~")
 	}
-	return allSegments
+	return allSegments, nil
 }
 
 type innerNewMultipartUpload struct {
@@ -74,6 +77,17 @@ func (j *NewMultipartUpload) MarshalJSON() ([]byte, error) {
 }
 func (j *NewMultipartUpload) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
+}
+
+//lint:ignore U1000 may not call it
+func (j *NewMultipartUpload) validate() error {
+	if j.inner.UploadId == "" {
+		return errors.MissingRequiredFieldError{Name: "UploadId"}
+	}
+	if j.inner.ExpiredAt == 0 {
+		return errors.MissingRequiredFieldError{Name: "ExpiredAt"}
+	}
+	return nil
 }
 
 // 获取 API 所用的响应体参数
@@ -122,7 +136,11 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	serviceNames := []region.ServiceName{region.ServiceUp}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "buckets")
-	pathSegments = append(pathSegments, request.Path.build()...)
+	if segments, err := request.Path.build(); err != nil {
+		return nil, err
+	} else {
+		pathSegments = append(pathSegments, segments...)
+	}
 	pathSegments = append(pathSegments, "uploads")
 	path := "/" + strings.Join(pathSegments, "/")
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, UpToken: request.UpToken}

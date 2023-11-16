@@ -63,7 +63,7 @@ func (form *FormUrlencodedRequestStruct) Generate(group *jen.Group, options Code
 			Params(jen.Id("form").Op("*").Id(options.Name)).
 			Id("build").
 			Params().
-			Params(jen.Qual("net/url", "Values")).
+			Params(jen.Qual("net/url", "Values"), jen.Error()).
 			BlockFunc(func(group *jen.Group) {
 				group.Add(
 					jen.Id("formValues").Op(":=").Make(jen.Qual("net/url", "Values")),
@@ -76,7 +76,7 @@ func (form *FormUrlencodedRequestStruct) Generate(group *jen.Group, options Code
 						group.Add(code)
 					}
 				}
-				group.Add(jen.Return(jen.Id("formValues")))
+				group.Add(jen.Return(jen.Id("formValues"), jen.Nil()))
 			}),
 	)
 
@@ -137,15 +137,21 @@ func (form *FormUrlencodedRequestStruct) generateSetterFunc(field FormUrlencoded
 }
 
 func (form *FormUrlencodedRequestStruct) generateSetCall(field FormUrlencodedRequestField) (jen.Code, error) {
+	var code *jen.Statement
 	fieldName := "field" + strcase.ToCamel(field.FieldName)
 	if field.Multiple {
 		valueConvertCode, err := field.Type.GenerateConvertCodeToString(jen.Id("value"))
 		if err != nil {
 			return nil, err
 		}
-		return jen.For(jen.List(jen.Id("_"), jen.Id("value")).Op(":=").Range().Add(jen.Id("form").Dot(fieldName))).BlockFunc(func(group *jen.Group) {
-			group.Add(jen.Id("formValues").Dot("Add").Call(jen.Lit(field.Key), valueConvertCode))
-		}), nil
+		code = jen.If(jen.Len(jen.Id("form").Dot(fieldName)).Op(">").Lit(0)).
+			BlockFunc(func(group *jen.Group) {
+				group.Add(
+					jen.For(jen.List(jen.Id("_"), jen.Id("value")).Op(":=").Range().Add(jen.Id("form").Dot(fieldName))).BlockFunc(func(group *jen.Group) {
+						group.Add(jen.Id("formValues").Dot("Add").Call(jen.Lit(field.Key), valueConvertCode))
+					}),
+				)
+			})
 	} else {
 		formField := jen.Id("form").Dot(fieldName)
 		valueConvertCode, err := field.Type.GenerateConvertCodeToString(formField)
@@ -160,10 +166,23 @@ func (form *FormUrlencodedRequestStruct) generateSetCall(field FormUrlencodedReq
 		if v, ok := zeroValue.(bool); !ok || v {
 			condition = condition.Op("!=").Lit(zeroValue)
 		}
-		return jen.If(condition).BlockFunc(func(group *jen.Group) {
+		code = jen.If(condition).BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Id("formValues").Dot("Set").Call(jen.Lit(field.Key), valueConvertCode))
-		}), nil
+		})
+
 	}
+	if !field.Type.IsNumeric() {
+		code = code.Else().BlockFunc(func(group *jen.Group) {
+			group.Add(jen.Return(
+				jen.Nil(),
+				jen.Qual("github.com/qiniu/go-sdk/v7/storagev2/errors", "MissingRequiredFieldError").
+					ValuesFunc(func(group *jen.Group) {
+						group.Add(jen.Id("Name").Op(":").Lit(strcase.ToCamel(field.FieldName)))
+					}),
+			))
+		})
+	}
+	return code, nil
 }
 
 func (form *FormUrlencodedRequestStruct) getServiceBucketField() FormUrlencodedRequestField {

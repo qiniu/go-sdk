@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
@@ -42,10 +43,12 @@ func (pp *RequestPath) SetUploadId(value string) *RequestPath {
 	pp.fieldUploadId = value
 	return pp
 }
-func (path *RequestPath) build() []string {
+func (path *RequestPath) build() ([]string, error) {
 	var allSegments []string
 	if path.fieldBucketName != "" {
 		allSegments = append(allSegments, path.fieldBucketName)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
 	}
 	if path.fieldObjectName != "" {
 		allSegments = append(allSegments, "objects", base64.URLEncoding.EncodeToString([]byte(path.fieldObjectName)))
@@ -54,8 +57,10 @@ func (path *RequestPath) build() []string {
 	}
 	if path.fieldUploadId != "" {
 		allSegments = append(allSegments, "uploads", path.fieldUploadId)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "UploadId"}
 	}
-	return allSegments
+	return allSegments, nil
 }
 
 // 调用 API 所用的 URL 查询参数
@@ -78,7 +83,7 @@ func (query *RequestQuery) SetPartNumberMarker(value int64) *RequestQuery {
 	query.fieldPartNumberMarker = value
 	return query
 }
-func (query *RequestQuery) build() url.Values {
+func (query *RequestQuery) build() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.fieldMaxParts != 0 {
 		allQuery.Set("max-parts", strconv.FormatInt(query.fieldMaxParts, 10))
@@ -86,7 +91,7 @@ func (query *RequestQuery) build() url.Values {
 	if query.fieldPartNumberMarker != 0 {
 		allQuery.Set("part-number_marker", strconv.FormatInt(query.fieldPartNumberMarker, 10))
 	}
-	return allQuery
+	return allQuery, nil
 }
 
 type innerListedPartInfo struct {
@@ -134,6 +139,23 @@ func (j *ListedPartInfo) MarshalJSON() ([]byte, error) {
 }
 func (j *ListedPartInfo) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
+}
+
+//lint:ignore U1000 may not call it
+func (j *ListedPartInfo) validate() error {
+	if j.inner.Size == 0 {
+		return errors.MissingRequiredFieldError{Name: "Size"}
+	}
+	if j.inner.Etag == "" {
+		return errors.MissingRequiredFieldError{Name: "Etag"}
+	}
+	if j.inner.PartNumber == 0 {
+		return errors.MissingRequiredFieldError{Name: "PartNumber"}
+	}
+	if j.inner.PutTime == 0 {
+		return errors.MissingRequiredFieldError{Name: "PutTime"}
+	}
+	return nil
 }
 
 // 所有已经上传的分片信息
@@ -188,6 +210,28 @@ func (j *ListedPartsResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
 }
 
+//lint:ignore U1000 may not call it
+func (j *ListedPartsResponse) validate() error {
+	if j.inner.UploadId == "" {
+		return errors.MissingRequiredFieldError{Name: "UploadId"}
+	}
+	if j.inner.ExpiredAt == 0 {
+		return errors.MissingRequiredFieldError{Name: "ExpiredAt"}
+	}
+	if j.inner.PartNumberMarker == 0 {
+		return errors.MissingRequiredFieldError{Name: "PartNumberMarker"}
+	}
+	if len(j.inner.Parts) > 0 {
+		return errors.MissingRequiredFieldError{Name: "Parts"}
+	}
+	for _, value := range j.inner.Parts {
+		if err := value.validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // 获取 API 所用的响应体参数
 type ResponseBody = ListedPartsResponse
 
@@ -235,9 +279,17 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	serviceNames := []region.ServiceName{region.ServiceUp}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "buckets")
-	pathSegments = append(pathSegments, request.Path.build()...)
+	if segments, err := request.Path.build(); err != nil {
+		return nil, err
+	} else {
+		pathSegments = append(pathSegments, segments...)
+	}
 	path := "/" + strings.Join(pathSegments, "/")
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: request.Query.build().Encode(), UpToken: request.UpToken}
+	query, err := request.Query.build()
+	if err != nil {
+		return nil, err
+	}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: query.Encode(), UpToken: request.UpToken}
 	var queryer *region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()

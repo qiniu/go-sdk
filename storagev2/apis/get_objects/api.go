@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"net/url"
@@ -70,10 +71,12 @@ func (query *RequestQuery) SetNeedParts(value bool) *RequestQuery {
 func (query *RequestQuery) getBucketName() (string, error) {
 	return query.fieldBucket, nil
 }
-func (query *RequestQuery) build() url.Values {
+func (query *RequestQuery) build() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.fieldBucket != "" {
 		allQuery.Set("bucket", query.fieldBucket)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "Bucket"}
 	}
 	if query.fieldMarker != "" {
 		allQuery.Set("marker", query.fieldMarker)
@@ -90,7 +93,7 @@ func (query *RequestQuery) build() url.Values {
 	if query.fieldNeedParts {
 		allQuery.Set("needparts", strconv.FormatBool(query.fieldNeedParts))
 	}
-	return allQuery
+	return allQuery, nil
 }
 
 // 公共前缀的数组
@@ -196,6 +199,29 @@ func (j *ListedObjectEntry) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
 }
 
+//lint:ignore U1000 may not call it
+func (j *ListedObjectEntry) validate() error {
+	if j.inner.Key == "" {
+		return errors.MissingRequiredFieldError{Name: "Key"}
+	}
+	if j.inner.PutTime == 0 {
+		return errors.MissingRequiredFieldError{Name: "PutTime"}
+	}
+	if j.inner.Hash == "" {
+		return errors.MissingRequiredFieldError{Name: "Hash"}
+	}
+	if j.inner.Size == 0 {
+		return errors.MissingRequiredFieldError{Name: "Size"}
+	}
+	if j.inner.MimeType == "" {
+		return errors.MissingRequiredFieldError{Name: "MimeType"}
+	}
+	if j.inner.UnfreezingStatus == 0 {
+		return errors.MissingRequiredFieldError{Name: "UnfreezingStatus"}
+	}
+	return nil
+}
+
 // 条目的数组，不能用来判断是否还有剩余条目
 type ListedObjects = []ListedObjectEntry
 
@@ -238,6 +264,19 @@ func (j *ListedObjectEntries) MarshalJSON() ([]byte, error) {
 }
 func (j *ListedObjectEntries) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
+}
+
+//lint:ignore U1000 may not call it
+func (j *ListedObjectEntries) validate() error {
+	if len(j.inner.Items) > 0 {
+		return errors.MissingRequiredFieldError{Name: "Items"}
+	}
+	for _, value := range j.inner.Items {
+		if err := value.validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // 获取 API 所用的响应体参数
@@ -287,7 +326,11 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	var pathSegments []string
 	pathSegments = append(pathSegments, "list")
 	path := "/" + strings.Join(pathSegments, "/")
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: request.Query.build().Encode(), AuthType: auth.TokenQiniu, Credentials: request.Credentials}
+	query, err := request.Query.build()
+	if err != nil {
+		return nil, err
+	}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: query.Encode(), AuthType: auth.TokenQiniu, Credentials: request.Credentials}
 	var queryer *region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()

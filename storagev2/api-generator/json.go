@@ -90,6 +90,20 @@ func (jsonType *JsonType) AddTypeToStatement(statement *jen.Statement) (*jen.Sta
 	}
 }
 
+func (jsonType *JsonType) ZeroValue() interface{} {
+	if jsonType.String {
+		return ""
+	} else if jsonType.Integer {
+		return 0
+	} else if jsonType.Float {
+		return 0.0
+	} else if jsonType.Boolean {
+		return false
+	} else {
+		return nil
+	}
+}
+
 func (jsonArray *JsonArray) Generate(group *jen.Group, options CodeGeneratorOptions) error {
 	if err := jsonArray.Type.generate(group, CodeGeneratorOptions{}, func() error {
 		return nil
@@ -187,6 +201,9 @@ func (jsonStruct *JsonStruct) Generate(group *jen.Group, options CodeGeneratorOp
 	group.Add(jsonStruct.generateMarlshalerFunc(opts[0]))
 	group.Add(jsonStruct.generateUnmarlshalerFunc(opts[0]))
 
+	group.Add(jen.Comment("//lint:ignore U1000 may not call it"))
+	group.Add(jsonStruct.generateValidateFunc(opts[0]))
+
 	if len(opts) > 1 {
 		if opts[1].Documentation != "" {
 			group.Add(jen.Comment(opts[1].Documentation))
@@ -215,6 +232,70 @@ func (jsonStruct *JsonStruct) generateUnmarlshalerFunc(options CodeGeneratorOpti
 		Params(jen.Error()).
 		BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Return(jen.Qual("encoding/json", "Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("j").Dot("inner"))))
+		})
+}
+
+func (jsonStruct *JsonStruct) generateValidateFunc(options CodeGeneratorOptions) jen.Code {
+	return jen.Func().
+		Params(jen.Id("j").Op("*").Id(options.Name)).
+		Id("validate").
+		Params().
+		Params(jen.Error()).
+		BlockFunc(func(group *jen.Group) {
+			for _, field := range jsonStruct.Fields {
+				if !field.Optional {
+					var cond *jen.Statement
+					fieldName := strcase.ToCamel(field.FieldName)
+					if field.Type.String || field.Type.Integer || field.Type.Float {
+						cond = jen.Id("j").Dot("inner").Dot(fieldName).Op("==").Lit(field.Type.ZeroValue())
+					} else if field.Type.Boolean {
+						// do nothing
+					} else if field.Type.Array != nil {
+						cond = jen.Len(jen.Id("j").Dot("inner").Dot(fieldName)).Op(">").Lit(0)
+					} else if field.Type.Struct != nil {
+						// do nothing
+					} else {
+						cond = jen.Id("j").Dot("inner").Dot(fieldName).Op("!=").Nil()
+					}
+					if cond != nil {
+						group.Add(jen.If(cond).BlockFunc(func(group *jen.Group) {
+							group.Add(jen.Return(
+								jen.Qual("github.com/qiniu/go-sdk/v7/storagev2/errors", "MissingRequiredFieldError").
+									ValuesFunc(func(group *jen.Group) {
+										group.Add(jen.Id("Name").Op(":").Lit(fieldName))
+									}),
+							))
+						}))
+					}
+					if arrayField := field.Type.Array; arrayField != nil {
+						if arrayField.Type.Struct != nil {
+							group.Add(
+								jen.For(jen.List(jen.Id("_"), jen.Id("value")).Op(":=").Range().Id("j").Dot("inner").Dot(fieldName)).
+									BlockFunc(func(group *jen.Group) {
+										group.Add(
+											jen.If(
+												jen.Err().Op(":=").Id("value").Dot("validate").Call(),
+												jen.Err().Op("!=").Nil(),
+											).BlockFunc(func(group *jen.Group) {
+												group.Return(jen.Err())
+											}),
+										)
+									}),
+							)
+						}
+					} else if field.Type.Struct != nil {
+						group.Add(
+							jen.If(
+								jen.Err().Op(":=").Id("j").Dot("inner").Dot(fieldName).Dot("validate").Call(),
+								jen.Err().Op("!=").Nil(),
+							).BlockFunc(func(group *jen.Group) {
+								group.Return(jen.Err())
+							}),
+						)
+					}
+				}
+			}
+			group.Add(jen.Return(jen.Nil()))
 		})
 }
 

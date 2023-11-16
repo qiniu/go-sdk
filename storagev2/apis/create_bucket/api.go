@@ -7,6 +7,7 @@ import (
 	"context"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"strings"
@@ -31,15 +32,19 @@ func (pp *RequestPath) SetRegion(value string) *RequestPath {
 	pp.fieldRegion = value
 	return pp
 }
-func (path *RequestPath) build() []string {
+func (path *RequestPath) build() ([]string, error) {
 	var allSegments []string
 	if path.fieldBucket != "" {
 		allSegments = append(allSegments, path.fieldBucket)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "Bucket"}
 	}
 	if path.fieldRegion != "" {
 		allSegments = append(allSegments, "region", path.fieldRegion)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "Region"}
 	}
-	return allSegments
+	return allSegments, nil
 }
 
 // 调用 API 所用的请求
@@ -80,7 +85,11 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	serviceNames := []region.ServiceName{region.ServiceBucket}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "mkbucketv3")
-	pathSegments = append(pathSegments, request.Path.build()...)
+	if segments, err := request.Path.build(); err != nil {
+		return nil, err
+	} else {
+		pathSegments = append(pathSegments, segments...)
+	}
 	path := "/" + strings.Join(pathSegments, "/")
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.Credentials}
 	var queryer *region.BucketRegionsQueryer

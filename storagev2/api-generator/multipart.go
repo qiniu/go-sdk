@@ -19,6 +19,7 @@ type (
 		Type          *MultipartFormDataType `yaml:"type,omitempty"`
 		Documentation string                 `yaml:"documentation,omitempty"`
 		ServiceBucket *ServiceBucketType     `yaml:"service_bucket,omitempty"`
+		Optional      bool                   `yaml:"optional,omitempty"`
 	}
 
 	FreeMultipartFormFields struct {
@@ -110,48 +111,58 @@ func (mff *MultipartFormFields) Generate(group *jen.Group, options CodeGenerator
 					} else {
 						cond = field.Clone().Op("!=").Lit(zeroValue)
 					}
-					group.Add(
-						jen.If(cond).BlockFunc(func(group *jen.Group) {
-							switch named.Type.ToMultipartFormDataType() {
-							case MultipartFormDataTypeString:
-								group.Add(jen.Id("multipartForm").Dot("SetValue").Call(
-									jen.Lit(named.Key),
-									field,
-								))
-							case MultipartFormDataTypeInteger:
-								group.Add(jen.Id("multipartForm").Dot("SetValue").Call(
-									jen.Lit(named.Key),
-									jen.Qual("strconv", "FormatInt").Call(field, jen.Lit(10)),
-								))
-							case MultipartFormDataTypeUploadToken:
-								group.Add(
-									jen.Id("upToken").
-										Op(",").
-										Err().
-										Op(":=").
-										Add(field).
-										Dot("RetrieveUpToken").
-										Call(jen.Id("ctx")),
-								)
-								group.Add(
-									jen.If(jen.Err().Op("!=").Nil()).
-										BlockFunc(func(group *jen.Group) {
-											group.Add(jen.Return(jen.Nil(), jen.Err()))
-										}),
-								)
-								group.Add(jen.Id("multipartForm").Dot("SetValue").Call(
-									jen.Lit(named.Key),
-									jen.Id("upToken"),
-								))
-							case MultipartFormDataTypeBinaryData:
-								group.Add(jen.Id("multipartForm").Dot("SetFile").Call(
-									jen.Lit(named.Key),
-									jen.Id("form").Dot("field"+strcase.ToCamel(named.FieldName)+"_FileName"),
-									field,
-								))
-							}
-						}),
-					)
+					code := jen.If(cond).BlockFunc(func(group *jen.Group) {
+						switch named.Type.ToMultipartFormDataType() {
+						case MultipartFormDataTypeString:
+							group.Add(jen.Id("multipartForm").Dot("SetValue").Call(
+								jen.Lit(named.Key),
+								field,
+							))
+						case MultipartFormDataTypeInteger:
+							group.Add(jen.Id("multipartForm").Dot("SetValue").Call(
+								jen.Lit(named.Key),
+								jen.Qual("strconv", "FormatInt").Call(field, jen.Lit(10)),
+							))
+						case MultipartFormDataTypeUploadToken:
+							group.Add(
+								jen.Id("upToken").
+									Op(",").
+									Err().
+									Op(":=").
+									Add(field).
+									Dot("RetrieveUpToken").
+									Call(jen.Id("ctx")),
+							)
+							group.Add(
+								jen.If(jen.Err().Op("!=").Nil()).
+									BlockFunc(func(group *jen.Group) {
+										group.Add(jen.Return(jen.Nil(), jen.Err()))
+									}),
+							)
+							group.Add(jen.Id("multipartForm").Dot("SetValue").Call(
+								jen.Lit(named.Key),
+								jen.Id("upToken"),
+							))
+						case MultipartFormDataTypeBinaryData:
+							group.Add(jen.Id("multipartForm").Dot("SetFile").Call(
+								jen.Lit(named.Key),
+								jen.Id("form").Dot("field"+strcase.ToCamel(named.FieldName)+"_FileName"),
+								field,
+							))
+						}
+					})
+					if !named.Optional && !named.Type.IsNumeric() {
+						code = code.Else().BlockFunc(func(group *jen.Group) {
+							group.Add(jen.Return(
+								jen.Nil(),
+								jen.Qual("github.com/qiniu/go-sdk/v7/storagev2/errors", "MissingRequiredFieldError").
+									ValuesFunc(func(group *jen.Group) {
+										group.Add(jen.Id("Name").Op(":").Lit(strcase.ToCamel(named.FieldName)))
+									}),
+							))
+						})
+					}
+					group.Add(code)
 				}
 				if mff.Free != nil {
 					group.Add(jen.For(jen.List(jen.Id("key"), jen.Id("value")).Op(":=").Range().Id("form").Dot("extendedMap")).BlockFunc(func(group *jen.Group) {

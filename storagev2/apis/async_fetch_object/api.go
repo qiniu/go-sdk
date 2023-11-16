@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"strings"
@@ -116,6 +117,17 @@ func (j *NewFetchTaskParams) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
 }
 
+//lint:ignore U1000 may not call it
+func (j *NewFetchTaskParams) validate() error {
+	if j.inner.Body == "" {
+		return errors.MissingRequiredFieldError{Name: "Body"}
+	}
+	if j.inner.Bucket == "" {
+		return errors.MissingRequiredFieldError{Name: "Bucket"}
+	}
+	return nil
+}
+
 // 调用 API 所用的请求体
 type RequestBody = NewFetchTaskParams
 type innerNewFetchTaskInfo struct {
@@ -147,6 +159,17 @@ func (j *NewFetchTaskInfo) MarshalJSON() ([]byte, error) {
 }
 func (j *NewFetchTaskInfo) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
+}
+
+//lint:ignore U1000 may not call it
+func (j *NewFetchTaskInfo) validate() error {
+	if j.inner.Id == "" {
+		return errors.MissingRequiredFieldError{Name: "Id"}
+	}
+	if j.inner.QueuedTasksCount == 0 {
+		return errors.MissingRequiredFieldError{Name: "QueuedTasksCount"}
+	}
+	return nil
 }
 
 // 获取 API 所用的响应体参数
@@ -192,11 +215,14 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	serviceNames := []region.ServiceName{region.ServiceApi}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "sisyphus", "fetch")
+	path := "/" + strings.Join(pathSegments, "/")
+	if err := request.Body.validate(); err != nil {
+		return nil, err
+	}
 	body, err := httpclient.GetJsonRequestBody(&request.Body)
 	if err != nil {
 		return nil, err
 	}
-	path := "/" + strings.Join(pathSegments, "/")
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.Credentials, RequestBody: body}
 	var queryer *region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {

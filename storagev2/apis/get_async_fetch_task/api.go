@@ -6,6 +6,7 @@ package get_async_fetch_task
 import (
 	"context"
 	"encoding/json"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"net/url"
@@ -24,12 +25,14 @@ func (query *RequestQuery) SetId(value string) *RequestQuery {
 	query.fieldId = value
 	return query
 }
-func (query *RequestQuery) build() url.Values {
+func (query *RequestQuery) build() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.fieldId != "" {
 		allQuery.Set("id", query.fieldId)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "Id"}
 	}
-	return allQuery
+	return allQuery, nil
 }
 
 type innerFetchTaskInfo struct {
@@ -61,6 +64,17 @@ func (j *FetchTaskInfo) MarshalJSON() ([]byte, error) {
 }
 func (j *FetchTaskInfo) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
+}
+
+//lint:ignore U1000 may not call it
+func (j *FetchTaskInfo) validate() error {
+	if j.inner.Id == "" {
+		return errors.MissingRequiredFieldError{Name: "Id"}
+	}
+	if j.inner.QueuedTasksCount == 0 {
+		return errors.MissingRequiredFieldError{Name: "QueuedTasksCount"}
+	}
+	return nil
 }
 
 // 获取 API 所用的响应体参数
@@ -99,7 +113,11 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	var pathSegments []string
 	pathSegments = append(pathSegments, "sisyphus", "fetch")
 	path := "/" + strings.Join(pathSegments, "/")
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: request.Query.build().Encode()}
+	query, err := request.Query.build()
+	if err != nil {
+		return nil, err
+	}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: query.Encode()}
 	var queryer *region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()

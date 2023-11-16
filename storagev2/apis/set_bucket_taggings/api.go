@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"net/url"
@@ -29,12 +30,12 @@ func (query *RequestQuery) SetBucket(value string) *RequestQuery {
 func (query *RequestQuery) getBucketName() (string, error) {
 	return query.fieldBucket, nil
 }
-func (query *RequestQuery) build() url.Values {
+func (query *RequestQuery) build() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.fieldBucket != "" {
 		allQuery.Set("bucket", query.fieldBucket)
 	}
-	return allQuery
+	return allQuery, nil
 }
 
 type innerTagInfo struct {
@@ -68,6 +69,17 @@ func (j *TagInfo) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
 }
 
+//lint:ignore U1000 may not call it
+func (j *TagInfo) validate() error {
+	if j.inner.Key == "" {
+		return errors.MissingRequiredFieldError{Name: "Key"}
+	}
+	if j.inner.Value == "" {
+		return errors.MissingRequiredFieldError{Name: "Value"}
+	}
+	return nil
+}
+
 // 标签列表
 type Tags = []TagInfo
 type innerTagsInfo struct {
@@ -91,6 +103,19 @@ func (j *TagsInfo) MarshalJSON() ([]byte, error) {
 }
 func (j *TagsInfo) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.inner)
+}
+
+//lint:ignore U1000 may not call it
+func (j *TagsInfo) validate() error {
+	if len(j.inner.Tags) > 0 {
+		return errors.MissingRequiredFieldError{Name: "Tags"}
+	}
+	for _, value := range j.inner.Tags {
+		if err := value.validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // 调用 API 所用的请求体
@@ -138,12 +163,19 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	serviceNames := []region.ServiceName{region.ServiceBucket}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "bucketTagging")
+	path := "/" + strings.Join(pathSegments, "/")
+	query, err := request.Query.build()
+	if err != nil {
+		return nil, err
+	}
+	if err := request.Body.validate(); err != nil {
+		return nil, err
+	}
 	body, err := httpclient.GetJsonRequestBody(&request.Body)
 	if err != nil {
 		return nil, err
 	}
-	path := "/" + strings.Join(pathSegments, "/")
-	req := httpclient.Request{Method: "PUT", ServiceNames: serviceNames, Path: path, RawQuery: request.Query.build().Encode(), AuthType: auth.TokenQiniu, Credentials: request.Credentials, RequestBody: body}
+	req := httpclient.Request{Method: "PUT", ServiceNames: serviceNames, Path: path, RawQuery: query.Encode(), AuthType: auth.TokenQiniu, Credentials: request.Credentials, RequestBody: body}
 	var queryer *region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()
