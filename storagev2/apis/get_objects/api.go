@@ -331,7 +331,7 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 		return nil, err
 	}
 	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: query.Encode(), AuthType: auth.TokenQiniu, Credentials: request.Credentials}
-	var queryer *region.BucketRegionsQueryer
+	var queryer region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()
 		if queryer == nil {
@@ -356,7 +356,9 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 		if err != nil {
 			return nil, err
 		}
-		req.Region = queryer.Query(accessKey, bucketName)
+		if accessKey != "" && bucketName != "" {
+			req.Region = queryer.Query(accessKey, bucketName)
+		}
 	}
 	var respBody ResponseBody
 	if _, err := client.client.AcceptJson(ctx, &req, &respBody); err != nil {

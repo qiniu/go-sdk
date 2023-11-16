@@ -97,19 +97,15 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 		return nil, err
 	}
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.Credentials, RequestBody: httpclient.GetFormRequestBody(body)}
-	var queryer *region.BucketRegionsQueryer
+	var queryer region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
-			var err error
 			if request.BucketHosts != nil {
-				if bucketHosts, err = request.BucketHosts.GetEndpoints(ctx); err != nil {
-					return nil, err
-				}
-			}
-			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, nil); err != nil {
-				return nil, err
+				req.Endpoints = request.BucketHosts
+			} else {
+				req.Endpoints = bucketHosts
 			}
 		}
 	}
@@ -122,7 +118,9 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 		if err != nil {
 			return nil, err
 		}
-		req.Region = queryer.Query(accessKey, bucketName)
+		if accessKey != "" && bucketName != "" {
+			req.Region = queryer.Query(accessKey, bucketName)
+		}
 	}
 	resp, err := client.client.Do(ctx, &req)
 	if err != nil {

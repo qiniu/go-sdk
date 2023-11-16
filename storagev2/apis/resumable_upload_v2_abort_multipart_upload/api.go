@@ -108,7 +108,7 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	}
 	path := "/" + strings.Join(pathSegments, "/")
 	req := httpclient.Request{Method: "DELETE", ServiceNames: serviceNames, Path: path, UpToken: request.UpToken}
-	var queryer *region.BucketRegionsQueryer
+	var queryer region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()
 		if queryer == nil {
@@ -133,7 +133,9 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 		if err != nil {
 			return nil, err
 		}
-		req.Region = queryer.Query(accessKey, bucketName)
+		if accessKey != "" && bucketName != "" {
+			req.Region = queryer.Query(accessKey, bucketName)
+		}
 	}
 	resp, err := client.client.Do(ctx, &req)
 	if err != nil {
