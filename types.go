@@ -1,22 +1,19 @@
 package api
 
 import (
+	"bytes"
 	"io"
-	"io/ioutil"
 	"net/http"
 )
 
 // BytesFromRequest 读取 http.Request.Body 的内容到 slice 中
-func BytesFromRequest(r *http.Request) (b []byte, err error) {
-	if r.ContentLength == 0 {
-		return
+func BytesFromRequest(r *http.Request) ([]byte, error) {
+	buf := bytes.NewBuffer(make([]byte, 0, int(r.ContentLength)+1024))
+	_, err := io.Copy(buf, r.Body)
+	if err != nil {
+		return nil, err
 	}
-	if r.ContentLength > 0 {
-		b = make([]byte, int(r.ContentLength))
-		_, err = io.ReadFull(r.Body, b)
-		return
-	}
-	return ioutil.ReadAll(r.Body)
+	return buf.Bytes(), nil
 }
 
 // SeekerLen 通过 io.Seeker 获取数据大小

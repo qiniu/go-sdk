@@ -48,14 +48,14 @@ func GetJsonRequestBody(object interface{}) (GetRequestBody, error) {
 }
 
 func GetFormRequestBody(info map[string][]string) GetRequestBody {
-	body := FormStringInfo(info)
+	body := formStringInfo(info)
 	return func(o *RequestParams) io.ReadCloser {
 		o.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		return nopCloser{r: strings.NewReader(body)}
 	}
 }
 
-func FormStringInfo(info map[string][]string) string {
+func formStringInfo(info map[string][]string) string {
 	if len(info) == 0 {
 		return ""
 	}
@@ -90,20 +90,20 @@ func (o *RequestParams) init() {
 	}
 }
 
-func NewRequest(options RequestParams) (*http.Request, error) {
+func NewRequest(options RequestParams) (req *http.Request, err error) {
 	options.init()
 
 	body := options.GetBody(&options)
-	req, err := http.NewRequest(options.Method, options.Url, body)
+	req, err = http.NewRequest(options.Method, options.Url, body)
 	if err != nil {
-		return nil, err
+		return
 	}
 	req = req.WithContext(options.Context)
 	req.Header = options.Header
-	if body != nil {
+	if options.GetBody != nil && body != nil && body != http.NoBody {
 		req.GetBody = func() (io.ReadCloser, error) {
 			return options.GetBody(&options), nil
 		}
 	}
-	return req, nil
+	return
 }
