@@ -236,14 +236,14 @@ func (m *BucketManager) GetBucketInfo(bucketName string) (bucketInfo BucketInfo,
 }
 
 // SetRemark 设置空间备注信息
-func (m *BucketManager) SetRemark(bucketName, remark string) (err error) {
+func (m *BucketManager) SetRemark(bucketName, remark string) error {
 	reqURL := fmt.Sprintf("%s/buckets/%s?remark", getUcHost(m.Cfg.UseHTTPS), bucketName)
 	body := struct {
 		Remark string `json:"remark"`
 	}{Remark: remark}
 	getBody, err := clientv2.GetJsonRequestBody(body)
 	if err != nil {
-		return
+		return err
 	}
 	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
 		Context: nil,
