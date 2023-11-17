@@ -567,15 +567,37 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 						group.Add(
 							jen.If(jen.Err().Op("!=").Nil()).
 								BlockFunc(func(group *jen.Group) {
-									group.Add(jen.Return(jen.Nil(), jen.Err()))
+									group.Return(jen.Nil(), jen.Err())
+								}),
+						)
+						group.Add(
+							jen.If(jen.Id("accessKey").Op("==").Lit("")).
+								BlockFunc(func(group *jen.Group) {
+									group.Add(jen.If(
+										jen.Id("credentialsProvider").Op(":=").Id("client").Dot("GetCredentials").Call(),
+										jen.Id("credentialsProvider").Op("!=").Nil(),
+									)).BlockFunc(func(group *jen.Group) {
+										group.If(
+											jen.List(jen.Id("creds"), jen.Err()).
+												Op(":=").
+												Id("credentialsProvider").
+												Dot("Get").
+												Call(jen.Id("ctx")),
+											jen.Err().Op("!=").Nil(),
+										).BlockFunc(func(group *jen.Group) {
+											group.Return(jen.Nil(), jen.Err())
+										}).Else().
+											If(jen.Id("creds").Op("!=").Nil()).
+											BlockFunc(func(group *jen.Group) {
+												group.Id("accessKey").Op("=").Id("creds").Dot("AccessKey")
+											})
+									})
 								}),
 						)
 						group.Add(
 							jen.If(jen.Id("accessKey").Op("!=").Lit("").Op("&&").Id("bucketName").Op("!=").Lit("")).
 								BlockFunc(func(group *jen.Group) {
-									group.Add(
-										jen.Id("req").Dot("Region").Op("=").Id("queryer").Dot("Query").Call(jen.Id("accessKey"), jen.Id("bucketName")),
-									)
+									group.Id("req").Dot("Region").Op("=").Id("queryer").Dot("Query").Call(jen.Id("accessKey"), jen.Id("bucketName"))
 								}),
 						)
 					}),
@@ -598,7 +620,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 									),
 								jen.Err().Op("!=").Nil(),
 							).BlockFunc(func(group *jen.Group) {
-								group.Add(jen.Return(jen.Nil(), jen.Err()))
+								group.Return(jen.Nil(), jen.Err())
 							}),
 						)
 						group.Add(
@@ -627,7 +649,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 						group.Add(
 							jen.If(jen.Err().Op("!=").Nil()).
 								BlockFunc(func(group *jen.Group) {
-									group.Add(jen.Return(jen.Nil(), jen.Err()))
+									group.Return(jen.Nil(), jen.Err())
 								}),
 						)
 						group.Add(
@@ -655,7 +677,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 					group.Add(
 						jen.If(jen.Err().Op("!=").Nil()).
 							BlockFunc(func(group *jen.Group) {
-								group.Add(jen.Return(jen.Nil(), jen.Err()))
+								group.Return(jen.Nil(), jen.Err())
 							}),
 					)
 					group.Add(jen.Defer().Id("resp").Dot("Body").Dot("Close").Call())

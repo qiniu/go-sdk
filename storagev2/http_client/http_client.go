@@ -173,6 +173,10 @@ func (httpClient *HttpClient) GetBucketQueryer() region.BucketRegionsQueryer {
 	return httpClient.bucketQueryer
 }
 
+func (httpClient *HttpClient) GetCredentials() credentials.CredentialsProvider {
+	return httpClient.credentials
+}
+
 func (httpClient *HttpClient) GetEndpoints() region.EndpointsProvider {
 	return httpClient.endpoints
 }
