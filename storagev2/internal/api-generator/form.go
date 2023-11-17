@@ -179,7 +179,7 @@ func (form *FormUrlencodedRequestStruct) generateSetCall(field FormUrlencodedReq
 		code = code.Else().BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Return(
 				jen.Nil(),
-				jen.Qual("github.com/qiniu/go-sdk/v7/storagev2/errors", "MissingRequiredFieldError").
+				jen.Qual(PackageNameErrors, "MissingRequiredFieldError").
 					ValuesFunc(func(group *jen.Group) {
 						group.Add(jen.Id("Name").Op(":").Lit(strcase.ToCamel(field.FieldName)))
 					}),
@@ -235,7 +235,7 @@ func (form *FormUrlencodedRequestStruct) generateServiceBucketField(options Code
 				group.Add(
 					jen.If(jen.Id("putPolicy"), jen.Err()).
 						Op(":=").
-						Qual("github.com/qiniu/go-sdk/v7/storagev2/uptoken", "NewParser").
+						Qual(PackageNameUpToken, "NewParser").
 						Call(jen.Id("form").Dot("field" + strcase.ToCamel(field.FieldName))).
 						Dot("RetrievePutPolicy").
 						Call(jen.Qual("context", "Background").Call()).

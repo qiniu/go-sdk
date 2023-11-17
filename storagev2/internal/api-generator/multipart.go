@@ -91,12 +91,12 @@ func (mff *MultipartFormFields) Generate(group *jen.Group, options CodeGenerator
 			Params(jen.Id("form").Op("*").Id(options.Name)).
 			Id("build").
 			Params(jen.Id("ctx").Qual("context", "Context")).
-			Params(jen.Op("*").Qual("github.com/qiniu/go-sdk/v7/storagev2/http_client", "MultipartForm"), jen.Error()).
+			Params(jen.Op("*").Qual(PackageNameHttpClient, "MultipartForm"), jen.Error()).
 			BlockFunc(func(group *jen.Group) {
 				group.Add(
 					jen.Id("multipartForm").
 						Op(":=").
-						New(jen.Qual("github.com/qiniu/go-sdk/v7/storagev2/http_client", "MultipartForm")),
+						New(jen.Qual(PackageNameHttpClient, "MultipartForm")),
 				)
 				for _, named := range mff.Named {
 					zeroValue, e := named.Type.ZeroValue()
@@ -155,7 +155,7 @@ func (mff *MultipartFormFields) Generate(group *jen.Group, options CodeGenerator
 						code = code.Else().BlockFunc(func(group *jen.Group) {
 							group.Add(jen.Return(
 								jen.Nil(),
-								jen.Qual("github.com/qiniu/go-sdk/v7/storagev2/errors", "MissingRequiredFieldError").
+								jen.Qual(PackageNameErrors, "MissingRequiredFieldError").
 									ValuesFunc(func(group *jen.Group) {
 										group.Add(jen.Id("Name").Op(":").Lit(strcase.ToCamel(named.FieldName)))
 									}),
@@ -186,7 +186,7 @@ func (mff *MultipartFormFields) generateGetterFunc(named NamedMultipartFormField
 		Params()
 	switch named.Type.ToMultipartFormDataType() {
 	case MultipartFormDataTypeBinaryData:
-		code = code.Params(jen.Qual("github.com/qiniu/go-sdk/v7/internal/io", "ReadSeekCloser"), jen.String()).
+		code = code.Params(jen.Qual(PackageNameInternalIo, "ReadSeekCloser"), jen.String()).
 			BlockFunc(func(group *jen.Group) {
 				group.Add(jen.Return(
 					jen.Id("form").Dot("field"+fieldName),
@@ -211,7 +211,7 @@ func (mff *MultipartFormFields) generateSetterFunc(named NamedMultipartFormField
 	)
 	switch named.Type.ToMultipartFormDataType() {
 	case MultipartFormDataTypeBinaryData:
-		params = []jen.Code{jen.Id("value").Qual("github.com/qiniu/go-sdk/v7/internal/io", "ReadSeekCloser"), jen.Id("fileName").String()}
+		params = []jen.Code{jen.Id("value").Qual(PackageNameInternalIo, "ReadSeekCloser"), jen.Id("fileName").String()}
 	default:
 		p, err := named.Type.AddTypeToStatement(jen.Id("value"))
 		if err != nil {

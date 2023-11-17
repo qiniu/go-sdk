@@ -12,7 +12,13 @@ import (
 )
 
 const (
-	PackageNameHttpClient = "github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	PackageNameHttpClient  = "github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	PackageNameAuth        = "github.com/qiniu/go-sdk/v7/auth"
+	PackageNameCredentials = "github.com/qiniu/go-sdk/v7/storagev2/credentials"
+	PackageNameRegion      = "github.com/qiniu/go-sdk/v7/storagev2/region"
+	PackageNameUpToken     = "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
+	PackageNameErrors      = "github.com/qiniu/go-sdk/v7/storagev2/errors"
+	PackageNameInternalIo  = "github.com/qiniu/go-sdk/v7/internal/io"
 )
 
 func main() {

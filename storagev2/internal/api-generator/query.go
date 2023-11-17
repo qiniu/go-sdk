@@ -151,7 +151,7 @@ func (names QueryNames) generateSetCall(queryName QueryName, options CodeGenerat
 		return func(group *jen.Group) {
 			group.Add(jen.Return(
 				jen.Nil(),
-				jen.Qual("github.com/qiniu/go-sdk/v7/storagev2/errors", "MissingRequiredFieldError").
+				jen.Qual(PackageNameErrors, "MissingRequiredFieldError").
 					ValuesFunc(func(group *jen.Group) {
 						group.Add(jen.Id("Name").Op(":").Lit(fieldName))
 					}),
@@ -218,7 +218,7 @@ func (names QueryNames) generateServiceBucketField(options CodeGeneratorOptions)
 				group.Add(
 					jen.If(jen.Id("putPolicy"), jen.Err()).
 						Op(":=").
-						Qual("github.com/qiniu/go-sdk/v7/storagev2/uptoken", "NewParser").
+						Qual(PackageNameUpToken, "NewParser").
 						Call(jen.Id("query").Dot("field" + strcase.ToCamel(field.FieldName))).
 						Dot("RetrievePutPolicy").
 						Call(jen.Qual("context", "Background").Call()).

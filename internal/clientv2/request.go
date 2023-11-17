@@ -101,7 +101,9 @@ func NewRequest(options RequestParams) (req *http.Request, err error) {
 	if err != nil {
 		return
 	}
-	req = req.WithContext(options.Context)
+	if options.Context != nil {
+		req = req.WithContext(options.Context)
+	}
 	req.Header = options.Header
 	if options.GetBody != nil && body != nil && body != http.NoBody {
 		req.GetBody = func() (io.ReadCloser, error) {
