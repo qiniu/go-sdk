@@ -69,9 +69,7 @@ func (path *RequestPath) build() ([]string, error) {
 	} else {
 		return nil, errors.MissingRequiredFieldError{Name: "UploadId"}
 	}
-	if path.fieldPartNumber != 0 {
-		allSegments = append(allSegments, strconv.FormatInt(path.fieldPartNumber, 10))
-	}
+	allSegments = append(allSegments, strconv.FormatInt(path.fieldPartNumber, 10))
 	return allSegments, nil
 }
 

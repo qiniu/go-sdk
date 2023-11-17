@@ -44,9 +44,7 @@ func (path *RequestPath) build() ([]string, error) {
 	} else {
 		return nil, errors.MissingRequiredFieldError{Name: "Entry"}
 	}
-	if path.fieldStatus != 0 {
-		allSegments = append(allSegments, "status", strconv.FormatInt(path.fieldStatus, 10))
-	}
+	allSegments = append(allSegments, "status", strconv.FormatInt(path.fieldStatus, 10))
 	return allSegments, nil
 }
 

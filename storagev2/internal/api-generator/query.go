@@ -142,11 +142,13 @@ func (names QueryNames) generateSetCall(queryName QueryName, options CodeGenerat
 	if v, ok := zeroValue.(bool); !ok || v {
 		condition = condition.Op("!=").Lit(zeroValue)
 	}
-	code := jen.If(condition).BlockFunc(func(group *jen.Group) {
-		group.Add(jen.Id("allQuery").Dot("Set").Call(jen.Lit(queryName.QueryName), valueConvertCode))
-	})
-	if !queryName.Optional && !queryName.QueryType.IsNumeric() {
-		code = code.Else().BlockFunc(func(group *jen.Group) {
+	setQueryFunc := func(queryName string, value jen.Code) func(group *jen.Group) {
+		return func(group *jen.Group) {
+			group.Add(jen.Id("allQuery").Dot("Set").Call(jen.Lit(queryName), value))
+		}
+	}
+	appendMissingRequiredFieldErrorFunc := func(fieldName string) func(group *jen.Group) {
+		return func(group *jen.Group) {
 			group.Add(jen.Return(
 				jen.Nil(),
 				jen.Qual("github.com/qiniu/go-sdk/v7/storagev2/errors", "MissingRequiredFieldError").
@@ -154,9 +156,22 @@ func (names QueryNames) generateSetCall(queryName QueryName, options CodeGenerat
 						group.Add(jen.Id("Name").Op(":").Lit(fieldName))
 					}),
 			))
-		})
+		}
 	}
-	return code, nil
+	if queryName.Optional {
+		return jen.If(condition).
+				BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)),
+			nil
+	} else if queryName.QueryType.IsNumeric() {
+		return jen.BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)),
+			nil
+	} else {
+		return jen.If(condition).
+				BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)).
+				Else().
+				BlockFunc(appendMissingRequiredFieldErrorFunc(fieldName)),
+			nil
+	}
 }
 
 func (names QueryNames) getServiceBucketField() QueryName {

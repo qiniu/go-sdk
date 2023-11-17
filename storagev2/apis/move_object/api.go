@@ -57,9 +57,7 @@ func (path *RequestPath) build() ([]string, error) {
 	} else {
 		return nil, errors.MissingRequiredFieldError{Name: "DestEntry"}
 	}
-	if path.fieldIsForce {
-		allSegments = append(allSegments, "force", strconv.FormatBool(path.fieldIsForce))
-	}
+	allSegments = append(allSegments, "force", strconv.FormatBool(path.fieldIsForce))
 	return allSegments, nil
 }
 

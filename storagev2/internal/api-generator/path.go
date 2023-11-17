@@ -118,8 +118,8 @@ func (pp *PathParams) Generate(group *jen.Group, options CodeGeneratorOptions) e
 					var (
 						code      jen.Code
 						isNone    bool
-						isNumeric bool
-						field     = jen.Id("path").Dot("field" + strcase.ToCamel(namedPathParam.FieldName))
+						fieldName = strcase.ToCamel(namedPathParam.FieldName)
+						field     = jen.Id("path").Dot("field" + fieldName)
 					)
 					switch namedPathParam.Type.ToStringLikeType() {
 					case StringLikeTypeString:
@@ -134,7 +134,6 @@ func (pp *PathParams) Generate(group *jen.Group, options CodeGeneratorOptions) e
 						}
 					case StringLikeTypeInteger, StringLikeTypeFloat, StringLikeTypeBoolean:
 						code, _ = namedPathParam.Type.GenerateConvertCodeToString(field)
-						isNumeric = true
 					default:
 						err = errors.New("unknown type")
 						return
@@ -148,42 +147,52 @@ func (pp *PathParams) Generate(group *jen.Group, options CodeGeneratorOptions) e
 					if v, ok := zeroValue.(bool); !ok || v {
 						condition = condition.Op("!=").Lit(zeroValue)
 					}
-					statement :=
-						jen.If(condition).BlockFunc(func(group *jen.Group) {
+					appendPathSegment := func(pathSegment string, value jen.Code) func(group *jen.Group) {
+						return func(group *jen.Group) {
 							codes := []jen.Code{jen.Id("allSegments")}
-							if namedPathParam.PathSegment != "" {
-								codes = append(codes, jen.Lit(namedPathParam.PathSegment))
+							if pathSegment != "" {
+								codes = append(codes, jen.Lit(pathSegment))
 							}
-							codes = append(codes, code)
+							codes = append(codes, value)
 							group.Add(
 								jen.Id("allSegments").Op("=").Append(codes...),
 							)
-						})
-					if isNone {
-						statement = statement.Else().BlockFunc(func(group *jen.Group) {
-							codes := []jen.Code{jen.Id("allSegments")}
-							if namedPathParam.PathSegment != "" {
-								codes = append(codes, jen.Lit(namedPathParam.PathSegment))
-							}
-							codes = append(codes, jen.Lit("~"))
-							group.Add(
-								jen.Id("allSegments").Op("=").Append(codes...),
-							)
-						})
-					} else if !isNumeric && !namedPathParam.Optional {
-						statement = statement.Else().BlockFunc(func(group *jen.Group) {
-							group.Add(
-								jen.Return(
-									jen.Nil(),
-									jen.Qual("github.com/qiniu/go-sdk/v7/storagev2/errors", "MissingRequiredFieldError").
-										ValuesFunc(func(group *jen.Group) {
-											group.Add(jen.Id("Name").Op(":").Lit(strcase.ToCamel(namedPathParam.FieldName)))
-										}),
-								),
-							)
-						})
+						}
 					}
-					group.Add(statement)
+					appendMissingRequiredFieldErrorFunc := func(fieldName string) func(group *jen.Group) {
+						return func(group *jen.Group) {
+							group.Add(jen.Return(
+								jen.Nil(),
+								jen.Qual("github.com/qiniu/go-sdk/v7/storagev2/errors", "MissingRequiredFieldError").
+									ValuesFunc(func(group *jen.Group) {
+										group.Add(jen.Id("Name").Op(":").Lit(fieldName))
+									}),
+							))
+						}
+					}
+
+					if isNone {
+						group.Add(
+							jen.If(condition).
+								BlockFunc(appendPathSegment(namedPathParam.PathSegment, code)).
+								Else().
+								BlockFunc(appendPathSegment(namedPathParam.PathSegment, jen.Lit("~"))),
+						)
+					} else if namedPathParam.Optional {
+						group.Add(
+							jen.If(condition).
+								BlockFunc(appendPathSegment(namedPathParam.PathSegment, code)),
+						)
+					} else if namedPathParam.Type.IsNumeric() {
+						appendPathSegment(namedPathParam.PathSegment, code)(group)
+					} else {
+						group.Add(
+							jen.If(condition).
+								BlockFunc(appendPathSegment(namedPathParam.PathSegment, code)).
+								Else().
+								BlockFunc(appendMissingRequiredFieldErrorFunc(fieldName)),
+						)
+					}
 				}
 				if pp.Free != nil {
 					group.Add(jen.Id("allSegments").Op("=").Append(jen.Id("allSegments"), jen.Id("path").Dot("extendedSegments").Op("...")))
