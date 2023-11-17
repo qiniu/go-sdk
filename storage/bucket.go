@@ -16,6 +16,23 @@ import (
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/async_fetch_object"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/batch_ops"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/copy_object"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/create_bucket"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/delete_object"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/delete_object_after_days"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/fetch_object"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_buckets"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/modify_object_metadata"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/modify_object_status"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/move_object"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/prefetch_object"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/restore_archived_object"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_object_file_type"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/stat_object"
+	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
@@ -339,46 +356,42 @@ func NewBucketManagerExWithOptions(mac *auth.Credentials, cfg *Config, clt *clie
 // 当文件不存在时，返回612 status code 612 {"error":"no such file or directory"}
 // 当文件当前状态和设置的状态已经一致，返回400 {"error":"already enabled"}或400 {"error":"already disabled"}
 func (m *BucketManager) UpdateObjectStatus(bucketName string, key string, enable bool) error {
-	var status string
-	ee := EncodedEntry(bucketName, key)
+	var status int64
 	if enable {
-		status = "0"
+		status = 0
 	} else {
-		status = "1"
+		status = 1
 	}
-	path := fmt.Sprintf("/chstatus/%s/status/%s", ee, status)
-
-	reqHost, reqErr := m.RsReqHost(bucketName)
-	if reqErr != nil {
-		return reqErr
-	}
-	reqURL := fmt.Sprintf("%s%s", reqHost, path)
-	return m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
+	var request modify_object_status.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
+	request.Path.SetEntry(bucketName + ":" + key).SetStatus(status)
+	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // CreateBucket 创建一个七牛存储空间
 func (m *BucketManager) CreateBucket(bucketName string, regionID RegionID) error {
-	reqURL := fmt.Sprintf("%s/mkbucketv3/%s/region/%s", getUcHost(m.Cfg.UseHTTPS), bucketName, string(regionID))
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, nil)
+	var request create_bucket.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
+	request.Path.SetBucket(bucketName).SetRegion(string(regionID))
+	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
-// Buckets 用来获取空间列表，如果指定了 shared 参数为 true，那么一同列表被授权访问的空间
+// Buckets 用来获取空间列表，如果指定了 shared 参数则额外包含仅被授予了读权限的空间，否则额外包含被授予了读写权限的授权空间
 func (m *BucketManager) Buckets(shared bool) (buckets []string, err error) {
-	reqURL := fmt.Sprintf("%s/buckets?shared=%v", getUcHost(m.Cfg.UseHTTPS), shared)
-	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, &buckets)
-	return buckets, err
+	var request get_buckets.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
+	if shared {
+		request.Query.SetShared("rd")
+	} else {
+		request.Query.SetShared("rw")
+	}
+	response, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	if err != nil {
+		return nil, err
+	}
+	return response.Body, nil
 }
 
 // BucketsV4 获取该用户的指定区域内的空间信息，注意该 API 以分页形式返回 Bucket 列表
@@ -411,15 +424,12 @@ func (m *BucketManager) BucketsV4(input *BucketV4Input) (output BucketsV4Output,
 }
 
 // DropBucket 删除七牛存储空间
-func (m *BucketManager) DropBucket(bucketName string) (err error) {
-	reqURL := fmt.Sprintf("%s/drop/%s", getUcHost(m.Cfg.UseHTTPS), bucketName)
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, nil)
+func (m *BucketManager) DropBucket(bucketName string) error {
+	var request delete_bucket.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
+	request.Path.SetBucket(bucketName)
+	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // Stat 用来获取一个文件的基本信息
@@ -432,71 +442,66 @@ type StatOpts struct {
 }
 
 // StatWithParts 用来获取一个文件的基本信息以及分片信息
-func (m *BucketManager) StatWithOpts(bucket, key string, opt *StatOpts) (info FileInfo, err error) {
-	reqHost, reqErr := m.RsReqHost(bucket)
-	if reqErr != nil {
-		err = reqErr
-		return
-	}
-
-	reqURL := fmt.Sprintf("%s%s", reqHost, URIStat(bucket, key))
+func (m *BucketManager) StatWithOpts(bucket, key string, opt *StatOpts) (FileInfo, error) {
+	var request stat_object.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
+	request.Path.SetEntry(bucket + ":" + key)
 	if opt != nil {
-		if opt.NeedParts {
-			reqURL += "?needparts=true"
-		}
+		request.Query.SetNeedParts(opt.NeedParts)
 	}
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &info, "POST", reqURL, nil)
-	return
+	response, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	if err != nil {
+		return FileInfo{}, err
+	}
+	return FileInfo{
+		Fsize:                   response.Body.GetSize(),
+		Hash:                    response.Body.GetHash(),
+		MimeType:                response.Body.GetMimeType(),
+		Type:                    int(response.Body.GetType()),
+		PutTime:                 response.Body.GetPutTime(),
+		RestoreStatus:           int(response.Body.GetRestoringStatus()),
+		Status:                  int(response.Body.GetStatus()),
+		Md5:                     response.Body.GetMd5(),
+		EndUser:                 response.Body.GetEndUser(),
+		MetaData:                response.Body.GetMetadata(),
+		Expiration:              response.Body.GetExpirationTime(),
+		TransitionToIA:          response.Body.GetTransitionToIaTime(),
+		TransitionToArchive:     response.Body.GetTransitionToArchiveTime(),
+		TransitionToDeepArchive: response.Body.GetTransitionToDeepArchiveTime(),
+		Parts:                   response.Body.GetParts(),
+	}, nil
 }
 
 // Delete 用来删除空间中的一个文件
-func (m *BucketManager) Delete(bucket, key string) (err error) {
-	reqHost, reqErr := m.RsReqHost(bucket)
-	if reqErr != nil {
-		err = reqErr
-		return
-	}
-	reqURL := fmt.Sprintf("%s%s", reqHost, URIDelete(bucket, key))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
-	return
+func (m *BucketManager) Delete(bucket, key string) error {
+	var request delete_object.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
+	request.Path.SetEntry(bucket + ":" + key)
+	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // Copy 用来创建已有空间中的文件的一个新的副本
-func (m *BucketManager) Copy(srcBucket, srcKey, destBucket, destKey string, force bool) (err error) {
-	reqHost, reqErr := m.RsReqHost(srcBucket)
-	if reqErr != nil {
-		err = reqErr
-		return
-	}
-
-	reqURL := fmt.Sprintf("%s%s", reqHost, URICopy(srcBucket, srcKey, destBucket, destKey, force))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
-	return
+func (m *BucketManager) Copy(srcBucket, srcKey, destBucket, destKey string, force bool) error {
+	var request copy_object.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
+	request.Path.SetSrcEntry(srcBucket + ":" + srcKey).SetDestEntry(destBucket + ":" + destKey).SetIsForce(force)
+	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // Move 用来将空间中的一个文件移动到新的空间或者重命名
-func (m *BucketManager) Move(srcBucket, srcKey, destBucket, destKey string, force bool) (err error) {
-	reqHost, reqErr := m.RsReqHost(srcBucket)
-	if reqErr != nil {
-		err = reqErr
-		return
-	}
-
-	reqURL := fmt.Sprintf("%s%s", reqHost, URIMove(srcBucket, srcKey, destBucket, destKey, force))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
-	return
+func (m *BucketManager) Move(srcBucket, srcKey, destBucket, destKey string, force bool) error {
+	var request move_object.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
+	request.Path.SetSrcEntry(srcBucket + ":" + srcKey).SetDestEntry(destBucket + ":" + destKey).SetIsForce(force)
+	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // ChangeMime 用来更新文件的MimeType
-func (m *BucketManager) ChangeMime(bucket, key, newMime string) (err error) {
-	reqHost, reqErr := m.RsReqHost(bucket)
-	if reqErr != nil {
-		err = reqErr
-		return
-	}
-	reqURL := fmt.Sprintf("%s%s", reqHost, URIChangeMime(bucket, key, newMime))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
-	return
+func (m *BucketManager) ChangeMime(bucket, key, newMime string) error {
+	return m.ChangeMimeAndMeta(bucket, key, newMime, nil)
 }
 
 // ChangeMeta
@@ -527,52 +532,42 @@ func (m *BucketManager) ChangeMeta(bucket, key string, metas map[string]string) 
 //				 - key 如果包含了 x-qn-meta- 前缀，则直接使用 key；
 //				 - key 如果不包含了 x-qn-meta- 前缀，则内部会为 key 拼接 x-qn-meta- 前缀。
 //	@return err 错误信息
-func (m *BucketManager) ChangeMimeAndMeta(bucket, key, newMime string, metas map[string]string) (err error) {
-	reqHost, reqErr := m.RsReqHost(bucket)
-	if reqErr != nil {
-		err = reqErr
-		return
+func (m *BucketManager) ChangeMimeAndMeta(bucket, key, newMime string, metas map[string]string) error {
+	var request modify_object_metadata.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
+	request.Path.SetEntry(bucket + ":" + key).SetMimeType(newMime)
+	for k, v := range normalizeMeta(metas) {
+		request.Path.Append(k, v)
 	}
-	reqURL := fmt.Sprintf("%s%s", reqHost, URIChangeMimeAndMeta(bucket, key, newMime, metas))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
-	return
+	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // ChangeType 用来更新文件的存储类型，0 表示普通存储，1 表示低频存储，2 表示归档存储，3 表示深度归档存储，4 表示归档直读存储
-func (m *BucketManager) ChangeType(bucket, key string, fileType int) (err error) {
-	reqHost, reqErr := m.RsReqHost(bucket)
-	if reqErr != nil {
-		err = reqErr
-		return
-	}
-	reqURL := fmt.Sprintf("%s%s", reqHost, URIChangeType(bucket, key, fileType))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
-	return
+func (m *BucketManager) ChangeType(bucket, key string, fileType int) error {
+	var request set_object_file_type.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
+	request.Path.SetEntry(bucket + ":" + key).SetType(int64(fileType))
+	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // RestoreAr 解冻归档存储类型的文件，可设置解冻有效期1～7天, 完成解冻任务通常需要1～5分钟
-func (m *BucketManager) RestoreAr(bucket, key string, freezeAfterDays int) (err error) {
-	reqHost, reqErr := m.RsReqHost(bucket)
-	if reqErr != nil {
-		err = reqErr
-		return
-	}
-	reqURL := fmt.Sprintf("%s%s", reqHost, URIRestoreAr(bucket, key, freezeAfterDays))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
-	return
+func (m *BucketManager) RestoreAr(bucket, key string, freezeAfterDays int) error {
+	var request restore_archived_object.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
+	request.Path.SetEntry(bucket + ":" + key).SetFreezeAfterDays(int64(freezeAfterDays))
+	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // DeleteAfterDays 用来更新文件生命周期，如果 days 设置为0，则表示取消文件的定期删除功能，永久存储
-func (m *BucketManager) DeleteAfterDays(bucket, key string, days int) (err error) {
-	reqHost, reqErr := m.RsReqHost(bucket)
-	if reqErr != nil {
-		err = reqErr
-		return
-	}
-
-	reqURL := fmt.Sprintf("%s%s", reqHost, URIDeleteAfterDays(bucket, key, days))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
-	return
+func (m *BucketManager) DeleteAfterDays(bucket, key string, days int) error {
+	var request delete_object_after_days.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
+	request.Path.SetEntry(bucket + ":" + key).SetDeleteAfterDays(int64(days))
+	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // Batch 接口提供了资源管理的批量操作，支持 stat，copy，move，delete，chgm，chtype，deleteAfterDays几个接口
@@ -605,44 +600,80 @@ func (m *BucketManager) Batch(operations []string) ([]BatchOpRet, error) {
 	return m.BatchWithContext(context.Background(), bucket, operations)
 }
 
+func convertToBatchOptRet(op batch_ops.OperationResponse) BatchOpRet {
+	var ret BatchOpRet
+	ret.Code = int(op.GetCode())
+	opData := op.GetData()
+	ret.Data.Fsize = opData.GetSize()
+	ret.Data.Hash = opData.GetHash()
+	ret.Data.MimeType = opData.GetMimeType()
+	ret.Data.Type = int(opData.GetType())
+	ret.Data.PutTime = opData.GetPutTime()
+	if restoringStatus := int(opData.GetRestoringStatus()); restoringStatus != 0 {
+		ret.Data.RestoreStatus = &restoringStatus
+	}
+	if status := int(opData.GetStatus()); status != 0 {
+		ret.Data.Status = &status
+	}
+	ret.Data.Md5 = opData.GetMd5()
+	ret.Data.EndUser = opData.GetEndUser()
+	if expirationTime := opData.GetExpirationTime(); expirationTime != 0 {
+		ret.Data.Expiration = &expirationTime
+	}
+	if transitionToIA := opData.GetTransitionToIaTime(); transitionToIA != 0 {
+		ret.Data.TransitionToIA = &transitionToIA
+	}
+	if transitionToArchiveTime := opData.GetTransitionToArchiveTime(); transitionToArchiveTime != 0 {
+		ret.Data.TransitionToArchive = &transitionToArchiveTime
+	}
+	if transitionToDeepArchiveTime := opData.GetTransitionToDeepArchiveTime(); transitionToDeepArchiveTime != 0 {
+		ret.Data.TransitionToDeepArchive = &transitionToDeepArchiveTime
+	}
+	ret.Data.Error = opData.GetError()
+	return ret
+}
+
 // BatchWithContext 接口提供了资源管理的批量操作，支持 stat，copy，move，delete，chgm，chtype，deleteAfterDays几个接口
 // @param	ctx		context.Context
 // @param	bucket	operations 列表中任意一个操作对象所属的 bucket
 // @param	operations	操作对象列表，操作对象所属的 bucket 可能会不同，但是必须属于同一个区域
 func (m *BucketManager) BatchWithContext(ctx context.Context, bucket string, operations []string) ([]BatchOpRet, error) {
-	host, err := m.RsReqHost(bucket)
-	if err != nil {
-		return nil, err
-	}
-	return m.batchOperation(ctx, host, operations)
-}
-
-func (m *BucketManager) batchOperation(ctx context.Context, reqURL string, operations []string) (batchOpRet []BatchOpRet, err error) {
 	if len(operations) > 1000 {
-		err = errors.New("batch operation count exceeds the limit of 1000")
-		return
-	}
-	params := map[string][]string{
-		"op": operations,
+		return nil, errors.New("batch operation count exceeds the limit of 1000")
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	reqURL = fmt.Sprintf("%s/batch", reqURL)
-	err = m.Client.CredentialedCallWithForm(ctx, m.Mac, auth.TokenQiniu, &batchOpRet, "POST", reqURL, nil, params)
-	return
+
+	var request batch_ops.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).OverwriteBucketName(bucket)
+	request.Body.SetOperations(operations)
+	response, err := request.Send(ctx, m.makeHttpClientOptions())
+	if err != nil {
+		return nil, err
+	}
+	rets := make([]BatchOpRet, 0, len(response.Body))
+	for _, op := range response.Body {
+		rets = append(rets, convertToBatchOptRet(op))
+	}
+	return rets, nil
 }
 
 // Fetch 根据提供的远程资源链接来抓取一个文件到空间并已指定文件名保存
-func (m *BucketManager) Fetch(resURL, bucket, key string) (fetchRet FetchRet, err error) {
-	reqHost, rErr := m.IoReqHost(bucket)
-	if rErr != nil {
-		err = rErr
-		return
+func (m *BucketManager) Fetch(resURL, bucket, key string) (FetchRet, error) {
+	var request fetch_object.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).OverwriteBucketName(bucket)
+	request.Path.SetFromUrl(resURL).SetToEntry(bucket + ":" + key)
+	response, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	if err != nil {
+		return FetchRet{}, err
 	}
-	reqURL := fmt.Sprintf("%s%s", reqHost, uriFetch(resURL, bucket, key))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &fetchRet, "POST", reqURL, nil)
-	return
+	return FetchRet{
+		Hash:     response.Body.GetHash(),
+		Fsize:    response.Body.GetSize(),
+		MimeType: response.Body.GetMimeType(),
+		Key:      response.Body.GetObjectName(),
+	}, nil
 }
 
 func (m *BucketManager) RsReqHost(bucket string) (reqHost string, err error) {
@@ -719,14 +750,19 @@ func (m *BucketManager) IoReqHost(bucket string) (reqHost string, err error) {
 
 // FetchWithoutKey 根据提供的远程资源链接来抓取一个文件到空间并以文件的内容hash作为文件名
 func (m *BucketManager) FetchWithoutKey(resURL, bucket string) (fetchRet FetchRet, err error) {
-	reqHost, rErr := m.IoReqHost(bucket)
-	if rErr != nil {
-		err = rErr
-		return
+	var request fetch_object.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).OverwriteBucketName(bucket)
+	request.Path.SetFromUrl(resURL).SetToEntry(bucket)
+	response, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	if err != nil {
+		return FetchRet{}, err
 	}
-	reqURL := fmt.Sprintf("%s%s", reqHost, uriFetchWithoutKey(resURL, bucket))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, &fetchRet, "POST", reqURL, nil)
-	return
+	return FetchRet{
+		Hash:     response.Body.GetHash(),
+		Fsize:    response.Body.GetSize(),
+		MimeType: response.Body.GetMimeType(),
+		Key:      response.Body.GetObjectName(),
+	}, nil
 }
 
 // DomainInfo 是绑定在存储空间上的域名的具体信息
@@ -757,15 +793,12 @@ func (m *BucketManager) ListBucketDomains(bucket string) (info []DomainInfo, err
 }
 
 // Prefetch 用来同步镜像空间的资源和镜像源资源内容
-func (m *BucketManager) Prefetch(bucket, key string) (err error) {
-	reqHost, reqErr := m.IoReqHost(bucket)
-	if reqErr != nil {
-		err = reqErr
-		return
-	}
-	reqURL := fmt.Sprintf("%s%s", reqHost, uriPrefetch(bucket, key))
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
-	return
+func (m *BucketManager) Prefetch(bucket, key string) error {
+	var request prefetch_object.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).OverwriteBucketName(bucket)
+	request.Path.SetEntry(bucket + ":" + key)
+	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // SetImage 用来设置空间镜像源
@@ -824,16 +857,25 @@ type AsyncFetchRet struct {
 }
 
 func (m *BucketManager) AsyncFetch(param AsyncFetchParam) (ret AsyncFetchRet, err error) {
-
-	reqUrl, err := m.ApiReqHost(param.Bucket)
+	var request async_fetch_object.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
+	request.Body.SetUrl(param.Url).
+		SetHost(param.Host).
+		SetKey(param.Key).
+		SetMd5(param.Md5).
+		SetEtag(param.Etag).
+		SetCallbackUrl(param.CallbackURL).
+		SetCallbackBody(param.CallbackBody).
+		SetCallbackBodyType(param.CallbackBodyType).
+		SetFileType(int64(param.FileType))
+	response, err := request.Send(context.Background(), m.makeHttpClientOptions())
 	if err != nil {
-		return
+		return AsyncFetchRet{}, err
 	}
-
-	reqUrl += "/sisyphus/fetch"
-
-	err = m.Client.CredentialedCallWithJson(context.Background(), m.Mac, auth.TokenQiniu, &ret, "POST", reqUrl, nil, param)
-	return
+	return AsyncFetchRet{
+		Id:   response.Body.GetId(),
+		Wait: int(response.Body.GetQueuedTasksCount()),
+	}, nil
 }
 
 func (m *BucketManager) RsHost(bucket string) (rsHost string, err error) {
@@ -903,6 +945,24 @@ func (m *BucketManager) Zone(bucket string) (z *Zone, err error) {
 	return
 }
 
+func (m *BucketManager) makeHttpClientOptions() *http_client.HttpClientOptions {
+	options := http_client.HttpClientOptions{
+		Credentials:        m.Mac,
+		HostFreezeDuration: m.options.HostFreezeDuration,
+		HostRetryConfig: &clientv2.RetryConfig{
+			RetryMax: m.options.RetryMax,
+		},
+	}
+	if cfg := m.Cfg; cfg != nil {
+		options.UseHttps = m.Cfg.UseHTTPS
+		options.Regions = m.Cfg.GetRegion()
+	}
+	if client := m.Client; client != nil {
+		options.Client = client.Client
+	}
+	return &options
+}
+
 // 构建op的方法，导出的方法支持在Batch操作中使用
 
 // URIStat 构建 stat 接口的请求命令
@@ -969,14 +1029,22 @@ func URIChangeMimeAndMeta(bucket, key, newMime string, metas map[string]string) 
 		uri = fmt.Sprintf("%s/mime/%s", uri, base64.URLEncoding.EncodeToString([]byte(newMime)))
 	}
 	if len(metas) > 0 {
-		for k, v := range metas {
-			if !strings.HasPrefix(k, "x-qn-meta-") {
-				k = "x-qn-meta-" + k
-			}
+		for k, v := range normalizeMeta(metas) {
 			uri = fmt.Sprintf("%s/%s/%s", uri, k, base64.URLEncoding.EncodeToString([]byte(v)))
 		}
 	}
 	return uri
+}
+
+func normalizeMeta(metas map[string]string) map[string]string {
+	newMetas := make(map[string]string, len(metas))
+	for k, v := range metas {
+		if !strings.HasPrefix(k, "x-qn-meta-") {
+			k = "x-qn-meta-" + k
+		}
+		newMetas[k] = v
+	}
+	return newMetas
 }
 
 // URIChangeType 构建 chtype 接口的请求命令
@@ -987,21 +1055,6 @@ func URIChangeType(bucket, key string, fileType int) string {
 // URIRestoreAr 构建 restoreAr 接口的请求命令
 func URIRestoreAr(bucket, key string, afterDay int) string {
 	return fmt.Sprintf("/restoreAr/%s/freezeAfterDays/%d", EncodedEntry(bucket, key), afterDay)
-}
-
-// 构建op的方法，非导出的方法无法用在Batch操作中
-func uriFetch(resURL, bucket, key string) string {
-	return fmt.Sprintf("/fetch/%s/to/%s",
-		base64.URLEncoding.EncodeToString([]byte(resURL)), EncodedEntry(bucket, key))
-}
-
-func uriFetchWithoutKey(resURL, bucket string) string {
-	return fmt.Sprintf("/fetch/%s/to/%s",
-		base64.URLEncoding.EncodeToString([]byte(resURL)), EncodedEntryWithoutKey(bucket))
-}
-
-func uriPrefetch(bucket, key string) string {
-	return fmt.Sprintf("/prefetch/%s", EncodedEntry(bucket, key))
 }
 
 func uriSetImage(siteURL, bucket string) string {

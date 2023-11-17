@@ -288,6 +288,19 @@ func getUcBackupHosts() []string {
 	return hosts
 }
 
+func getUcEndpoint(useHttps bool) region_v2.Endpoints {
+	ucHosts := make([]string, 0, 1+len(ucHosts))
+	if len(UcHost) > 0 {
+		ucHosts = append(ucHosts, endpoint(useHttps, UcHost))
+	}
+	for _, host := range ucHosts {
+		if len(host) > 0 {
+			ucHosts = append(ucHosts, endpoint(useHttps, host))
+		}
+	}
+	return region_v2.Endpoints{Preferred: ucHosts}
+}
+
 // GetRegion 用来根据ak和bucket来获取空间相关的机房信息
 // 延用 v2, v2 结构和 v4 结构不同且暂不可替代
 // Deprecated 使用 GetRegionWithOptions 替换
