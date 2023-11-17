@@ -947,15 +947,19 @@ func (m *BucketManager) Zone(bucket string) (z *Zone, err error) {
 
 func (m *BucketManager) makeHttpClientOptions() *http_client.HttpClientOptions {
 	options := http_client.HttpClientOptions{
-		Credentials:        m.Mac,
 		HostFreezeDuration: m.options.HostFreezeDuration,
 		HostRetryConfig: &clientv2.RetryConfig{
 			RetryMax: m.options.RetryMax,
 		},
 	}
+	if m.Mac != nil {
+		options.Credentials = m.Mac
+	}
 	if cfg := m.Cfg; cfg != nil {
 		options.UseHttps = m.Cfg.UseHTTPS
-		options.Regions = m.Cfg.GetRegion()
+		if region := m.Cfg.GetRegion(); region != nil {
+			options.Regions = region
+		}
 	}
 	if client := m.Client; client != nil {
 		options.Client = client.Client

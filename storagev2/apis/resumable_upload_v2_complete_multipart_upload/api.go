@@ -261,6 +261,15 @@ func (request Request) Send(ctx context.Context, options *httpclient.HttpClientO
 		if err != nil {
 			return nil, err
 		}
+		if accessKey == "" {
+			if credentialsProvider := client.GetCredentials(); credentialsProvider != nil {
+				if creds, err := credentialsProvider.Get(ctx); err != nil {
+					return nil, err
+				} else if creds != nil {
+					accessKey = creds.AccessKey
+				}
+			}
+		}
 		if accessKey != "" && bucketName != "" {
 			req.Region = queryer.Query(accessKey, bucketName)
 		}
