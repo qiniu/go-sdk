@@ -106,11 +106,11 @@ func (j *PartInfo) validate() error {
 // 分片信息列表
 type Parts = []PartInfo
 type innerObjectInfo struct {
-	Parts      Parts                  `json:"parts,omitempty"`      // 已经上传的分片列表
-	FileName   string                 `json:"fname,omitempty"`      // 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
-	MimeType   string                 `json:"mime_type,omitempty"`  // 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
-	Metadata   map[string]interface{} `json:"metadata,omitempty"`   // 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
-	CustomVars map[string]interface{} `json:"customVars,omitempty"` // 用户自定义变量
+	Parts      Parts             `json:"parts,omitempty"`      // 已经上传的分片列表
+	FileName   string            `json:"fname,omitempty"`      // 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
+	MimeType   string            `json:"mime_type,omitempty"`  // 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
+	Metadata   map[string]string `json:"metadata,omitempty"`   // 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
+	CustomVars map[string]string `json:"customVars,omitempty"` // 用户自定义变量
 }
 
 // 新上传的对象的相关信息
@@ -139,17 +139,17 @@ func (j *ObjectInfo) SetMimeType(value string) *ObjectInfo {
 	j.inner.MimeType = value
 	return j
 }
-func (j *ObjectInfo) GetMetadata() map[string]interface{} {
+func (j *ObjectInfo) GetMetadata() map[string]string {
 	return j.inner.Metadata
 }
-func (j *ObjectInfo) SetMetadata(value map[string]interface{}) *ObjectInfo {
+func (j *ObjectInfo) SetMetadata(value map[string]string) *ObjectInfo {
 	j.inner.Metadata = value
 	return j
 }
-func (j *ObjectInfo) GetCustomVars() map[string]interface{} {
+func (j *ObjectInfo) GetCustomVars() map[string]string {
 	return j.inner.CustomVars
 }
-func (j *ObjectInfo) SetCustomVars(value map[string]interface{}) *ObjectInfo {
+func (j *ObjectInfo) SetCustomVars(value map[string]string) *ObjectInfo {
 	j.inner.CustomVars = value
 	return j
 }
@@ -179,15 +179,31 @@ type ResponseBody = interface{}
 
 // 调用 API 所用的请求
 type Request struct {
-	BucketHosts region.EndpointsProvider
-	Path        RequestPath
-	UpToken     uptoken.Provider
-	Body        RequestBody
+	overwrittenBucketHosts region.EndpointsProvider
+	overwrittenBucketName  string
+	Path                   RequestPath
+	upToken                uptoken.Provider
+	Body                   RequestBody
 }
 
+func (request Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) Request {
+	request.overwrittenBucketHosts = bucketHosts
+	return request
+}
+func (request Request) OverwriteBucketName(bucketName string) Request {
+	request.overwrittenBucketName = bucketName
+	return request
+}
+func (request Request) SetUpToken(upToken uptoken.Provider) Request {
+	request.upToken = upToken
+	return request
+}
 func (request Request) getBucketName(ctx context.Context) (string, error) {
-	if request.UpToken != nil {
-		if putPolicy, err := request.UpToken.RetrievePutPolicy(ctx); err != nil {
+	if request.overwrittenBucketName != "" {
+		return request.overwrittenBucketName, nil
+	}
+	if request.upToken != nil {
+		if putPolicy, err := request.upToken.RetrievePutPolicy(ctx); err != nil {
 			return "", err
 		} else {
 			return putPolicy.GetBucketName()
@@ -196,28 +212,13 @@ func (request Request) getBucketName(ctx context.Context) (string, error) {
 	return "", nil
 }
 func (request Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.UpToken != nil {
-		return request.UpToken.RetrieveAccessKey(ctx)
+	if request.upToken != nil {
+		return request.upToken.RetrieveAccessKey(ctx)
 	}
 	return "", nil
 }
-
-// 获取 API 所用的响应
-type Response struct {
-	Body ResponseBody
-}
-
-// API 调用客户端
-type Client struct {
-	client *httpclient.HttpClient
-}
-
-// 创建 API 调用客户端
-func NewClient(options *httpclient.HttpClientOptions) *Client {
+func (request Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
-	return &Client{client: client}
-}
-func (client *Client) Send(ctx context.Context, request *Request) (*Response, error) {
 	serviceNames := []region.ServiceName{region.ServiceUp}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "buckets")
@@ -234,15 +235,15 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, UpToken: request.UpToken, RequestBody: body}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, UpToken: request.upToken, RequestBody: body}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if client.GetRegions() == nil && client.GetEndpoints() == nil {
+		queryer = client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
-			if request.BucketHosts != nil {
-				if bucketHosts, err = request.BucketHosts.GetEndpoints(ctx); err != nil {
+			if request.overwrittenBucketHosts != nil {
+				if bucketHosts, err = request.overwrittenBucketHosts.GetEndpoints(ctx); err != nil {
 					return nil, err
 				}
 			}
@@ -265,8 +266,13 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 		}
 	}
 	var respBody ResponseBody
-	if _, err := client.client.AcceptJson(ctx, &req, &respBody); err != nil {
+	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &Response{Body: respBody}, nil
+}
+
+// 获取 API 所用的响应
+type Response struct {
+	Body ResponseBody
 }

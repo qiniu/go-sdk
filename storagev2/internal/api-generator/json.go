@@ -80,7 +80,7 @@ func (jsonType *JsonType) AddTypeToStatement(statement *jen.Statement) (*jen.Sta
 	} else if jsonType.Any {
 		return statement.Add(jen.Interface()), nil
 	} else if jsonType.StringMap {
-		return statement.Add(jen.Map(jen.String()).Interface()), nil
+		return statement.Add(jen.Map(jen.String()).String()), nil
 	} else if jsonType.Array != nil {
 		return statement.Add(jen.Id(strcase.ToCamel(jsonType.Array.Name))), nil
 	} else if jsonType.Struct != nil {
@@ -260,7 +260,7 @@ func (jsonStruct *JsonStruct) generateValidateFunc(options CodeGeneratorOptions)
 					if cond != nil {
 						group.Add(jen.If(cond).BlockFunc(func(group *jen.Group) {
 							group.Add(jen.Return(
-								jen.Qual("github.com/qiniu/go-sdk/v7/storagev2/errors", "MissingRequiredFieldError").
+								jen.Qual(PackageNameErrors, "MissingRequiredFieldError").
 									ValuesFunc(func(group *jen.Group) {
 										group.Add(jen.Id("Name").Op(":").Lit(fieldName))
 									}),
@@ -378,7 +378,7 @@ func (jsonStruct *JsonStruct) generateServiceBucketField(options CodeGeneratorOp
 				group.Add(
 					jen.If(jen.Id("putPolicy"), jen.Err()).
 						Op(":=").
-						Qual("github.com/qiniu/go-sdk/v7/storagev2/uptoken", "NewParser").
+						Qual(PackageNameUpToken, "NewParser").
 						Call(jen.Id("j").Dot("inner").Dot(strcase.ToCamel(field.FieldName))).
 						Dot("RetrievePutPolicy").
 						Call(jen.Qual("context", "Background").Call()).

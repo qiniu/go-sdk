@@ -67,18 +67,21 @@ type PartSizes = []int64
 // 每个分片的大小，如没有指定 need_parts 参数则不返回
 type Parts = PartSizes
 type innerObjectMetadata struct {
-	Size                    int64     `json:"fsize,omitempty"`               // 对象大小，单位为字节
-	Hash                    string    `json:"hash,omitempty"`                // 对象哈希值
-	MimeType                string    `json:"mimeType,omitempty"`            // 对象 MIME 类型
-	Type                    int64     `json:"type,omitempty"`                // 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
-	PutTime                 int64     `json:"putTime,omitempty"`             // 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
-	UnfreezingStatus        int64     `json:"restoreStatus,omitempty"`       // 归档存储文件的解冻状态，`2` 表示解冻完成，`1` 表示解冻中；归档文件冻结时，不返回该字段
-	Status                  int64     `json:"status,omitempty"`              // 文件状态。`1` 表示禁用；只有禁用状态的文件才会返回该字段
-	Md5                     string    `json:"md5,omitempty"`                 // 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
-	ExpirationTime          int64     `json:"expiration,omitempty"`          // 文件过期删除日期，UNIX 时间戳格式，文件在设置过期时间后才会返回该字段
-	TransitionToIaTime      int64     `json:"transitionToIA,omitempty"`      // 文件生命周期中转为低频存储的日期，UNIX 时间戳格式，文件在设置转低频后才会返回该字段
-	TransitionToArchiveTime int64     `json:"transitionToARCHIVE,omitempty"` // 文件生命周期中转为归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
-	Parts                   PartSizes `json:"parts,omitempty"`               // 每个分片的大小，如没有指定 need_parts 参数则不返回
+	Size                        int64             `json:"fsize,omitempty"`                   // 对象大小，单位为字节
+	Hash                        string            `json:"hash,omitempty"`                    // 对象哈希值
+	MimeType                    string            `json:"mimeType,omitempty"`                // 对象 MIME 类型
+	Type                        int64             `json:"type,omitempty"`                    // 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
+	PutTime                     int64             `json:"putTime,omitempty"`                 // 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
+	EndUser                     string            `json:"endUser,omitempty"`                 // 资源内容的唯一属主标识
+	RestoringStatus             int64             `json:"restoreStatus,omitempty"`           // 归档存储文件的解冻状态，`2` 表示解冻完成，`1` 表示解冻中；归档文件冻结时，不返回该字段
+	Status                      int64             `json:"status,omitempty"`                  // 文件状态。`1` 表示禁用；只有禁用状态的文件才会返回该字段
+	Md5                         string            `json:"md5,omitempty"`                     // 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
+	ExpirationTime              int64             `json:"expiration,omitempty"`              // 文件过期删除日期，UNIX 时间戳格式，文件在设置过期时间后才会返回该字段
+	TransitionToIaTime          int64             `json:"transitionToIA,omitempty"`          // 文件生命周期中转为低频存储的日期，UNIX 时间戳格式，文件在设置转低频后才会返回该字段
+	TransitionToArchiveTime     int64             `json:"transitionToARCHIVE,omitempty"`     // 文件生命周期中转为归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
+	TransitionToDeepArchiveTime int64             `json:"transitionToDeepArchive,omitempty"` // 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
+	Metadata                    map[string]string `json:"x-qn-meta,omitempty"`               // 对象存储元信息
+	Parts                       PartSizes         `json:"parts,omitempty"`                   // 每个分片的大小，如没有指定 need_parts 参数则不返回
 }
 
 // 文件元信息
@@ -121,11 +124,18 @@ func (j *ObjectMetadata) SetPutTime(value int64) *ObjectMetadata {
 	j.inner.PutTime = value
 	return j
 }
-func (j *ObjectMetadata) GetUnfreezingStatus() int64 {
-	return j.inner.UnfreezingStatus
+func (j *ObjectMetadata) GetEndUser() string {
+	return j.inner.EndUser
 }
-func (j *ObjectMetadata) SetUnfreezingStatus(value int64) *ObjectMetadata {
-	j.inner.UnfreezingStatus = value
+func (j *ObjectMetadata) SetEndUser(value string) *ObjectMetadata {
+	j.inner.EndUser = value
+	return j
+}
+func (j *ObjectMetadata) GetRestoringStatus() int64 {
+	return j.inner.RestoringStatus
+}
+func (j *ObjectMetadata) SetRestoringStatus(value int64) *ObjectMetadata {
+	j.inner.RestoringStatus = value
 	return j
 }
 func (j *ObjectMetadata) GetStatus() int64 {
@@ -161,6 +171,20 @@ func (j *ObjectMetadata) GetTransitionToArchiveTime() int64 {
 }
 func (j *ObjectMetadata) SetTransitionToArchiveTime(value int64) *ObjectMetadata {
 	j.inner.TransitionToArchiveTime = value
+	return j
+}
+func (j *ObjectMetadata) GetTransitionToDeepArchiveTime() int64 {
+	return j.inner.TransitionToDeepArchiveTime
+}
+func (j *ObjectMetadata) SetTransitionToDeepArchiveTime(value int64) *ObjectMetadata {
+	j.inner.TransitionToDeepArchiveTime = value
+	return j
+}
+func (j *ObjectMetadata) GetMetadata() map[string]string {
+	return j.inner.Metadata
+}
+func (j *ObjectMetadata) SetMetadata(value map[string]string) *ObjectMetadata {
+	j.inner.Metadata = value
 	return j
 }
 func (j *ObjectMetadata) GetParts() PartSizes {
@@ -202,21 +226,37 @@ type ResponseBody = ObjectMetadata
 
 // 调用 API 所用的请求
 type Request struct {
-	BucketHosts region.EndpointsProvider
-	Path        RequestPath
-	Query       RequestQuery
-	Credentials credentials.CredentialsProvider
+	overwrittenBucketHosts region.EndpointsProvider
+	overwrittenBucketName  string
+	Path                   RequestPath
+	Query                  RequestQuery
+	credentials            credentials.CredentialsProvider
 }
 
+func (request Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) Request {
+	request.overwrittenBucketHosts = bucketHosts
+	return request
+}
+func (request Request) OverwriteBucketName(bucketName string) Request {
+	request.overwrittenBucketName = bucketName
+	return request
+}
+func (request Request) SetCredentials(credentials credentials.CredentialsProvider) Request {
+	request.credentials = credentials
+	return request
+}
 func (request Request) getBucketName(ctx context.Context) (string, error) {
+	if request.overwrittenBucketName != "" {
+		return request.overwrittenBucketName, nil
+	}
 	if bucketName, err := request.Path.getBucketName(); err != nil || bucketName != "" {
 		return bucketName, err
 	}
 	return "", nil
 }
 func (request Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.Credentials != nil {
-		if credentials, err := request.Credentials.Get(ctx); err != nil {
+	if request.credentials != nil {
+		if credentials, err := request.credentials.Get(ctx); err != nil {
 			return "", err
 		} else {
 			return credentials.AccessKey, nil
@@ -224,23 +264,8 @@ func (request Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
-
-// 获取 API 所用的响应
-type Response struct {
-	Body ResponseBody
-}
-
-// API 调用客户端
-type Client struct {
-	client *httpclient.HttpClient
-}
-
-// 创建 API 调用客户端
-func NewClient(options *httpclient.HttpClientOptions) *Client {
+func (request Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
-	return &Client{client: client}
-}
-func (client *Client) Send(ctx context.Context, request *Request) (*Response, error) {
 	serviceNames := []region.ServiceName{region.ServiceRs}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "stat")
@@ -254,15 +279,15 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: query.Encode(), AuthType: auth.TokenQiniu, Credentials: request.Credentials}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: query.Encode(), AuthType: auth.TokenQiniu, Credentials: request.credentials}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if client.GetRegions() == nil && client.GetEndpoints() == nil {
+		queryer = client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
-			if request.BucketHosts != nil {
-				if bucketHosts, err = request.BucketHosts.GetEndpoints(ctx); err != nil {
+			if request.overwrittenBucketHosts != nil {
+				if bucketHosts, err = request.overwrittenBucketHosts.GetEndpoints(ctx); err != nil {
 					return nil, err
 				}
 			}
@@ -285,8 +310,13 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 		}
 	}
 	var respBody ResponseBody
-	if _, err := client.client.AcceptJson(ctx, &req, &respBody); err != nil {
+	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &Response{Body: respBody}, nil
+}
+
+// 获取 API 所用的响应
+type Response struct {
+	Body ResponseBody
 }

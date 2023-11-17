@@ -15,10 +15,11 @@ import (
 )
 
 type innerNewFetchTaskParams struct {
-	Body             string  `json:"body,omitempty"`             // 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
+	Url              string  `json:"url,omitempty"`              // 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
 	Bucket           string  `json:"bucket,omitempty"`           // 所在区域的存储空间
 	Host             string  `json:"host,omitempty"`             // 从指定 URL 下载数据时使用的 Host
 	Key              string  `json:"key,omitempty"`              // 对象名称，如果不传，则默认为文件的哈希值
+	Md5              string  `json:"md5,omitempty"`              // 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
 	Etag             string  `json:"etag,omitempty"`             // 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
 	CallbackUrl      string  `json:"callbackurl,omitempty"`      // 回调 URL
 	CallbackBody     string  `json:"callbackbody,omitempty"`     // 回调负荷，如果 callback_url 不为空则必须指定
@@ -33,11 +34,11 @@ type NewFetchTaskParams struct {
 	inner innerNewFetchTaskParams
 }
 
-func (j *NewFetchTaskParams) GetBody() string {
-	return j.inner.Body
+func (j *NewFetchTaskParams) GetUrl() string {
+	return j.inner.Url
 }
-func (j *NewFetchTaskParams) SetBody(value string) *NewFetchTaskParams {
-	j.inner.Body = value
+func (j *NewFetchTaskParams) SetUrl(value string) *NewFetchTaskParams {
+	j.inner.Url = value
 	return j
 }
 func (j *NewFetchTaskParams) GetBucket() string {
@@ -59,6 +60,13 @@ func (j *NewFetchTaskParams) GetKey() string {
 }
 func (j *NewFetchTaskParams) SetKey(value string) *NewFetchTaskParams {
 	j.inner.Key = value
+	return j
+}
+func (j *NewFetchTaskParams) GetMd5() string {
+	return j.inner.Md5
+}
+func (j *NewFetchTaskParams) SetMd5(value string) *NewFetchTaskParams {
+	j.inner.Md5 = value
 	return j
 }
 func (j *NewFetchTaskParams) GetEtag() string {
@@ -119,8 +127,8 @@ func (j *NewFetchTaskParams) UnmarshalJSON(data []byte) error {
 
 //lint:ignore U1000 may not call it
 func (j *NewFetchTaskParams) validate() error {
-	if j.inner.Body == "" {
-		return errors.MissingRequiredFieldError{Name: "Body"}
+	if j.inner.Url == "" {
+		return errors.MissingRequiredFieldError{Name: "Url"}
 	}
 	if j.inner.Bucket == "" {
 		return errors.MissingRequiredFieldError{Name: "Bucket"}
@@ -177,17 +185,33 @@ type ResponseBody = NewFetchTaskInfo
 
 // 调用 API 所用的请求
 type Request struct {
-	BucketHosts region.EndpointsProvider
-	Credentials credentials.CredentialsProvider
-	Body        RequestBody
+	overwrittenBucketHosts region.EndpointsProvider
+	overwrittenBucketName  string
+	credentials            credentials.CredentialsProvider
+	Body                   RequestBody
 }
 
+func (request Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) Request {
+	request.overwrittenBucketHosts = bucketHosts
+	return request
+}
+func (request Request) OverwriteBucketName(bucketName string) Request {
+	request.overwrittenBucketName = bucketName
+	return request
+}
+func (request Request) SetCredentials(credentials credentials.CredentialsProvider) Request {
+	request.credentials = credentials
+	return request
+}
 func (request Request) getBucketName(ctx context.Context) (string, error) {
+	if request.overwrittenBucketName != "" {
+		return request.overwrittenBucketName, nil
+	}
 	return "", nil
 }
 func (request Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.Credentials != nil {
-		if credentials, err := request.Credentials.Get(ctx); err != nil {
+	if request.credentials != nil {
+		if credentials, err := request.credentials.Get(ctx); err != nil {
 			return "", err
 		} else {
 			return credentials.AccessKey, nil
@@ -195,23 +219,8 @@ func (request Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
-
-// 获取 API 所用的响应
-type Response struct {
-	Body ResponseBody
-}
-
-// API 调用客户端
-type Client struct {
-	client *httpclient.HttpClient
-}
-
-// 创建 API 调用客户端
-func NewClient(options *httpclient.HttpClientOptions) *Client {
+func (request Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
-	return &Client{client: client}
-}
-func (client *Client) Send(ctx context.Context, request *Request) (*Response, error) {
 	serviceNames := []region.ServiceName{region.ServiceApi}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "sisyphus", "fetch")
@@ -223,15 +232,15 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.Credentials, RequestBody: body}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.credentials, RequestBody: body}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if client.GetRegions() == nil && client.GetEndpoints() == nil {
+		queryer = client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
-			if request.BucketHosts != nil {
-				if bucketHosts, err = request.BucketHosts.GetEndpoints(ctx); err != nil {
+			if request.overwrittenBucketHosts != nil {
+				if bucketHosts, err = request.overwrittenBucketHosts.GetEndpoints(ctx); err != nil {
 					return nil, err
 				}
 			}
@@ -254,8 +263,13 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 		}
 	}
 	var respBody ResponseBody
-	if _, err := client.client.AcceptJson(ctx, &req, &respBody); err != nil {
+	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &Response{Body: respBody}, nil
+}
+
+// 获取 API 所用的响应
+type Response struct {
+	Body ResponseBody
 }

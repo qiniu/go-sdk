@@ -55,20 +55,19 @@ const (
 )
 
 func (s ServiceName) ToServiceName() (*jen.Statement, error) {
-	const PKG_NAME = "github.com/qiniu/go-sdk/v7/storagev2/region"
 	switch s {
 	case ServiceNameUp:
-		return jen.Qual(PKG_NAME, "ServiceUp"), nil
+		return jen.Qual(PackageNameRegion, "ServiceUp"), nil
 	case ServiceNameIo:
-		return jen.Qual(PKG_NAME, "ServiceIo"), nil
+		return jen.Qual(PackageNameRegion, "ServiceIo"), nil
 	case ServiceNameRs:
-		return jen.Qual(PKG_NAME, "ServiceRs"), nil
+		return jen.Qual(PackageNameRegion, "ServiceRs"), nil
 	case ServiceNameRsf:
-		return jen.Qual(PKG_NAME, "ServiceRsf"), nil
+		return jen.Qual(PackageNameRegion, "ServiceRsf"), nil
 	case ServiceNameApi:
-		return jen.Qual(PKG_NAME, "ServiceApi"), nil
+		return jen.Qual(PackageNameRegion, "ServiceApi"), nil
 	case ServiceNameBucket:
-		return jen.Qual(PKG_NAME, "ServiceBucket"), nil
+		return jen.Qual(PackageNameRegion, "ServiceBucket"), nil
 	default:
 		return nil, errors.New("unknown type")
 	}
@@ -177,9 +176,9 @@ func (t *MultipartFormDataType) AddTypeToStatement(statement *jen.Statement) (*j
 	case MultipartFormDataTypeInteger:
 		return statement.Clone().Int64(), nil
 	case MultipartFormDataTypeUploadToken:
-		return statement.Clone().Qual("github.com/qiniu/go-sdk/v7/storagev2/uptoken", "Provider"), nil
+		return statement.Clone().Qual(PackageNameUpToken, "Provider"), nil
 	case MultipartFormDataTypeBinaryData:
-		return statement.Clone().Qual("github.com/qiniu/go-sdk/v7/internal/io", "ReadSeekCloser"), nil
+		return statement.Clone().Qual(PackageNameInternalIo, "ReadSeekCloser"), nil
 	default:
 		return nil, errors.New("unknown type")
 	}

@@ -50,20 +50,36 @@ func (form *RequestBody) build() (url.Values, error) {
 
 // 调用 API 所用的请求
 type Request struct {
-	BucketHosts region.EndpointsProvider
-	Credentials credentials.CredentialsProvider
-	Body        RequestBody
+	overwrittenBucketHosts region.EndpointsProvider
+	overwrittenBucketName  string
+	credentials            credentials.CredentialsProvider
+	Body                   RequestBody
 }
 
+func (request Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) Request {
+	request.overwrittenBucketHosts = bucketHosts
+	return request
+}
+func (request Request) OverwriteBucketName(bucketName string) Request {
+	request.overwrittenBucketName = bucketName
+	return request
+}
+func (request Request) SetCredentials(credentials credentials.CredentialsProvider) Request {
+	request.credentials = credentials
+	return request
+}
 func (request Request) getBucketName(ctx context.Context) (string, error) {
+	if request.overwrittenBucketName != "" {
+		return request.overwrittenBucketName, nil
+	}
 	if bucketName, err := request.Body.getBucketName(); err != nil || bucketName != "" {
 		return bucketName, err
 	}
 	return "", nil
 }
 func (request Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.Credentials != nil {
-		if credentials, err := request.Credentials.Get(ctx); err != nil {
+	if request.credentials != nil {
+		if credentials, err := request.credentials.Get(ctx); err != nil {
 			return "", err
 		} else {
 			return credentials.AccessKey, nil
@@ -71,21 +87,8 @@ func (request Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
-
-// 获取 API 所用的响应
-type Response struct{}
-
-// API 调用客户端
-type Client struct {
-	client *httpclient.HttpClient
-}
-
-// 创建 API 调用客户端
-func NewClient(options *httpclient.HttpClientOptions) *Client {
+func (request Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
-	return &Client{client: client}
-}
-func (client *Client) Send(ctx context.Context, request *Request) (*Response, error) {
 	serviceNames := []region.ServiceName{region.ServiceBucket}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "private")
@@ -94,14 +97,14 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.Credentials, RequestBody: httpclient.GetFormRequestBody(body)}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.credentials, RequestBody: httpclient.GetFormRequestBody(body)}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if client.GetRegions() == nil && client.GetEndpoints() == nil {
+		queryer = client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
-			if request.BucketHosts != nil {
-				req.Endpoints = request.BucketHosts
+			if request.overwrittenBucketHosts != nil {
+				req.Endpoints = request.overwrittenBucketHosts
 			} else {
 				req.Endpoints = bucketHosts
 			}
@@ -120,10 +123,13 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 			req.Region = queryer.Query(accessKey, bucketName)
 		}
 	}
-	resp, err := client.client.Do(ctx, &req)
+	resp, err := client.Do(ctx, &req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 	return &Response{}, nil
 }
+
+// 获取 API 所用的响应
+type Response struct{}

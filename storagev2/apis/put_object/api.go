@@ -99,11 +99,23 @@ type ResponseBody = interface{}
 
 // 调用 API 所用的请求
 type Request struct {
-	BucketHosts region.EndpointsProvider
-	Body        RequestBody
+	overwrittenBucketHosts region.EndpointsProvider
+	overwrittenBucketName  string
+	Body                   RequestBody
 }
 
+func (request Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) Request {
+	request.overwrittenBucketHosts = bucketHosts
+	return request
+}
+func (request Request) OverwriteBucketName(bucketName string) Request {
+	request.overwrittenBucketName = bucketName
+	return request
+}
 func (request Request) getBucketName(ctx context.Context) (string, error) {
+	if request.overwrittenBucketName != "" {
+		return request.overwrittenBucketName, nil
+	}
 	if bucketName, err := request.Body.getBucketName(ctx); err != nil || bucketName != "" {
 		return bucketName, err
 	}
@@ -119,23 +131,8 @@ func (request Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
-
-// 获取 API 所用的响应
-type Response struct {
-	Body ResponseBody
-}
-
-// API 调用客户端
-type Client struct {
-	client *httpclient.HttpClient
-}
-
-// 创建 API 调用客户端
-func NewClient(options *httpclient.HttpClientOptions) *Client {
+func (request Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
-	return &Client{client: client}
-}
-func (client *Client) Send(ctx context.Context, request *Request) (*Response, error) {
 	serviceNames := []region.ServiceName{region.ServiceUp}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "")
@@ -146,13 +143,13 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 	}
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RequestBody: httpclient.GetMultipartFormRequestBody(body)}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if client.GetRegions() == nil && client.GetEndpoints() == nil {
+		queryer = client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
-			if request.BucketHosts != nil {
-				if bucketHosts, err = request.BucketHosts.GetEndpoints(ctx); err != nil {
+			if request.overwrittenBucketHosts != nil {
+				if bucketHosts, err = request.overwrittenBucketHosts.GetEndpoints(ctx); err != nil {
 					return nil, err
 				}
 			}
@@ -175,8 +172,13 @@ func (client *Client) Send(ctx context.Context, request *Request) (*Response, er
 		}
 	}
 	var respBody ResponseBody
-	if _, err := client.client.AcceptJson(ctx, &req, &respBody); err != nil {
+	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &Response{Body: respBody}, nil
+}
+
+// 获取 API 所用的响应
+type Response struct {
+	Body ResponseBody
 }
