@@ -68,18 +68,10 @@ func (path *RequestPath) build() ([]string, error) {
 	} else {
 		return nil, errors.MissingRequiredFieldError{Name: "Entry"}
 	}
-	if path.fieldToIaAfterDays != 0 {
-		allSegments = append(allSegments, "toIAAfterDays", strconv.FormatInt(path.fieldToIaAfterDays, 10))
-	}
-	if path.fieldToArchiveAfterDays != 0 {
-		allSegments = append(allSegments, "toArchiveAfterDays", strconv.FormatInt(path.fieldToArchiveAfterDays, 10))
-	}
-	if path.fieldToDeepArchiveAfterDays != 0 {
-		allSegments = append(allSegments, "toDeepArchiveAfterDays", strconv.FormatInt(path.fieldToDeepArchiveAfterDays, 10))
-	}
-	if path.fieldDeleteAfterDays != 0 {
-		allSegments = append(allSegments, "deleteAfterDays", strconv.FormatInt(path.fieldDeleteAfterDays, 10))
-	}
+	allSegments = append(allSegments, "toIAAfterDays", strconv.FormatInt(path.fieldToIaAfterDays, 10))
+	allSegments = append(allSegments, "toArchiveAfterDays", strconv.FormatInt(path.fieldToArchiveAfterDays, 10))
+	allSegments = append(allSegments, "toDeepArchiveAfterDays", strconv.FormatInt(path.fieldToDeepArchiveAfterDays, 10))
+	allSegments = append(allSegments, "deleteAfterDays", strconv.FormatInt(path.fieldDeleteAfterDays, 10))
 	return allSegments, nil
 }
 

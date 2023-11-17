@@ -18,6 +18,7 @@ type (
 		Documentation string             `yaml:"documentation,omitempty"`
 		Type          *StringLikeType    `yaml:"type,omitempty"`
 		Multiple      bool               `yaml:"multiple,omitempty"`
+		Optional      bool               `yaml:"optional,omitempty"`
 		ServiceBucket *ServiceBucketType `yaml:"service_bucket,omitempty"`
 	}
 )
@@ -166,12 +167,15 @@ func (form *FormUrlencodedRequestStruct) generateSetCall(field FormUrlencodedReq
 		if v, ok := zeroValue.(bool); !ok || v {
 			condition = condition.Op("!=").Lit(zeroValue)
 		}
-		code = jen.If(condition).BlockFunc(func(group *jen.Group) {
-			group.Add(jen.Id("formValues").Dot("Set").Call(jen.Lit(field.Key), valueConvertCode))
-		})
-
+		if field.Optional || field.Type.IsNumeric() {
+			return jen.Id("formValues").Dot("Set").Call(jen.Lit(field.Key), valueConvertCode), nil
+		} else {
+			code = jen.If(condition).BlockFunc(func(group *jen.Group) {
+				group.Add(jen.Id("formValues").Dot("Set").Call(jen.Lit(field.Key), valueConvertCode))
+			})
+		}
 	}
-	if !field.Type.IsNumeric() {
+	if !field.Optional {
 		code = code.Else().BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Return(
 				jen.Nil(),

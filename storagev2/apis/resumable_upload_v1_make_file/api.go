@@ -58,9 +58,7 @@ func (path *RequestPath) Append(key string, value string) *RequestPath {
 }
 func (path *RequestPath) build() ([]string, error) {
 	var allSegments []string
-	if path.fieldSize != 0 {
-		allSegments = append(allSegments, strconv.FormatInt(path.fieldSize, 10))
-	}
+	allSegments = append(allSegments, strconv.FormatInt(path.fieldSize, 10))
 	if path.fieldObjectName != "" {
 		allSegments = append(allSegments, "key", base64.URLEncoding.EncodeToString([]byte(path.fieldObjectName)))
 	} else {

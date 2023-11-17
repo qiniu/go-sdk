@@ -41,9 +41,7 @@ func (path *RequestPath) build() ([]string, error) {
 	} else {
 		return nil, errors.MissingRequiredFieldError{Name: "Ctx"}
 	}
-	if path.fieldChunkOffset != 0 {
-		allSegments = append(allSegments, strconv.FormatInt(path.fieldChunkOffset, 10))
-	}
+	allSegments = append(allSegments, strconv.FormatInt(path.fieldChunkOffset, 10))
 	return allSegments, nil
 }
 

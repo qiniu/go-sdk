@@ -28,9 +28,7 @@ func (pp *RequestPath) SetBlockSize(value int64) *RequestPath {
 }
 func (path *RequestPath) build() ([]string, error) {
 	var allSegments []string
-	if path.fieldBlockSize != 0 {
-		allSegments = append(allSegments, strconv.FormatInt(path.fieldBlockSize, 10))
-	}
+	allSegments = append(allSegments, strconv.FormatInt(path.fieldBlockSize, 10))
 	return allSegments, nil
 }
 

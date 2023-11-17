@@ -44,9 +44,7 @@ func (form *RequestBody) build() (url.Values, error) {
 	} else {
 		return nil, errors.MissingRequiredFieldError{Name: "Bucket"}
 	}
-	if form.fieldIsPrivate != 0 {
-		formValues.Set("private", strconv.FormatInt(form.fieldIsPrivate, 10))
-	}
+	formValues.Set("private", strconv.FormatInt(form.fieldIsPrivate, 10))
 	return formValues, nil
 }
 
