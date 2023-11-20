@@ -8,6 +8,7 @@ import (
 )
 
 type (
+	MethodName            string
 	ServiceName           string
 	StringLikeType        string
 	MultipartFormDataType string
@@ -18,6 +19,11 @@ type (
 )
 
 const (
+	MethodNameGET    MethodName = "GET"
+	MethodNamePOST   MethodName = "POST"
+	MethodNamePUT    MethodName = "PUT"
+	MethodNameDELETE MethodName = "DELETE"
+
 	ServiceNameUp     ServiceName = "up"
 	ServiceNameIo     ServiceName = "io"
 	ServiceNameRs     ServiceName = "rs"
@@ -53,6 +59,23 @@ const (
 	ServiceBucketTypeEntry       = "entry"
 	ServiceBucketTypeUploadToken = "upload_token"
 )
+
+func (s MethodName) ToString() (string, error) {
+	switch s {
+	case MethodNameGET, MethodNamePOST, MethodNamePUT, MethodNameDELETE:
+		return string(s), nil
+	case "get":
+		return string(MethodNameGET), nil
+	case "post":
+		return string(MethodNamePOST), nil
+	case "put":
+		return string(MethodNamePUT), nil
+	case "delete":
+		return string(MethodNameDELETE), nil
+	default:
+		return "", errors.New("unknown method")
+	}
+}
 
 func (s ServiceName) ToServiceName() (*jen.Statement, error) {
 	switch s {

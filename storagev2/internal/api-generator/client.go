@@ -8,7 +8,7 @@ import (
 
 type (
 	ApiDetailedDescription struct {
-		Method        string                 `yaml:"method,omitempty"`
+		Method        MethodName             `yaml:"method,omitempty"`
 		ServiceNames  []ServiceName          `yaml:"service_names,omitempty"`
 		Documentation string                 `yaml:"documentation,omitempty"`
 		BasePath      string                 `yaml:"base_path,omitempty"`
