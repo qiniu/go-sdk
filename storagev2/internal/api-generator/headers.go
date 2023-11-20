@@ -7,9 +7,10 @@ import (
 
 type (
 	HeaderName struct {
-		FieldName     string `yaml:"field_name,omitempty"`
-		HeaderName    string `yaml:"header_name,omitempty"`
-		Documentation string `yaml:"documentation,omitempty"`
+		FieldName     string        `yaml:"field_name,omitempty"`
+		HeaderName    string        `yaml:"header_name,omitempty"`
+		Documentation string        `yaml:"documentation,omitempty"`
+		Optional      *OptionalType `yaml:"optional,omitempty"`
 	}
 	HeaderNames []HeaderName
 )
@@ -43,20 +44,48 @@ func (names HeaderNames) Generate(group *jen.Group, options CodeGeneratorOptions
 			Params(jen.Id("headers").Op("*").Id(options.Name)).
 			Id("build").
 			Params().
-			Params(jen.Qual("net/http", "Header")).
+			Params(jen.Qual("net/http", "Header"), jen.Error()).
 			BlockFunc(func(group *jen.Group) {
 				group.Add(
 					jen.Id("allHeaders").Op(":=").Make(jen.Qual("net/http", "Header")),
 				)
 				for _, headerName := range names {
 					fieldName := "field" + strcase.ToCamel(headerName.FieldName)
-					group.Add(
-						jen.If(jen.Id("headers").Dot(fieldName).Op("!=").Lit("")).BlockFunc(func(group *jen.Group) {
-							group.Add(jen.Id("allHeaders").Dot("Set").Call(jen.Lit(headerName.HeaderName), jen.Id("headers").Dot(fieldName)))
-						}),
-					)
+					cond := jen.Id("headers").Dot(fieldName).Op("!=").Lit("")
+					setHeaderFunc := func(headerName, fieldName string) func(*jen.Group) {
+						return func(group *jen.Group) {
+							group.Add(jen.Id("allHeaders").Dot("Set").Call(jen.Lit(headerName), jen.Id("headers").Dot(fieldName)))
+						}
+					}
+					appendMissingRequiredFieldErrorFunc := func(fieldName string) func(group *jen.Group) {
+						return func(group *jen.Group) {
+							group.Add(jen.Return(
+								jen.Nil(),
+								jen.Qual(PackageNameErrors, "MissingRequiredFieldError").
+									ValuesFunc(func(group *jen.Group) {
+										group.Add(jen.Id("Name").Op(":").Lit(fieldName))
+									}),
+							))
+						}
+					}
+					switch headerName.Optional.ToOptionalType() {
+					case OptionalTypeRequired:
+						group.Add(
+							jen.If(cond).
+								BlockFunc(setHeaderFunc(headerName.HeaderName, fieldName)).
+								Else().
+								BlockFunc(appendMissingRequiredFieldErrorFunc(fieldName)),
+						)
+					case OptionalTypeOmitEmpty:
+						group.Add(
+							jen.If(cond).
+								BlockFunc(setHeaderFunc(headerName.HeaderName, fieldName)),
+						)
+					case OptionalTypeKeepEmpty:
+						setHeaderFunc(headerName.HeaderName, fieldName)(group)
+					}
 				}
-				group.Add(jen.Return(jen.Id("allHeaders")))
+				group.Add(jen.Return(jen.Id("allHeaders"), jen.Nil()))
 			}),
 	)
 

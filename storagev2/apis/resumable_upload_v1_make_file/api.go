@@ -58,21 +58,19 @@ func (path *RequestPath) Append(key string, value string) *RequestPath {
 }
 func (path *RequestPath) build() ([]string, error) {
 	var allSegments []string
-	allSegments = append(allSegments, strconv.FormatInt(path.fieldSize, 10))
+	if path.fieldSize != 0 {
+		allSegments = append(allSegments, strconv.FormatInt(path.fieldSize, 10))
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "Size"}
+	}
 	if path.fieldObjectName != "" {
 		allSegments = append(allSegments, "key", base64.URLEncoding.EncodeToString([]byte(path.fieldObjectName)))
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "ObjectName"}
 	}
 	if path.fieldFileName != "" {
 		allSegments = append(allSegments, "fname", base64.URLEncoding.EncodeToString([]byte(path.fieldFileName)))
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "FileName"}
 	}
 	if path.fieldMimeType != "" {
 		allSegments = append(allSegments, "mimeType", base64.URLEncoding.EncodeToString([]byte(path.fieldMimeType)))
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "MimeType"}
 	}
 	allSegments = append(allSegments, path.extendedSegments...)
 	return allSegments, nil

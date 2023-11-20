@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/dave/jennifer/jen"
@@ -14,7 +15,7 @@ type (
 		Documentation string             `yaml:"documentation,omitempty"`
 		QueryType     *StringLikeType    `yaml:"query_type,omitempty"`
 		ServiceBucket *ServiceBucketType `yaml:"service_bucket,omitempty"`
-		Optional      bool               `yaml:"optional,omitempty"`
+		Optional      *OptionalType      `yaml:"optional,omitempty"`
 	}
 	QueryNames []QueryName
 )
@@ -158,19 +159,22 @@ func (names QueryNames) generateSetCall(queryName QueryName, options CodeGenerat
 			))
 		}
 	}
-	if queryName.Optional {
-		return jen.If(condition).
-				BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)),
-			nil
-	} else if queryName.QueryType.IsNumeric() {
-		return jen.BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)),
-			nil
-	} else {
+	switch queryName.Optional.ToOptionalType() {
+	case OptionalTypeRequired:
 		return jen.If(condition).
 				BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)).
 				Else().
 				BlockFunc(appendMissingRequiredFieldErrorFunc(fieldName)),
 			nil
+	case OptionalTypeOmitEmpty:
+		return jen.If(condition).
+				BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)),
+			nil
+	case OptionalTypeKeepEmpty:
+		return jen.BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)),
+			nil
+	default:
+		return nil, errors.New("unknown OptionalType")
 	}
 }
 

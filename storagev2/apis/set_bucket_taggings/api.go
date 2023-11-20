@@ -34,13 +34,15 @@ func (query *RequestQuery) build() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.fieldBucket != "" {
 		allQuery.Set("bucket", query.fieldBucket)
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "Bucket"}
 	}
 	return allQuery, nil
 }
 
 type innerTagInfo struct {
-	Key   string `json:"Key,omitempty"`   // 标签名称，最大 64 Byte，不能为空且大小写敏感，不能以 kodo 为前缀(预留), 不支持中文字符，可使用的字符有：字母，数字，空格，+ - = . _ : / @
-	Value string `json:"Value,omitempty"` // 标签值，最大 128 Byte，不能为空且大小写敏感，不支持中文字符，可使用的字符有：字母，数字，空格，+ - = . _ : / @
+	Key   string `json:"Key"`   // 标签名称，最大 64 Byte，不能为空且大小写敏感，不能以 kodo 为前缀(预留), 不支持中文字符，可使用的字符有：字母，数字，空格，+ - = . _ : / @
+	Value string `json:"Value"` // 标签值，最大 128 Byte，不能为空且大小写敏感，不支持中文字符，可使用的字符有：字母，数字，空格，+ - = . _ : / @
 }
 
 // 标签键值对
@@ -83,7 +85,7 @@ func (j *TagInfo) validate() error {
 // 标签列表
 type Tags = []TagInfo
 type innerTagsInfo struct {
-	Tags Tags `json:"Tags,omitempty"` // 标签列表
+	Tags Tags `json:"Tags"` // 标签列表
 }
 
 // 存储空间标签信息

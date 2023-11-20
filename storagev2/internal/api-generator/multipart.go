@@ -19,7 +19,7 @@ type (
 		Type          *MultipartFormDataType `yaml:"type,omitempty"`
 		Documentation string                 `yaml:"documentation,omitempty"`
 		ServiceBucket *ServiceBucketType     `yaml:"service_bucket,omitempty"`
-		Optional      bool                   `yaml:"optional,omitempty"`
+		Optional      *OptionalType          `yaml:"optional,omitempty"`
 	}
 
 	FreeMultipartFormFields struct {
@@ -151,7 +151,7 @@ func (mff *MultipartFormFields) Generate(group *jen.Group, options CodeGenerator
 							))
 						}
 					})
-					if !named.Optional && !named.Type.IsNumeric() {
+					if named.Optional.ToOptionalType() == OptionalTypeRequired {
 						code = code.Else().BlockFunc(func(group *jen.Group) {
 							group.Add(jen.Return(
 								jen.Nil(),

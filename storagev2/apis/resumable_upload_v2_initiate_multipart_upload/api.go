@@ -49,8 +49,8 @@ func (path *RequestPath) build() ([]string, error) {
 }
 
 type innerNewMultipartUpload struct {
-	UploadId  string `json:"uploadId,omitempty"` // 初始化文件生成的 id
-	ExpiredAt int64  `json:"expireAt,omitempty"` // UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
+	UploadId  string `json:"uploadId"` // 初始化文件生成的 id
+	ExpiredAt int64  `json:"expireAt"` // UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
 }
 
 // 返回本次 MultipartUpload 相关信息

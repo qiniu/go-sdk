@@ -332,6 +332,18 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 							}
 						}),
 				)
+				if description.Request.HeaderNames != nil {
+					group.Add(
+						jen.List(jen.Id("headers"), jen.Err()).Op(":=").Id("request").Dot("Headers").Dot("build").Call(),
+					)
+					group.Add(
+						jen.If(
+							jen.Err().Op("!=").Nil(),
+						).BlockFunc(func(group *jen.Group) {
+							group.Add(jen.Return(jen.Nil(), jen.Err()))
+						}),
+					)
+				}
 				group.Add(jen.Var().Id("pathSegments").Index().String())
 				if description.BasePath != "" {
 					group.Add(jen.Id("pathSegments").Op("=").AppendFunc(func(group *jen.Group) {
@@ -457,7 +469,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 								group.Add(jen.Id("RawQuery").Op(":").Id("query").Dot("Encode").Call())
 							}
 							if description.Request.HeaderNames != nil {
-								group.Add(jen.Id("Header").Op(":").Id("request").Dot("Headers").Dot("build").Call())
+								group.Add(jen.Id("Header").Op(":").Id("headers"))
 							}
 							switch description.Request.Authorization.ToAuthorization() {
 							case AuthorizationQbox:

@@ -36,8 +36,8 @@ func (query *RequestQuery) build() (url.Values, error) {
 }
 
 type innerFetchTaskInfo struct {
-	Id               string `json:"id,omitempty"`   // 异步任务 ID
-	QueuedTasksCount int64  `json:"wait,omitempty"` // 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
+	Id               string `json:"id"`   // 异步任务 ID
+	QueuedTasksCount int64  `json:"wait"` // 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 }
 
 // 返回的异步任务信息
