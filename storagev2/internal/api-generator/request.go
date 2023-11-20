@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/dave/jennifer/jen"
 	"github.com/iancoleman/strcase"
@@ -442,12 +441,16 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 						)
 					}
 				}
+				method, err := description.Method.ToString()
+				if err != nil {
+					return
+				}
 				group.Add(
 					jen.Id("req").
 						Op(":=").
 						Qual(PackageNameHttpClient, "Request").
 						ValuesFunc(func(group *jen.Group) {
-							group.Add(jen.Id("Method").Op(":").Lit(strings.ToUpper(description.Method)))
+							group.Add(jen.Id("Method").Op(":").Lit(method))
 							group.Add(jen.Id("ServiceNames").Op(":").Id("serviceNames"))
 							group.Add(jen.Id("Path").Op(":").Id("path"))
 							if description.Request.QueryNames != nil {
