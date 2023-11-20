@@ -38,7 +38,7 @@ type (
 		Key           string             `yaml:"key,omitempty"`
 		FieldName     string             `yaml:"field_name,omitempty"`
 		Documentation string             `yaml:"documentation,omitempty"`
-		Optional      bool               `yaml:"optional,omitempty"`
+		Optional      *OptionalType      `yaml:"optional,omitempty"`
 		ServiceBucket *ServiceBucketType `yaml:"service_bucket,omitempty"`
 	}
 )
@@ -156,7 +156,11 @@ func (jsonStruct *JsonStruct) Generate(group *jen.Group, options CodeGeneratorOp
 	group.Add(
 		jen.Type().Id("inner" + opts[0].Name).StructFunc(func(group *jen.Group) {
 			for _, field := range jsonStruct.Fields {
-				tag := map[string]string{"json": field.Key + ",omitempty"}
+				jsonTag := field.Key
+				if field.Optional.ToOptionalType() == OptionalTypeOmitEmpty {
+					jsonTag += ",omitempty"
+				}
+				tag := map[string]string{"json": jsonTag}
 				code, e := field.Type.AddTypeToStatement(jen.Id(strcase.ToCamel(field.FieldName)))
 				if e != nil {
 					err = e
@@ -243,7 +247,7 @@ func (jsonStruct *JsonStruct) generateValidateFunc(options CodeGeneratorOptions)
 		Params(jen.Error()).
 		BlockFunc(func(group *jen.Group) {
 			for _, field := range jsonStruct.Fields {
-				if !field.Optional {
+				if field.Optional.ToOptionalType() == OptionalTypeRequired {
 					var cond *jen.Statement
 					fieldName := strcase.ToCamel(field.FieldName)
 					if field.Type.String || field.Type.Integer || field.Type.Float {

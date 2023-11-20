@@ -15,8 +15,8 @@ import (
 )
 
 type innerNewFetchTaskParams struct {
-	Url              string  `json:"url,omitempty"`              // 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
-	Bucket           string  `json:"bucket,omitempty"`           // 所在区域的存储空间
+	Url              string  `json:"url"`                        // 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
+	Bucket           string  `json:"bucket"`                     // 所在区域的存储空间
 	Host             string  `json:"host,omitempty"`             // 从指定 URL 下载数据时使用的 Host
 	Key              string  `json:"key,omitempty"`              // 对象名称，如果不传，则默认为文件的哈希值
 	Md5              string  `json:"md5,omitempty"`              // 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
@@ -25,7 +25,7 @@ type innerNewFetchTaskParams struct {
 	CallbackBody     string  `json:"callbackbody,omitempty"`     // 回调负荷，如果 callback_url 不为空则必须指定
 	CallbackBodyType string  `json:"callbackbodytype,omitempty"` // 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
 	CallbackHost     string  `json:"callbackhost,omitempty"`     // 回调时使用的 Host
-	FileType         int64   `json:"file_type,omitempty"`        // 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
+	FileType         int64   `json:"file_type"`                  // 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
 	IgnoreSameKey    float64 `json:"ignore_same_key,omitempty"`  // 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
 }
 
@@ -139,8 +139,8 @@ func (j *NewFetchTaskParams) validate() error {
 // 调用 API 所用的请求体
 type RequestBody = NewFetchTaskParams
 type innerNewFetchTaskInfo struct {
-	Id               string `json:"id,omitempty"`   // 异步任务 ID
-	QueuedTasksCount int64  `json:"wait,omitempty"` // 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
+	Id               string `json:"id"`   // 异步任务 ID
+	QueuedTasksCount int64  `json:"wait"` // 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 }
 
 // 返回的异步任务信息

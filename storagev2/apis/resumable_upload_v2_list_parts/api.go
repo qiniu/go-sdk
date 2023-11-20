@@ -95,10 +95,10 @@ func (query *RequestQuery) build() (url.Values, error) {
 }
 
 type innerListedPartInfo struct {
-	Size       int64  `json:"size,omitempty"`       // 分片大小
-	Etag       string `json:"etag,omitempty"`       // 分片内容的 etag
-	PartNumber int64  `json:"partNumber,omitempty"` // 每一个上传的分片都有一个标识它的号码
-	PutTime    int64  `json:"put_time,omitempty"`   // 分片上传时间 UNIX 时间戳
+	Size       int64  `json:"size"`       // 分片大小
+	Etag       string `json:"etag"`       // 分片内容的 etag
+	PartNumber int64  `json:"partNumber"` // 每一个上传的分片都有一个标识它的号码
+	PutTime    int64  `json:"putTime"`    // 分片上传时间 UNIX 时间戳
 }
 
 // 单个已经上传的分片信息
@@ -164,10 +164,10 @@ type ListedParts = []ListedPartInfo
 // 返回所有已经上传成功的分片信息
 type Parts = ListedParts
 type innerListedPartsResponse struct {
-	UploadId         string      `json:"uploadId,omitempty"`         // 在服务端申请的 Multipart Upload 任务 id
-	ExpiredAt        int64       `json:"expireAt,omitempty"`         // UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
-	PartNumberMarker int64       `json:"partNumberMarker,omitempty"` // 下次继续列举的起始位置，0 表示列举结束，没有更多分片
-	Parts            ListedParts `json:"parts,omitempty"`            // 返回所有已经上传成功的分片信息
+	UploadId         string      `json:"uploadId"`         // 在服务端申请的 Multipart Upload 任务 id
+	ExpiredAt        int64       `json:"expireAt"`         // UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
+	PartNumberMarker int64       `json:"partNumberMarker"` // 下次继续列举的起始位置，0 表示列举结束，没有更多分片
+	Parts            ListedParts `json:"parts"`            // 返回所有已经上传成功的分片信息
 }
 
 // 返回所有已经上传成功的分片信息

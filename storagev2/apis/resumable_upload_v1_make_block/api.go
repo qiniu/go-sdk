@@ -28,17 +28,21 @@ func (pp *RequestPath) SetBlockSize(value int64) *RequestPath {
 }
 func (path *RequestPath) build() ([]string, error) {
 	var allSegments []string
-	allSegments = append(allSegments, strconv.FormatInt(path.fieldBlockSize, 10))
+	if path.fieldBlockSize != 0 {
+		allSegments = append(allSegments, strconv.FormatInt(path.fieldBlockSize, 10))
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "BlockSize"}
+	}
 	return allSegments, nil
 }
 
 type innerNewBlockInfo struct {
-	Ctx       string `json:"ctx,omitempty"`        // 本次上传成功后的块级上传控制信息，用于后续上传片（bput）及创建文件（mkfile）
-	Checksum  string `json:"checksum,omitempty"`   // 上传块 SHA1 值，使用 URL 安全的 Base64 编码
-	Crc32     int64  `json:"crc32,omitempty"`      // 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
-	Offset    int64  `json:"offset,omitempty"`     // 下一个上传块在切割块中的偏移
-	Host      string `json:"host,omitempty"`       // 后续上传接收地址
-	ExpiredAt int64  `json:"expired_at,omitempty"` // `ctx` 过期时间
+	Ctx       string `json:"ctx"`        // 本次上传成功后的块级上传控制信息，用于后续上传片（bput）及创建文件（mkfile）
+	Checksum  string `json:"checksum"`   // 上传块 SHA1 值，使用 URL 安全的 Base64 编码
+	Crc32     int64  `json:"crc32"`      // 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
+	Offset    int64  `json:"offset"`     // 下一个上传块在切割块中的偏移
+	Host      string `json:"host"`       // 后续上传接收地址
+	ExpiredAt int64  `json:"expired_at"` // `ctx` 过期时间
 }
 
 // 返回下一片数据的上传信息

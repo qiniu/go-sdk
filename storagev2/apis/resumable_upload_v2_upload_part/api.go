@@ -69,7 +69,11 @@ func (path *RequestPath) build() ([]string, error) {
 	} else {
 		return nil, errors.MissingRequiredFieldError{Name: "UploadId"}
 	}
-	allSegments = append(allSegments, strconv.FormatInt(path.fieldPartNumber, 10))
+	if path.fieldPartNumber != 0 {
+		allSegments = append(allSegments, strconv.FormatInt(path.fieldPartNumber, 10))
+	} else {
+		return nil, errors.MissingRequiredFieldError{Name: "PartNumber"}
+	}
 	return allSegments, nil
 }
 
@@ -85,17 +89,17 @@ func (header *RequestHeaders) SetMd5(value string) *RequestHeaders {
 	header.fieldMd5 = value
 	return header
 }
-func (headers *RequestHeaders) build() http.Header {
+func (headers *RequestHeaders) build() (http.Header, error) {
 	allHeaders := make(http.Header)
 	if headers.fieldMd5 != "" {
 		allHeaders.Set("Content-MD5", headers.fieldMd5)
 	}
-	return allHeaders
+	return allHeaders, nil
 }
 
 type innerNewPartInfo struct {
-	Etag string `json:"etag,omitempty"` // 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
-	Md5  string `json:"md5,omitempty"`  // 上传块内容的 MD5 值
+	Etag string `json:"etag"` // 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
+	Md5  string `json:"md5"`  // 上传块内容的 MD5 值
 }
 
 // 返回本次上传的分片相关信息
@@ -182,6 +186,10 @@ func (request Request) getAccessKey(ctx context.Context) (string, error) {
 func (request Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceUp}
+	headers, err := request.Headers.build()
+	if err != nil {
+		return nil, err
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "buckets")
 	if segments, err := request.Path.build(); err != nil {
@@ -190,7 +198,7 @@ func (request Request) Send(ctx context.Context, options *httpclient.HttpClientO
 		pathSegments = append(pathSegments, segments...)
 	}
 	path := "/" + strings.Join(pathSegments, "/")
-	req := httpclient.Request{Method: "PUT", ServiceNames: serviceNames, Path: path, Header: request.Headers.build(), UpToken: request.upToken, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(request.Body)}
+	req := httpclient.Request{Method: "PUT", ServiceNames: serviceNames, Path: path, Header: headers, UpToken: request.upToken, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(request.Body)}
 	var queryer region.BucketRegionsQueryer
 	if client.GetRegions() == nil && client.GetEndpoints() == nil {
 		queryer = client.GetBucketQueryer()

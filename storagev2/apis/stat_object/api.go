@@ -67,11 +67,11 @@ type PartSizes = []int64
 // 每个分片的大小，如没有指定 need_parts 参数则不返回
 type Parts = PartSizes
 type innerObjectMetadata struct {
-	Size                        int64             `json:"fsize,omitempty"`                   // 对象大小，单位为字节
-	Hash                        string            `json:"hash,omitempty"`                    // 对象哈希值
-	MimeType                    string            `json:"mimeType,omitempty"`                // 对象 MIME 类型
-	Type                        int64             `json:"type,omitempty"`                    // 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
-	PutTime                     int64             `json:"putTime,omitempty"`                 // 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
+	Size                        int64             `json:"fsize"`                             // 对象大小，单位为字节
+	Hash                        string            `json:"hash"`                              // 对象哈希值
+	MimeType                    string            `json:"mimeType"`                          // 对象 MIME 类型
+	Type                        int64             `json:"type"`                              // 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
+	PutTime                     int64             `json:"putTime"`                           // 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
 	EndUser                     string            `json:"endUser,omitempty"`                 // 资源内容的唯一属主标识
 	RestoringStatus             int64             `json:"restoreStatus,omitempty"`           // 归档存储文件的解冻状态，`2` 表示解冻完成，`1` 表示解冻中；归档文件冻结时，不返回该字段
 	Status                      int64             `json:"status,omitempty"`                  // 文件状态。`1` 表示禁用；只有禁用状态的文件才会返回该字段

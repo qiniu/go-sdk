@@ -21,7 +21,7 @@ type (
 		Documentation string             `yaml:"documentation,omitempty"`
 		Encode        *EncodeType        `yaml:"encode,omitempty"`
 		ServiceBucket *ServiceBucketType `yaml:"service_bucket,omitempty"`
-		Optional      bool               `yaml:"optional,omitempty"`
+		Optional      *OptionalType      `yaml:"optional,omitempty"`
 	}
 
 	FreePathParams struct {
@@ -178,20 +178,23 @@ func (pp *PathParams) Generate(group *jen.Group, options CodeGeneratorOptions) e
 								Else().
 								BlockFunc(appendPathSegment(namedPathParam.PathSegment, jen.Lit("~"))),
 						)
-					} else if namedPathParam.Optional {
-						group.Add(
-							jen.If(condition).
-								BlockFunc(appendPathSegment(namedPathParam.PathSegment, code)),
-						)
-					} else if namedPathParam.Type.IsNumeric() {
-						appendPathSegment(namedPathParam.PathSegment, code)(group)
 					} else {
-						group.Add(
-							jen.If(condition).
-								BlockFunc(appendPathSegment(namedPathParam.PathSegment, code)).
-								Else().
-								BlockFunc(appendMissingRequiredFieldErrorFunc(fieldName)),
-						)
+						switch namedPathParam.Optional.ToOptionalType() {
+						case OptionalTypeRequired:
+							group.Add(
+								jen.If(condition).
+									BlockFunc(appendPathSegment(namedPathParam.PathSegment, code)).
+									Else().
+									BlockFunc(appendMissingRequiredFieldErrorFunc(fieldName)),
+							)
+						case OptionalTypeOmitEmpty:
+							group.Add(
+								jen.If(condition).
+									BlockFunc(appendPathSegment(namedPathParam.PathSegment, code)),
+							)
+						case OptionalTypeKeepEmpty:
+							appendPathSegment(namedPathParam.PathSegment, code)(group)
+						}
 					}
 				}
 				if pp.Free != nil {

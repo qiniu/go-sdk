@@ -173,7 +173,7 @@ func (j *OperationResponseData) validate() error {
 // 响应数据
 type Data = OperationResponseData
 type innerOperationResponse struct {
-	Code int64                 `json:"code,omitempty"` // 响应状态码
+	Code int64                 `json:"code"`           // 响应状态码
 	Data OperationResponseData `json:"data,omitempty"` // 响应数据
 }
 

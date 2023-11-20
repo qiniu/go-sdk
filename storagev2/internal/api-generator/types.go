@@ -12,6 +12,7 @@ type (
 	ServiceName           string
 	StringLikeType        string
 	MultipartFormDataType string
+	OptionalType          string
 	Authorization         string
 	Idempotent            string
 	EncodeType            string
@@ -40,6 +41,10 @@ const (
 	MultipartFormDataTypeInteger     MultipartFormDataType = "integer"
 	MultipartFormDataTypeUploadToken MultipartFormDataType = "upload_token"
 	MultipartFormDataTypeBinaryData  MultipartFormDataType = "binary_data"
+
+	OptionalTypeRequired  OptionalType = ""
+	OptionalTypeOmitEmpty OptionalType = "omitempty"
+	OptionalTypeKeepEmpty OptionalType = "keepempty"
 
 	AuthorizationNone    Authorization = ""
 	AuthorizationQbox    Authorization = "Qbox"
@@ -155,10 +160,6 @@ func (t *StringLikeType) ZeroValue() (interface{}, error) {
 	}
 }
 
-func (t *StringLikeType) IsNumeric() bool {
-	return t.ToStringLikeType() != StringLikeTypeString
-}
-
 func (t *MultipartFormDataType) ToMultipartFormDataType() MultipartFormDataType {
 	if t == nil {
 		return MultipartFormDataTypeString
@@ -188,10 +189,6 @@ func (t *MultipartFormDataType) ZeroValue() (interface{}, error) {
 	}
 }
 
-func (t *MultipartFormDataType) IsNumeric() bool {
-	return t.ToMultipartFormDataType() == MultipartFormDataTypeInteger
-}
-
 func (t *MultipartFormDataType) AddTypeToStatement(statement *jen.Statement) (*jen.Statement, error) {
 	switch t.ToMultipartFormDataType() {
 	case MultipartFormDataTypeString:
@@ -204,6 +201,18 @@ func (t *MultipartFormDataType) AddTypeToStatement(statement *jen.Statement) (*j
 		return statement.Clone().Qual(PackageNameInternalIo, "ReadSeekCloser"), nil
 	default:
 		return nil, errors.New("unknown type")
+	}
+}
+
+func (t *OptionalType) ToOptionalType() OptionalType {
+	if t == nil {
+		return OptionalTypeRequired
+	}
+	switch *t {
+	case OptionalTypeRequired, OptionalTypeOmitEmpty, OptionalTypeKeepEmpty:
+		return *t
+	default:
+		panic(fmt.Sprintf("unknown OptionalType: %s", *t))
 	}
 }
 
