@@ -288,7 +288,7 @@ func getUcBackupHosts() []string {
 	return hosts
 }
 
-func getUcEndpoint(useHttps bool) region_v2.Endpoints {
+func getUcEndpoint(useHttps bool) region_v2.EndpointsProvider {
 	ucHosts := make([]string, 0, 1+len(ucHosts))
 	if len(UcHost) > 0 {
 		ucHosts = append(ucHosts, endpoint(useHttps, UcHost))
@@ -298,7 +298,11 @@ func getUcEndpoint(useHttps bool) region_v2.Endpoints {
 			ucHosts = append(ucHosts, endpoint(useHttps, host))
 		}
 	}
-	return region_v2.Endpoints{Preferred: ucHosts}
+	if len(ucHosts) > 0 {
+		return region_v2.Endpoints{Preferred: ucHosts}
+	} else {
+		return nil
+	}
 }
 
 // GetRegion 用来根据ak和bucket来获取空间相关的机房信息

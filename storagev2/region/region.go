@@ -305,6 +305,10 @@ func (provider *endpointsHostProvider) Freeze(host string, cause error, duration
 }
 
 func (provider *endpointsHostProvider) Provider() (string, error) {
+	if provider.iter.endpoints.IsEmpty() {
+		return "", hostprovider.ErrNoHostFound
+	}
+
 	var host string
 	for provider.iter.Next(&host) {
 		if provider.freezer.Available(host) {
