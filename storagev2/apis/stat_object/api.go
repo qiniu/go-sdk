@@ -275,11 +275,13 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 		pathSegments = append(pathSegments, segments...)
 	}
 	path := "/" + strings.Join(pathSegments, "/")
-	query, err := request.Query.build()
-	if err != nil {
+	var rawQuery string
+	if query, err := request.Query.build(); err != nil {
 		return nil, err
+	} else {
+		rawQuery += query.Encode()
 	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: query.Encode(), AuthType: auth.TokenQiniu, Credentials: request.credentials}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: request.credentials}
 	var queryer region.BucketRegionsQueryer
 	if client.GetRegions() == nil && client.GetEndpoints() == nil {
 		queryer = client.GetBucketQueryer()

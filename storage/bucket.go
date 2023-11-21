@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +24,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/delete_object_after_days"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/fetch_object"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_buckets"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_buckets_v4"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/modify_object_metadata"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/modify_object_status"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/move_object"
@@ -399,28 +399,28 @@ func (m *BucketManager) BucketsV4(input *BucketV4Input) (output BucketsV4Output,
 	if input == nil {
 		input = &BucketV4Input{}
 	}
-	reqURL := fmt.Sprintf("%s/buckets?apiVersion=v4", getUcHost(m.Cfg.UseHTTPS))
-	query := make(url.Values)
-	if input.Region != "" {
-		query.Add("region", input.Region)
+	var request get_buckets_v4.Request
+	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
+	response, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	if err != nil {
+		return
 	}
-	if input.Limit > 0 {
-		query.Add("limit", strconv.FormatUint(input.Limit, 10))
+	output.IsTruncated = response.Body.GetIsTruncated()
+	output.NextMarker = response.Body.GetNextMarker()
+	output.Buckets = make([]BucketV4Output, 0, len(response.Body.GetBuckets()))
+	for _, bucket := range response.Body.GetBuckets() {
+		ctime, err := time.Parse(time.RFC3339, bucket.GetCreatedTime())
+		if err != nil {
+			return output, err
+		}
+		output.Buckets = append(output.Buckets, BucketV4Output{
+			Name:    bucket.GetName(),
+			Region:  bucket.GetRegion(),
+			Private: bucket.GetPrivate(),
+			Ctime:   ctime,
+		})
 	}
-	if input.Marker != "" {
-		query.Add("marker", input.Marker)
-	}
-	if len(query) > 0 {
-		reqURL += "&" + query.Encode()
-	}
-	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodGet,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, &output)
-	return output, err
+	return
 }
 
 // DropBucket 删除七牛存储空间

@@ -114,7 +114,8 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 		pathSegments = append(pathSegments, segments...)
 	}
 	path := "/" + strings.Join(pathSegments, "/")
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.credentials}
+	var rawQuery string
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: request.credentials}
 	var queryer region.BucketRegionsQueryer
 	if client.GetRegions() == nil && client.GetEndpoints() == nil {
 		queryer = client.GetBucketQueryer()

@@ -76,7 +76,7 @@ func (jsonType *JsonType) AddTypeToStatement(statement *jen.Statement) (*jen.Sta
 	} else if jsonType.Float {
 		return statement.Add(jen.Float64()), nil
 	} else if jsonType.Boolean {
-		return statement.Add(jen.Float64()), nil
+		return statement.Add(jen.Bool()), nil
 	} else if jsonType.Any {
 		return statement.Add(jen.Interface()), nil
 	} else if jsonType.StringMap {
@@ -411,7 +411,7 @@ func (jsonType *JsonType) UnmarshalYAML(value *yaml.Node) error {
 		case "float":
 			jsonType.Float = true
 		case "boolean":
-			jsonType.Float = true
+			jsonType.Boolean = true
 		case "any":
 			jsonType.Any = true
 		case "string_map":
