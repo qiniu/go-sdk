@@ -10,6 +10,8 @@ import (
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_regions"
+	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region_v2 "github.com/qiniu/go-sdk/v7/storagev2/region"
 )
 
@@ -345,28 +347,26 @@ func GetRegionsInfo(mac *auth.Credentials) ([]RegionInfo, error) {
 }
 
 func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]RegionInfo, error) {
-	var regions struct {
-		Regions []RegionInfo `json:"regions"`
+	response, err := new(get_regions.Request).
+		OverwriteBucketHosts(getUcEndpoint(options.UseHttps)).
+		Send(context.Background(), &http_client.HttpClientOptions{
+			HostFreezeDuration: options.HostFreezeDuration,
+			HostRetryConfig: &clientv2.RetryConfig{
+				RetryMax: options.RetryMax,
+			},
+			Credentials: mac,
+		})
+	if err != nil {
+		return nil, err
 	}
-
-	reqUrl := getUcHost(options.UseHttps) + "/regions"
-	c := getUCClient(ucClientConfig{
-		IsUcQueryApi:       false,
-		RetryMax:           options.RetryMax,
-		HostFreezeDuration: options.HostFreezeDuration,
-	}, mac)
-	qErr := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodGet,
-		Url:     reqUrl,
-		Header:  nil,
-		GetBody: nil,
-	}, &regions)
-	if qErr != nil {
-		return nil, fmt.Errorf("query region error, %s", qErr.Error())
-	} else {
-		return regions.Regions, nil
+	regions := make([]RegionInfo, 0, len(response.GetRegions()))
+	for _, region := range response.GetRegions() {
+		regions = append(regions, RegionInfo{
+			ID:          region.GetId(),
+			Description: region.GetDescription(),
+		})
 	}
+	return regions, nil
 }
 
 type ucClientConfig struct {
