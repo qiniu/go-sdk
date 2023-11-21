@@ -11,6 +11,7 @@ import (
 
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_private"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_remark"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 )
@@ -238,21 +239,11 @@ func (m *BucketManager) GetBucketInfo(bucketName string) (bucketInfo BucketInfo,
 
 // SetRemark 设置空间备注信息
 func (m *BucketManager) SetRemark(bucketName, remark string) error {
-	reqURL := fmt.Sprintf("%s/buckets/%s?remark", getUcHost(m.Cfg.UseHTTPS), bucketName)
-	body := struct {
-		Remark string `json:"remark"`
-	}{Remark: remark}
-	getBody, err := clientv2.GetJsonRequestBody(body)
-	if err != nil {
-		return err
-	}
-	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodPut,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: getBody,
-	}, nil)
+	_, err := new(set_bucket_remark.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucket(bucketName).
+		SetRemark(remark).
+		Send(context.Background(), m.makeHttpClientOptions())
 	return err
 }
 
