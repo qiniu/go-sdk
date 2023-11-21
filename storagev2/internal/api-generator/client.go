@@ -22,6 +22,11 @@ type (
 		Generate(group *jen.Group, options CodeGeneratorOptions) error
 	}
 
+	CodeGeneratorAliaser interface {
+		CodeGenerator
+		GenerateAliasesFor(group *jen.Group, structName, fieldName string) error
+	}
+
 	CodeGeneratorOptions struct {
 		Name, Documentation    string
 		apiDetailedDescription *ApiDetailedDescription
@@ -36,6 +41,8 @@ func (description *ApiDetailedDescription) Generate(group *jen.Group, _ CodeGene
 			apiDetailedDescription: description,
 		}); err != nil {
 			return err
+		} else if err = pp.GenerateAliasesFor(group, "Request", "Path"); err != nil {
+			return err
 		}
 	}
 	if queryNames := description.Request.QueryNames; queryNames != nil {
@@ -44,6 +51,8 @@ func (description *ApiDetailedDescription) Generate(group *jen.Group, _ CodeGene
 			Documentation:          "调用 API 所用的 URL 查询参数",
 			apiDetailedDescription: description,
 		}); err != nil {
+			return err
+		} else if err = queryNames.GenerateAliasesFor(group, "Request", "Query"); err != nil {
 			return err
 		}
 	}
@@ -54,10 +63,12 @@ func (description *ApiDetailedDescription) Generate(group *jen.Group, _ CodeGene
 			apiDetailedDescription: description,
 		}); err != nil {
 			return err
+		} else if err = headerNames.GenerateAliasesFor(group, "Request", "Headers"); err != nil {
+			return err
 		}
 	}
 	if body := description.Request.Body; body != nil {
-		var codeGenerator CodeGenerator
+		var codeGenerator CodeGeneratorAliaser
 		if json := body.Json; json != nil {
 			codeGenerator = json
 		} else if formUrlencoded := body.FormUrlencoded; formUrlencoded != nil {
@@ -73,6 +84,9 @@ func (description *ApiDetailedDescription) Generate(group *jen.Group, _ CodeGene
 			}); err != nil {
 				return err
 			}
+			if err := codeGenerator.GenerateAliasesFor(group, "Request", "Body"); err != nil {
+				return err
+			}
 		}
 	}
 	if body := description.Response.Body; body != nil {
@@ -82,6 +96,9 @@ func (description *ApiDetailedDescription) Generate(group *jen.Group, _ CodeGene
 				Documentation:          "获取 API 所用的响应体参数",
 				apiDetailedDescription: description,
 			}); err != nil {
+				return err
+			}
+			if err := json.GenerateAliasesFor(group, "Response", "Body"); err != nil {
 				return err
 			}
 		}

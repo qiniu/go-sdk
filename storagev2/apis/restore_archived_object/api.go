@@ -51,6 +51,20 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+func (request *Request) GetEntry() string {
+	return request.Path.GetEntry()
+}
+func (request *Request) SetEntry(value string) *Request {
+	request.Path.SetEntry(value)
+	return request
+}
+func (request *Request) GetFreezeAfterDays() int64 {
+	return request.Path.GetFreezeAfterDays()
+}
+func (request *Request) SetFreezeAfterDays(value int64) *Request {
+	request.Path.SetFreezeAfterDays(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {

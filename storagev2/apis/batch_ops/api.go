@@ -37,6 +37,13 @@ func (form *RequestBody) build() (url.Values, error) {
 	}
 	return formValues, nil
 }
+func (request *Request) GetOperations() []string {
+	return request.Body.GetOperations()
+}
+func (request *Request) SetOperations(value []string) *Request {
+	request.Body.SetOperations(value)
+	return request
+}
 
 type innerOperationResponseData struct {
 	Error                       string `json:"error,omitempty"`                   // 管理指令的错误信息，仅在发生错误时才返回

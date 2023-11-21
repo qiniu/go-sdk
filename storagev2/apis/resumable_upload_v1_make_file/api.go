@@ -75,6 +75,34 @@ func (path *RequestPath) build() ([]string, error) {
 	allSegments = append(allSegments, path.extendedSegments...)
 	return allSegments, nil
 }
+func (request *Request) GetSize() int64 {
+	return request.Path.GetSize()
+}
+func (request *Request) SetSize(value int64) *Request {
+	request.Path.SetSize(value)
+	return request
+}
+func (request *Request) GetObjectName() string {
+	return request.Path.GetObjectName()
+}
+func (request *Request) SetObjectName(value string) *Request {
+	request.Path.SetObjectName(value)
+	return request
+}
+func (request *Request) GetFileName() string {
+	return request.Path.GetFileName()
+}
+func (request *Request) SetFileName(value string) *Request {
+	request.Path.SetFileName(value)
+	return request
+}
+func (request *Request) GetMimeType() string {
+	return request.Path.GetMimeType()
+}
+func (request *Request) SetMimeType(value string) *Request {
+	request.Path.SetMimeType(value)
+	return request
+}
 
 type ResponseBody = interface{}
 

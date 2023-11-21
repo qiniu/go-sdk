@@ -32,6 +32,13 @@ func (query *RequestQuery) build() (url.Values, error) {
 	}
 	return allQuery, nil
 }
+func (request *Request) GetShared() string {
+	return request.Query.GetShared()
+}
+func (request *Request) SetShared(value string) *Request {
+	request.Query.SetShared(value)
+	return request
+}
 
 // 存储空间列表
 type BucketNames = []string

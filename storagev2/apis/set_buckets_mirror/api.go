@@ -63,6 +63,27 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+func (request *Request) GetBucket() string {
+	return request.Path.GetBucket()
+}
+func (request *Request) SetBucket(value string) *Request {
+	request.Path.SetBucket(value)
+	return request
+}
+func (request *Request) GetSrcSiteUrl() string {
+	return request.Path.GetSrcSiteUrl()
+}
+func (request *Request) SetSrcSiteUrl(value string) *Request {
+	request.Path.SetSrcSiteUrl(value)
+	return request
+}
+func (request *Request) GetHost() string {
+	return request.Path.GetHost()
+}
+func (request *Request) SetHost(value string) *Request {
+	request.Path.SetHost(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {

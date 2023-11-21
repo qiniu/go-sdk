@@ -35,10 +35,10 @@ func (pp *RequestPath) SetDestEntry(value string) *RequestPath {
 	pp.fieldDestEntry = value
 	return pp
 }
-func (pp *RequestPath) GetIsForce() bool {
+func (pp *RequestPath) IsForce() bool {
 	return pp.fieldIsForce
 }
-func (pp *RequestPath) SetIsForce(value bool) *RequestPath {
+func (pp *RequestPath) SetForce(value bool) *RequestPath {
 	pp.fieldIsForce = value
 	return pp
 }
@@ -61,6 +61,27 @@ func (path *RequestPath) build() ([]string, error) {
 		allSegments = append(allSegments, "force", strconv.FormatBool(path.fieldIsForce))
 	}
 	return allSegments, nil
+}
+func (request *Request) GetSrcEntry() string {
+	return request.Path.GetSrcEntry()
+}
+func (request *Request) SetSrcEntry(value string) *Request {
+	request.Path.SetSrcEntry(value)
+	return request
+}
+func (request *Request) GetDestEntry() string {
+	return request.Path.GetDestEntry()
+}
+func (request *Request) SetDestEntry(value string) *Request {
+	request.Path.SetDestEntry(value)
+	return request
+}
+func (request *Request) IsForce() bool {
+	return request.Path.IsForce()
+}
+func (request *Request) SetForce(value bool) *Request {
+	request.Path.SetForce(value)
+	return request
 }
 
 // 调用 API 所用的请求

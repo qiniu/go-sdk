@@ -62,6 +62,27 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+func (request *Request) GetFromUrl() string {
+	return request.Path.GetFromUrl()
+}
+func (request *Request) SetFromUrl(value string) *Request {
+	request.Path.SetFromUrl(value)
+	return request
+}
+func (request *Request) GetToEntry() string {
+	return request.Path.GetToEntry()
+}
+func (request *Request) SetToEntry(value string) *Request {
+	request.Path.SetToEntry(value)
+	return request
+}
+func (request *Request) GetHost() string {
+	return request.Path.GetHost()
+}
+func (request *Request) SetHost(value string) *Request {
+	request.Path.SetHost(value)
+	return request
+}
 
 type innerFetchedObjectMetadata struct {
 	Hash       string `json:"hash"`     // 抓取的对象内容的 Etag 值
@@ -129,6 +150,35 @@ func (j *FetchedObjectMetadata) validate() error {
 
 // 获取 API 所用的响应体参数
 type ResponseBody = FetchedObjectMetadata
+
+func (request *Response) GetHash() string {
+	return request.Body.GetHash()
+}
+func (request *Response) SetHash(value string) *Response {
+	request.Body.SetHash(value)
+	return request
+}
+func (request *Response) GetObjectName() string {
+	return request.Body.GetObjectName()
+}
+func (request *Response) SetObjectName(value string) *Response {
+	request.Body.SetObjectName(value)
+	return request
+}
+func (request *Response) GetSize() int64 {
+	return request.Body.GetSize()
+}
+func (request *Response) SetSize(value int64) *Response {
+	request.Body.SetSize(value)
+	return request
+}
+func (request *Response) GetMimeType() string {
+	return request.Body.GetMimeType()
+}
+func (request *Response) SetMimeType(value string) *Response {
+	request.Body.SetMimeType(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {

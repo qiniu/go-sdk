@@ -141,6 +141,92 @@ func (j *NewFetchTaskParams) validate() error {
 
 // 调用 API 所用的请求体
 type RequestBody = NewFetchTaskParams
+
+func (request *Request) GetUrl() string {
+	return request.Body.GetUrl()
+}
+func (request *Request) SetUrl(value string) *Request {
+	request.Body.SetUrl(value)
+	return request
+}
+func (request *Request) GetBucket() string {
+	return request.Body.GetBucket()
+}
+func (request *Request) SetBucket(value string) *Request {
+	request.Body.SetBucket(value)
+	return request
+}
+func (request *Request) GetHost() string {
+	return request.Body.GetHost()
+}
+func (request *Request) SetHost(value string) *Request {
+	request.Body.SetHost(value)
+	return request
+}
+func (request *Request) GetKey() string {
+	return request.Body.GetKey()
+}
+func (request *Request) SetKey(value string) *Request {
+	request.Body.SetKey(value)
+	return request
+}
+func (request *Request) GetMd5() string {
+	return request.Body.GetMd5()
+}
+func (request *Request) SetMd5(value string) *Request {
+	request.Body.SetMd5(value)
+	return request
+}
+func (request *Request) GetEtag() string {
+	return request.Body.GetEtag()
+}
+func (request *Request) SetEtag(value string) *Request {
+	request.Body.SetEtag(value)
+	return request
+}
+func (request *Request) GetCallbackUrl() string {
+	return request.Body.GetCallbackUrl()
+}
+func (request *Request) SetCallbackUrl(value string) *Request {
+	request.Body.SetCallbackUrl(value)
+	return request
+}
+func (request *Request) GetCallbackBody() string {
+	return request.Body.GetCallbackBody()
+}
+func (request *Request) SetCallbackBody(value string) *Request {
+	request.Body.SetCallbackBody(value)
+	return request
+}
+func (request *Request) GetCallbackBodyType() string {
+	return request.Body.GetCallbackBodyType()
+}
+func (request *Request) SetCallbackBodyType(value string) *Request {
+	request.Body.SetCallbackBodyType(value)
+	return request
+}
+func (request *Request) GetCallbackHost() string {
+	return request.Body.GetCallbackHost()
+}
+func (request *Request) SetCallbackHost(value string) *Request {
+	request.Body.SetCallbackHost(value)
+	return request
+}
+func (request *Request) GetFileType() int64 {
+	return request.Body.GetFileType()
+}
+func (request *Request) SetFileType(value int64) *Request {
+	request.Body.SetFileType(value)
+	return request
+}
+func (request *Request) GetIgnoreSameKey() bool {
+	return request.Body.GetIgnoreSameKey()
+}
+func (request *Request) SetIgnoreSameKey(value bool) *Request {
+	request.Body.SetIgnoreSameKey(value)
+	return request
+}
+
 type innerNewFetchTaskInfo struct {
 	Id               string `json:"id"`   // 异步任务 ID
 	QueuedTasksCount int64  `json:"wait"` // 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
@@ -185,6 +271,21 @@ func (j *NewFetchTaskInfo) validate() error {
 
 // 获取 API 所用的响应体参数
 type ResponseBody = NewFetchTaskInfo
+
+func (request *Response) GetId() string {
+	return request.Body.GetId()
+}
+func (request *Response) SetId(value string) *Response {
+	request.Body.SetId(value)
+	return request
+}
+func (request *Response) GetQueuedTasksCount() int64 {
+	return request.Body.GetQueuedTasksCount()
+}
+func (request *Response) SetQueuedTasksCount(value int64) *Response {
+	request.Body.SetQueuedTasksCount(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {

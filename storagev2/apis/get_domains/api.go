@@ -38,6 +38,13 @@ func (query *RequestQuery) build() (url.Values, error) {
 	}
 	return allQuery, nil
 }
+func (request *Request) GetBucketName() string {
+	return request.Query.GetBucketName()
+}
+func (request *Request) SetBucketName(value string) *Request {
+	request.Query.SetBucketName(value)
+	return request
+}
 
 // 存储空间的域名列表
 type Domains = []string

@@ -27,10 +27,10 @@ func (form *RequestBody) SetBucket(value string) *RequestBody {
 	form.fieldBucket = value
 	return form
 }
-func (form *RequestBody) GetIsPrivate() int64 {
+func (form *RequestBody) IsPrivate() int64 {
 	return form.fieldIsPrivate
 }
-func (form *RequestBody) SetIsPrivate(value int64) *RequestBody {
+func (form *RequestBody) SetPrivate(value int64) *RequestBody {
 	form.fieldIsPrivate = value
 	return form
 }
@@ -46,6 +46,20 @@ func (form *RequestBody) build() (url.Values, error) {
 	}
 	formValues.Set("private", strconv.FormatInt(form.fieldIsPrivate, 10))
 	return formValues, nil
+}
+func (request *Request) GetBucket() string {
+	return request.Body.GetBucket()
+}
+func (request *Request) SetBucket(value string) *Request {
+	request.Body.SetBucket(value)
+	return request
+}
+func (request *Request) IsPrivate() int64 {
+	return request.Body.IsPrivate()
+}
+func (request *Request) SetPrivate(value int64) *Request {
+	request.Body.SetPrivate(value)
+	return request
 }
 
 // 调用 API 所用的请求

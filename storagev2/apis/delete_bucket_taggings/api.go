@@ -38,6 +38,13 @@ func (query *RequestQuery) build() (url.Values, error) {
 	}
 	return allQuery, nil
 }
+func (request *Request) GetBucketName() string {
+	return request.Query.GetBucketName()
+}
+func (request *Request) SetBucketName(value string) *Request {
+	request.Query.SetBucketName(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {

@@ -175,6 +175,74 @@ func (mff *MultipartFormFields) Generate(group *jen.Group, options CodeGenerator
 	return err
 }
 
+func (mff *MultipartFormFields) GenerateAliasesFor(group *jen.Group, structName, fieldName string) error {
+	for _, namedField := range mff.Named {
+		if code, err := mff.generateAliasGetterFunc(namedField, structName, fieldName); err != nil {
+			return err
+		} else {
+			group.Add(code)
+		}
+		if code, err := mff.generateAliasSetterFunc(namedField, structName, fieldName); err != nil {
+			return err
+		} else {
+			group.Add(code)
+		}
+	}
+	return nil
+}
+
+func (mff *MultipartFormFields) generateAliasGetterFunc(named NamedMultipartFormField, structName, fieldName string) (jen.Code, error) {
+	var err error
+	code := jen.Func().
+		Params(jen.Id("request").Op("*").Id(structName)).
+		Id(makeGetterMethodName(named.FieldName)).
+		Params()
+	switch named.Type.ToMultipartFormDataType() {
+	case MultipartFormDataTypeBinaryData:
+		code = code.Params(jen.Qual(PackageNameInternalIo, "ReadSeekCloser"), jen.String())
+	default:
+		if code, err = named.Type.AddTypeToStatement(code); err != nil {
+			return nil, err
+		}
+	}
+	code = code.BlockFunc(func(group *jen.Group) {
+		group.Return(
+			jen.Id("request").Dot(fieldName).Dot(makeGetterMethodName(named.FieldName)).Call(),
+		)
+	})
+	return code, nil
+}
+
+func (mff *MultipartFormFields) generateAliasSetterFunc(named NamedMultipartFormField, structName, fieldName string) (jen.Code, error) {
+	var (
+		params []jen.Code
+	)
+	switch named.Type.ToMultipartFormDataType() {
+	case MultipartFormDataTypeBinaryData:
+		params = []jen.Code{jen.Id("value").Qual(PackageNameInternalIo, "ReadSeekCloser"), jen.Id("fileName").String()}
+	default:
+		p, err := named.Type.AddTypeToStatement(jen.Id("value"))
+		if err != nil {
+			return nil, err
+		}
+		params = []jen.Code{p}
+	}
+	return jen.Func().
+		Params(jen.Id("request").Op("*").Id(structName)).
+		Id(makeSetterMethodName(named.FieldName)).
+		Params(params...).
+		Params(jen.Op("*").Id(structName)).
+		BlockFunc(func(group *jen.Group) {
+			group.Add(jen.Id("request").Dot(fieldName).Dot(makeSetterMethodName(named.FieldName)).CallFunc(func(group *jen.Group) {
+				group.Add(jen.Id("value"))
+				if named.Type.ToMultipartFormDataType() == MultipartFormDataTypeBinaryData {
+					group.Add(jen.Id("fileName"))
+				}
+			}))
+			group.Add(jen.Return(jen.Id("request")))
+		}), nil
+}
+
 func (mff *MultipartFormFields) generateGetterFunc(named NamedMultipartFormField, options CodeGeneratorOptions) (jen.Code, error) {
 	var (
 		fieldName = strcase.ToCamel(named.FieldName)

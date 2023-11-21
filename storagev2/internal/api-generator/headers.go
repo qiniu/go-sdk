@@ -92,10 +92,41 @@ func (names HeaderNames) Generate(group *jen.Group, options CodeGeneratorOptions
 	return nil
 }
 
+func (names HeaderNames) GenerateAliasesFor(group *jen.Group, structName, fieldName string) error {
+	for _, name := range names {
+		group.Add(names.generateAliasGetterFunc(name, structName, fieldName))
+		group.Add(names.generateAliasSetterFunc(name, structName, fieldName))
+	}
+	return nil
+}
+
+func (names HeaderNames) generateAliasGetterFunc(name HeaderName, structName, fieldName string) jen.Code {
+	return jen.Func().
+		Params(jen.Id("request").Op("*").Id(structName)).
+		Id(makeGetterMethodName(name.FieldName)).
+		Params().
+		String().
+		BlockFunc(func(group *jen.Group) {
+			group.Add(jen.Return(jen.Id("request").Dot(fieldName).Dot(makeGetterMethodName(name.FieldName)).Call()))
+		})
+}
+
+func (names HeaderNames) generateAliasSetterFunc(name HeaderName, structName, fieldName string) jen.Code {
+	return jen.Func().
+		Params(jen.Id("request").Op("*").Id(structName)).
+		Id(makeSetterMethodName(name.FieldName)).
+		Params(jen.Id("value").String()).
+		Params(jen.Op("*").Id(structName)).
+		BlockFunc(func(group *jen.Group) {
+			group.Add(jen.Id("request").Dot(fieldName).Dot(makeSetterMethodName(name.FieldName)).Call(jen.Id("value")))
+			group.Add(jen.Return(jen.Id("request")))
+		})
+}
+
 func (names HeaderNames) generateGetterFunc(name HeaderName, options CodeGeneratorOptions) jen.Code {
 	return jen.Func().
 		Params(jen.Id("header").Op("*").Id(options.Name)).
-		Id("Get" + strcase.ToCamel(name.FieldName)).
+		Id(makeGetterMethodName(name.FieldName)).
 		Params().
 		String().
 		BlockFunc(func(group *jen.Group) {
@@ -106,7 +137,7 @@ func (names HeaderNames) generateGetterFunc(name HeaderName, options CodeGenerat
 func (names HeaderNames) generateSetterFunc(name HeaderName, options CodeGeneratorOptions) jen.Code {
 	return jen.Func().
 		Params(jen.Id("header").Op("*").Id(options.Name)).
-		Id("Set" + strcase.ToCamel(name.FieldName)).
+		Id(makeSetterMethodName(name.FieldName)).
 		Params(jen.Id("value").String()).
 		Params(jen.Op("*").Id(options.Name)).
 		BlockFunc(func(group *jen.Group) {

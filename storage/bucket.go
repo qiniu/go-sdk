@@ -362,32 +362,36 @@ func (m *BucketManager) UpdateObjectStatus(bucketName string, key string, enable
 	} else {
 		status = 1
 	}
-	var request modify_object_status.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
-	request.Path.SetEntry(bucketName + ":" + key).SetStatus(status)
-	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	_, err := new(modify_object_status.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetEntry(bucketName+":"+key).
+		SetStatus(status).
+		Send(context.Background(), m.makeHttpClientOptions())
 	return err
 }
 
 // CreateBucket 创建一个七牛存储空间
 func (m *BucketManager) CreateBucket(bucketName string, regionID RegionID) error {
-	var request create_bucket.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
-	request.Path.SetBucket(bucketName).SetRegion(string(regionID))
-	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	_, err := new(create_bucket.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucket(bucketName).
+		SetRegion(string(regionID)).
+		Send(context.Background(), m.makeHttpClientOptions())
 	return err
 }
 
 // Buckets 用来获取空间列表，如果指定了 shared 参数则额外包含仅被授予了读权限的空间，否则额外包含被授予了读写权限的授权空间
 func (m *BucketManager) Buckets(shared bool) (buckets []string, err error) {
-	var request get_buckets.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
+	var sharedMode string
 	if shared {
-		request.Query.SetShared("rd")
+		sharedMode = "rd"
 	} else {
-		request.Query.SetShared("rw")
+		sharedMode = "rw"
 	}
-	response, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	response, err := new(get_buckets.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetShared(sharedMode).
+		Send(context.Background(), m.makeHttpClientOptions())
 	if err != nil {
 		return nil, err
 	}
@@ -399,16 +403,16 @@ func (m *BucketManager) BucketsV4(input *BucketV4Input) (output BucketsV4Output,
 	if input == nil {
 		input = &BucketV4Input{}
 	}
-	var request get_buckets_v4.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
-	response, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	response, err := new(get_buckets_v4.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		Send(context.Background(), m.makeHttpClientOptions())
 	if err != nil {
 		return
 	}
-	output.IsTruncated = response.Body.GetIsTruncated()
-	output.NextMarker = response.Body.GetNextMarker()
-	output.Buckets = make([]BucketV4Output, 0, len(response.Body.GetBuckets()))
-	for _, bucket := range response.Body.GetBuckets() {
+	output.IsTruncated = response.IsTruncated()
+	output.NextMarker = response.GetNextMarker()
+	output.Buckets = make([]BucketV4Output, 0, len(response.GetBuckets()))
+	for _, bucket := range response.GetBuckets() {
 		ctime, err := time.Parse(time.RFC3339, bucket.GetCreatedTime())
 		if err != nil {
 			return output, err
@@ -425,10 +429,10 @@ func (m *BucketManager) BucketsV4(input *BucketV4Input) (output BucketsV4Output,
 
 // DropBucket 删除七牛存储空间
 func (m *BucketManager) DropBucket(bucketName string) error {
-	var request delete_bucket.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
-	request.Path.SetBucket(bucketName)
-	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	_, err := new(delete_bucket.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucket(bucketName).
+		Send(context.Background(), m.makeHttpClientOptions())
 	return err
 }
 
@@ -443,59 +447,64 @@ type StatOpts struct {
 
 // StatWithParts 用来获取一个文件的基本信息以及分片信息
 func (m *BucketManager) StatWithOpts(bucket, key string, opt *StatOpts) (FileInfo, error) {
-	var request stat_object.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
-	request.Path.SetEntry(bucket + ":" + key)
-	if opt != nil {
-		request.Query.SetNeedParts(opt.NeedParts)
+	if opt == nil {
+		opt = &StatOpts{}
 	}
-	response, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	response, err := new(stat_object.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetEntry(bucket+":"+key).
+		SetNeedParts(opt.NeedParts).
+		Send(context.Background(), m.makeHttpClientOptions())
 	if err != nil {
 		return FileInfo{}, err
 	}
 	return FileInfo{
-		Fsize:                   response.Body.GetSize(),
-		Hash:                    response.Body.GetHash(),
-		MimeType:                response.Body.GetMimeType(),
-		Type:                    int(response.Body.GetType()),
-		PutTime:                 response.Body.GetPutTime(),
-		RestoreStatus:           int(response.Body.GetRestoringStatus()),
-		Status:                  int(response.Body.GetStatus()),
-		Md5:                     response.Body.GetMd5(),
-		EndUser:                 response.Body.GetEndUser(),
-		MetaData:                response.Body.GetMetadata(),
-		Expiration:              response.Body.GetExpirationTime(),
-		TransitionToIA:          response.Body.GetTransitionToIaTime(),
-		TransitionToArchive:     response.Body.GetTransitionToArchiveTime(),
-		TransitionToDeepArchive: response.Body.GetTransitionToDeepArchiveTime(),
-		Parts:                   response.Body.GetParts(),
+		Fsize:                   response.GetSize(),
+		Hash:                    response.GetHash(),
+		MimeType:                response.GetMimeType(),
+		Type:                    int(response.GetType()),
+		PutTime:                 response.GetPutTime(),
+		RestoreStatus:           int(response.GetRestoringStatus()),
+		Status:                  int(response.GetStatus()),
+		Md5:                     response.GetMd5(),
+		EndUser:                 response.GetEndUser(),
+		MetaData:                response.GetMetadata(),
+		Expiration:              response.GetExpirationTime(),
+		TransitionToIA:          response.GetTransitionToIaTime(),
+		TransitionToArchive:     response.GetTransitionToArchiveTime(),
+		TransitionToDeepArchive: response.GetTransitionToDeepArchiveTime(),
+		Parts:                   response.GetParts(),
 	}, nil
 }
 
 // Delete 用来删除空间中的一个文件
 func (m *BucketManager) Delete(bucket, key string) error {
-	var request delete_object.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
-	request.Path.SetEntry(bucket + ":" + key)
-	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	_, err := new(delete_object.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetEntry(bucket+":"+key).
+		Send(context.Background(), m.makeHttpClientOptions())
 	return err
 }
 
 // Copy 用来创建已有空间中的文件的一个新的副本
 func (m *BucketManager) Copy(srcBucket, srcKey, destBucket, destKey string, force bool) error {
-	var request copy_object.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
-	request.Path.SetSrcEntry(srcBucket + ":" + srcKey).SetDestEntry(destBucket + ":" + destKey).SetIsForce(force)
-	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	_, err := new(copy_object.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetSrcEntry(srcBucket+":"+srcKey).
+		SetDestEntry(destBucket+":"+destKey).
+		SetForce(force).
+		Send(context.Background(), m.makeHttpClientOptions())
 	return err
 }
 
 // Move 用来将空间中的一个文件移动到新的空间或者重命名
 func (m *BucketManager) Move(srcBucket, srcKey, destBucket, destKey string, force bool) error {
-	var request move_object.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
-	request.Path.SetSrcEntry(srcBucket + ":" + srcKey).SetDestEntry(destBucket + ":" + destKey).SetIsForce(force)
-	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	_, err := new(move_object.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetSrcEntry(srcBucket+":"+srcKey).
+		SetDestEntry(destBucket+":"+destKey).
+		SetForce(force).
+		Send(context.Background(), m.makeHttpClientOptions())
 	return err
 }
 
@@ -533,40 +542,44 @@ func (m *BucketManager) ChangeMeta(bucket, key string, metas map[string]string) 
 //				 - key 如果不包含了 x-qn-meta- 前缀，则内部会为 key 拼接 x-qn-meta- 前缀。
 //	@return err 错误信息
 func (m *BucketManager) ChangeMimeAndMeta(bucket, key, newMime string, metas map[string]string) error {
-	var request modify_object_metadata.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
-	request.Path.SetEntry(bucket + ":" + key).SetMimeType(newMime)
+	request := new(modify_object_metadata.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetEntry(bucket + ":" + key).SetMimeType(newMime)
 	for k, v := range normalizeMeta(metas) {
 		request.Path.Append(k, v)
 	}
-	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	_, err := request.
+		Send(context.Background(), m.makeHttpClientOptions())
 	return err
 }
 
 // ChangeType 用来更新文件的存储类型，0 表示普通存储，1 表示低频存储，2 表示归档存储，3 表示深度归档存储，4 表示归档直读存储
 func (m *BucketManager) ChangeType(bucket, key string, fileType int) error {
-	var request set_object_file_type.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
-	request.Path.SetEntry(bucket + ":" + key).SetType(int64(fileType))
-	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	_, err := new(set_object_file_type.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetEntry(bucket+":"+key).
+		SetType(int64(fileType)).
+		Send(context.Background(), m.makeHttpClientOptions())
 	return err
 }
 
 // RestoreAr 解冻归档存储类型的文件，可设置解冻有效期1～7天, 完成解冻任务通常需要1～5分钟
 func (m *BucketManager) RestoreAr(bucket, key string, freezeAfterDays int) error {
-	var request restore_archived_object.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
-	request.Path.SetEntry(bucket + ":" + key).SetFreezeAfterDays(int64(freezeAfterDays))
-	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	_, err := new(restore_archived_object.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetEntry(bucket+":"+key).
+		SetFreezeAfterDays(int64(freezeAfterDays)).
+		Send(context.Background(), m.makeHttpClientOptions())
 	return err
 }
 
 // DeleteAfterDays 用来更新文件生命周期，如果 days 设置为0，则表示取消文件的定期删除功能，永久存储
 func (m *BucketManager) DeleteAfterDays(bucket, key string, days int) error {
-	var request delete_object_after_days.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
-	request.Path.SetEntry(bucket + ":" + key).SetDeleteAfterDays(int64(days))
-	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	_, err := new(delete_object_after_days.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetEntry(bucket+":"+key).
+		SetDeleteAfterDays(int64(days)).
+		Send(context.Background(), m.makeHttpClientOptions())
 	return err
 }
 
@@ -645,10 +658,11 @@ func (m *BucketManager) BatchWithContext(ctx context.Context, bucket string, ope
 		ctx = context.Background()
 	}
 
-	var request batch_ops.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).OverwriteBucketName(bucket)
-	request.Body.SetOperations(operations)
-	response, err := request.Send(ctx, m.makeHttpClientOptions())
+	response, err := new(batch_ops.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		OverwriteBucketName(bucket).
+		SetOperations(operations).
+		Send(ctx, m.makeHttpClientOptions())
 	if err != nil {
 		return nil, err
 	}
@@ -661,18 +675,20 @@ func (m *BucketManager) BatchWithContext(ctx context.Context, bucket string, ope
 
 // Fetch 根据提供的远程资源链接来抓取一个文件到空间并已指定文件名保存
 func (m *BucketManager) Fetch(resURL, bucket, key string) (FetchRet, error) {
-	var request fetch_object.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).OverwriteBucketName(bucket)
-	request.Path.SetFromUrl(resURL).SetToEntry(bucket + ":" + key)
-	response, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	response, err := new(fetch_object.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		OverwriteBucketName(bucket).
+		SetFromUrl(resURL).
+		SetToEntry(bucket+":"+key).
+		Send(context.Background(), m.makeHttpClientOptions())
 	if err != nil {
 		return FetchRet{}, err
 	}
 	return FetchRet{
-		Hash:     response.Body.GetHash(),
-		Fsize:    response.Body.GetSize(),
-		MimeType: response.Body.GetMimeType(),
-		Key:      response.Body.GetObjectName(),
+		Hash:     response.GetHash(),
+		Fsize:    response.GetSize(),
+		MimeType: response.GetMimeType(),
+		Key:      response.GetObjectName(),
 	}, nil
 }
 
@@ -750,18 +766,20 @@ func (m *BucketManager) IoReqHost(bucket string) (reqHost string, err error) {
 
 // FetchWithoutKey 根据提供的远程资源链接来抓取一个文件到空间并以文件的内容hash作为文件名
 func (m *BucketManager) FetchWithoutKey(resURL, bucket string) (fetchRet FetchRet, err error) {
-	var request fetch_object.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).OverwriteBucketName(bucket)
-	request.Path.SetFromUrl(resURL).SetToEntry(bucket)
-	response, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	response, err := new(fetch_object.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		OverwriteBucketName(bucket).
+		SetFromUrl(resURL).
+		SetToEntry(bucket).
+		Send(context.Background(), m.makeHttpClientOptions())
 	if err != nil {
 		return FetchRet{}, err
 	}
 	return FetchRet{
-		Hash:     response.Body.GetHash(),
-		Fsize:    response.Body.GetSize(),
-		MimeType: response.Body.GetMimeType(),
-		Key:      response.Body.GetObjectName(),
+		Hash:     response.GetHash(),
+		Fsize:    response.GetSize(),
+		MimeType: response.GetMimeType(),
+		Key:      response.GetObjectName(),
 	}, nil
 }
 
@@ -794,10 +812,11 @@ func (m *BucketManager) ListBucketDomains(bucket string) (info []DomainInfo, err
 
 // Prefetch 用来同步镜像空间的资源和镜像源资源内容
 func (m *BucketManager) Prefetch(bucket, key string) error {
-	var request prefetch_object.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).OverwriteBucketName(bucket)
-	request.Path.SetEntry(bucket + ":" + key)
-	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	_, err := new(prefetch_object.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		OverwriteBucketName(bucket).
+		SetEntry(bucket+":"+key).
+		Send(context.Background(), m.makeHttpClientOptions())
 	return err
 }
 
@@ -857,9 +876,9 @@ type AsyncFetchRet struct {
 }
 
 func (m *BucketManager) AsyncFetch(param AsyncFetchParam) (ret AsyncFetchRet, err error) {
-	var request async_fetch_object.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
-	request.Body.SetUrl(param.Url).
+	response, err := new(async_fetch_object.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetUrl(param.Url).
 		SetHost(param.Host).
 		SetBucket(param.Bucket).
 		SetKey(param.Key).
@@ -868,14 +887,14 @@ func (m *BucketManager) AsyncFetch(param AsyncFetchParam) (ret AsyncFetchRet, er
 		SetCallbackUrl(param.CallbackURL).
 		SetCallbackBody(param.CallbackBody).
 		SetCallbackBodyType(param.CallbackBodyType).
-		SetFileType(int64(param.FileType))
-	response, err := request.Send(context.Background(), m.makeHttpClientOptions())
+		SetFileType(int64(param.FileType)).
+		Send(context.Background(), m.makeHttpClientOptions())
 	if err != nil {
 		return AsyncFetchRet{}, err
 	}
 	return AsyncFetchRet{
-		Id:   response.Body.GetId(),
-		Wait: int(response.Body.GetQueuedTasksCount()),
+		Id:   response.GetId(),
+		Wait: int(response.GetQueuedTasksCount()),
 	}, nil
 }
 

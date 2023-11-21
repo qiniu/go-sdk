@@ -47,6 +47,20 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+func (request *Request) GetBucketName() string {
+	return request.Path.GetBucketName()
+}
+func (request *Request) SetBucketName(value string) *Request {
+	request.Path.SetBucketName(value)
+	return request
+}
+func (request *Request) GetObjectName() string {
+	return request.Path.GetObjectName()
+}
+func (request *Request) SetObjectName(value string) *Request {
+	request.Path.SetObjectName(value)
+	return request
+}
 
 type innerNewMultipartUpload struct {
 	UploadId  string `json:"uploadId"` // 初始化文件生成的 id
@@ -92,6 +106,21 @@ func (j *NewMultipartUpload) validate() error {
 
 // 获取 API 所用的响应体参数
 type ResponseBody = NewMultipartUpload
+
+func (request *Response) GetUploadId() string {
+	return request.Body.GetUploadId()
+}
+func (request *Response) SetUploadId(value string) *Response {
+	request.Body.SetUploadId(value)
+	return request
+}
+func (request *Response) GetExpiredAt() int64 {
+	return request.Body.GetExpiredAt()
+}
+func (request *Response) SetExpiredAt(value int64) *Response {
+	request.Body.SetExpiredAt(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {

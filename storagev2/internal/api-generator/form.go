@@ -84,6 +84,60 @@ func (form *FormUrlencodedRequestStruct) Generate(group *jen.Group, options Code
 	return err
 }
 
+func (form *FormUrlencodedRequestStruct) GenerateAliasesFor(group *jen.Group, structName, fieldName string) error {
+	for _, field := range form.Fields {
+		if code, err := form.generateAliasGetterFunc(field, structName, fieldName); err != nil {
+			return err
+		} else {
+			group.Add(code)
+		}
+		if code, err := form.generateAliasSetterFunc(field, structName, fieldName); err != nil {
+			return err
+		} else {
+			group.Add(code)
+		}
+	}
+	return nil
+}
+
+func (form *FormUrlencodedRequestStruct) generateAliasGetterFunc(field FormUrlencodedRequestField, structName, fieldName string) (jen.Code, error) {
+	code := jen.Func().
+		Params(jen.Id("request").Op("*").Id(structName)).
+		Id(makeGetterMethodName(field.FieldName)).
+		Params()
+	if field.Multiple {
+		code = code.Index()
+	}
+	code, err := field.Type.AddTypeToStatement(code)
+	if err != nil {
+		return nil, err
+	}
+	code = code.BlockFunc(func(group *jen.Group) {
+		group.Add(jen.Return(jen.Id("request").Dot(fieldName).Dot(makeGetterMethodName(field.FieldName)).Call()))
+	})
+	return code, nil
+}
+
+func (form *FormUrlencodedRequestStruct) generateAliasSetterFunc(field FormUrlencodedRequestField, structName, fieldName string) (jen.Code, error) {
+	params := jen.Id("value")
+	if field.Multiple {
+		params = params.Index()
+	}
+	params, err := field.Type.AddTypeToStatement(params)
+	if err != nil {
+		return nil, err
+	}
+	return jen.Func().
+		Params(jen.Id("request").Op("*").Id(structName)).
+		Id(makeSetterMethodName(field.FieldName)).
+		Params(params).
+		Params(jen.Op("*").Id(structName)).
+		BlockFunc(func(group *jen.Group) {
+			group.Add(jen.Id("request").Dot(fieldName).Dot(makeSetterMethodName(field.FieldName)).Call(jen.Id("value")))
+			group.Add(jen.Return(jen.Id("request")))
+		}), nil
+}
+
 func (form *FormUrlencodedRequestStruct) generateField(field FormUrlencodedRequestField) (jen.Code, error) {
 	code := jen.Id("field" + strcase.ToCamel(field.FieldName))
 	if field.Multiple {
@@ -102,7 +156,7 @@ func (form *FormUrlencodedRequestStruct) generateField(field FormUrlencodedReque
 func (form *FormUrlencodedRequestStruct) generateGetterFunc(field FormUrlencodedRequestField, options CodeGeneratorOptions) (jen.Code, error) {
 	code := jen.Func().
 		Params(jen.Id("form").Op("*").Id(options.Name)).
-		Id("Get" + strcase.ToCamel(field.FieldName)).
+		Id(makeGetterMethodName(field.FieldName)).
 		Params()
 	if field.Multiple {
 		code = code.Index()
@@ -128,7 +182,7 @@ func (form *FormUrlencodedRequestStruct) generateSetterFunc(field FormUrlencoded
 	}
 	return jen.Func().
 		Params(jen.Id("form").Op("*").Id(options.Name)).
-		Id("Set" + strcase.ToCamel(field.FieldName)).
+		Id(makeSetterMethodName(field.FieldName)).
 		Params(params).
 		Params(jen.Op("*").Id(options.Name)).
 		BlockFunc(func(group *jen.Group) {

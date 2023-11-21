@@ -76,6 +76,34 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+func (request *Request) GetBucketName() string {
+	return request.Path.GetBucketName()
+}
+func (request *Request) SetBucketName(value string) *Request {
+	request.Path.SetBucketName(value)
+	return request
+}
+func (request *Request) GetObjectName() string {
+	return request.Path.GetObjectName()
+}
+func (request *Request) SetObjectName(value string) *Request {
+	request.Path.SetObjectName(value)
+	return request
+}
+func (request *Request) GetUploadId() string {
+	return request.Path.GetUploadId()
+}
+func (request *Request) SetUploadId(value string) *Request {
+	request.Path.SetUploadId(value)
+	return request
+}
+func (request *Request) GetPartNumber() int64 {
+	return request.Path.GetPartNumber()
+}
+func (request *Request) SetPartNumber(value int64) *Request {
+	request.Path.SetPartNumber(value)
+	return request
+}
 
 // 调用 API 所用的 HTTP 头参数
 type RequestHeaders struct {
@@ -95,6 +123,13 @@ func (headers *RequestHeaders) build() (http.Header, error) {
 		allHeaders.Set("Content-MD5", headers.fieldMd5)
 	}
 	return allHeaders, nil
+}
+func (request *Request) GetMd5() string {
+	return request.Headers.GetMd5()
+}
+func (request *Request) SetMd5(value string) *Request {
+	request.Headers.SetMd5(value)
+	return request
 }
 
 type innerNewPartInfo struct {
@@ -141,6 +176,21 @@ func (j *NewPartInfo) validate() error {
 
 // 获取 API 所用的响应体参数
 type ResponseBody = NewPartInfo
+
+func (request *Response) GetEtag() string {
+	return request.Body.GetEtag()
+}
+func (request *Response) SetEtag(value string) *Response {
+	request.Body.SetEtag(value)
+	return request
+}
+func (request *Response) GetMd5() string {
+	return request.Body.GetMd5()
+}
+func (request *Response) SetMd5(value string) *Response {
+	request.Body.SetMd5(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {

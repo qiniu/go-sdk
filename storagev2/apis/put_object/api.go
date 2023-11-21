@@ -94,6 +94,34 @@ func (form *RequestBody) build(ctx context.Context) (*httpclient.MultipartForm, 
 	}
 	return multipartForm, nil
 }
+func (request *Request) GetObjectName() string {
+	return request.Body.GetObjectName()
+}
+func (request *Request) SetObjectName(value string) *Request {
+	request.Body.SetObjectName(value)
+	return request
+}
+func (request *Request) GetUploadToken() uptoken.Provider {
+	return request.Body.GetUploadToken()
+}
+func (request *Request) SetUploadToken(value uptoken.Provider) *Request {
+	request.Body.SetUploadToken(value)
+	return request
+}
+func (request *Request) GetCrc32() int64 {
+	return request.Body.GetCrc32()
+}
+func (request *Request) SetCrc32(value int64) *Request {
+	request.Body.SetCrc32(value)
+	return request
+}
+func (request *Request) GetFile() (io.ReadSeekCloser, string) {
+	return request.Body.GetFile()
+}
+func (request *Request) SetFile(value io.ReadSeekCloser, fileName string) *Request {
+	request.Body.SetFile(value, fileName)
+	return request
+}
 
 type ResponseBody = interface{}
 

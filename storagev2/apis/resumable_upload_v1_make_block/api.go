@@ -35,6 +35,13 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+func (request *Request) GetBlockSize() int64 {
+	return request.Path.GetBlockSize()
+}
+func (request *Request) SetBlockSize(value int64) *Request {
+	request.Path.SetBlockSize(value)
+	return request
+}
 
 type innerNewBlockInfo struct {
 	Ctx       string `json:"ctx"`        // 本次上传成功后的块级上传控制信息，用于后续上传片（bput）及创建文件（mkfile）
@@ -124,6 +131,49 @@ func (j *NewBlockInfo) validate() error {
 
 // 获取 API 所用的响应体参数
 type ResponseBody = NewBlockInfo
+
+func (request *Response) GetCtx() string {
+	return request.Body.GetCtx()
+}
+func (request *Response) SetCtx(value string) *Response {
+	request.Body.SetCtx(value)
+	return request
+}
+func (request *Response) GetChecksum() string {
+	return request.Body.GetChecksum()
+}
+func (request *Response) SetChecksum(value string) *Response {
+	request.Body.SetChecksum(value)
+	return request
+}
+func (request *Response) GetCrc32() int64 {
+	return request.Body.GetCrc32()
+}
+func (request *Response) SetCrc32(value int64) *Response {
+	request.Body.SetCrc32(value)
+	return request
+}
+func (request *Response) GetOffset() int64 {
+	return request.Body.GetOffset()
+}
+func (request *Response) SetOffset(value int64) *Response {
+	request.Body.SetOffset(value)
+	return request
+}
+func (request *Response) GetHost() string {
+	return request.Body.GetHost()
+}
+func (request *Response) SetHost(value string) *Response {
+	request.Body.SetHost(value)
+	return request
+}
+func (request *Response) GetExpiredAt() int64 {
+	return request.Body.GetExpiredAt()
+}
+func (request *Response) SetExpiredAt(value int64) *Response {
+	request.Body.SetExpiredAt(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {

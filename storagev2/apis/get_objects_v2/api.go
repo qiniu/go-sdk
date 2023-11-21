@@ -95,6 +95,48 @@ func (query *RequestQuery) build() (url.Values, error) {
 	}
 	return allQuery, nil
 }
+func (request *Request) GetBucket() string {
+	return request.Query.GetBucket()
+}
+func (request *Request) SetBucket(value string) *Request {
+	request.Query.SetBucket(value)
+	return request
+}
+func (request *Request) GetMarker() string {
+	return request.Query.GetMarker()
+}
+func (request *Request) SetMarker(value string) *Request {
+	request.Query.SetMarker(value)
+	return request
+}
+func (request *Request) GetLimit() int64 {
+	return request.Query.GetLimit()
+}
+func (request *Request) SetLimit(value int64) *Request {
+	request.Query.SetLimit(value)
+	return request
+}
+func (request *Request) GetPrefix() string {
+	return request.Query.GetPrefix()
+}
+func (request *Request) SetPrefix(value string) *Request {
+	request.Query.SetPrefix(value)
+	return request
+}
+func (request *Request) GetDelimiter() string {
+	return request.Query.GetDelimiter()
+}
+func (request *Request) SetDelimiter(value string) *Request {
+	request.Query.SetDelimiter(value)
+	return request
+}
+func (request *Request) GetNeedParts() bool {
+	return request.Query.GetNeedParts()
+}
+func (request *Request) SetNeedParts(value bool) *Request {
+	request.Query.SetNeedParts(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {
