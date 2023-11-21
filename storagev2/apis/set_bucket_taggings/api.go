@@ -132,19 +132,19 @@ type Request struct {
 	Body                   RequestBody
 }
 
-func (request Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) Request {
+func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
-func (request Request) OverwriteBucketName(bucketName string) Request {
+func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
-func (request Request) SetCredentials(credentials credentials.CredentialsProvider) Request {
+func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
 }
-func (request Request) getBucketName(ctx context.Context) (string, error) {
+func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
 	}
@@ -153,7 +153,7 @@ func (request Request) getBucketName(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
-func (request Request) getAccessKey(ctx context.Context) (string, error) {
+func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	if request.credentials != nil {
 		if credentials, err := request.credentials.Get(ctx); err != nil {
 			return "", err
@@ -163,7 +163,7 @@ func (request Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
-func (request Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
+func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
 	var pathSegments []string

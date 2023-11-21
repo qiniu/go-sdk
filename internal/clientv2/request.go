@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/qiniu/go-sdk/v7/conf"
 )
 
 const (
@@ -42,7 +44,7 @@ func GetJsonRequestBody(object interface{}) (GetRequestBody, error) {
 		return nil, err
 	}
 	return func(o *RequestParams) (io.ReadCloser, error) {
-		o.Header.Add("Content-Type", "application/json")
+		o.Header.Set("Content-Type", conf.CONTENT_TYPE_JSON)
 		return nopCloser{r: bytes.NewReader(reqBody)}, nil
 	}, nil
 }
@@ -50,7 +52,7 @@ func GetJsonRequestBody(object interface{}) (GetRequestBody, error) {
 func GetFormRequestBody(info map[string][]string) GetRequestBody {
 	body := formStringInfo(info)
 	return func(o *RequestParams) (io.ReadCloser, error) {
-		o.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		o.Header.Set("Content-Type", conf.CONTENT_TYPE_FORM)
 		return nopCloser{r: strings.NewReader(body)}, nil
 	}
 }

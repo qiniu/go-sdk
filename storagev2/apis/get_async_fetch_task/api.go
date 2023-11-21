@@ -87,24 +87,24 @@ type Request struct {
 	Query                  RequestQuery
 }
 
-func (request Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) Request {
+func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
-func (request Request) OverwriteBucketName(bucketName string) Request {
+func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
-func (request Request) getBucketName(ctx context.Context) (string, error) {
+func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
 	}
 	return "", nil
 }
-func (request Request) getAccessKey(ctx context.Context) (string, error) {
+func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
-func (request Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
+func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceApi}
 	var pathSegments []string

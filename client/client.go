@@ -144,7 +144,7 @@ func (r Client) DoRequestWithForm(ctx context.Context, method, reqUrl string, he
 	if headers == nil {
 		headers = http.Header{}
 	}
-	headers.Add("Content-Type", "application/x-www-form-urlencoded")
+	headers.Set("Content-Type", conf.CONTENT_TYPE_FORM)
 
 	requestData := url.Values(data).Encode()
 	if method == "GET" || method == "HEAD" || method == "DELETE" {
@@ -170,7 +170,7 @@ func (r Client) DoRequestWithJson(ctx context.Context, method, reqUrl string, he
 	if headers == nil {
 		headers = http.Header{}
 	}
-	headers.Add("Content-Type", "application/json")
+	headers.Set("Content-Type", conf.CONTENT_TYPE_JSON)
 	return r.DoRequestWith(ctx, method, reqUrl, headers, bytes.NewReader(reqBody), len(reqBody))
 }
 

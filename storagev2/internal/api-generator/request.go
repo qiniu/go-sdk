@@ -83,10 +83,10 @@ func (request *ApiRequestDescription) generateOverwriteBucketHostsFunc(group *je
 	structName := strcase.ToCamel(opts.Name)
 	group.Add(
 		jen.Func().
-			Params(jen.Id("request").Id(structName)).
+			Params(jen.Id("request").Op("*").Id(structName)).
 			Id("OverwriteBucketHosts").
 			Params(jen.Id("bucketHosts").Qual(PackageNameRegion, "EndpointsProvider")).
-			Params(jen.Id(structName)).
+			Params(jen.Op("*").Id(structName)).
 			BlockFunc(func(group *jen.Group) {
 				group.Add(jen.Id("request").Dot("overwrittenBucketHosts").Op("=").Id("bucketHosts"))
 				group.Add(jen.Return(jen.Id("request")))
@@ -98,10 +98,10 @@ func (request *ApiRequestDescription) generateOverwriteBucketNameFunc(group *jen
 	structName := strcase.ToCamel(opts.Name)
 	group.Add(
 		jen.Func().
-			Params(jen.Id("request").Id(structName)).
+			Params(jen.Id("request").Op("*").Id(structName)).
 			Id("OverwriteBucketName").
 			Params(jen.Id("bucketName").String()).
-			Params(jen.Id(structName)).
+			Params(jen.Op("*").Id(structName)).
 			BlockFunc(func(group *jen.Group) {
 				group.Add(jen.Id("request").Dot("overwrittenBucketName").Op("=").Id("bucketName"))
 				group.Add(jen.Return(jen.Id("request")))
@@ -116,10 +116,10 @@ func (request *ApiRequestDescription) generateSetAuthFunc(group *jen.Group, opts
 		case AuthorizationQbox, AuthorizationQiniu:
 			group.Add(
 				jen.Func().
-					Params(jen.Id("request").Id(structName)).
+					Params(jen.Id("request").Op("*").Id(structName)).
 					Id("SetCredentials").
 					Params(jen.Id("credentials").Qual(PackageNameCredentials, "CredentialsProvider")).
-					Params(jen.Id(structName)).
+					Params(jen.Op("*").Id(structName)).
 					BlockFunc(func(group *jen.Group) {
 						group.Add(jen.Id("request").Dot("credentials").Op("=").Id("credentials"))
 						group.Add(jen.Return(jen.Id("request")))
@@ -128,10 +128,10 @@ func (request *ApiRequestDescription) generateSetAuthFunc(group *jen.Group, opts
 		case AuthorizationUpToken:
 			group.Add(
 				jen.Func().
-					Params(jen.Id("request").Id(structName)).
+					Params(jen.Id("request").Op("*").Id(structName)).
 					Id("SetUpToken").
 					Params(jen.Id("upToken").Qual(PackageNameUpToken, "Provider")).
-					Params(jen.Id(structName)).
+					Params(jen.Op("*").Id(structName)).
 					BlockFunc(func(group *jen.Group) {
 						group.Add(jen.Id("request").Dot("upToken").Op("=").Id("upToken"))
 						group.Add(jen.Return(jen.Id("request")))
@@ -144,7 +144,7 @@ func (request *ApiRequestDescription) generateSetAuthFunc(group *jen.Group, opts
 func (request *ApiRequestDescription) generateGetBucketNameFunc(group *jen.Group, opts CodeGeneratorOptions) {
 	group.Add(
 		jen.Func().
-			Params(jen.Id("request").Id(strcase.ToCamel(opts.Name))).
+			Params(jen.Id("request").Op("*").Id(strcase.ToCamel(opts.Name))).
 			Id("getBucketName").
 			Params(jen.Id("ctx").Qual("context", "Context")).
 			Params(jen.Id("string"), jen.Error()).
@@ -238,7 +238,7 @@ func (request *ApiRequestDescription) generateGetBucketNameFunc(group *jen.Group
 func (request *ApiRequestDescription) generateGetAccessKeyFunc(group *jen.Group, opts CodeGeneratorOptions) {
 	group.Add(
 		jen.Func().
-			Params(jen.Id("request").Id(strcase.ToCamel(opts.Name))).
+			Params(jen.Id("request").Op("*").Id(strcase.ToCamel(opts.Name))).
 			Id("getAccessKey").
 			Params(jen.Id("ctx").Qual("context", "Context")).
 			Params(jen.Id("string"), jen.Error()).
@@ -307,7 +307,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 	description := opts.apiDetailedDescription
 	group.Add(
 		jen.Func().
-			Params(jen.Id("request").Id(strcase.ToCamel(opts.Name))).
+			Params(jen.Id("request").Op("*").Id(strcase.ToCamel(opts.Name))).
 			Id("Send").
 			Params(
 				jen.Id("ctx").Qual("context", "Context"),
