@@ -635,10 +635,11 @@ func (m *BucketManager) SetBucketMaxAge(bucket string, maxAge int64) error {
 // mode - 1 表示设置空间为私有空间， 私有空间访问需要鉴权
 // mode - 0 表示设置空间为公开空间
 func (m *BucketManager) SetBucketAccessMode(bucket string, mode int) error {
-	var request set_bucket_private.Request
-	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
-	request.Body.SetBucket(bucket).SetIsPrivate(int64(mode))
-	_, err := request.Send(context.Background(), m.makeHttpClientOptions())
+	_, err := new(set_bucket_private.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucket(bucket).
+		SetPrivate(int64(mode)).
+		Send(context.Background(), m.makeHttpClientOptions())
 	return err
 }
 

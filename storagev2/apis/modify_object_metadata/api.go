@@ -66,6 +66,27 @@ func (path *RequestPath) build() ([]string, error) {
 	allSegments = append(allSegments, path.extendedSegments...)
 	return allSegments, nil
 }
+func (request *Request) GetEntry() string {
+	return request.Path.GetEntry()
+}
+func (request *Request) SetEntry(value string) *Request {
+	request.Path.SetEntry(value)
+	return request
+}
+func (request *Request) GetMimeType() string {
+	return request.Path.GetMimeType()
+}
+func (request *Request) SetMimeType(value string) *Request {
+	request.Path.SetMimeType(value)
+	return request
+}
+func (request *Request) GetCondition() string {
+	return request.Path.GetCondition()
+}
+func (request *Request) SetCondition(value string) *Request {
+	request.Path.SetCondition(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {

@@ -36,6 +36,13 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+func (request *Request) GetBucket() string {
+	return request.Path.GetBucket()
+}
+func (request *Request) SetBucket(value string) *Request {
+	request.Path.SetBucket(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {

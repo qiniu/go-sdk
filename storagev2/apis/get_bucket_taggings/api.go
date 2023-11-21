@@ -39,6 +39,13 @@ func (query *RequestQuery) build() (url.Values, error) {
 	}
 	return allQuery, nil
 }
+func (request *Request) GetBucketName() string {
+	return request.Query.GetBucketName()
+}
+func (request *Request) SetBucketName(value string) *Request {
+	request.Query.SetBucketName(value)
+	return request
+}
 
 type innerTagInfo struct {
 	Key   string `json:"Key"`   // 标签名称，最大 64 Byte，不能为空且大小写敏感，不能以 kodo 为前缀(预留), 不支持中文字符，可使用的字符有：字母，数字，空格，+ - = . _ : / @
@@ -122,6 +129,14 @@ func (j *TagsInfo) validate() error {
 
 // 获取 API 所用的响应体参数
 type ResponseBody = TagsInfo
+
+func (request *Response) GetTags() Tags {
+	return request.Body.GetTags()
+}
+func (request *Response) SetTags(value Tags) *Response {
+	request.Body.SetTags(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {

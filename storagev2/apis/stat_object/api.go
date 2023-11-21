@@ -40,6 +40,13 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+func (request *Request) GetEntry() string {
+	return request.Path.GetEntry()
+}
+func (request *Request) SetEntry(value string) *Request {
+	request.Path.SetEntry(value)
+	return request
+}
 
 // 调用 API 所用的 URL 查询参数
 type RequestQuery struct {
@@ -59,6 +66,13 @@ func (query *RequestQuery) build() (url.Values, error) {
 		allQuery.Set("needparts", strconv.FormatBool(query.fieldNeedParts))
 	}
 	return allQuery, nil
+}
+func (request *Request) GetNeedParts() bool {
+	return request.Query.GetNeedParts()
+}
+func (request *Request) SetNeedParts(value bool) *Request {
+	request.Query.SetNeedParts(value)
+	return request
 }
 
 // 每个分片的大小
@@ -223,6 +237,112 @@ func (j *ObjectMetadata) validate() error {
 
 // 获取 API 所用的响应体参数
 type ResponseBody = ObjectMetadata
+
+func (request *Response) GetSize() int64 {
+	return request.Body.GetSize()
+}
+func (request *Response) SetSize(value int64) *Response {
+	request.Body.SetSize(value)
+	return request
+}
+func (request *Response) GetHash() string {
+	return request.Body.GetHash()
+}
+func (request *Response) SetHash(value string) *Response {
+	request.Body.SetHash(value)
+	return request
+}
+func (request *Response) GetMimeType() string {
+	return request.Body.GetMimeType()
+}
+func (request *Response) SetMimeType(value string) *Response {
+	request.Body.SetMimeType(value)
+	return request
+}
+func (request *Response) GetType() int64 {
+	return request.Body.GetType()
+}
+func (request *Response) SetType(value int64) *Response {
+	request.Body.SetType(value)
+	return request
+}
+func (request *Response) GetPutTime() int64 {
+	return request.Body.GetPutTime()
+}
+func (request *Response) SetPutTime(value int64) *Response {
+	request.Body.SetPutTime(value)
+	return request
+}
+func (request *Response) GetEndUser() string {
+	return request.Body.GetEndUser()
+}
+func (request *Response) SetEndUser(value string) *Response {
+	request.Body.SetEndUser(value)
+	return request
+}
+func (request *Response) GetRestoringStatus() int64 {
+	return request.Body.GetRestoringStatus()
+}
+func (request *Response) SetRestoringStatus(value int64) *Response {
+	request.Body.SetRestoringStatus(value)
+	return request
+}
+func (request *Response) GetStatus() int64 {
+	return request.Body.GetStatus()
+}
+func (request *Response) SetStatus(value int64) *Response {
+	request.Body.SetStatus(value)
+	return request
+}
+func (request *Response) GetMd5() string {
+	return request.Body.GetMd5()
+}
+func (request *Response) SetMd5(value string) *Response {
+	request.Body.SetMd5(value)
+	return request
+}
+func (request *Response) GetExpirationTime() int64 {
+	return request.Body.GetExpirationTime()
+}
+func (request *Response) SetExpirationTime(value int64) *Response {
+	request.Body.SetExpirationTime(value)
+	return request
+}
+func (request *Response) GetTransitionToIaTime() int64 {
+	return request.Body.GetTransitionToIaTime()
+}
+func (request *Response) SetTransitionToIaTime(value int64) *Response {
+	request.Body.SetTransitionToIaTime(value)
+	return request
+}
+func (request *Response) GetTransitionToArchiveTime() int64 {
+	return request.Body.GetTransitionToArchiveTime()
+}
+func (request *Response) SetTransitionToArchiveTime(value int64) *Response {
+	request.Body.SetTransitionToArchiveTime(value)
+	return request
+}
+func (request *Response) GetTransitionToDeepArchiveTime() int64 {
+	return request.Body.GetTransitionToDeepArchiveTime()
+}
+func (request *Response) SetTransitionToDeepArchiveTime(value int64) *Response {
+	request.Body.SetTransitionToDeepArchiveTime(value)
+	return request
+}
+func (request *Response) GetMetadata() map[string]string {
+	return request.Body.GetMetadata()
+}
+func (request *Response) SetMetadata(value map[string]string) *Response {
+	request.Body.SetMetadata(value)
+	return request
+}
+func (request *Response) GetParts() PartSizes {
+	return request.Body.GetParts()
+}
+func (request *Response) SetParts(value PartSizes) *Response {
+	request.Body.SetParts(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {

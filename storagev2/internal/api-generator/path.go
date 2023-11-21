@@ -206,10 +206,57 @@ func (pp *PathParams) Generate(group *jen.Group, options CodeGeneratorOptions) e
 	return err
 }
 
+func (pp *PathParams) GenerateAliasesFor(group *jen.Group, structName, fieldName string) error {
+	for _, named := range pp.Named {
+		if code, err := pp.generateAliasGetterFunc(named, structName, fieldName); err != nil {
+			return err
+		} else {
+			group.Add(code)
+		}
+		if code, err := pp.generateAliasSetterFunc(named, structName, fieldName); err != nil {
+			return err
+		} else {
+			group.Add(code)
+		}
+	}
+	return nil
+}
+
+func (pp *PathParams) generateAliasGetterFunc(named NamedPathParam, structName, fieldName string) (jen.Code, error) {
+	code := jen.Func().
+		Params(jen.Id("request").Op("*").Id(structName)).
+		Id(makeGetterMethodName(named.FieldName)).
+		Params()
+	code, err := named.Type.AddTypeToStatement(code)
+	if err != nil {
+		return nil, err
+	}
+	code = code.BlockFunc(func(group *jen.Group) {
+		group.Add(jen.Return(jen.Id("request").Dot(fieldName).Dot(makeGetterMethodName(named.FieldName)).Call()))
+	})
+	return code, nil
+}
+
+func (pp *PathParams) generateAliasSetterFunc(named NamedPathParam, structName, fieldName string) (jen.Code, error) {
+	params, err := named.Type.AddTypeToStatement(jen.Id("value"))
+	if err != nil {
+		return nil, err
+	}
+	return jen.Func().
+		Params(jen.Id("request").Op("*").Id(structName)).
+		Id(makeSetterMethodName(named.FieldName)).
+		Params(params).
+		Params(jen.Op("*").Id(structName)).
+		BlockFunc(func(group *jen.Group) {
+			group.Add(jen.Id("request").Dot(fieldName).Dot(makeSetterMethodName(named.FieldName)).Call(jen.Id("value")))
+			group.Add(jen.Return(jen.Id("request")))
+		}), nil
+}
+
 func (pp *PathParams) generateGetterFunc(named NamedPathParam, options CodeGeneratorOptions) (jen.Code, error) {
 	code := jen.Func().
 		Params(jen.Id("pp").Op("*").Id(options.Name)).
-		Id("Get" + strcase.ToCamel(named.FieldName)).
+		Id(makeGetterMethodName(named.FieldName)).
 		Params()
 	code, err := named.Type.AddTypeToStatement(code)
 	if err != nil {
@@ -228,7 +275,7 @@ func (pp *PathParams) generateSetterFunc(named NamedPathParam, options CodeGener
 	}
 	return jen.Func().
 		Params(jen.Id("pp").Op("*").Id(options.Name)).
-		Id("Set" + strcase.ToCamel(named.FieldName)).
+		Id(makeSetterMethodName(named.FieldName)).
 		Params(params).
 		Params(jen.Op("*").Id(options.Name)).
 		BlockFunc(func(group *jen.Group) {

@@ -87,6 +87,53 @@ func (names QueryNames) Generate(group *jen.Group, options CodeGeneratorOptions)
 	return err
 }
 
+func (names QueryNames) GenerateAliasesFor(group *jen.Group, structName, fieldName string) error {
+	for _, name := range names {
+		if code, err := names.generateAliasGetterFunc(name, structName, fieldName); err != nil {
+			return err
+		} else {
+			group.Add(code)
+		}
+		if code, err := names.generateAliasSetterFunc(name, structName, fieldName); err != nil {
+			return err
+		} else {
+			group.Add(code)
+		}
+	}
+	return nil
+}
+
+func (names QueryNames) generateAliasGetterFunc(queryName QueryName, structName, fieldName string) (jen.Code, error) {
+	code := jen.Func().
+		Params(jen.Id("request").Op("*").Id(structName)).
+		Id(makeGetterMethodName(queryName.FieldName)).
+		Params()
+	code, err := queryName.QueryType.AddTypeToStatement(code)
+	if err != nil {
+		return nil, err
+	}
+	code = code.BlockFunc(func(group *jen.Group) {
+		group.Add(jen.Return(jen.Id("request").Dot(fieldName).Dot(makeGetterMethodName(queryName.FieldName)).Call()))
+	})
+	return code, nil
+}
+
+func (names QueryNames) generateAliasSetterFunc(queryName QueryName, structName, fieldName string) (jen.Code, error) {
+	params, err := queryName.QueryType.AddTypeToStatement(jen.Id("value"))
+	if err != nil {
+		return nil, err
+	}
+	return jen.Func().
+		Params(jen.Id("request").Op("*").Id(structName)).
+		Id(makeSetterMethodName(queryName.FieldName)).
+		Params(params).
+		Params(jen.Op("*").Id(structName)).
+		BlockFunc(func(group *jen.Group) {
+			group.Add(jen.Id("request").Dot(fieldName).Dot(makeSetterMethodName(queryName.FieldName)).Call(jen.Id("value")))
+			group.Add(jen.Return(jen.Id("request")))
+		}), nil
+}
+
 func (names QueryNames) generateField(queryName QueryName, options CodeGeneratorOptions) (jen.Code, error) {
 	code, err := queryName.QueryType.AddTypeToStatement(jen.Id("field" + strcase.ToCamel(queryName.FieldName)))
 	if err != nil {
@@ -99,7 +146,7 @@ func (names QueryNames) generateField(queryName QueryName, options CodeGenerator
 func (names QueryNames) generateGetterFunc(queryName QueryName, options CodeGeneratorOptions) (jen.Code, error) {
 	code := jen.Func().
 		Params(jen.Id("query").Op("*").Id(options.Name)).
-		Id("Get" + strcase.ToCamel(queryName.FieldName)).
+		Id(makeGetterMethodName(queryName.FieldName)).
 		Params()
 	code, err := queryName.QueryType.AddTypeToStatement(code)
 	if err != nil {
@@ -118,7 +165,7 @@ func (names QueryNames) generateSetterFunc(queryName QueryName, options CodeGene
 	}
 	return jen.Func().
 		Params(jen.Id("query").Op("*").Id(options.Name)).
-		Id("Set" + strcase.ToCamel(queryName.FieldName)).
+		Id(makeSetterMethodName(queryName.FieldName)).
 		Params(params).
 		Params(jen.Op("*").Id(options.Name)).
 		BlockFunc(func(group *jen.Group) {

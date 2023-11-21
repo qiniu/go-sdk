@@ -62,6 +62,27 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+func (request *Request) GetBucketName() string {
+	return request.Path.GetBucketName()
+}
+func (request *Request) SetBucketName(value string) *Request {
+	request.Path.SetBucketName(value)
+	return request
+}
+func (request *Request) GetObjectName() string {
+	return request.Path.GetObjectName()
+}
+func (request *Request) SetObjectName(value string) *Request {
+	request.Path.SetObjectName(value)
+	return request
+}
+func (request *Request) GetUploadId() string {
+	return request.Path.GetUploadId()
+}
+func (request *Request) SetUploadId(value string) *Request {
+	request.Path.SetUploadId(value)
+	return request
+}
 
 // 调用 API 所用的 URL 查询参数
 type RequestQuery struct {
@@ -92,6 +113,20 @@ func (query *RequestQuery) build() (url.Values, error) {
 		allQuery.Set("part-number_marker", strconv.FormatInt(query.fieldPartNumberMarker, 10))
 	}
 	return allQuery, nil
+}
+func (request *Request) GetMaxParts() int64 {
+	return request.Query.GetMaxParts()
+}
+func (request *Request) SetMaxParts(value int64) *Request {
+	request.Query.SetMaxParts(value)
+	return request
+}
+func (request *Request) GetPartNumberMarker() int64 {
+	return request.Query.GetPartNumberMarker()
+}
+func (request *Request) SetPartNumberMarker(value int64) *Request {
+	request.Query.SetPartNumberMarker(value)
+	return request
 }
 
 type innerListedPartInfo struct {
@@ -234,6 +269,35 @@ func (j *ListedPartsResponse) validate() error {
 
 // 获取 API 所用的响应体参数
 type ResponseBody = ListedPartsResponse
+
+func (request *Response) GetUploadId() string {
+	return request.Body.GetUploadId()
+}
+func (request *Response) SetUploadId(value string) *Response {
+	request.Body.SetUploadId(value)
+	return request
+}
+func (request *Response) GetExpiredAt() int64 {
+	return request.Body.GetExpiredAt()
+}
+func (request *Response) SetExpiredAt(value int64) *Response {
+	request.Body.SetExpiredAt(value)
+	return request
+}
+func (request *Response) GetPartNumberMarker() int64 {
+	return request.Body.GetPartNumberMarker()
+}
+func (request *Response) SetPartNumberMarker(value int64) *Response {
+	request.Body.SetPartNumberMarker(value)
+	return request
+}
+func (request *Response) GetParts() ListedParts {
+	return request.Body.GetParts()
+}
+func (request *Response) SetParts(value ListedParts) *Response {
+	request.Body.SetParts(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {

@@ -53,6 +53,13 @@ func (jsonType *JsonType) Generate(group *jen.Group, options CodeGeneratorOption
 	})
 }
 
+func (jsonType *JsonType) GenerateAliasesFor(group *jen.Group, structName, fieldName string) error {
+	if s := jsonType.Struct; s != nil {
+		return s.GenerateAliasesFor(group, structName, fieldName)
+	}
+	return nil
+}
+
 func (jsonType *JsonType) generate(group *jen.Group, options CodeGeneratorOptions, otherWise func() error) error {
 	if s := jsonType.Struct; s != nil {
 		if err := s.Generate(group, options); err != nil {
@@ -217,6 +224,22 @@ func (jsonStruct *JsonStruct) Generate(group *jen.Group, options CodeGeneratorOp
 	return nil
 }
 
+func (jsonStruct *JsonStruct) GenerateAliasesFor(group *jen.Group, structName, fieldName string) error {
+	for _, field := range jsonStruct.Fields {
+		if code, err := jsonStruct.generateAliasGetterFunc(field, structName, fieldName); err != nil {
+			return err
+		} else {
+			group.Add(code)
+		}
+		if code, err := jsonStruct.generateAliasSetterFunc(field, structName, fieldName); err != nil {
+			return err
+		} else {
+			group.Add(code)
+		}
+	}
+	return nil
+}
+
 func (jsonStruct *JsonStruct) generateMarlshalerFunc(options CodeGeneratorOptions) jen.Code {
 	return jen.Func().
 		Params(jen.Id("j").Op("*").Id(options.Name)).
@@ -303,10 +326,41 @@ func (jsonStruct *JsonStruct) generateValidateFunc(options CodeGeneratorOptions)
 		})
 }
 
+func (jsonStruct *JsonStruct) generateAliasGetterFunc(field JsonField, structName, fieldName string) (jen.Code, error) {
+	code := jen.Func().
+		Params(jen.Id("request").Op("*").Id(structName)).
+		Id(makeGetterMethodName(field.FieldName)).
+		Params()
+	code, err := field.Type.AddTypeToStatement(code)
+	if err != nil {
+		return nil, err
+	}
+	code = code.BlockFunc(func(group *jen.Group) {
+		group.Add(jen.Return(jen.Id("request").Dot(fieldName).Dot(makeGetterMethodName(field.FieldName)).Call()))
+	})
+	return code, nil
+}
+
+func (jsonStruct *JsonStruct) generateAliasSetterFunc(field JsonField, structName, fieldName string) (jen.Code, error) {
+	params, err := field.Type.AddTypeToStatement(jen.Id("value"))
+	if err != nil {
+		return nil, err
+	}
+	return jen.Func().
+		Params(jen.Id("request").Op("*").Id(structName)).
+		Id(makeSetterMethodName(field.FieldName)).
+		Params(params).
+		Params(jen.Op("*").Id(structName)).
+		BlockFunc(func(group *jen.Group) {
+			group.Add(jen.Id("request").Dot(fieldName).Dot(makeSetterMethodName(field.FieldName)).Call(jen.Id("value")))
+			group.Add(jen.Return(jen.Id("request")))
+		}), nil
+}
+
 func (jsonStruct *JsonStruct) generateGetterFunc(field JsonField, options CodeGeneratorOptions) (jen.Code, error) {
 	code := jen.Func().
 		Params(jen.Id("j").Op("*").Id(options.Name)).
-		Id("Get" + strcase.ToCamel(field.FieldName)).
+		Id(makeGetterMethodName(field.FieldName)).
 		Params()
 	code, err := field.Type.AddTypeToStatement(code)
 	if err != nil {
@@ -325,7 +379,7 @@ func (jsonStruct *JsonStruct) generateSetterFunc(field JsonField, options CodeGe
 	}
 	return jen.Func().
 		Params(jen.Id("j").Op("*").Id(options.Name)).
-		Id("Set" + strcase.ToCamel(field.FieldName)).
+		Id(makeSetterMethodName(field.FieldName)).
 		Params(params).
 		Params(jen.Op("*").Id(options.Name)).
 		BlockFunc(func(group *jen.Group) {

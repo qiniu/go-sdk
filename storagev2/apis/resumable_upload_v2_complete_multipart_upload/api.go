@@ -60,6 +60,27 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+func (request *Request) GetBucketName() string {
+	return request.Path.GetBucketName()
+}
+func (request *Request) SetBucketName(value string) *Request {
+	request.Path.SetBucketName(value)
+	return request
+}
+func (request *Request) GetObjectName() string {
+	return request.Path.GetObjectName()
+}
+func (request *Request) SetObjectName(value string) *Request {
+	request.Path.SetObjectName(value)
+	return request
+}
+func (request *Request) GetUploadId() string {
+	return request.Path.GetUploadId()
+}
+func (request *Request) SetUploadId(value string) *Request {
+	request.Path.SetUploadId(value)
+	return request
+}
 
 type innerPartInfo struct {
 	PartNumber int64  `json:"partNumber"` // 每一个上传的分片都有一个标识它的号码
@@ -175,6 +196,43 @@ func (j *ObjectInfo) validate() error {
 
 // 调用 API 所用的请求体
 type RequestBody = ObjectInfo
+
+func (request *Request) GetParts() Parts {
+	return request.Body.GetParts()
+}
+func (request *Request) SetParts(value Parts) *Request {
+	request.Body.SetParts(value)
+	return request
+}
+func (request *Request) GetFileName() string {
+	return request.Body.GetFileName()
+}
+func (request *Request) SetFileName(value string) *Request {
+	request.Body.SetFileName(value)
+	return request
+}
+func (request *Request) GetMimeType() string {
+	return request.Body.GetMimeType()
+}
+func (request *Request) SetMimeType(value string) *Request {
+	request.Body.SetMimeType(value)
+	return request
+}
+func (request *Request) GetMetadata() map[string]string {
+	return request.Body.GetMetadata()
+}
+func (request *Request) SetMetadata(value map[string]string) *Request {
+	request.Body.SetMetadata(value)
+	return request
+}
+func (request *Request) GetCustomVars() map[string]string {
+	return request.Body.GetCustomVars()
+}
+func (request *Request) SetCustomVars(value map[string]string) *Request {
+	request.Body.SetCustomVars(value)
+	return request
+}
+
 type ResponseBody = interface{}
 
 // 调用 API 所用的请求

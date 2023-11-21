@@ -56,6 +56,27 @@ func (query *RequestQuery) build() (url.Values, error) {
 	}
 	return allQuery, nil
 }
+func (request *Request) GetRegion() string {
+	return request.Query.GetRegion()
+}
+func (request *Request) SetRegion(value string) *Request {
+	request.Query.SetRegion(value)
+	return request
+}
+func (request *Request) GetLimit() string {
+	return request.Query.GetLimit()
+}
+func (request *Request) SetLimit(value string) *Request {
+	request.Query.SetLimit(value)
+	return request
+}
+func (request *Request) GetMarker() string {
+	return request.Query.GetMarker()
+}
+func (request *Request) SetMarker(value string) *Request {
+	request.Query.SetMarker(value)
+	return request
+}
 
 type innerBucketV4 struct {
 	Name        string `json:"name"`    // 空间名称
@@ -139,10 +160,10 @@ func (j *BucketsResultV4) SetNextMarker(value string) *BucketsResultV4 {
 	j.inner.NextMarker = value
 	return j
 }
-func (j *BucketsResultV4) GetIsTruncated() bool {
+func (j *BucketsResultV4) IsTruncated() bool {
 	return j.inner.IsTruncated
 }
-func (j *BucketsResultV4) SetIsTruncated(value bool) *BucketsResultV4 {
+func (j *BucketsResultV4) SetTruncated(value bool) *BucketsResultV4 {
 	j.inner.IsTruncated = value
 	return j
 }
@@ -178,6 +199,28 @@ func (j *BucketsResultV4) validate() error {
 
 // 获取 API 所用的响应体参数
 type ResponseBody = BucketsResultV4
+
+func (request *Response) GetNextMarker() string {
+	return request.Body.GetNextMarker()
+}
+func (request *Response) SetNextMarker(value string) *Response {
+	request.Body.SetNextMarker(value)
+	return request
+}
+func (request *Response) IsTruncated() bool {
+	return request.Body.IsTruncated()
+}
+func (request *Response) SetTruncated(value bool) *Response {
+	request.Body.SetTruncated(value)
+	return request
+}
+func (request *Response) GetBuckets() BucketsV4 {
+	return request.Body.GetBuckets()
+}
+func (request *Response) SetBuckets(value BucketsV4) *Response {
+	request.Body.SetBuckets(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {

@@ -82,6 +82,41 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+func (request *Request) GetEntry() string {
+	return request.Path.GetEntry()
+}
+func (request *Request) SetEntry(value string) *Request {
+	request.Path.SetEntry(value)
+	return request
+}
+func (request *Request) GetToIaAfterDays() int64 {
+	return request.Path.GetToIaAfterDays()
+}
+func (request *Request) SetToIaAfterDays(value int64) *Request {
+	request.Path.SetToIaAfterDays(value)
+	return request
+}
+func (request *Request) GetToArchiveAfterDays() int64 {
+	return request.Path.GetToArchiveAfterDays()
+}
+func (request *Request) SetToArchiveAfterDays(value int64) *Request {
+	request.Path.SetToArchiveAfterDays(value)
+	return request
+}
+func (request *Request) GetToDeepArchiveAfterDays() int64 {
+	return request.Path.GetToDeepArchiveAfterDays()
+}
+func (request *Request) SetToDeepArchiveAfterDays(value int64) *Request {
+	request.Path.SetToDeepArchiveAfterDays(value)
+	return request
+}
+func (request *Request) GetDeleteAfterDays() int64 {
+	return request.Path.GetDeleteAfterDays()
+}
+func (request *Request) SetDeleteAfterDays(value int64) *Request {
+	request.Path.SetDeleteAfterDays(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {

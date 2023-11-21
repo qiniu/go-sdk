@@ -34,6 +34,13 @@ func (query *RequestQuery) build() (url.Values, error) {
 	}
 	return allQuery, nil
 }
+func (request *Request) GetId() string {
+	return request.Query.GetId()
+}
+func (request *Request) SetId(value string) *Request {
+	request.Query.SetId(value)
+	return request
+}
 
 type innerFetchTaskInfo struct {
 	Id               string `json:"id"`   // 异步任务 ID
@@ -79,6 +86,21 @@ func (j *FetchTaskInfo) validate() error {
 
 // 获取 API 所用的响应体参数
 type ResponseBody = FetchTaskInfo
+
+func (request *Response) GetId() string {
+	return request.Body.GetId()
+}
+func (request *Response) SetId(value string) *Response {
+	request.Body.SetId(value)
+	return request
+}
+func (request *Response) GetQueuedTasksCount() int64 {
+	return request.Body.GetQueuedTasksCount()
+}
+func (request *Response) SetQueuedTasksCount(value int64) *Response {
+	request.Body.SetQueuedTasksCount(value)
+	return request
+}
 
 // 调用 API 所用的请求
 type Request struct {
