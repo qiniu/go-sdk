@@ -137,11 +137,12 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	var pathSegments []string
 	pathSegments = append(pathSegments, "")
 	path := "/" + strings.Join(pathSegments, "/")
+	var rawQuery string
 	body, err := request.Body.build(ctx)
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RequestBody: httpclient.GetMultipartFormRequestBody(body)}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, RequestBody: httpclient.GetMultipartFormRequestBody(body)}
 	var queryer region.BucketRegionsQueryer
 	if client.GetRegions() == nil && client.GetEndpoints() == nil {
 		queryer = client.GetBucketQueryer()

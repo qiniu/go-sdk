@@ -382,13 +382,20 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 					}))
 				}
 				group.Add(jen.Id("path").Op(":=").Lit("/").Op("+").Qual("strings", "Join").Call(jen.Id("pathSegments"), jen.Lit("/")))
+				group.Add(jen.Var().Id("rawQuery").String())
+				if description.Command != "" {
+					group.Add(jen.Id("rawQuery").Op("+=").Lit(description.Command).Op("+").Lit("&"))
+				}
 				if description.Request.QueryNames != nil {
-					group.Add(jen.List(jen.Id("query"), jen.Err()).Op(":=").Id("request").Dot("Query").Dot("build").Call())
 					group.Add(
-						jen.If(jen.Err().Op("!=").Nil()).
-							BlockFunc(func(group *jen.Group) {
-								group.Add(jen.Return(jen.Nil(), jen.Err()))
-							}),
+						jen.If(
+							jen.List(jen.Id("query"), jen.Err()).Op(":=").Id("request").Dot("Query").Dot("build").Call(),
+							jen.Err().Op("!=").Nil(),
+						).BlockFunc(func(group *jen.Group) {
+							group.Add(jen.Return(jen.Nil(), jen.Err()))
+						}).Else().BlockFunc(func(group *jen.Group) {
+							group.Id("rawQuery").Op("+=").Id("query").Dot("Encode").Call()
+						}),
 					)
 				}
 
@@ -465,9 +472,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 							group.Add(jen.Id("Method").Op(":").Lit(method))
 							group.Add(jen.Id("ServiceNames").Op(":").Id("serviceNames"))
 							group.Add(jen.Id("Path").Op(":").Id("path"))
-							if description.Request.QueryNames != nil {
-								group.Add(jen.Id("RawQuery").Op(":").Id("query").Dot("Encode").Call())
-							}
+							group.Add(jen.Id("RawQuery").Op(":").Id("rawQuery"))
 							if description.Request.HeaderNames != nil {
 								group.Add(jen.Id("Header").Op(":").Id("headers"))
 							}

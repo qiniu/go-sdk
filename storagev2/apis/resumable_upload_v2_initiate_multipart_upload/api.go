@@ -144,7 +144,8 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	}
 	pathSegments = append(pathSegments, "uploads")
 	path := "/" + strings.Join(pathSegments, "/")
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, UpToken: request.upToken}
+	var rawQuery string
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: request.upToken}
 	var queryer region.BucketRegionsQueryer
 	if client.GetRegions() == nil && client.GetEndpoints() == nil {
 		queryer = client.GetBucketQueryer()

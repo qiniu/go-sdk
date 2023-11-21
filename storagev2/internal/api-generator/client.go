@@ -11,6 +11,7 @@ type (
 		Method        MethodName             `yaml:"method,omitempty"`
 		ServiceNames  []ServiceName          `yaml:"service_names,omitempty"`
 		Documentation string                 `yaml:"documentation,omitempty"`
+		Command       string                 `yaml:"command,omitempty"`
 		BasePath      string                 `yaml:"base_path,omitempty"`
 		PathSuffix    string                 `yaml:"path_suffix,omitempty"`
 		Request       ApiRequestDescription  `yaml:"request,omitempty"`

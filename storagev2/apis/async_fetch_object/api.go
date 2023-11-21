@@ -15,18 +15,18 @@ import (
 )
 
 type innerNewFetchTaskParams struct {
-	Url              string  `json:"url"`                        // 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
-	Bucket           string  `json:"bucket"`                     // 所在区域的存储空间
-	Host             string  `json:"host,omitempty"`             // 从指定 URL 下载数据时使用的 Host
-	Key              string  `json:"key,omitempty"`              // 对象名称，如果不传，则默认为文件的哈希值
-	Md5              string  `json:"md5,omitempty"`              // 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
-	Etag             string  `json:"etag,omitempty"`             // 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
-	CallbackUrl      string  `json:"callbackurl,omitempty"`      // 回调 URL
-	CallbackBody     string  `json:"callbackbody,omitempty"`     // 回调负荷，如果 callback_url 不为空则必须指定
-	CallbackBodyType string  `json:"callbackbodytype,omitempty"` // 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
-	CallbackHost     string  `json:"callbackhost,omitempty"`     // 回调时使用的 Host
-	FileType         int64   `json:"file_type"`                  // 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
-	IgnoreSameKey    float64 `json:"ignore_same_key,omitempty"`  // 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
+	Url              string `json:"url"`                        // 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
+	Bucket           string `json:"bucket"`                     // 所在区域的存储空间
+	Host             string `json:"host,omitempty"`             // 从指定 URL 下载数据时使用的 Host
+	Key              string `json:"key,omitempty"`              // 对象名称，如果不传，则默认为文件的哈希值
+	Md5              string `json:"md5,omitempty"`              // 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
+	Etag             string `json:"etag,omitempty"`             // 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
+	CallbackUrl      string `json:"callbackurl,omitempty"`      // 回调 URL
+	CallbackBody     string `json:"callbackbody,omitempty"`     // 回调负荷，如果 callback_url 不为空则必须指定
+	CallbackBodyType string `json:"callbackbodytype,omitempty"` // 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
+	CallbackHost     string `json:"callbackhost,omitempty"`     // 回调时使用的 Host
+	FileType         int64  `json:"file_type"`                  // 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
+	IgnoreSameKey    bool   `json:"ignore_same_key,omitempty"`  // 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
 }
 
 // 要抓取的资源信息
@@ -111,10 +111,10 @@ func (j *NewFetchTaskParams) SetFileType(value int64) *NewFetchTaskParams {
 	j.inner.FileType = value
 	return j
 }
-func (j *NewFetchTaskParams) GetIgnoreSameKey() float64 {
+func (j *NewFetchTaskParams) GetIgnoreSameKey() bool {
 	return j.inner.IgnoreSameKey
 }
-func (j *NewFetchTaskParams) SetIgnoreSameKey(value float64) *NewFetchTaskParams {
+func (j *NewFetchTaskParams) SetIgnoreSameKey(value bool) *NewFetchTaskParams {
 	j.inner.IgnoreSameKey = value
 	return j
 }
@@ -231,6 +231,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	var pathSegments []string
 	pathSegments = append(pathSegments, "sisyphus", "fetch")
 	path := "/" + strings.Join(pathSegments, "/")
+	var rawQuery string
 	if err := request.Body.validate(); err != nil {
 		return nil, err
 	}
@@ -238,7 +239,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.credentials, RequestBody: body}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: request.credentials, RequestBody: body}
 	var queryer region.BucketRegionsQueryer
 	if client.GetRegions() == nil && client.GetEndpoints() == nil {
 		queryer = client.GetBucketQueryer()

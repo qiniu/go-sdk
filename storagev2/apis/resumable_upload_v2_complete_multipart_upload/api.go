@@ -228,6 +228,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 		pathSegments = append(pathSegments, segments...)
 	}
 	path := "/" + strings.Join(pathSegments, "/")
+	var rawQuery string
 	if err := request.Body.validate(); err != nil {
 		return nil, err
 	}
@@ -235,7 +236,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, UpToken: request.upToken, RequestBody: body}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: request.upToken, RequestBody: body}
 	var queryer region.BucketRegionsQueryer
 	if client.GetRegions() == nil && client.GetEndpoints() == nil {
 		queryer = client.GetBucketQueryer()

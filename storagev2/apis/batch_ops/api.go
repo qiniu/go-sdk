@@ -259,11 +259,12 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	var pathSegments []string
 	pathSegments = append(pathSegments, "batch")
 	path := "/" + strings.Join(pathSegments, "/")
+	var rawQuery string
 	body, err := request.Body.build()
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, AuthType: auth.TokenQiniu, Credentials: request.credentials, RequestBody: httpclient.GetFormRequestBody(body)}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: request.credentials, RequestBody: httpclient.GetFormRequestBody(body)}
 	var queryer region.BucketRegionsQueryer
 	if client.GetRegions() == nil && client.GetEndpoints() == nil {
 		queryer = client.GetBucketQueryer()
