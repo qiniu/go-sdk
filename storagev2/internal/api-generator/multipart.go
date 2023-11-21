@@ -233,15 +233,15 @@ func (mff *MultipartFormFields) generateSetterFunc(named NamedMultipartFormField
 		}), nil
 }
 
-func (mff *MultipartFormFields) getServiceBucketField() NamedMultipartFormField {
-	var serviceBucketField NamedMultipartFormField
+func (mff *MultipartFormFields) getServiceBucketField() *NamedMultipartFormField {
+	var serviceBucketField *NamedMultipartFormField
 
-	for _, field := range mff.Named {
-		if field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
-			if serviceBucketField.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
-				serviceBucketField = field
+	for i := range mff.Named {
+		if mff.Named[i].ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
+			if serviceBucketField == nil {
+				serviceBucketField = &mff.Named[i]
 			} else {
-				panic(fmt.Sprintf("multiple service bucket fields: %s & %s", field.FieldName, serviceBucketField.FieldName))
+				panic(fmt.Sprintf("multiple service bucket fields: %s & %s", mff.Named[i].FieldName, serviceBucketField.FieldName))
 			}
 		}
 	}
@@ -250,7 +250,7 @@ func (mff *MultipartFormFields) getServiceBucketField() NamedMultipartFormField 
 
 func (mff *MultipartFormFields) generateServiceBucketField(options CodeGeneratorOptions) jen.Code {
 	field := mff.getServiceBucketField()
-	if field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
+	if field == nil || field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
 		return nil
 	}
 	return jen.Func().

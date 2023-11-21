@@ -861,6 +861,7 @@ func (m *BucketManager) AsyncFetch(param AsyncFetchParam) (ret AsyncFetchRet, er
 	request.OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS))
 	request.Body.SetUrl(param.Url).
 		SetHost(param.Host).
+		SetBucket(param.Bucket).
 		SetKey(param.Key).
 		SetMd5(param.Md5).
 		SetEtag(param.Etag).

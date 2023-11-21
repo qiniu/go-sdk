@@ -155,7 +155,7 @@ func (request *ApiRequestDescription) generateGetBucketNameFunc(group *jen.Group
 					}),
 				)
 				if pp := request.PathParams; pp != nil {
-					if field := pp.getServiceBucketField(); field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
+					if field := pp.getServiceBucketField(); field != nil && field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
 						group.Add(
 							jen.If(
 								jen.List(jen.Id("bucketName"), jen.Err()).Op(":=").Id("request").Dot("Path").Dot("getBucketName").Call(),
@@ -167,7 +167,7 @@ func (request *ApiRequestDescription) generateGetBucketNameFunc(group *jen.Group
 					}
 				}
 				if query := request.QueryNames; query != nil {
-					if field := query.getServiceBucketField(); field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
+					if field := query.getServiceBucketField(); field != nil && field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
 						group.Add(
 							jen.If(
 								jen.List(jen.Id("bucketName"), jen.Err()).Op(":=").Id("request").Dot("Query").Dot("getBucketName").Call(),
@@ -210,11 +210,11 @@ func (request *ApiRequestDescription) generateGetBucketNameFunc(group *jen.Group
 							}
 						}
 					} else if form := body.FormUrlencoded; form != nil {
-						if field := form.getServiceBucketField(); field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
+						if field := form.getServiceBucketField(); field != nil && field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
 							hasServiceBucketType = true
 						}
 					} else if multipartForm := body.MultipartFormData; multipartForm != nil {
-						if field := multipartForm.getServiceBucketField(); field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
+						if field := multipartForm.getServiceBucketField(); field != nil && field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
 							hasServiceBucketType = true
 							params = append(params, jen.Id("ctx"))
 						}
@@ -275,7 +275,7 @@ func (request *ApiRequestDescription) generateGetAccessKeyFunc(group *jen.Group,
 				}
 				if body := request.Body; body != nil {
 					if multipartForm := body.MultipartFormData; multipartForm != nil {
-						if field := multipartForm.getServiceBucketField(); field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
+						if field := multipartForm.getServiceBucketField(); field != nil && field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
 							fieldName := "field" + strcase.ToCamel(field.FieldName)
 							group.Add(
 								jen.If(jen.Id("request").Dot("Body").Dot(fieldName).Op("!=").Nil()).BlockFunc(func(group *jen.Group) {

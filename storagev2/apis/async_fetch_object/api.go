@@ -118,6 +118,9 @@ func (j *NewFetchTaskParams) SetIgnoreSameKey(value float64) *NewFetchTaskParams
 	j.inner.IgnoreSameKey = value
 	return j
 }
+func (j *NewFetchTaskParams) getBucketName() (string, error) {
+	return j.inner.Bucket, nil
+}
 func (j *NewFetchTaskParams) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&j.inner)
 }
@@ -206,6 +209,9 @@ func (request Request) SetCredentials(credentials credentials.CredentialsProvide
 func (request Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
+	}
+	if bucketName, err := request.Body.getBucketName(); err != nil || bucketName != "" {
+		return bucketName, err
 	}
 	return "", nil
 }
