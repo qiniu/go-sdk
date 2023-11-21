@@ -190,15 +190,15 @@ func (form *FormUrlencodedRequestStruct) generateSetCall(field FormUrlencodedReq
 	return code, nil
 }
 
-func (form *FormUrlencodedRequestStruct) getServiceBucketField() FormUrlencodedRequestField {
-	var serviceBucketField FormUrlencodedRequestField
+func (form *FormUrlencodedRequestStruct) getServiceBucketField() *FormUrlencodedRequestField {
+	var serviceBucketField *FormUrlencodedRequestField
 
-	for _, field := range form.Fields {
-		if field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
-			if serviceBucketField.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
-				serviceBucketField = field
+	for i := range form.Fields {
+		if form.Fields[i].ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
+			if serviceBucketField == nil {
+				serviceBucketField = &form.Fields[i]
 			} else {
-				panic(fmt.Sprintf("multiple service bucket fields: %s & %s", field.FieldName, serviceBucketField.FieldName))
+				panic(fmt.Sprintf("multiple service bucket fields: %s & %s", form.Fields[i].FieldName, serviceBucketField.FieldName))
 			}
 		}
 	}
@@ -207,7 +207,7 @@ func (form *FormUrlencodedRequestStruct) getServiceBucketField() FormUrlencodedR
 
 func (form *FormUrlencodedRequestStruct) generateServiceBucketField(options CodeGeneratorOptions) jen.Code {
 	field := form.getServiceBucketField()
-	if field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
+	if field == nil || field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
 		return nil
 	} else if field.Multiple {
 		panic(fmt.Sprintf("multiple service bucket fields: %s", field.FieldName))

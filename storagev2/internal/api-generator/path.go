@@ -237,15 +237,15 @@ func (pp *PathParams) generateSetterFunc(named NamedPathParam, options CodeGener
 		}), nil
 }
 
-func (pp *PathParams) getServiceBucketField() NamedPathParam {
-	var serviceBucketField NamedPathParam
+func (pp *PathParams) getServiceBucketField() *NamedPathParam {
+	var serviceBucketField *NamedPathParam
 
-	for _, field := range pp.Named {
-		if field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
-			if serviceBucketField.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
-				serviceBucketField = field
+	for i := range pp.Named {
+		if pp.Named[i].ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
+			if serviceBucketField == nil {
+				serviceBucketField = &pp.Named[i]
 			} else {
-				panic(fmt.Sprintf("multiple service bucket fields: %s & %s", field.FieldName, serviceBucketField.FieldName))
+				panic(fmt.Sprintf("multiple service bucket fields: %s & %s", pp.Named[i].FieldName, serviceBucketField.FieldName))
 			}
 		}
 	}
@@ -254,7 +254,7 @@ func (pp *PathParams) getServiceBucketField() NamedPathParam {
 
 func (pp *PathParams) generateServiceBucketField(options CodeGeneratorOptions) jen.Code {
 	field := pp.getServiceBucketField()
-	if field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
+	if field == nil || field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
 		return nil
 	} else if field.Type.ToStringLikeType() != StringLikeTypeString {
 		panic(fmt.Sprintf("service bucket field must be string: %s", field.FieldName))

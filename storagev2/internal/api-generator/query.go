@@ -178,15 +178,15 @@ func (names QueryNames) generateSetCall(queryName QueryName, options CodeGenerat
 	}
 }
 
-func (names QueryNames) getServiceBucketField() QueryName {
-	var serviceBucketField QueryName
+func (names QueryNames) getServiceBucketField() *QueryName {
+	var serviceBucketField *QueryName
 
-	for _, field := range names {
-		if field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
-			if serviceBucketField.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
-				serviceBucketField = field
+	for i := range names {
+		if names[i].ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
+			if serviceBucketField == nil {
+				serviceBucketField = &names[i]
 			} else {
-				panic(fmt.Sprintf("multiple service bucket fields: %s & %s", field.FieldName, serviceBucketField.FieldName))
+				panic(fmt.Sprintf("multiple service bucket fields: %s & %s", names[i].FieldName, serviceBucketField.FieldName))
 			}
 		}
 	}
@@ -195,7 +195,7 @@ func (names QueryNames) getServiceBucketField() QueryName {
 
 func (names QueryNames) generateServiceBucketField(options CodeGeneratorOptions) jen.Code {
 	field := names.getServiceBucketField()
-	if field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
+	if field == nil || field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
 		return nil
 	} else if field.QueryType.ToStringLikeType() != StringLikeTypeString {
 		panic(fmt.Sprintf("service bucket field must be string: %s", field.FieldName))

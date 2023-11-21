@@ -337,10 +337,10 @@ func (jsonStruct *JsonStruct) generateSetterFunc(field JsonField, options CodeGe
 func (jsonStruct *JsonStruct) getServiceBucketField() *JsonField {
 	var serviceBucketField *JsonField = nil
 
-	for _, field := range jsonStruct.Fields {
-		if field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
+	for i := range jsonStruct.Fields {
+		if jsonStruct.Fields[i].ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
 			if serviceBucketField == nil {
-				serviceBucketField = &field
+				serviceBucketField = &jsonStruct.Fields[i]
 			} else {
 				panic("multiple service bucket fields")
 			}
@@ -351,13 +351,9 @@ func (jsonStruct *JsonStruct) getServiceBucketField() *JsonField {
 
 func (jsonStruct *JsonStruct) generateServiceBucketField(options CodeGeneratorOptions) jen.Code {
 	field := jsonStruct.getServiceBucketField()
-	if field == nil {
+	if field == nil || field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
 		return nil
-	}
-	if field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
-		return nil
-	}
-	if !field.Type.String {
+	} else if !field.Type.String {
 		panic("service bucket field must be string")
 	}
 	return jen.Func().
