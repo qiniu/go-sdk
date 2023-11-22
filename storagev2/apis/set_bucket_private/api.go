@@ -58,23 +58,23 @@ func (form *RequestBody) build() (url.Values, error) {
 
 // 空间名称
 func (request *Request) GetBucket() string {
-	return request.Body.GetBucket()
+	return request.body.GetBucket()
 }
 
 // 空间名称
 func (request *Request) SetBucket(value string) *Request {
-	request.Body.SetBucket(value)
+	request.body.SetBucket(value)
 	return request
 }
 
 // `0`: 公开，`1`: 私有
 func (request *Request) IsPrivate() int64 {
-	return request.Body.IsPrivate()
+	return request.body.IsPrivate()
 }
 
 // `0`: 公开，`1`: 私有
 func (request *Request) SetPrivate(value int64) *Request {
-	request.Body.SetPrivate(value)
+	request.body.SetPrivate(value)
 	return request
 }
 
@@ -83,7 +83,7 @@ type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
 	credentials            credentials.CredentialsProvider
-	Body                   RequestBody
+	body                   RequestBody
 }
 
 // 覆盖默认的存储区域域名列表
@@ -107,7 +107,7 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
 	}
-	if bucketName, err := request.Body.getBucketName(); err != nil || bucketName != "" {
+	if bucketName, err := request.body.getBucketName(); err != nil || bucketName != "" {
 		return bucketName, err
 	}
 	return "", nil
@@ -123,6 +123,17 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求体
+func (request *Request) GetBody() *RequestBody {
+	return &request.body
+}
+
+// 设置请求体
+func (request *Request) SetBody(body RequestBody) *Request {
+	request.body = body
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
@@ -131,7 +142,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	pathSegments = append(pathSegments, "private")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	body, err := request.Body.build()
+	body, err := request.body.build()
 	if err != nil {
 		return nil, err
 	}
@@ -174,8 +185,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	return &Response{}, nil
+	return &Response{}, resp.Body.Close()
 }
 
 // 获取 API 所用的响应

@@ -191,133 +191,133 @@ type RequestBody = NewFetchTaskParams
 
 // 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
 func (request *Request) GetUrl() string {
-	return request.Body.GetUrl()
+	return request.body.GetUrl()
 }
 
 // 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
 func (request *Request) SetUrl(value string) *Request {
-	request.Body.SetUrl(value)
+	request.body.SetUrl(value)
 	return request
 }
 
 // 所在区域的存储空间
 func (request *Request) GetBucket() string {
-	return request.Body.GetBucket()
+	return request.body.GetBucket()
 }
 
 // 所在区域的存储空间
 func (request *Request) SetBucket(value string) *Request {
-	request.Body.SetBucket(value)
+	request.body.SetBucket(value)
 	return request
 }
 
 // 从指定 URL 下载数据时使用的 Host
 func (request *Request) GetHost() string {
-	return request.Body.GetHost()
+	return request.body.GetHost()
 }
 
 // 从指定 URL 下载数据时使用的 Host
 func (request *Request) SetHost(value string) *Request {
-	request.Body.SetHost(value)
+	request.body.SetHost(value)
 	return request
 }
 
 // 对象名称，如果不传，则默认为文件的哈希值
 func (request *Request) GetKey() string {
-	return request.Body.GetKey()
+	return request.body.GetKey()
 }
 
 // 对象名称，如果不传，则默认为文件的哈希值
 func (request *Request) SetKey(value string) *Request {
-	request.Body.SetKey(value)
+	request.body.SetKey(value)
 	return request
 }
 
 // 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
 func (request *Request) GetMd5() string {
-	return request.Body.GetMd5()
+	return request.body.GetMd5()
 }
 
 // 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
 func (request *Request) SetMd5(value string) *Request {
-	request.Body.SetMd5(value)
+	request.body.SetMd5(value)
 	return request
 }
 
 // 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
 func (request *Request) GetEtag() string {
-	return request.Body.GetEtag()
+	return request.body.GetEtag()
 }
 
 // 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
 func (request *Request) SetEtag(value string) *Request {
-	request.Body.SetEtag(value)
+	request.body.SetEtag(value)
 	return request
 }
 
 // 回调 URL
 func (request *Request) GetCallbackUrl() string {
-	return request.Body.GetCallbackUrl()
+	return request.body.GetCallbackUrl()
 }
 
 // 回调 URL
 func (request *Request) SetCallbackUrl(value string) *Request {
-	request.Body.SetCallbackUrl(value)
+	request.body.SetCallbackUrl(value)
 	return request
 }
 
 // 回调负荷，如果 callback_url 不为空则必须指定
 func (request *Request) GetCallbackBody() string {
-	return request.Body.GetCallbackBody()
+	return request.body.GetCallbackBody()
 }
 
 // 回调负荷，如果 callback_url 不为空则必须指定
 func (request *Request) SetCallbackBody(value string) *Request {
-	request.Body.SetCallbackBody(value)
+	request.body.SetCallbackBody(value)
 	return request
 }
 
 // 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
 func (request *Request) GetCallbackBodyType() string {
-	return request.Body.GetCallbackBodyType()
+	return request.body.GetCallbackBodyType()
 }
 
 // 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
 func (request *Request) SetCallbackBodyType(value string) *Request {
-	request.Body.SetCallbackBodyType(value)
+	request.body.SetCallbackBodyType(value)
 	return request
 }
 
 // 回调时使用的 Host
 func (request *Request) GetCallbackHost() string {
-	return request.Body.GetCallbackHost()
+	return request.body.GetCallbackHost()
 }
 
 // 回调时使用的 Host
 func (request *Request) SetCallbackHost(value string) *Request {
-	request.Body.SetCallbackHost(value)
+	request.body.SetCallbackHost(value)
 	return request
 }
 
 // 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
 func (request *Request) GetFileType() int64 {
-	return request.Body.GetFileType()
+	return request.body.GetFileType()
 }
 
 // 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
 func (request *Request) SetFileType(value int64) *Request {
-	request.Body.SetFileType(value)
+	request.body.SetFileType(value)
 	return request
 }
 
 // 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
 func (request *Request) GetIgnoreSameKey() bool {
-	return request.Body.GetIgnoreSameKey()
+	return request.body.GetIgnoreSameKey()
 }
 
 // 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
 func (request *Request) SetIgnoreSameKey(value bool) *Request {
-	request.Body.SetIgnoreSameKey(value)
+	request.body.SetIgnoreSameKey(value)
 	return request
 }
 
@@ -375,23 +375,23 @@ type ResponseBody = NewFetchTaskInfo
 
 // 异步任务 ID
 func (request *Response) GetId() string {
-	return request.Body.GetId()
+	return request.body.GetId()
 }
 
 // 异步任务 ID
 func (request *Response) SetId(value string) *Response {
-	request.Body.SetId(value)
+	request.body.SetId(value)
 	return request
 }
 
 // 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 func (request *Response) GetQueuedTasksCount() int64 {
-	return request.Body.GetQueuedTasksCount()
+	return request.body.GetQueuedTasksCount()
 }
 
 // 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 func (request *Response) SetQueuedTasksCount(value int64) *Response {
-	request.Body.SetQueuedTasksCount(value)
+	request.body.SetQueuedTasksCount(value)
 	return request
 }
 
@@ -400,7 +400,7 @@ type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
 	credentials            credentials.CredentialsProvider
-	Body                   RequestBody
+	body                   RequestBody
 }
 
 // 覆盖默认的存储区域域名列表
@@ -424,7 +424,7 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
 	}
-	if bucketName, err := request.Body.getBucketName(); err != nil || bucketName != "" {
+	if bucketName, err := request.body.getBucketName(); err != nil || bucketName != "" {
 		return bucketName, err
 	}
 	return "", nil
@@ -440,6 +440,17 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求体
+func (request *Request) GetBody() *RequestBody {
+	return &request.body
+}
+
+// 设置请求体
+func (request *Request) SetBody(body RequestBody) *Request {
+	request.body = body
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
@@ -448,10 +459,10 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	pathSegments = append(pathSegments, "sisyphus", "fetch")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	if err := request.Body.validate(); err != nil {
+	if err := request.body.validate(); err != nil {
 		return nil, err
 	}
-	body, err := httpclient.GetJsonRequestBody(&request.Body)
+	body, err := httpclient.GetJsonRequestBody(&request.body)
 	if err != nil {
 		return nil, err
 	}
@@ -498,10 +509,21 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
-	return &Response{Body: respBody}, nil
+	return &Response{body: respBody}, nil
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	Body ResponseBody
+	body ResponseBody
+}
+
+// 获取请求体
+func (response *Response) GetBody() *ResponseBody {
+	return &response.body
+}
+
+// 设置请求体
+func (response *Response) SetBody(body ResponseBody) *Response {
+	response.body = body
+	return response
 }

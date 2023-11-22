@@ -77,34 +77,34 @@ func (path *RequestPath) build() ([]string, error) {
 
 // 指定抓取的 URL
 func (request *Request) GetFromUrl() string {
-	return request.Path.GetFromUrl()
+	return request.path.GetFromUrl()
 }
 
 // 指定抓取的 URL
 func (request *Request) SetFromUrl(value string) *Request {
-	request.Path.SetFromUrl(value)
+	request.path.SetFromUrl(value)
 	return request
 }
 
 // 指定目标对象空间与目标对象名称
 func (request *Request) GetToEntry() string {
-	return request.Path.GetToEntry()
+	return request.path.GetToEntry()
 }
 
 // 指定目标对象空间与目标对象名称
 func (request *Request) SetToEntry(value string) *Request {
-	request.Path.SetToEntry(value)
+	request.path.SetToEntry(value)
 	return request
 }
 
 // 指定抓取 URL 请求用的 HOST 参数
 func (request *Request) GetHost() string {
-	return request.Path.GetHost()
+	return request.path.GetHost()
 }
 
 // 指定抓取 URL 请求用的 HOST 参数
 func (request *Request) SetHost(value string) *Request {
-	request.Path.SetHost(value)
+	request.path.SetHost(value)
 	return request
 }
 
@@ -192,45 +192,45 @@ type ResponseBody = FetchedObjectMetadata
 
 // 抓取的对象内容的 Etag 值
 func (request *Response) GetHash() string {
-	return request.Body.GetHash()
+	return request.body.GetHash()
 }
 
 // 抓取的对象内容的 Etag 值
 func (request *Response) SetHash(value string) *Response {
-	request.Body.SetHash(value)
+	request.body.SetHash(value)
 	return request
 }
 
 // 抓取后保存的对象名称
 func (request *Response) GetObjectName() string {
-	return request.Body.GetObjectName()
+	return request.body.GetObjectName()
 }
 
 // 抓取后保存的对象名称
 func (request *Response) SetObjectName(value string) *Response {
-	request.Body.SetObjectName(value)
+	request.body.SetObjectName(value)
 	return request
 }
 
 // 对象大小，单位为字节
 func (request *Response) GetSize() int64 {
-	return request.Body.GetSize()
+	return request.body.GetSize()
 }
 
 // 对象大小，单位为字节
 func (request *Response) SetSize(value int64) *Response {
-	request.Body.SetSize(value)
+	request.body.SetSize(value)
 	return request
 }
 
 // 对象 MIME 类型
 func (request *Response) GetMimeType() string {
-	return request.Body.GetMimeType()
+	return request.body.GetMimeType()
 }
 
 // 对象 MIME 类型
 func (request *Response) SetMimeType(value string) *Response {
-	request.Body.SetMimeType(value)
+	request.body.SetMimeType(value)
 	return request
 }
 
@@ -238,7 +238,7 @@ func (request *Response) SetMimeType(value string) *Response {
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Path                   RequestPath
+	path                   RequestPath
 	credentials            credentials.CredentialsProvider
 }
 
@@ -263,7 +263,7 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
 	}
-	if bucketName, err := request.Path.getBucketName(); err != nil || bucketName != "" {
+	if bucketName, err := request.path.getBucketName(); err != nil || bucketName != "" {
 		return bucketName, err
 	}
 	return "", nil
@@ -279,13 +279,24 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求路径
+func (request *Request) GetPath() *RequestPath {
+	return &request.path
+}
+
+// 设置请求路径
+func (request *Request) SetPath(path RequestPath) *Request {
+	request.path = path
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceIo}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "fetch")
-	if segments, err := request.Path.build(); err != nil {
+	if segments, err := request.path.build(); err != nil {
 		return nil, err
 	} else {
 		pathSegments = append(pathSegments, segments...)
@@ -335,10 +346,21 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
-	return &Response{Body: respBody}, nil
+	return &Response{body: respBody}, nil
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	Body ResponseBody
+	body ResponseBody
+}
+
+// 获取请求体
+func (response *Response) GetBody() *ResponseBody {
+	return &response.body
+}
+
+// 设置请求体
+func (response *Response) SetBody(body ResponseBody) *Response {
+	response.body = body
+	return response
 }

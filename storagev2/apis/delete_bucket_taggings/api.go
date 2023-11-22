@@ -42,10 +42,10 @@ func (query *RequestQuery) build() (url.Values, error) {
 	return allQuery, nil
 }
 func (request *Request) GetBucketName() string {
-	return request.Query.GetBucketName()
+	return request.query.GetBucketName()
 }
 func (request *Request) SetBucketName(value string) *Request {
-	request.Query.SetBucketName(value)
+	request.query.SetBucketName(value)
 	return request
 }
 
@@ -53,7 +53,7 @@ func (request *Request) SetBucketName(value string) *Request {
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Query                  RequestQuery
+	query                  RequestQuery
 	credentials            credentials.CredentialsProvider
 }
 
@@ -78,7 +78,7 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
 	}
-	if bucketName, err := request.Query.getBucketName(); err != nil || bucketName != "" {
+	if bucketName, err := request.query.getBucketName(); err != nil || bucketName != "" {
 		return bucketName, err
 	}
 	return "", nil
@@ -94,6 +94,17 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求查询参数
+func (request *Request) GetQuery() *RequestQuery {
+	return &request.query
+}
+
+// 设置请求查询参数
+func (request *Request) SetQuery(query RequestQuery) *Request {
+	request.query = query
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
@@ -102,7 +113,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	pathSegments = append(pathSegments, "bucketTagging")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	if query, err := request.Query.build(); err != nil {
+	if query, err := request.query.build(); err != nil {
 		return nil, err
 	} else {
 		rawQuery += query.Encode()
@@ -146,8 +157,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	return &Response{}, nil
+	return &Response{}, resp.Body.Close()
 }
 
 // 获取 API 所用的响应

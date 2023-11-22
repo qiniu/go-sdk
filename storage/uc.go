@@ -13,8 +13,10 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/add_bucket_rules"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket_rules"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket_taggings"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_cors_rules"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_rules"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_taggings"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_cors_rules"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_private"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_remark"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_taggings"
@@ -362,8 +364,8 @@ func (m *BucketManager) GetBucketLifeCycleRule(bucketName string) ([]BucketLifeC
 	if err != nil {
 		return nil, err
 	}
-	rules := make([]BucketLifeCycleRule, 0, len(response.Body))
-	for _, rule := range response.Body {
+	rules := make([]BucketLifeCycleRule, 0, len(response.GetBody()))
+	for _, rule := range response.GetBody() {
 		rules = append(rules, BucketLifeCycleRule{
 			Name:                   rule.GetName(),
 			Prefix:                 rule.GetPrefix(),
@@ -512,32 +514,45 @@ type CorsRule struct {
 }
 
 // AddCorsRules 设置指定存储空间的跨域规则
-func (m *BucketManager) AddCorsRules(bucket string, corsRules []CorsRule) (err error) {
-	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/corsRules/set/" + bucket
-	getBody, err := clientv2.GetJsonRequestBody(corsRules)
-	if err != nil {
-		return
+func (m *BucketManager) AddCorsRules(bucket string, corsRules []CorsRule) error {
+	rules := make(set_bucket_cors_rules.CorsRules, 0, len(corsRules))
+	for _, rule := range corsRules {
+		var r set_bucket_cors_rules.CorsRule
+		r.SetAllowedMethod(rule.AllowedMethod).
+			SetAllowedOrigin(rule.AllowedOrigin).
+			SetAllowedHeader(rule.AllowedHeader).
+			SetExposedHeader(rule.ExposedHeader).
+			SetMaxAge(rule.MaxAge)
+		rules = append(rules, r)
 	}
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: getBody,
-	}, nil)
+	_, err := new(set_bucket_cors_rules.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucket(bucket).
+		SetBody(rules).
+		Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // GetCorsRules 获取指定存储空间的跨域规则
-func (m *BucketManager) GetCorsRules(bucket string) (corsRules []CorsRule, err error) {
-	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/corsRules/get/" + bucket
-	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodGet,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, &corsRules)
-	return corsRules, err
+func (m *BucketManager) GetCorsRules(bucket string) ([]CorsRule, error) {
+	response, err := new(get_bucket_cors_rules.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucket(bucket).
+		Send(context.Background(), m.makeHttpClientOptions())
+	if err != nil {
+		return nil, err
+	}
+	rules := make([]CorsRule, 0, len(response.GetBody()))
+	for _, rule := range response.GetBody() {
+		rules = append(rules, CorsRule{
+			AllowedOrigin: rule.GetAllowedOrigin(),
+			AllowedMethod: rule.GetAllowedMethod(),
+			AllowedHeader: rule.GetAllowedHeader(),
+			ExposedHeader: rule.GetExposedHeader(),
+			MaxAge:        rule.GetMaxAge(),
+		})
+	}
+	return rules, nil
 }
 
 // BucketQuota 七牛存储空间的配额信息

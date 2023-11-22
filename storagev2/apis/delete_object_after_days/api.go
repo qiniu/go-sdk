@@ -60,23 +60,23 @@ func (path *RequestPath) build() ([]string, error) {
 
 // 指定目标对象空间与目标对象名称
 func (request *Request) GetEntry() string {
-	return request.Path.GetEntry()
+	return request.path.GetEntry()
 }
 
 // 指定目标对象空间与目标对象名称
 func (request *Request) SetEntry(value string) *Request {
-	request.Path.SetEntry(value)
+	request.path.SetEntry(value)
 	return request
 }
 
 // 指定文件上传后在设置的 DeleteAfterDays 过期删除，删除后不可恢复，设置为 0 表示取消已设置的过期删除的生命周期规则
 func (request *Request) GetDeleteAfterDays() int64 {
-	return request.Path.GetDeleteAfterDays()
+	return request.path.GetDeleteAfterDays()
 }
 
 // 指定文件上传后在设置的 DeleteAfterDays 过期删除，删除后不可恢复，设置为 0 表示取消已设置的过期删除的生命周期规则
 func (request *Request) SetDeleteAfterDays(value int64) *Request {
-	request.Path.SetDeleteAfterDays(value)
+	request.path.SetDeleteAfterDays(value)
 	return request
 }
 
@@ -84,7 +84,7 @@ func (request *Request) SetDeleteAfterDays(value int64) *Request {
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Path                   RequestPath
+	path                   RequestPath
 	credentials            credentials.CredentialsProvider
 }
 
@@ -109,7 +109,7 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
 	}
-	if bucketName, err := request.Path.getBucketName(); err != nil || bucketName != "" {
+	if bucketName, err := request.path.getBucketName(); err != nil || bucketName != "" {
 		return bucketName, err
 	}
 	return "", nil
@@ -125,13 +125,24 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求路径
+func (request *Request) GetPath() *RequestPath {
+	return &request.path
+}
+
+// 设置请求路径
+func (request *Request) SetPath(path RequestPath) *Request {
+	request.path = path
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceRs}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "deleteAfterDays")
-	if segments, err := request.Path.build(); err != nil {
+	if segments, err := request.path.build(); err != nil {
 		return nil, err
 	} else {
 		pathSegments = append(pathSegments, segments...)
@@ -181,8 +192,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	return &Response{}, nil
+	return &Response{}, resp.Body.Close()
 }
 
 // 获取 API 所用的响应

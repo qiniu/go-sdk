@@ -119,45 +119,45 @@ func (query *RequestQuery) build() (url.Values, error) {
 	return allQuery, nil
 }
 func (request *Request) GetBucket() string {
-	return request.Query.GetBucket()
+	return request.query.GetBucket()
 }
 func (request *Request) SetBucket(value string) *Request {
-	request.Query.SetBucket(value)
+	request.query.SetBucket(value)
 	return request
 }
 func (request *Request) GetMarker() string {
-	return request.Query.GetMarker()
+	return request.query.GetMarker()
 }
 func (request *Request) SetMarker(value string) *Request {
-	request.Query.SetMarker(value)
+	request.query.SetMarker(value)
 	return request
 }
 func (request *Request) GetLimit() int64 {
-	return request.Query.GetLimit()
+	return request.query.GetLimit()
 }
 func (request *Request) SetLimit(value int64) *Request {
-	request.Query.SetLimit(value)
+	request.query.SetLimit(value)
 	return request
 }
 func (request *Request) GetPrefix() string {
-	return request.Query.GetPrefix()
+	return request.query.GetPrefix()
 }
 func (request *Request) SetPrefix(value string) *Request {
-	request.Query.SetPrefix(value)
+	request.query.SetPrefix(value)
 	return request
 }
 func (request *Request) GetDelimiter() string {
-	return request.Query.GetDelimiter()
+	return request.query.GetDelimiter()
 }
 func (request *Request) SetDelimiter(value string) *Request {
-	request.Query.SetDelimiter(value)
+	request.query.SetDelimiter(value)
 	return request
 }
 func (request *Request) GetNeedParts() bool {
-	return request.Query.GetNeedParts()
+	return request.query.GetNeedParts()
 }
 func (request *Request) SetNeedParts(value bool) *Request {
-	request.Query.SetNeedParts(value)
+	request.query.SetNeedParts(value)
 	return request
 }
 
@@ -396,34 +396,34 @@ type ResponseBody = ListedObjectEntries
 
 // 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
 func (request *Response) GetMarker() string {
-	return request.Body.GetMarker()
+	return request.body.GetMarker()
 }
 
 // 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
 func (request *Response) SetMarker(value string) *Response {
-	request.Body.SetMarker(value)
+	request.body.SetMarker(value)
 	return request
 }
 
 // 公共前缀的数组，如没有指定 delimiter 参数则不返回
 func (request *Response) GetCommonPrefixes() CommonPrefixes {
-	return request.Body.GetCommonPrefixes()
+	return request.body.GetCommonPrefixes()
 }
 
 // 公共前缀的数组，如没有指定 delimiter 参数则不返回
 func (request *Response) SetCommonPrefixes(value CommonPrefixes) *Response {
-	request.Body.SetCommonPrefixes(value)
+	request.body.SetCommonPrefixes(value)
 	return request
 }
 
 // 条目的数组，不能用来判断是否还有剩余条目
 func (request *Response) GetItems() ListedObjects {
-	return request.Body.GetItems()
+	return request.body.GetItems()
 }
 
 // 条目的数组，不能用来判断是否还有剩余条目
 func (request *Response) SetItems(value ListedObjects) *Response {
-	request.Body.SetItems(value)
+	request.body.SetItems(value)
 	return request
 }
 
@@ -431,7 +431,7 @@ func (request *Response) SetItems(value ListedObjects) *Response {
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Query                  RequestQuery
+	query                  RequestQuery
 	credentials            credentials.CredentialsProvider
 }
 
@@ -456,7 +456,7 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
 	}
-	if bucketName, err := request.Query.getBucketName(); err != nil || bucketName != "" {
+	if bucketName, err := request.query.getBucketName(); err != nil || bucketName != "" {
 		return bucketName, err
 	}
 	return "", nil
@@ -472,6 +472,17 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求查询参数
+func (request *Request) GetQuery() *RequestQuery {
+	return &request.query
+}
+
+// 设置请求查询参数
+func (request *Request) SetQuery(query RequestQuery) *Request {
+	request.query = query
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
@@ -480,7 +491,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	pathSegments = append(pathSegments, "list")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	if query, err := request.Query.build(); err != nil {
+	if query, err := request.query.build(); err != nil {
 		return nil, err
 	} else {
 		rawQuery += query.Encode()
@@ -528,10 +539,21 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
-	return &Response{Body: respBody}, nil
+	return &Response{body: respBody}, nil
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	Body ResponseBody
+	body ResponseBody
+}
+
+// 获取请求体
+func (response *Response) GetBody() *ResponseBody {
+	return &response.body
+}
+
+// 设置请求体
+func (response *Response) SetBody(body ResponseBody) *Response {
+	response.body = body
+	return response
 }

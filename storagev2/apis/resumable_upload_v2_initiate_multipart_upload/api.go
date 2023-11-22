@@ -58,23 +58,23 @@ func (path *RequestPath) build() ([]string, error) {
 
 // 存储空间名称
 func (request *Request) GetBucketName() string {
-	return request.Path.GetBucketName()
+	return request.path.GetBucketName()
 }
 
 // 存储空间名称
 func (request *Request) SetBucketName(value string) *Request {
-	request.Path.SetBucketName(value)
+	request.path.SetBucketName(value)
 	return request
 }
 
 // 对象名称
 func (request *Request) GetObjectName() string {
-	return request.Path.GetObjectName()
+	return request.path.GetObjectName()
 }
 
 // 对象名称
 func (request *Request) SetObjectName(value string) *Request {
-	request.Path.SetObjectName(value)
+	request.path.SetObjectName(value)
 	return request
 }
 
@@ -132,23 +132,23 @@ type ResponseBody = NewMultipartUpload
 
 // 初始化文件生成的 id
 func (request *Response) GetUploadId() string {
-	return request.Body.GetUploadId()
+	return request.body.GetUploadId()
 }
 
 // 初始化文件生成的 id
 func (request *Response) SetUploadId(value string) *Response {
-	request.Body.SetUploadId(value)
+	request.body.SetUploadId(value)
 	return request
 }
 
 // UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
 func (request *Response) GetExpiredAt() int64 {
-	return request.Body.GetExpiredAt()
+	return request.body.GetExpiredAt()
 }
 
 // UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
 func (request *Response) SetExpiredAt(value int64) *Response {
-	request.Body.SetExpiredAt(value)
+	request.body.SetExpiredAt(value)
 	return request
 }
 
@@ -156,7 +156,7 @@ func (request *Response) SetExpiredAt(value int64) *Response {
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Path                   RequestPath
+	path                   RequestPath
 	upToken                uptoken.Provider
 }
 
@@ -197,13 +197,24 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求路径
+func (request *Request) GetPath() *RequestPath {
+	return &request.path
+}
+
+// 设置请求路径
+func (request *Request) SetPath(path RequestPath) *Request {
+	request.path = path
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceUp}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "buckets")
-	if segments, err := request.Path.build(); err != nil {
+	if segments, err := request.path.build(); err != nil {
 		return nil, err
 	} else {
 		pathSegments = append(pathSegments, segments...)
@@ -254,10 +265,21 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
-	return &Response{Body: respBody}, nil
+	return &Response{body: respBody}, nil
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	Body ResponseBody
+	body ResponseBody
+}
+
+// 获取请求体
+func (response *Response) GetBody() *ResponseBody {
+	return &response.body
+}
+
+// 设置请求体
+func (response *Response) SetBody(body ResponseBody) *Response {
+	response.body = body
+	return response
 }

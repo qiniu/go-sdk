@@ -137,78 +137,78 @@ func (form *RequestBody) build() (url.Values, error) {
 
 // 空间名称
 func (request *Request) GetBucket() string {
-	return request.Body.GetBucket()
+	return request.body.GetBucket()
 }
 
 // 空间名称
 func (request *Request) SetBucket(value string) *Request {
-	request.Body.SetBucket(value)
+	request.body.SetBucket(value)
 	return request
 }
 
 // 要修改的规则名称
 func (request *Request) GetName() string {
-	return request.Body.GetName()
+	return request.body.GetName()
 }
 
 // 要修改的规则名称
 func (request *Request) SetName(value string) *Request {
-	request.Body.SetName(value)
+	request.body.SetName(value)
 	return request
 }
 
 // 指定匹配的对象名称前缀
 func (request *Request) GetPrefix() string {
-	return request.Body.GetPrefix()
+	return request.body.GetPrefix()
 }
 
 // 指定匹配的对象名称前缀
 func (request *Request) SetPrefix(value string) *Request {
-	request.Body.SetPrefix(value)
+	request.body.SetPrefix(value)
 	return request
 }
 
 // 指定上传文件多少天后删除，指定为 0 表示不删除，大于 0 表示多少天后删除
 func (request *Request) GetDeleteAfterDays() int64 {
-	return request.Body.GetDeleteAfterDays()
+	return request.body.GetDeleteAfterDays()
 }
 
 // 指定上传文件多少天后删除，指定为 0 表示不删除，大于 0 表示多少天后删除
 func (request *Request) SetDeleteAfterDays(value int64) *Request {
-	request.Body.SetDeleteAfterDays(value)
+	request.body.SetDeleteAfterDays(value)
 	return request
 }
 
 // 指定文件上传多少天后转低频存储。指定为 0 表示不转低频存储，小于 0 表示上传的文件立即变低频存储
 func (request *Request) GetToIaAfterDays() int64 {
-	return request.Body.GetToIaAfterDays()
+	return request.body.GetToIaAfterDays()
 }
 
 // 指定文件上传多少天后转低频存储。指定为 0 表示不转低频存储，小于 0 表示上传的文件立即变低频存储
 func (request *Request) SetToIaAfterDays(value int64) *Request {
-	request.Body.SetToIaAfterDays(value)
+	request.body.SetToIaAfterDays(value)
 	return request
 }
 
 // 指定文件上传多少天后转归档存储。指定为 0 表示不转归档存储，小于 0 表示上传的文件立即变归档存储
 func (request *Request) GetToArchiveAfterDays() int64 {
-	return request.Body.GetToArchiveAfterDays()
+	return request.body.GetToArchiveAfterDays()
 }
 
 // 指定文件上传多少天后转归档存储。指定为 0 表示不转归档存储，小于 0 表示上传的文件立即变归档存储
 func (request *Request) SetToArchiveAfterDays(value int64) *Request {
-	request.Body.SetToArchiveAfterDays(value)
+	request.body.SetToArchiveAfterDays(value)
 	return request
 }
 
 // 指定文件上传多少天后转深度归档存储。指定为 0 表示不转深度归档存储
 func (request *Request) GetToDeepArchiveAfterDays() int64 {
-	return request.Body.GetToDeepArchiveAfterDays()
+	return request.body.GetToDeepArchiveAfterDays()
 }
 
 // 指定文件上传多少天后转深度归档存储。指定为 0 表示不转深度归档存储
 func (request *Request) SetToDeepArchiveAfterDays(value int64) *Request {
-	request.Body.SetToDeepArchiveAfterDays(value)
+	request.body.SetToDeepArchiveAfterDays(value)
 	return request
 }
 
@@ -217,7 +217,7 @@ type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
 	credentials            credentials.CredentialsProvider
-	Body                   RequestBody
+	body                   RequestBody
 }
 
 // 覆盖默认的存储区域域名列表
@@ -241,7 +241,7 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
 	}
-	if bucketName, err := request.Body.getBucketName(); err != nil || bucketName != "" {
+	if bucketName, err := request.body.getBucketName(); err != nil || bucketName != "" {
 		return bucketName, err
 	}
 	return "", nil
@@ -257,6 +257,17 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求体
+func (request *Request) GetBody() *RequestBody {
+	return &request.body
+}
+
+// 设置请求体
+func (request *Request) SetBody(body RequestBody) *Request {
+	request.body = body
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
@@ -265,7 +276,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	pathSegments = append(pathSegments, "rules", "update")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	body, err := request.Body.build()
+	body, err := request.body.build()
 	if err != nil {
 		return nil, err
 	}
@@ -308,8 +319,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	return &Response{}, nil
+	return &Response{}, resp.Body.Close()
 }
 
 // 获取 API 所用的响应

@@ -43,12 +43,12 @@ func (path *RequestPath) build() ([]string, error) {
 
 // 需要删除的目标空间名
 func (request *Request) GetBucket() string {
-	return request.Path.GetBucket()
+	return request.path.GetBucket()
 }
 
 // 需要删除的目标空间名
 func (request *Request) SetBucket(value string) *Request {
-	request.Path.SetBucket(value)
+	request.path.SetBucket(value)
 	return request
 }
 
@@ -56,7 +56,7 @@ func (request *Request) SetBucket(value string) *Request {
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Path                   RequestPath
+	path                   RequestPath
 	credentials            credentials.CredentialsProvider
 }
 
@@ -81,7 +81,7 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
 	}
-	if bucketName, err := request.Path.getBucketName(); err != nil || bucketName != "" {
+	if bucketName, err := request.path.getBucketName(); err != nil || bucketName != "" {
 		return bucketName, err
 	}
 	return "", nil
@@ -97,13 +97,24 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求路径
+func (request *Request) GetPath() *RequestPath {
+	return &request.path
+}
+
+// 设置请求路径
+func (request *Request) SetPath(path RequestPath) *Request {
+	request.path = path
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "drop")
-	if segments, err := request.Path.build(); err != nil {
+	if segments, err := request.path.build(); err != nil {
 		return nil, err
 	} else {
 		pathSegments = append(pathSegments, segments...)
@@ -149,8 +160,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	return &Response{}, nil
+	return &Response{}, resp.Body.Close()
 }
 
 // 获取 API 所用的响应

@@ -36,10 +36,10 @@ func (query *RequestQuery) build() (url.Values, error) {
 	return allQuery, nil
 }
 func (request *Request) GetShared() string {
-	return request.Query.GetShared()
+	return request.query.GetShared()
 }
 func (request *Request) SetShared(value string) *Request {
-	request.Query.SetShared(value)
+	request.query.SetShared(value)
 	return request
 }
 
@@ -53,7 +53,7 @@ type ResponseBody = BucketNames
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Query                  RequestQuery
+	query                  RequestQuery
 	credentials            credentials.CredentialsProvider
 }
 
@@ -91,6 +91,17 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求查询参数
+func (request *Request) GetQuery() *RequestQuery {
+	return &request.query
+}
+
+// 设置请求查询参数
+func (request *Request) SetQuery(query RequestQuery) *Request {
+	request.query = query
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
@@ -99,7 +110,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	pathSegments = append(pathSegments, "buckets")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	if query, err := request.Query.build(); err != nil {
+	if query, err := request.query.build(); err != nil {
 		return nil, err
 	} else {
 		rawQuery += query.Encode()
@@ -143,10 +154,21 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
-	return &Response{Body: respBody}, nil
+	return &Response{body: respBody}, nil
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	Body ResponseBody
+	body ResponseBody
+}
+
+// 获取请求体
+func (response *Response) GetBody() ResponseBody {
+	return response.body
+}
+
+// 设置请求体
+func (response *Response) SetBody(body ResponseBody) *Response {
+	response.body = body
+	return response
 }

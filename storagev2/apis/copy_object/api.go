@@ -77,34 +77,34 @@ func (path *RequestPath) build() ([]string, error) {
 
 // 指定源对象空间与源对象名称
 func (request *Request) GetSrcEntry() string {
-	return request.Path.GetSrcEntry()
+	return request.path.GetSrcEntry()
 }
 
 // 指定源对象空间与源对象名称
 func (request *Request) SetSrcEntry(value string) *Request {
-	request.Path.SetSrcEntry(value)
+	request.path.SetSrcEntry(value)
 	return request
 }
 
 // 指定目标对象空间与目标对象名称
 func (request *Request) GetDestEntry() string {
-	return request.Path.GetDestEntry()
+	return request.path.GetDestEntry()
 }
 
 // 指定目标对象空间与目标对象名称
 func (request *Request) SetDestEntry(value string) *Request {
-	request.Path.SetDestEntry(value)
+	request.path.SetDestEntry(value)
 	return request
 }
 
 // 如果目标对象名已被占用，则返回错误码 614，且不做任何覆盖操作；如果指定为 true，会强制覆盖目标对象
 func (request *Request) IsForce() bool {
-	return request.Path.IsForce()
+	return request.path.IsForce()
 }
 
 // 如果目标对象名已被占用，则返回错误码 614，且不做任何覆盖操作；如果指定为 true，会强制覆盖目标对象
 func (request *Request) SetForce(value bool) *Request {
-	request.Path.SetForce(value)
+	request.path.SetForce(value)
 	return request
 }
 
@@ -112,7 +112,7 @@ func (request *Request) SetForce(value bool) *Request {
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Path                   RequestPath
+	path                   RequestPath
 	credentials            credentials.CredentialsProvider
 }
 
@@ -137,7 +137,7 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
 	}
-	if bucketName, err := request.Path.getBucketName(); err != nil || bucketName != "" {
+	if bucketName, err := request.path.getBucketName(); err != nil || bucketName != "" {
 		return bucketName, err
 	}
 	return "", nil
@@ -153,13 +153,24 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求路径
+func (request *Request) GetPath() *RequestPath {
+	return &request.path
+}
+
+// 设置请求路径
+func (request *Request) SetPath(path RequestPath) *Request {
+	request.path = path
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceRs}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "copy")
-	if segments, err := request.Path.build(); err != nil {
+	if segments, err := request.path.build(); err != nil {
 		return nil, err
 	} else {
 		pathSegments = append(pathSegments, segments...)
@@ -209,8 +220,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	return &Response{}, nil
+	return &Response{}, resp.Body.Close()
 }
 
 // 获取 API 所用的响应

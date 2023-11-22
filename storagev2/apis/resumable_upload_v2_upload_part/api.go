@@ -95,45 +95,45 @@ func (path *RequestPath) build() ([]string, error) {
 
 // 存储空间名称
 func (request *Request) GetBucketName() string {
-	return request.Path.GetBucketName()
+	return request.path.GetBucketName()
 }
 
 // 存储空间名称
 func (request *Request) SetBucketName(value string) *Request {
-	request.Path.SetBucketName(value)
+	request.path.SetBucketName(value)
 	return request
 }
 
 // 对象名称
 func (request *Request) GetObjectName() string {
-	return request.Path.GetObjectName()
+	return request.path.GetObjectName()
 }
 
 // 对象名称
 func (request *Request) SetObjectName(value string) *Request {
-	request.Path.SetObjectName(value)
+	request.path.SetObjectName(value)
 	return request
 }
 
 // 在服务端申请的 Multipart Upload 任务 id
 func (request *Request) GetUploadId() string {
-	return request.Path.GetUploadId()
+	return request.path.GetUploadId()
 }
 
 // 在服务端申请的 Multipart Upload 任务 id
 func (request *Request) SetUploadId(value string) *Request {
-	request.Path.SetUploadId(value)
+	request.path.SetUploadId(value)
 	return request
 }
 
 // 每一个上传的分片都有一个标识它的号码
 func (request *Request) GetPartNumber() int64 {
-	return request.Path.GetPartNumber()
+	return request.path.GetPartNumber()
 }
 
 // 每一个上传的分片都有一个标识它的号码
 func (request *Request) SetPartNumber(value int64) *Request {
-	request.Path.SetPartNumber(value)
+	request.path.SetPartNumber(value)
 	return request
 }
 
@@ -162,12 +162,12 @@ func (headers *RequestHeaders) build() (http.Header, error) {
 
 // 上传块内容的 md5 值，如果指定服务端会进行校验，不指定不校验
 func (request *Request) GetMd5() string {
-	return request.Headers.GetMd5()
+	return request.headers.GetMd5()
 }
 
 // 上传块内容的 md5 值，如果指定服务端会进行校验，不指定不校验
 func (request *Request) SetMd5(value string) *Request {
-	request.Headers.SetMd5(value)
+	request.headers.SetMd5(value)
 	return request
 }
 
@@ -225,23 +225,23 @@ type ResponseBody = NewPartInfo
 
 // 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
 func (request *Response) GetEtag() string {
-	return request.Body.GetEtag()
+	return request.body.GetEtag()
 }
 
 // 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
 func (request *Response) SetEtag(value string) *Response {
-	request.Body.SetEtag(value)
+	request.body.SetEtag(value)
 	return request
 }
 
 // 上传块内容的 MD5 值
 func (request *Response) GetMd5() string {
-	return request.Body.GetMd5()
+	return request.body.GetMd5()
 }
 
 // 上传块内容的 MD5 值
 func (request *Response) SetMd5(value string) *Response {
-	request.Body.SetMd5(value)
+	request.body.SetMd5(value)
 	return request
 }
 
@@ -249,10 +249,10 @@ func (request *Response) SetMd5(value string) *Response {
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Path                   RequestPath
-	Headers                RequestHeaders
+	path                   RequestPath
+	headers                RequestHeaders
 	upToken                uptoken.Provider
-	Body                   io.ReadSeekCloser
+	body                   io.ReadSeekCloser
 }
 
 // 覆盖默认的存储区域域名列表
@@ -292,24 +292,57 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求路径
+func (request *Request) GetPath() *RequestPath {
+	return &request.path
+}
+
+// 获取请求 HTTP Header
+func (request *Request) GetHeaders() *RequestHeaders {
+	return &request.headers
+}
+
+// 获取请求体
+func (request *Request) GetBody() io.ReadSeekCloser {
+	return request.body
+}
+
+// 设置请求路径
+func (request *Request) SetPath(path RequestPath) *Request {
+	request.path = path
+	return request
+}
+
+// 设置请求 HTTP Header
+func (request *Request) SetHeaders(headers RequestHeaders) *Request {
+	request.headers = headers
+	return request
+}
+
+// 设置请求体
+func (request *Request) SetBody(body io.ReadSeekCloser) *Request {
+	request.body = body
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceUp}
-	headers, err := request.Headers.build()
+	headers, err := request.headers.build()
 	if err != nil {
 		return nil, err
 	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "buckets")
-	if segments, err := request.Path.build(); err != nil {
+	if segments, err := request.path.build(); err != nil {
 		return nil, err
 	} else {
 		pathSegments = append(pathSegments, segments...)
 	}
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	req := httpclient.Request{Method: "PUT", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Header: headers, UpToken: request.upToken, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(request.Body)}
+	req := httpclient.Request{Method: "PUT", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Header: headers, UpToken: request.upToken, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(request.body)}
 	var queryer region.BucketRegionsQueryer
 	if client.GetRegions() == nil && client.GetEndpoints() == nil {
 		queryer = client.GetBucketQueryer()
@@ -352,10 +385,21 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
-	return &Response{Body: respBody}, nil
+	return &Response{body: respBody}, nil
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	Body ResponseBody
+	body ResponseBody
+}
+
+// 获取请求体
+func (response *Response) GetBody() *ResponseBody {
+	return &response.body
+}
+
+// 设置请求体
+func (response *Response) SetBody(body ResponseBody) *Response {
+	response.body = body
+	return response
 }
