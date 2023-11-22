@@ -1,6 +1,7 @@
 package uptoken
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -161,6 +162,9 @@ func (putPolicy PutPolicy) GetInt64(key string) (int64, bool) {
 			return int64(i), true
 		case uint:
 			return int64(i), true
+		case json.Number:
+			i64, err := i.Int64()
+			return i64, err == nil
 		}
 	}
 	return 0, false
