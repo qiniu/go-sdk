@@ -15,21 +15,29 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的路径参数
 type RequestPath struct {
 	fieldEntry           string
 	fieldDeleteAfterDays int64
 }
 
+// 指定目标对象空间与目标对象名称
 func (pp *RequestPath) GetEntry() string {
 	return pp.fieldEntry
 }
+
+// 指定目标对象空间与目标对象名称
 func (pp *RequestPath) SetEntry(value string) *RequestPath {
 	pp.fieldEntry = value
 	return pp
 }
+
+// 指定文件上传后在设置的 DeleteAfterDays 过期删除，删除后不可恢复，设置为 0 表示取消已设置的过期删除的生命周期规则
 func (pp *RequestPath) GetDeleteAfterDays() int64 {
 	return pp.fieldDeleteAfterDays
 }
+
+// 指定文件上传后在设置的 DeleteAfterDays 过期删除，删除后不可恢复，设置为 0 表示取消已设置的过期删除的生命周期规则
 func (pp *RequestPath) SetDeleteAfterDays(value int64) *RequestPath {
 	pp.fieldDeleteAfterDays = value
 	return pp
@@ -49,16 +57,24 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
+// 指定目标对象空间与目标对象名称
 func (request *Request) GetEntry() string {
 	return request.Path.GetEntry()
 }
+
+// 指定目标对象空间与目标对象名称
 func (request *Request) SetEntry(value string) *Request {
 	request.Path.SetEntry(value)
 	return request
 }
+
+// 指定文件上传后在设置的 DeleteAfterDays 过期删除，删除后不可恢复，设置为 0 表示取消已设置的过期删除的生命周期规则
 func (request *Request) GetDeleteAfterDays() int64 {
 	return request.Path.GetDeleteAfterDays()
 }
+
+// 指定文件上传后在设置的 DeleteAfterDays 过期删除，删除后不可恢复，设置为 0 表示取消已设置的过期删除的生命周期规则
 func (request *Request) SetDeleteAfterDays(value int64) *Request {
 	request.Path.SetDeleteAfterDays(value)
 	return request
@@ -72,14 +88,19 @@ type Request struct {
 	credentials            credentials.CredentialsProvider
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -103,6 +124,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceRs}

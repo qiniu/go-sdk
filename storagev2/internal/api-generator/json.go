@@ -46,6 +46,9 @@ type (
 func (jsonType *JsonType) Generate(group *jen.Group, options CodeGeneratorOptions) error {
 	return jsonType.generate(group, options, func() error {
 		if jsonType.Any {
+			if options.Documentation != "" {
+				group.Add(jen.Comment(options.Documentation))
+			}
 			group.Add(jen.Type().Id(strcase.ToCamel(options.Name)).Op("=").Interface())
 			return nil
 		}
@@ -195,15 +198,11 @@ func (jsonStruct *JsonStruct) Generate(group *jen.Group, options CodeGeneratorOp
 	}
 
 	for _, field := range jsonStruct.Fields {
-		if code, err := jsonStruct.generateGetterFunc(field, opts[0]); err != nil {
+		if err = jsonStruct.generateGetterFunc(group, field, opts[0]); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
-		if code, err := jsonStruct.generateSetterFunc(field, opts[0]); err != nil {
+		if err = jsonStruct.generateSetterFunc(group, field, opts[0]); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
 	}
 	if code := jsonStruct.generateServiceBucketField(opts[0]); code != nil {
@@ -226,15 +225,11 @@ func (jsonStruct *JsonStruct) Generate(group *jen.Group, options CodeGeneratorOp
 
 func (jsonStruct *JsonStruct) GenerateAliasesFor(group *jen.Group, structName, fieldName string) error {
 	for _, field := range jsonStruct.Fields {
-		if code, err := jsonStruct.generateAliasGetterFunc(field, structName, fieldName); err != nil {
+		if err := jsonStruct.generateAliasGetterFunc(group, field, structName, fieldName); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
-		if code, err := jsonStruct.generateAliasSetterFunc(field, structName, fieldName); err != nil {
+		if err := jsonStruct.generateAliasSetterFunc(group, field, structName, fieldName); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
 	}
 	return nil
@@ -326,27 +321,34 @@ func (jsonStruct *JsonStruct) generateValidateFunc(options CodeGeneratorOptions)
 		})
 }
 
-func (jsonStruct *JsonStruct) generateAliasGetterFunc(field JsonField, structName, fieldName string) (jen.Code, error) {
+func (jsonStruct *JsonStruct) generateAliasGetterFunc(group *jen.Group, field JsonField, structName, fieldName string) error {
+	if field.Documentation != "" {
+		group.Add(jen.Comment(field.Documentation))
+	}
 	code := jen.Func().
 		Params(jen.Id("request").Op("*").Id(structName)).
 		Id(makeGetterMethodName(field.FieldName)).
 		Params()
 	code, err := field.Type.AddTypeToStatement(code)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	code = code.BlockFunc(func(group *jen.Group) {
 		group.Add(jen.Return(jen.Id("request").Dot(fieldName).Dot(makeGetterMethodName(field.FieldName)).Call()))
 	})
-	return code, nil
+	group.Add(code)
+	return nil
 }
 
-func (jsonStruct *JsonStruct) generateAliasSetterFunc(field JsonField, structName, fieldName string) (jen.Code, error) {
+func (jsonStruct *JsonStruct) generateAliasSetterFunc(group *jen.Group, field JsonField, structName, fieldName string) error {
+	if field.Documentation != "" {
+		group.Add(jen.Comment(field.Documentation))
+	}
 	params, err := field.Type.AddTypeToStatement(jen.Id("value"))
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return jen.Func().
+	group.Add(jen.Func().
 		Params(jen.Id("request").Op("*").Id(structName)).
 		Id(makeSetterMethodName(field.FieldName)).
 		Params(params).
@@ -354,30 +356,38 @@ func (jsonStruct *JsonStruct) generateAliasSetterFunc(field JsonField, structNam
 		BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Id("request").Dot(fieldName).Dot(makeSetterMethodName(field.FieldName)).Call(jen.Id("value")))
 			group.Add(jen.Return(jen.Id("request")))
-		}), nil
+		}))
+	return nil
 }
 
-func (jsonStruct *JsonStruct) generateGetterFunc(field JsonField, options CodeGeneratorOptions) (jen.Code, error) {
+func (jsonStruct *JsonStruct) generateGetterFunc(group *jen.Group, field JsonField, options CodeGeneratorOptions) error {
+	if field.Documentation != "" {
+		group.Add(jen.Comment(field.Documentation))
+	}
 	code := jen.Func().
 		Params(jen.Id("j").Op("*").Id(options.Name)).
 		Id(makeGetterMethodName(field.FieldName)).
 		Params()
 	code, err := field.Type.AddTypeToStatement(code)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	code = code.BlockFunc(func(group *jen.Group) {
 		group.Add(jen.Return(jen.Id("j").Dot("inner").Dot(strcase.ToCamel(field.FieldName))))
 	})
-	return code, nil
+	group.Add(code)
+	return nil
 }
 
-func (jsonStruct *JsonStruct) generateSetterFunc(field JsonField, options CodeGeneratorOptions) (jen.Code, error) {
+func (jsonStruct *JsonStruct) generateSetterFunc(group *jen.Group, field JsonField, options CodeGeneratorOptions) error {
+	if field.Documentation != "" {
+		group.Add(jen.Comment(field.Documentation))
+	}
 	params, err := field.Type.AddTypeToStatement(jen.Id("value"))
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return jen.Func().
+	group.Add(jen.Func().
 		Params(jen.Id("j").Op("*").Id(options.Name)).
 		Id(makeSetterMethodName(field.FieldName)).
 		Params(params).
@@ -385,7 +395,8 @@ func (jsonStruct *JsonStruct) generateSetterFunc(field JsonField, options CodeGe
 		BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Id("j").Dot("inner").Dot(strcase.ToCamel(field.FieldName)).Op("=").Id("value"))
 			group.Add(jen.Return(jen.Id("j")))
-		}), nil
+		}))
+	return nil
 }
 
 func (jsonStruct *JsonStruct) getServiceBucketField() *JsonField {

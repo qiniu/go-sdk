@@ -81,6 +81,7 @@ func (request *ApiRequestDescription) generateRequestStruct(group *jen.Group, op
 
 func (request *ApiRequestDescription) generateOverwriteBucketHostsFunc(group *jen.Group, opts CodeGeneratorOptions) {
 	structName := strcase.ToCamel(opts.Name)
+	group.Add(jen.Comment("覆盖默认的存储区域域名列表"))
 	group.Add(
 		jen.Func().
 			Params(jen.Id("request").Op("*").Id(structName)).
@@ -96,6 +97,7 @@ func (request *ApiRequestDescription) generateOverwriteBucketHostsFunc(group *je
 
 func (request *ApiRequestDescription) generateOverwriteBucketNameFunc(group *jen.Group, opts CodeGeneratorOptions) {
 	structName := strcase.ToCamel(opts.Name)
+	group.Add(jen.Comment("覆盖存储空间名称"))
 	group.Add(
 		jen.Func().
 			Params(jen.Id("request").Op("*").Id(structName)).
@@ -114,6 +116,7 @@ func (request *ApiRequestDescription) generateSetAuthFunc(group *jen.Group, opts
 	if authorization := request.Authorization; authorization != nil {
 		switch authorization.ToAuthorization() {
 		case AuthorizationQbox, AuthorizationQiniu:
+			group.Add(jen.Comment("设置鉴权"))
 			group.Add(
 				jen.Func().
 					Params(jen.Id("request").Op("*").Id(structName)).
@@ -126,6 +129,7 @@ func (request *ApiRequestDescription) generateSetAuthFunc(group *jen.Group, opts
 					}),
 			)
 		case AuthorizationUpToken:
+			group.Add(jen.Comment("设置上传凭证"))
 			group.Add(
 				jen.Func().
 					Params(jen.Id("request").Op("*").Id(structName)).
@@ -305,6 +309,7 @@ func (request *ApiRequestDescription) generateGetAccessKeyFunc(group *jen.Group,
 
 func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts CodeGeneratorOptions) (err error) {
 	description := opts.apiDetailedDescription
+	group.Add(jen.Comment("发送请求"))
 	group.Add(
 		jen.Func().
 			Params(jen.Id("request").Op("*").Id(strcase.ToCamel(opts.Name))).

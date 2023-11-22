@@ -16,29 +16,41 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的路径参数
 type RequestPath struct {
 	fieldBucketName string
 	fieldObjectName string
 	fieldUploadId   string
 }
 
+// 存储空间名称
 func (pp *RequestPath) GetBucketName() string {
 	return pp.fieldBucketName
 }
+
+// 存储空间名称
 func (pp *RequestPath) SetBucketName(value string) *RequestPath {
 	pp.fieldBucketName = value
 	return pp
 }
+
+// 对象名称
 func (pp *RequestPath) GetObjectName() string {
 	return pp.fieldObjectName
 }
+
+// 对象名称
 func (pp *RequestPath) SetObjectName(value string) *RequestPath {
 	pp.fieldObjectName = value
 	return pp
 }
+
+// 在服务端申请的 Multipart Upload 任务 id
 func (pp *RequestPath) GetUploadId() string {
 	return pp.fieldUploadId
 }
+
+// 在服务端申请的 Multipart Upload 任务 id
 func (pp *RequestPath) SetUploadId(value string) *RequestPath {
 	pp.fieldUploadId = value
 	return pp
@@ -62,23 +74,35 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
+// 存储空间名称
 func (request *Request) GetBucketName() string {
 	return request.Path.GetBucketName()
 }
+
+// 存储空间名称
 func (request *Request) SetBucketName(value string) *Request {
 	request.Path.SetBucketName(value)
 	return request
 }
+
+// 对象名称
 func (request *Request) GetObjectName() string {
 	return request.Path.GetObjectName()
 }
+
+// 对象名称
 func (request *Request) SetObjectName(value string) *Request {
 	request.Path.SetObjectName(value)
 	return request
 }
+
+// 在服务端申请的 Multipart Upload 任务 id
 func (request *Request) GetUploadId() string {
 	return request.Path.GetUploadId()
 }
+
+// 在服务端申请的 Multipart Upload 任务 id
 func (request *Request) SetUploadId(value string) *Request {
 	request.Path.SetUploadId(value)
 	return request
@@ -90,16 +114,23 @@ type RequestQuery struct {
 	fieldPartNumberMarker int64 // 指定列举的起始位置，只有 partNumber 值大于该参数的分片会被列出
 }
 
+// 响应中的最大分片数目。默认值：1000，最大值：1000
 func (query *RequestQuery) GetMaxParts() int64 {
 	return query.fieldMaxParts
 }
+
+// 响应中的最大分片数目。默认值：1000，最大值：1000
 func (query *RequestQuery) SetMaxParts(value int64) *RequestQuery {
 	query.fieldMaxParts = value
 	return query
 }
+
+// 指定列举的起始位置，只有 partNumber 值大于该参数的分片会被列出
 func (query *RequestQuery) GetPartNumberMarker() int64 {
 	return query.fieldPartNumberMarker
 }
+
+// 指定列举的起始位置，只有 partNumber 值大于该参数的分片会被列出
 func (query *RequestQuery) SetPartNumberMarker(value int64) *RequestQuery {
 	query.fieldPartNumberMarker = value
 	return query
@@ -141,30 +172,45 @@ type ListedPartInfo struct {
 	inner innerListedPartInfo
 }
 
+// 分片大小
 func (j *ListedPartInfo) GetSize() int64 {
 	return j.inner.Size
 }
+
+// 分片大小
 func (j *ListedPartInfo) SetSize(value int64) *ListedPartInfo {
 	j.inner.Size = value
 	return j
 }
+
+// 分片内容的 etag
 func (j *ListedPartInfo) GetEtag() string {
 	return j.inner.Etag
 }
+
+// 分片内容的 etag
 func (j *ListedPartInfo) SetEtag(value string) *ListedPartInfo {
 	j.inner.Etag = value
 	return j
 }
+
+// 每一个上传的分片都有一个标识它的号码
 func (j *ListedPartInfo) GetPartNumber() int64 {
 	return j.inner.PartNumber
 }
+
+// 每一个上传的分片都有一个标识它的号码
 func (j *ListedPartInfo) SetPartNumber(value int64) *ListedPartInfo {
 	j.inner.PartNumber = value
 	return j
 }
+
+// 分片上传时间 UNIX 时间戳
 func (j *ListedPartInfo) GetPutTime() int64 {
 	return j.inner.PutTime
 }
+
+// 分片上传时间 UNIX 时间戳
 func (j *ListedPartInfo) SetPutTime(value int64) *ListedPartInfo {
 	j.inner.PutTime = value
 	return j
@@ -210,30 +256,45 @@ type ListedPartsResponse struct {
 	inner innerListedPartsResponse
 }
 
+// 在服务端申请的 Multipart Upload 任务 id
 func (j *ListedPartsResponse) GetUploadId() string {
 	return j.inner.UploadId
 }
+
+// 在服务端申请的 Multipart Upload 任务 id
 func (j *ListedPartsResponse) SetUploadId(value string) *ListedPartsResponse {
 	j.inner.UploadId = value
 	return j
 }
+
+// UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
 func (j *ListedPartsResponse) GetExpiredAt() int64 {
 	return j.inner.ExpiredAt
 }
+
+// UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
 func (j *ListedPartsResponse) SetExpiredAt(value int64) *ListedPartsResponse {
 	j.inner.ExpiredAt = value
 	return j
 }
+
+// 下次继续列举的起始位置，0 表示列举结束，没有更多分片
 func (j *ListedPartsResponse) GetPartNumberMarker() int64 {
 	return j.inner.PartNumberMarker
 }
+
+// 下次继续列举的起始位置，0 表示列举结束，没有更多分片
 func (j *ListedPartsResponse) SetPartNumberMarker(value int64) *ListedPartsResponse {
 	j.inner.PartNumberMarker = value
 	return j
 }
+
+// 返回所有已经上传成功的分片信息
 func (j *ListedPartsResponse) GetParts() ListedParts {
 	return j.inner.Parts
 }
+
+// 返回所有已经上传成功的分片信息
 func (j *ListedPartsResponse) SetParts(value ListedParts) *ListedPartsResponse {
 	j.inner.Parts = value
 	return j
@@ -270,30 +331,45 @@ func (j *ListedPartsResponse) validate() error {
 // 获取 API 所用的响应体参数
 type ResponseBody = ListedPartsResponse
 
+// 在服务端申请的 Multipart Upload 任务 id
 func (request *Response) GetUploadId() string {
 	return request.Body.GetUploadId()
 }
+
+// 在服务端申请的 Multipart Upload 任务 id
 func (request *Response) SetUploadId(value string) *Response {
 	request.Body.SetUploadId(value)
 	return request
 }
+
+// UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
 func (request *Response) GetExpiredAt() int64 {
 	return request.Body.GetExpiredAt()
 }
+
+// UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
 func (request *Response) SetExpiredAt(value int64) *Response {
 	request.Body.SetExpiredAt(value)
 	return request
 }
+
+// 下次继续列举的起始位置，0 表示列举结束，没有更多分片
 func (request *Response) GetPartNumberMarker() int64 {
 	return request.Body.GetPartNumberMarker()
 }
+
+// 下次继续列举的起始位置，0 表示列举结束，没有更多分片
 func (request *Response) SetPartNumberMarker(value int64) *Response {
 	request.Body.SetPartNumberMarker(value)
 	return request
 }
+
+// 返回所有已经上传成功的分片信息
 func (request *Response) GetParts() ListedParts {
 	return request.Body.GetParts()
 }
+
+// 返回所有已经上传成功的分片信息
 func (request *Response) SetParts(value ListedParts) *Response {
 	request.Body.SetParts(value)
 	return request
@@ -308,14 +384,19 @@ type Request struct {
 	upToken                uptoken.Provider
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置上传凭证
 func (request *Request) SetUpToken(upToken uptoken.Provider) *Request {
 	request.upToken = upToken
 	return request
@@ -339,6 +420,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceUp}

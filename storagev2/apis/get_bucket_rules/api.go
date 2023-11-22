@@ -20,9 +20,12 @@ type RequestQuery struct {
 	fieldBucket string // 空间名称
 }
 
+// 空间名称
 func (query *RequestQuery) GetBucket() string {
 	return query.fieldBucket
 }
+
+// 空间名称
 func (query *RequestQuery) SetBucket(value string) *RequestQuery {
 	query.fieldBucket = value
 	return query
@@ -59,51 +62,78 @@ type BucketRule struct {
 	inner innerBucketRule
 }
 
+// 空间规则名称
 func (j *BucketRule) GetName() string {
 	return j.inner.Name
 }
+
+// 空间规则名称
 func (j *BucketRule) SetName(value string) *BucketRule {
 	j.inner.Name = value
 	return j
 }
+
+// 匹配的对象名称前缀
 func (j *BucketRule) GetPrefix() string {
 	return j.inner.Prefix
 }
+
+// 匹配的对象名称前缀
 func (j *BucketRule) SetPrefix(value string) *BucketRule {
 	j.inner.Prefix = value
 	return j
 }
+
+// 上传文件多少天后删除
 func (j *BucketRule) GetDeleteAfterDays() int64 {
 	return j.inner.DeleteAfterDays
 }
+
+// 上传文件多少天后删除
 func (j *BucketRule) SetDeleteAfterDays(value int64) *BucketRule {
 	j.inner.DeleteAfterDays = value
 	return j
 }
+
+// 文件上传多少天后转低频存储
 func (j *BucketRule) GetToIaAfterDays() int64 {
 	return j.inner.ToIaAfterDays
 }
+
+// 文件上传多少天后转低频存储
 func (j *BucketRule) SetToIaAfterDays(value int64) *BucketRule {
 	j.inner.ToIaAfterDays = value
 	return j
 }
+
+// 文件上传多少天后转归档存储
 func (j *BucketRule) GetToArchiveAfterDays() int64 {
 	return j.inner.ToArchiveAfterDays
 }
+
+// 文件上传多少天后转归档存储
 func (j *BucketRule) SetToArchiveAfterDays(value int64) *BucketRule {
 	j.inner.ToArchiveAfterDays = value
 	return j
 }
+
+// 文件上传多少天后转深度归档存储
 func (j *BucketRule) GetToDeepArchiveAfterDays() int64 {
 	return j.inner.ToDeepArchiveAfterDays
 }
+
+// 文件上传多少天后转深度归档存储
 func (j *BucketRule) SetToDeepArchiveAfterDays(value int64) *BucketRule {
 	j.inner.ToDeepArchiveAfterDays = value
 	return j
 }
+
+// 规则创建时间
 func (j *BucketRule) GetCreatedTime() string {
 	return j.inner.CreatedTime
 }
+
+// 规则创建时间
 func (j *BucketRule) SetCreatedTime(value string) *BucketRule {
 	j.inner.CreatedTime = value
 	return j
@@ -143,14 +173,19 @@ type Request struct {
 	credentials            credentials.CredentialsProvider
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -171,6 +206,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceBucket}

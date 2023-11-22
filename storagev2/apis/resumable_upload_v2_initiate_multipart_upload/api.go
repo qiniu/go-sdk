@@ -14,21 +14,29 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的路径参数
 type RequestPath struct {
 	fieldBucketName string
 	fieldObjectName string
 }
 
+// 存储空间名称
 func (pp *RequestPath) GetBucketName() string {
 	return pp.fieldBucketName
 }
+
+// 存储空间名称
 func (pp *RequestPath) SetBucketName(value string) *RequestPath {
 	pp.fieldBucketName = value
 	return pp
 }
+
+// 对象名称
 func (pp *RequestPath) GetObjectName() string {
 	return pp.fieldObjectName
 }
+
+// 对象名称
 func (pp *RequestPath) SetObjectName(value string) *RequestPath {
 	pp.fieldObjectName = value
 	return pp
@@ -47,16 +55,24 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
+// 存储空间名称
 func (request *Request) GetBucketName() string {
 	return request.Path.GetBucketName()
 }
+
+// 存储空间名称
 func (request *Request) SetBucketName(value string) *Request {
 	request.Path.SetBucketName(value)
 	return request
 }
+
+// 对象名称
 func (request *Request) GetObjectName() string {
 	return request.Path.GetObjectName()
 }
+
+// 对象名称
 func (request *Request) SetObjectName(value string) *Request {
 	request.Path.SetObjectName(value)
 	return request
@@ -72,16 +88,23 @@ type NewMultipartUpload struct {
 	inner innerNewMultipartUpload
 }
 
+// 初始化文件生成的 id
 func (j *NewMultipartUpload) GetUploadId() string {
 	return j.inner.UploadId
 }
+
+// 初始化文件生成的 id
 func (j *NewMultipartUpload) SetUploadId(value string) *NewMultipartUpload {
 	j.inner.UploadId = value
 	return j
 }
+
+// UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
 func (j *NewMultipartUpload) GetExpiredAt() int64 {
 	return j.inner.ExpiredAt
 }
+
+// UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
 func (j *NewMultipartUpload) SetExpiredAt(value int64) *NewMultipartUpload {
 	j.inner.ExpiredAt = value
 	return j
@@ -107,16 +130,23 @@ func (j *NewMultipartUpload) validate() error {
 // 获取 API 所用的响应体参数
 type ResponseBody = NewMultipartUpload
 
+// 初始化文件生成的 id
 func (request *Response) GetUploadId() string {
 	return request.Body.GetUploadId()
 }
+
+// 初始化文件生成的 id
 func (request *Response) SetUploadId(value string) *Response {
 	request.Body.SetUploadId(value)
 	return request
 }
+
+// UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
 func (request *Response) GetExpiredAt() int64 {
 	return request.Body.GetExpiredAt()
 }
+
+// UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
 func (request *Response) SetExpiredAt(value int64) *Response {
 	request.Body.SetExpiredAt(value)
 	return request
@@ -130,14 +160,19 @@ type Request struct {
 	upToken                uptoken.Provider
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置上传凭证
 func (request *Request) SetUpToken(upToken uptoken.Provider) *Request {
 	request.upToken = upToken
 	return request
@@ -161,6 +196,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceUp}

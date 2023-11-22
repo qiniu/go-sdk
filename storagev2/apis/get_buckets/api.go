@@ -18,9 +18,12 @@ type RequestQuery struct {
 	fieldShared string // 包含共享存储空间，如果为 "rd" 则包含具有读权限空间，如果为 "rw" 则包含读写权限空间
 }
 
+// 包含共享存储空间，如果为 "rd" 则包含具有读权限空间，如果为 "rw" 则包含读写权限空间
 func (query *RequestQuery) GetShared() string {
 	return query.fieldShared
 }
+
+// 包含共享存储空间，如果为 "rd" 则包含具有读权限空间，如果为 "rw" 则包含读写权限空间
 func (query *RequestQuery) SetShared(value string) *RequestQuery {
 	query.fieldShared = value
 	return query
@@ -54,14 +57,19 @@ type Request struct {
 	credentials            credentials.CredentialsProvider
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -82,6 +90,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceBucket}

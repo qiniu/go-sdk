@@ -19,9 +19,12 @@ type RequestQuery struct {
 	fieldBucketName string // 空间名称
 }
 
+// 空间名称
 func (query *RequestQuery) GetBucketName() string {
 	return query.fieldBucketName
 }
+
+// 空间名称
 func (query *RequestQuery) SetBucketName(value string) *RequestQuery {
 	query.fieldBucketName = value
 	return query
@@ -54,14 +57,19 @@ type Request struct {
 	credentials            credentials.CredentialsProvider
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -85,6 +93,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceBucket}

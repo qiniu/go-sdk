@@ -15,13 +15,17 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的路径参数
 type RequestPath struct {
 	fieldBlockSize int64
 }
 
+// 块大小，单位为字节，每块均为 4 MB，最后一块大小不超过 4 MB
 func (pp *RequestPath) GetBlockSize() int64 {
 	return pp.fieldBlockSize
 }
+
+// 块大小，单位为字节，每块均为 4 MB，最后一块大小不超过 4 MB
 func (pp *RequestPath) SetBlockSize(value int64) *RequestPath {
 	pp.fieldBlockSize = value
 	return pp
@@ -35,9 +39,13 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
+// 块大小，单位为字节，每块均为 4 MB，最后一块大小不超过 4 MB
 func (request *Request) GetBlockSize() int64 {
 	return request.Path.GetBlockSize()
 }
+
+// 块大小，单位为字节，每块均为 4 MB，最后一块大小不超过 4 MB
 func (request *Request) SetBlockSize(value int64) *Request {
 	request.Path.SetBlockSize(value)
 	return request
@@ -57,44 +65,67 @@ type NewBlockInfo struct {
 	inner innerNewBlockInfo
 }
 
+// 本次上传成功后的块级上传控制信息，用于后续上传片（bput）及创建文件（mkfile）
 func (j *NewBlockInfo) GetCtx() string {
 	return j.inner.Ctx
 }
+
+// 本次上传成功后的块级上传控制信息，用于后续上传片（bput）及创建文件（mkfile）
 func (j *NewBlockInfo) SetCtx(value string) *NewBlockInfo {
 	j.inner.Ctx = value
 	return j
 }
+
+// 上传块 SHA1 值，使用 URL 安全的 Base64 编码
 func (j *NewBlockInfo) GetChecksum() string {
 	return j.inner.Checksum
 }
+
+// 上传块 SHA1 值，使用 URL 安全的 Base64 编码
 func (j *NewBlockInfo) SetChecksum(value string) *NewBlockInfo {
 	j.inner.Checksum = value
 	return j
 }
+
+// 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
 func (j *NewBlockInfo) GetCrc32() int64 {
 	return j.inner.Crc32
 }
+
+// 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
 func (j *NewBlockInfo) SetCrc32(value int64) *NewBlockInfo {
 	j.inner.Crc32 = value
 	return j
 }
+
+// 下一个上传块在切割块中的偏移
 func (j *NewBlockInfo) GetOffset() int64 {
 	return j.inner.Offset
 }
+
+// 下一个上传块在切割块中的偏移
 func (j *NewBlockInfo) SetOffset(value int64) *NewBlockInfo {
 	j.inner.Offset = value
 	return j
 }
+
+// 后续上传接收地址
 func (j *NewBlockInfo) GetHost() string {
 	return j.inner.Host
 }
+
+// 后续上传接收地址
 func (j *NewBlockInfo) SetHost(value string) *NewBlockInfo {
 	j.inner.Host = value
 	return j
 }
+
+// `ctx` 过期时间
 func (j *NewBlockInfo) GetExpiredAt() int64 {
 	return j.inner.ExpiredAt
 }
+
+// `ctx` 过期时间
 func (j *NewBlockInfo) SetExpiredAt(value int64) *NewBlockInfo {
 	j.inner.ExpiredAt = value
 	return j
@@ -132,44 +163,67 @@ func (j *NewBlockInfo) validate() error {
 // 获取 API 所用的响应体参数
 type ResponseBody = NewBlockInfo
 
+// 本次上传成功后的块级上传控制信息，用于后续上传片（bput）及创建文件（mkfile）
 func (request *Response) GetCtx() string {
 	return request.Body.GetCtx()
 }
+
+// 本次上传成功后的块级上传控制信息，用于后续上传片（bput）及创建文件（mkfile）
 func (request *Response) SetCtx(value string) *Response {
 	request.Body.SetCtx(value)
 	return request
 }
+
+// 上传块 SHA1 值，使用 URL 安全的 Base64 编码
 func (request *Response) GetChecksum() string {
 	return request.Body.GetChecksum()
 }
+
+// 上传块 SHA1 值，使用 URL 安全的 Base64 编码
 func (request *Response) SetChecksum(value string) *Response {
 	request.Body.SetChecksum(value)
 	return request
 }
+
+// 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
 func (request *Response) GetCrc32() int64 {
 	return request.Body.GetCrc32()
 }
+
+// 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
 func (request *Response) SetCrc32(value int64) *Response {
 	request.Body.SetCrc32(value)
 	return request
 }
+
+// 下一个上传块在切割块中的偏移
 func (request *Response) GetOffset() int64 {
 	return request.Body.GetOffset()
 }
+
+// 下一个上传块在切割块中的偏移
 func (request *Response) SetOffset(value int64) *Response {
 	request.Body.SetOffset(value)
 	return request
 }
+
+// 后续上传接收地址
 func (request *Response) GetHost() string {
 	return request.Body.GetHost()
 }
+
+// 后续上传接收地址
 func (request *Response) SetHost(value string) *Response {
 	request.Body.SetHost(value)
 	return request
 }
+
+// `ctx` 过期时间
 func (request *Response) GetExpiredAt() int64 {
 	return request.Body.GetExpiredAt()
 }
+
+// `ctx` 过期时间
 func (request *Response) SetExpiredAt(value int64) *Response {
 	request.Body.SetExpiredAt(value)
 	return request
@@ -184,14 +238,19 @@ type Request struct {
 	Body                   io.ReadSeekCloser
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置上传凭证
 func (request *Request) SetUpToken(upToken uptoken.Provider) *Request {
 	request.upToken = upToken
 	return request
@@ -215,6 +274,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceUp}

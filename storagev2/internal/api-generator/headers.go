@@ -36,8 +36,8 @@ func (names HeaderNames) Generate(group *jen.Group, options CodeGeneratorOptions
 		}),
 	)
 	for _, name := range names {
-		group.Add(names.generateGetterFunc(name, options))
-		group.Add(names.generateSetterFunc(name, options))
+		names.generateGetterFunc(group, name, options)
+		names.generateSetterFunc(group, name, options)
 	}
 	group.Add(
 		jen.Func().
@@ -94,25 +94,31 @@ func (names HeaderNames) Generate(group *jen.Group, options CodeGeneratorOptions
 
 func (names HeaderNames) GenerateAliasesFor(group *jen.Group, structName, fieldName string) error {
 	for _, name := range names {
-		group.Add(names.generateAliasGetterFunc(name, structName, fieldName))
-		group.Add(names.generateAliasSetterFunc(name, structName, fieldName))
+		names.generateAliasGetterFunc(group, name, structName, fieldName)
+		names.generateAliasSetterFunc(group, name, structName, fieldName)
 	}
 	return nil
 }
 
-func (names HeaderNames) generateAliasGetterFunc(name HeaderName, structName, fieldName string) jen.Code {
-	return jen.Func().
+func (names HeaderNames) generateAliasGetterFunc(group *jen.Group, name HeaderName, structName, fieldName string) {
+	if name.Documentation != "" {
+		group.Add(jen.Comment(name.Documentation))
+	}
+	group.Add(jen.Func().
 		Params(jen.Id("request").Op("*").Id(structName)).
 		Id(makeGetterMethodName(name.FieldName)).
 		Params().
 		String().
 		BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Return(jen.Id("request").Dot(fieldName).Dot(makeGetterMethodName(name.FieldName)).Call()))
-		})
+		}))
 }
 
-func (names HeaderNames) generateAliasSetterFunc(name HeaderName, structName, fieldName string) jen.Code {
-	return jen.Func().
+func (names HeaderNames) generateAliasSetterFunc(group *jen.Group, name HeaderName, structName, fieldName string) {
+	if name.Documentation != "" {
+		group.Add(jen.Comment(name.Documentation))
+	}
+	group.Add(jen.Func().
 		Params(jen.Id("request").Op("*").Id(structName)).
 		Id(makeSetterMethodName(name.FieldName)).
 		Params(jen.Id("value").String()).
@@ -120,22 +126,28 @@ func (names HeaderNames) generateAliasSetterFunc(name HeaderName, structName, fi
 		BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Id("request").Dot(fieldName).Dot(makeSetterMethodName(name.FieldName)).Call(jen.Id("value")))
 			group.Add(jen.Return(jen.Id("request")))
-		})
+		}))
 }
 
-func (names HeaderNames) generateGetterFunc(name HeaderName, options CodeGeneratorOptions) jen.Code {
-	return jen.Func().
+func (names HeaderNames) generateGetterFunc(group *jen.Group, name HeaderName, options CodeGeneratorOptions) {
+	if name.Documentation != "" {
+		group.Add(jen.Comment(name.Documentation))
+	}
+	group.Add(jen.Func().
 		Params(jen.Id("header").Op("*").Id(options.Name)).
 		Id(makeGetterMethodName(name.FieldName)).
 		Params().
 		String().
 		BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Return(jen.Id("header").Dot("field" + strcase.ToCamel(name.FieldName))))
-		})
+		}))
 }
 
-func (names HeaderNames) generateSetterFunc(name HeaderName, options CodeGeneratorOptions) jen.Code {
-	return jen.Func().
+func (names HeaderNames) generateSetterFunc(group *jen.Group, name HeaderName, options CodeGeneratorOptions) {
+	if name.Documentation != "" {
+		group.Add(jen.Comment(name.Documentation))
+	}
+	group.Add(jen.Func().
 		Params(jen.Id("header").Op("*").Id(options.Name)).
 		Id(makeSetterMethodName(name.FieldName)).
 		Params(jen.Id("value").String()).
@@ -143,5 +155,5 @@ func (names HeaderNames) generateSetterFunc(name HeaderName, options CodeGenerat
 		BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Id("header").Dot("field" + strcase.ToCamel(name.FieldName)).Op("=").Id("value"))
 			group.Add(jen.Return(jen.Id("header")))
-		})
+		}))
 }

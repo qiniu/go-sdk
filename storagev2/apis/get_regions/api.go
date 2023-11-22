@@ -22,16 +22,23 @@ type Region struct {
 	inner innerRegion
 }
 
+// 区域 ID
 func (j *Region) GetId() string {
 	return j.inner.Id
 }
+
+// 区域 ID
 func (j *Region) SetId(value string) *Region {
 	j.inner.Id = value
 	return j
 }
+
+// 区域描述信息
 func (j *Region) GetDescription() string {
 	return j.inner.Description
 }
+
+// 区域描述信息
 func (j *Region) SetDescription(value string) *Region {
 	j.inner.Description = value
 	return j
@@ -65,9 +72,12 @@ type RegionsInfo struct {
 	inner innerRegionsInfo
 }
 
+// 区域列表
 func (j *RegionsInfo) GetRegions() Regions {
 	return j.inner.Regions
 }
+
+// 区域列表
 func (j *RegionsInfo) SetRegions(value Regions) *RegionsInfo {
 	j.inner.Regions = value
 	return j
@@ -95,9 +105,12 @@ func (j *RegionsInfo) validate() error {
 // 获取 API 所用的响应体参数
 type ResponseBody = RegionsInfo
 
+// 区域列表
 func (request *Response) GetRegions() Regions {
 	return request.Body.GetRegions()
 }
+
+// 区域列表
 func (request *Response) SetRegions(value Regions) *Response {
 	request.Body.SetRegions(value)
 	return request
@@ -109,10 +122,13 @@ type Request struct {
 	overwrittenBucketName  string
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
@@ -126,6 +142,8 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceBucket}

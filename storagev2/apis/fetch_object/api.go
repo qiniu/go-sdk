@@ -15,29 +15,41 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的路径参数
 type RequestPath struct {
 	fieldFromUrl string
 	fieldToEntry string
 	fieldHost    string
 }
 
+// 指定抓取的 URL
 func (pp *RequestPath) GetFromUrl() string {
 	return pp.fieldFromUrl
 }
+
+// 指定抓取的 URL
 func (pp *RequestPath) SetFromUrl(value string) *RequestPath {
 	pp.fieldFromUrl = value
 	return pp
 }
+
+// 指定目标对象空间与目标对象名称
 func (pp *RequestPath) GetToEntry() string {
 	return pp.fieldToEntry
 }
+
+// 指定目标对象空间与目标对象名称
 func (pp *RequestPath) SetToEntry(value string) *RequestPath {
 	pp.fieldToEntry = value
 	return pp
 }
+
+// 指定抓取 URL 请求用的 HOST 参数
 func (pp *RequestPath) GetHost() string {
 	return pp.fieldHost
 }
+
+// 指定抓取 URL 请求用的 HOST 参数
 func (pp *RequestPath) SetHost(value string) *RequestPath {
 	pp.fieldHost = value
 	return pp
@@ -62,23 +74,35 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
+// 指定抓取的 URL
 func (request *Request) GetFromUrl() string {
 	return request.Path.GetFromUrl()
 }
+
+// 指定抓取的 URL
 func (request *Request) SetFromUrl(value string) *Request {
 	request.Path.SetFromUrl(value)
 	return request
 }
+
+// 指定目标对象空间与目标对象名称
 func (request *Request) GetToEntry() string {
 	return request.Path.GetToEntry()
 }
+
+// 指定目标对象空间与目标对象名称
 func (request *Request) SetToEntry(value string) *Request {
 	request.Path.SetToEntry(value)
 	return request
 }
+
+// 指定抓取 URL 请求用的 HOST 参数
 func (request *Request) GetHost() string {
 	return request.Path.GetHost()
 }
+
+// 指定抓取 URL 请求用的 HOST 参数
 func (request *Request) SetHost(value string) *Request {
 	request.Path.SetHost(value)
 	return request
@@ -96,30 +120,45 @@ type FetchedObjectMetadata struct {
 	inner innerFetchedObjectMetadata
 }
 
+// 抓取的对象内容的 Etag 值
 func (j *FetchedObjectMetadata) GetHash() string {
 	return j.inner.Hash
 }
+
+// 抓取的对象内容的 Etag 值
 func (j *FetchedObjectMetadata) SetHash(value string) *FetchedObjectMetadata {
 	j.inner.Hash = value
 	return j
 }
+
+// 抓取后保存的对象名称
 func (j *FetchedObjectMetadata) GetObjectName() string {
 	return j.inner.ObjectName
 }
+
+// 抓取后保存的对象名称
 func (j *FetchedObjectMetadata) SetObjectName(value string) *FetchedObjectMetadata {
 	j.inner.ObjectName = value
 	return j
 }
+
+// 对象大小，单位为字节
 func (j *FetchedObjectMetadata) GetSize() int64 {
 	return j.inner.Size
 }
+
+// 对象大小，单位为字节
 func (j *FetchedObjectMetadata) SetSize(value int64) *FetchedObjectMetadata {
 	j.inner.Size = value
 	return j
 }
+
+// 对象 MIME 类型
 func (j *FetchedObjectMetadata) GetMimeType() string {
 	return j.inner.MimeType
 }
+
+// 对象 MIME 类型
 func (j *FetchedObjectMetadata) SetMimeType(value string) *FetchedObjectMetadata {
 	j.inner.MimeType = value
 	return j
@@ -151,30 +190,45 @@ func (j *FetchedObjectMetadata) validate() error {
 // 获取 API 所用的响应体参数
 type ResponseBody = FetchedObjectMetadata
 
+// 抓取的对象内容的 Etag 值
 func (request *Response) GetHash() string {
 	return request.Body.GetHash()
 }
+
+// 抓取的对象内容的 Etag 值
 func (request *Response) SetHash(value string) *Response {
 	request.Body.SetHash(value)
 	return request
 }
+
+// 抓取后保存的对象名称
 func (request *Response) GetObjectName() string {
 	return request.Body.GetObjectName()
 }
+
+// 抓取后保存的对象名称
 func (request *Response) SetObjectName(value string) *Response {
 	request.Body.SetObjectName(value)
 	return request
 }
+
+// 对象大小，单位为字节
 func (request *Response) GetSize() int64 {
 	return request.Body.GetSize()
 }
+
+// 对象大小，单位为字节
 func (request *Response) SetSize(value int64) *Response {
 	request.Body.SetSize(value)
 	return request
 }
+
+// 对象 MIME 类型
 func (request *Response) GetMimeType() string {
 	return request.Body.GetMimeType()
 }
+
+// 对象 MIME 类型
 func (request *Response) SetMimeType(value string) *Response {
 	request.Body.SetMimeType(value)
 	return request
@@ -188,14 +242,19 @@ type Request struct {
 	credentials            credentials.CredentialsProvider
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -219,6 +278,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceIo}

@@ -17,6 +17,7 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的路径参数
 type RequestPath struct {
 	fieldBucketName string
 	fieldObjectName string
@@ -24,30 +25,45 @@ type RequestPath struct {
 	fieldPartNumber int64
 }
 
+// 存储空间名称
 func (pp *RequestPath) GetBucketName() string {
 	return pp.fieldBucketName
 }
+
+// 存储空间名称
 func (pp *RequestPath) SetBucketName(value string) *RequestPath {
 	pp.fieldBucketName = value
 	return pp
 }
+
+// 对象名称
 func (pp *RequestPath) GetObjectName() string {
 	return pp.fieldObjectName
 }
+
+// 对象名称
 func (pp *RequestPath) SetObjectName(value string) *RequestPath {
 	pp.fieldObjectName = value
 	return pp
 }
+
+// 在服务端申请的 Multipart Upload 任务 id
 func (pp *RequestPath) GetUploadId() string {
 	return pp.fieldUploadId
 }
+
+// 在服务端申请的 Multipart Upload 任务 id
 func (pp *RequestPath) SetUploadId(value string) *RequestPath {
 	pp.fieldUploadId = value
 	return pp
 }
+
+// 每一个上传的分片都有一个标识它的号码
 func (pp *RequestPath) GetPartNumber() int64 {
 	return pp.fieldPartNumber
 }
+
+// 每一个上传的分片都有一个标识它的号码
 func (pp *RequestPath) SetPartNumber(value int64) *RequestPath {
 	pp.fieldPartNumber = value
 	return pp
@@ -76,30 +92,46 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
+// 存储空间名称
 func (request *Request) GetBucketName() string {
 	return request.Path.GetBucketName()
 }
+
+// 存储空间名称
 func (request *Request) SetBucketName(value string) *Request {
 	request.Path.SetBucketName(value)
 	return request
 }
+
+// 对象名称
 func (request *Request) GetObjectName() string {
 	return request.Path.GetObjectName()
 }
+
+// 对象名称
 func (request *Request) SetObjectName(value string) *Request {
 	request.Path.SetObjectName(value)
 	return request
 }
+
+// 在服务端申请的 Multipart Upload 任务 id
 func (request *Request) GetUploadId() string {
 	return request.Path.GetUploadId()
 }
+
+// 在服务端申请的 Multipart Upload 任务 id
 func (request *Request) SetUploadId(value string) *Request {
 	request.Path.SetUploadId(value)
 	return request
 }
+
+// 每一个上传的分片都有一个标识它的号码
 func (request *Request) GetPartNumber() int64 {
 	return request.Path.GetPartNumber()
 }
+
+// 每一个上传的分片都有一个标识它的号码
 func (request *Request) SetPartNumber(value int64) *Request {
 	request.Path.SetPartNumber(value)
 	return request
@@ -110,9 +142,12 @@ type RequestHeaders struct {
 	fieldMd5 string // 上传块内容的 md5 值，如果指定服务端会进行校验，不指定不校验
 }
 
+// 上传块内容的 md5 值，如果指定服务端会进行校验，不指定不校验
 func (header *RequestHeaders) GetMd5() string {
 	return header.fieldMd5
 }
+
+// 上传块内容的 md5 值，如果指定服务端会进行校验，不指定不校验
 func (header *RequestHeaders) SetMd5(value string) *RequestHeaders {
 	header.fieldMd5 = value
 	return header
@@ -124,9 +159,13 @@ func (headers *RequestHeaders) build() (http.Header, error) {
 	}
 	return allHeaders, nil
 }
+
+// 上传块内容的 md5 值，如果指定服务端会进行校验，不指定不校验
 func (request *Request) GetMd5() string {
 	return request.Headers.GetMd5()
 }
+
+// 上传块内容的 md5 值，如果指定服务端会进行校验，不指定不校验
 func (request *Request) SetMd5(value string) *Request {
 	request.Headers.SetMd5(value)
 	return request
@@ -142,16 +181,23 @@ type NewPartInfo struct {
 	inner innerNewPartInfo
 }
 
+// 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
 func (j *NewPartInfo) GetEtag() string {
 	return j.inner.Etag
 }
+
+// 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
 func (j *NewPartInfo) SetEtag(value string) *NewPartInfo {
 	j.inner.Etag = value
 	return j
 }
+
+// 上传块内容的 MD5 值
 func (j *NewPartInfo) GetMd5() string {
 	return j.inner.Md5
 }
+
+// 上传块内容的 MD5 值
 func (j *NewPartInfo) SetMd5(value string) *NewPartInfo {
 	j.inner.Md5 = value
 	return j
@@ -177,16 +223,23 @@ func (j *NewPartInfo) validate() error {
 // 获取 API 所用的响应体参数
 type ResponseBody = NewPartInfo
 
+// 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
 func (request *Response) GetEtag() string {
 	return request.Body.GetEtag()
 }
+
+// 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
 func (request *Response) SetEtag(value string) *Response {
 	request.Body.SetEtag(value)
 	return request
 }
+
+// 上传块内容的 MD5 值
 func (request *Response) GetMd5() string {
 	return request.Body.GetMd5()
 }
+
+// 上传块内容的 MD5 值
 func (request *Response) SetMd5(value string) *Response {
 	request.Body.SetMd5(value)
 	return request
@@ -202,14 +255,19 @@ type Request struct {
 	Body                   io.ReadSeekCloser
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置上传凭证
 func (request *Request) SetUpToken(upToken uptoken.Provider) *Request {
 	request.upToken = upToken
 	return request
@@ -233,6 +291,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceUp}

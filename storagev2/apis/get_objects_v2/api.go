@@ -26,44 +26,67 @@ type RequestQuery struct {
 	fieldNeedParts bool   // 如果文件是通过分片上传的，是否返回对应的分片信息
 }
 
+// 指定存储空间
 func (query *RequestQuery) GetBucket() string {
 	return query.fieldBucket
 }
+
+// 指定存储空间
 func (query *RequestQuery) SetBucket(value string) *RequestQuery {
 	query.fieldBucket = value
 	return query
 }
+
+// 上一次列举返回的位置标记，作为本次列举的起点信息
 func (query *RequestQuery) GetMarker() string {
 	return query.fieldMarker
 }
+
+// 上一次列举返回的位置标记，作为本次列举的起点信息
 func (query *RequestQuery) SetMarker(value string) *RequestQuery {
 	query.fieldMarker = value
 	return query
 }
+
+// 本次列举的条目数，范围为 1-1000
 func (query *RequestQuery) GetLimit() int64 {
 	return query.fieldLimit
 }
+
+// 本次列举的条目数，范围为 1-1000
 func (query *RequestQuery) SetLimit(value int64) *RequestQuery {
 	query.fieldLimit = value
 	return query
 }
+
+// 指定前缀，只有资源名匹配该前缀的资源会被列出
 func (query *RequestQuery) GetPrefix() string {
 	return query.fieldPrefix
 }
+
+// 指定前缀，只有资源名匹配该前缀的资源会被列出
 func (query *RequestQuery) SetPrefix(value string) *RequestQuery {
 	query.fieldPrefix = value
 	return query
 }
+
+// 指定目录分隔符，列出所有公共前缀（模拟列出目录效果）
 func (query *RequestQuery) GetDelimiter() string {
 	return query.fieldDelimiter
 }
+
+// 指定目录分隔符，列出所有公共前缀（模拟列出目录效果）
 func (query *RequestQuery) SetDelimiter(value string) *RequestQuery {
 	query.fieldDelimiter = value
 	return query
 }
+
+// 如果文件是通过分片上传的，是否返回对应的分片信息
 func (query *RequestQuery) GetNeedParts() bool {
 	return query.fieldNeedParts
 }
+
+// 如果文件是通过分片上传的，是否返回对应的分片信息
 func (query *RequestQuery) SetNeedParts(value bool) *RequestQuery {
 	query.fieldNeedParts = value
 	return query
@@ -146,14 +169,19 @@ type Request struct {
 	credentials            credentials.CredentialsProvider
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -177,6 +205,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceRsf}

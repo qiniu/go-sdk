@@ -15,6 +15,7 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的路径参数
 type RequestPath struct {
 	fieldEntry                  string
 	fieldToIaAfterDays          int64
@@ -23,37 +24,56 @@ type RequestPath struct {
 	fieldDeleteAfterDays        int64
 }
 
+// 指定目标对象空间与目标对象名称
 func (pp *RequestPath) GetEntry() string {
 	return pp.fieldEntry
 }
+
+// 指定目标对象空间与目标对象名称
 func (pp *RequestPath) SetEntry(value string) *RequestPath {
 	pp.fieldEntry = value
 	return pp
 }
+
+// 指定文件上传后在设置的 ToIAAfterDays 转换到低频存储类型，设置为 -1 表示取消已设置的转低频存储的生命周期规则
 func (pp *RequestPath) GetToIaAfterDays() int64 {
 	return pp.fieldToIaAfterDays
 }
+
+// 指定文件上传后在设置的 ToIAAfterDays 转换到低频存储类型，设置为 -1 表示取消已设置的转低频存储的生命周期规则
 func (pp *RequestPath) SetToIaAfterDays(value int64) *RequestPath {
 	pp.fieldToIaAfterDays = value
 	return pp
 }
+
+// 指定文件上传后在设置的 toArchiveAfterDays 转换到归档存储类型， 设置为 -1 表示取消已设置的转归档存储的生命周期规则
 func (pp *RequestPath) GetToArchiveAfterDays() int64 {
 	return pp.fieldToArchiveAfterDays
 }
+
+// 指定文件上传后在设置的 toArchiveAfterDays 转换到归档存储类型， 设置为 -1 表示取消已设置的转归档存储的生命周期规则
 func (pp *RequestPath) SetToArchiveAfterDays(value int64) *RequestPath {
 	pp.fieldToArchiveAfterDays = value
 	return pp
 }
+
+// 指定文件上传后在设置的 toDeepArchiveAfterDays 转换到深度归档存储类型， 设置为 -1 表示取消已设置的转深度归档存储的生命周期规则
 func (pp *RequestPath) GetToDeepArchiveAfterDays() int64 {
 	return pp.fieldToDeepArchiveAfterDays
 }
+
+// 指定文件上传后在设置的 toDeepArchiveAfterDays 转换到深度归档存储类型， 设置为 -1 表示取消已设置的转深度归档存储的生命周期规则
 func (pp *RequestPath) SetToDeepArchiveAfterDays(value int64) *RequestPath {
 	pp.fieldToDeepArchiveAfterDays = value
 	return pp
 }
+
+// 指定文件上传后在设置的 DeleteAfterDays 过期删除，删除后不可恢复，设置为 -1 表示取消已设置的过期删除的生命周期规则
 func (pp *RequestPath) GetDeleteAfterDays() int64 {
 	return pp.fieldDeleteAfterDays
 }
+
+// 指定文件上传后在设置的 DeleteAfterDays 过期删除，删除后不可恢复，设置为 -1 表示取消已设置的过期删除的生命周期规则
 func (pp *RequestPath) SetDeleteAfterDays(value int64) *RequestPath {
 	pp.fieldDeleteAfterDays = value
 	return pp
@@ -82,37 +102,57 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
+// 指定目标对象空间与目标对象名称
 func (request *Request) GetEntry() string {
 	return request.Path.GetEntry()
 }
+
+// 指定目标对象空间与目标对象名称
 func (request *Request) SetEntry(value string) *Request {
 	request.Path.SetEntry(value)
 	return request
 }
+
+// 指定文件上传后在设置的 ToIAAfterDays 转换到低频存储类型，设置为 -1 表示取消已设置的转低频存储的生命周期规则
 func (request *Request) GetToIaAfterDays() int64 {
 	return request.Path.GetToIaAfterDays()
 }
+
+// 指定文件上传后在设置的 ToIAAfterDays 转换到低频存储类型，设置为 -1 表示取消已设置的转低频存储的生命周期规则
 func (request *Request) SetToIaAfterDays(value int64) *Request {
 	request.Path.SetToIaAfterDays(value)
 	return request
 }
+
+// 指定文件上传后在设置的 toArchiveAfterDays 转换到归档存储类型， 设置为 -1 表示取消已设置的转归档存储的生命周期规则
 func (request *Request) GetToArchiveAfterDays() int64 {
 	return request.Path.GetToArchiveAfterDays()
 }
+
+// 指定文件上传后在设置的 toArchiveAfterDays 转换到归档存储类型， 设置为 -1 表示取消已设置的转归档存储的生命周期规则
 func (request *Request) SetToArchiveAfterDays(value int64) *Request {
 	request.Path.SetToArchiveAfterDays(value)
 	return request
 }
+
+// 指定文件上传后在设置的 toDeepArchiveAfterDays 转换到深度归档存储类型， 设置为 -1 表示取消已设置的转深度归档存储的生命周期规则
 func (request *Request) GetToDeepArchiveAfterDays() int64 {
 	return request.Path.GetToDeepArchiveAfterDays()
 }
+
+// 指定文件上传后在设置的 toDeepArchiveAfterDays 转换到深度归档存储类型， 设置为 -1 表示取消已设置的转深度归档存储的生命周期规则
 func (request *Request) SetToDeepArchiveAfterDays(value int64) *Request {
 	request.Path.SetToDeepArchiveAfterDays(value)
 	return request
 }
+
+// 指定文件上传后在设置的 DeleteAfterDays 过期删除，删除后不可恢复，设置为 -1 表示取消已设置的过期删除的生命周期规则
 func (request *Request) GetDeleteAfterDays() int64 {
 	return request.Path.GetDeleteAfterDays()
 }
+
+// 指定文件上传后在设置的 DeleteAfterDays 过期删除，删除后不可恢复，设置为 -1 表示取消已设置的过期删除的生命周期规则
 func (request *Request) SetDeleteAfterDays(value int64) *Request {
 	request.Path.SetDeleteAfterDays(value)
 	return request
@@ -126,14 +166,19 @@ type Request struct {
 	credentials            credentials.CredentialsProvider
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -157,6 +202,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceRs}

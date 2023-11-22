@@ -26,44 +26,67 @@ type RequestQuery struct {
 	fieldNeedParts bool   // 如果文件是通过分片上传的，是否返回对应的分片信息
 }
 
+// 指定存储空间
 func (query *RequestQuery) GetBucket() string {
 	return query.fieldBucket
 }
+
+// 指定存储空间
 func (query *RequestQuery) SetBucket(value string) *RequestQuery {
 	query.fieldBucket = value
 	return query
 }
+
+// 上一次列举返回的位置标记，作为本次列举的起点信息
 func (query *RequestQuery) GetMarker() string {
 	return query.fieldMarker
 }
+
+// 上一次列举返回的位置标记，作为本次列举的起点信息
 func (query *RequestQuery) SetMarker(value string) *RequestQuery {
 	query.fieldMarker = value
 	return query
 }
+
+// 本次列举的条目数，范围为 1-1000
 func (query *RequestQuery) GetLimit() int64 {
 	return query.fieldLimit
 }
+
+// 本次列举的条目数，范围为 1-1000
 func (query *RequestQuery) SetLimit(value int64) *RequestQuery {
 	query.fieldLimit = value
 	return query
 }
+
+// 指定前缀，只有资源名匹配该前缀的资源会被列出
 func (query *RequestQuery) GetPrefix() string {
 	return query.fieldPrefix
 }
+
+// 指定前缀，只有资源名匹配该前缀的资源会被列出
 func (query *RequestQuery) SetPrefix(value string) *RequestQuery {
 	query.fieldPrefix = value
 	return query
 }
+
+// 指定目录分隔符，列出所有公共前缀（模拟列出目录效果）
 func (query *RequestQuery) GetDelimiter() string {
 	return query.fieldDelimiter
 }
+
+// 指定目录分隔符，列出所有公共前缀（模拟列出目录效果）
 func (query *RequestQuery) SetDelimiter(value string) *RequestQuery {
 	query.fieldDelimiter = value
 	return query
 }
+
+// 如果文件是通过分片上传的，是否返回对应的分片信息
 func (query *RequestQuery) GetNeedParts() bool {
 	return query.fieldNeedParts
 }
+
+// 如果文件是通过分片上传的，是否返回对应的分片信息
 func (query *RequestQuery) SetNeedParts(value bool) *RequestQuery {
 	query.fieldNeedParts = value
 	return query
@@ -164,72 +187,111 @@ type ListedObjectEntry struct {
 	inner innerListedObjectEntry
 }
 
+// 对象名称
 func (j *ListedObjectEntry) GetKey() string {
 	return j.inner.Key
 }
+
+// 对象名称
 func (j *ListedObjectEntry) SetKey(value string) *ListedObjectEntry {
 	j.inner.Key = value
 	return j
 }
+
+// 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
 func (j *ListedObjectEntry) GetPutTime() int64 {
 	return j.inner.PutTime
 }
+
+// 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
 func (j *ListedObjectEntry) SetPutTime(value int64) *ListedObjectEntry {
 	j.inner.PutTime = value
 	return j
 }
+
+// 文件的哈希值
 func (j *ListedObjectEntry) GetHash() string {
 	return j.inner.Hash
 }
+
+// 文件的哈希值
 func (j *ListedObjectEntry) SetHash(value string) *ListedObjectEntry {
 	j.inner.Hash = value
 	return j
 }
+
+// 对象大小，单位为字节
 func (j *ListedObjectEntry) GetSize() int64 {
 	return j.inner.Size
 }
+
+// 对象大小，单位为字节
 func (j *ListedObjectEntry) SetSize(value int64) *ListedObjectEntry {
 	j.inner.Size = value
 	return j
 }
+
+// 对象 MIME 类型
 func (j *ListedObjectEntry) GetMimeType() string {
 	return j.inner.MimeType
 }
+
+// 对象 MIME 类型
 func (j *ListedObjectEntry) SetMimeType(value string) *ListedObjectEntry {
 	j.inner.MimeType = value
 	return j
 }
+
+// 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
 func (j *ListedObjectEntry) GetType() int64 {
 	return j.inner.Type
 }
+
+// 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
 func (j *ListedObjectEntry) SetType(value int64) *ListedObjectEntry {
 	j.inner.Type = value
 	return j
 }
+
+// 资源内容的唯一属主标识
 func (j *ListedObjectEntry) GetEndUser() string {
 	return j.inner.EndUser
 }
+
+// 资源内容的唯一属主标识
 func (j *ListedObjectEntry) SetEndUser(value string) *ListedObjectEntry {
 	j.inner.EndUser = value
 	return j
 }
+
+// 文件的存储状态，即禁用状态和启用状态间的的互相转换，`0` 表示启用，`1`表示禁用
 func (j *ListedObjectEntry) GetRestoringStatus() int64 {
 	return j.inner.RestoringStatus
 }
+
+// 文件的存储状态，即禁用状态和启用状态间的的互相转换，`0` 表示启用，`1`表示禁用
 func (j *ListedObjectEntry) SetRestoringStatus(value int64) *ListedObjectEntry {
 	j.inner.RestoringStatus = value
 	return j
 }
+
+// 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
 func (j *ListedObjectEntry) GetMd5() string {
 	return j.inner.Md5
 }
+
+// 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
 func (j *ListedObjectEntry) SetMd5(value string) *ListedObjectEntry {
 	j.inner.Md5 = value
 	return j
 }
+
+// 每个分片的大小，如没有指定 need_parts 参数则不返回
 func (j *ListedObjectEntry) GetParts() PartSizes {
 	return j.inner.Parts
 }
+
+// 每个分片的大小，如没有指定 need_parts 参数则不返回
 func (j *ListedObjectEntry) SetParts(value PartSizes) *ListedObjectEntry {
 	j.inner.Parts = value
 	return j
@@ -277,23 +339,34 @@ type ListedObjectEntries struct {
 	inner innerListedObjectEntries
 }
 
+// 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
 func (j *ListedObjectEntries) GetMarker() string {
 	return j.inner.Marker
 }
+
+// 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
 func (j *ListedObjectEntries) SetMarker(value string) *ListedObjectEntries {
 	j.inner.Marker = value
 	return j
 }
+
+// 公共前缀的数组，如没有指定 delimiter 参数则不返回
 func (j *ListedObjectEntries) GetCommonPrefixes() CommonPrefixes {
 	return j.inner.CommonPrefixes
 }
+
+// 公共前缀的数组，如没有指定 delimiter 参数则不返回
 func (j *ListedObjectEntries) SetCommonPrefixes(value CommonPrefixes) *ListedObjectEntries {
 	j.inner.CommonPrefixes = value
 	return j
 }
+
+// 条目的数组，不能用来判断是否还有剩余条目
 func (j *ListedObjectEntries) GetItems() ListedObjects {
 	return j.inner.Items
 }
+
+// 条目的数组，不能用来判断是否还有剩余条目
 func (j *ListedObjectEntries) SetItems(value ListedObjects) *ListedObjectEntries {
 	j.inner.Items = value
 	return j
@@ -321,23 +394,34 @@ func (j *ListedObjectEntries) validate() error {
 // 获取 API 所用的响应体参数
 type ResponseBody = ListedObjectEntries
 
+// 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
 func (request *Response) GetMarker() string {
 	return request.Body.GetMarker()
 }
+
+// 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
 func (request *Response) SetMarker(value string) *Response {
 	request.Body.SetMarker(value)
 	return request
 }
+
+// 公共前缀的数组，如没有指定 delimiter 参数则不返回
 func (request *Response) GetCommonPrefixes() CommonPrefixes {
 	return request.Body.GetCommonPrefixes()
 }
+
+// 公共前缀的数组，如没有指定 delimiter 参数则不返回
 func (request *Response) SetCommonPrefixes(value CommonPrefixes) *Response {
 	request.Body.SetCommonPrefixes(value)
 	return request
 }
+
+// 条目的数组，不能用来判断是否还有剩余条目
 func (request *Response) GetItems() ListedObjects {
 	return request.Body.GetItems()
 }
+
+// 条目的数组，不能用来判断是否还有剩余条目
 func (request *Response) SetItems(value ListedObjects) *Response {
 	request.Body.SetItems(value)
 	return request
@@ -351,14 +435,19 @@ type Request struct {
 	credentials            credentials.CredentialsProvider
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -382,6 +471,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceRsf}

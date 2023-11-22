@@ -18,9 +18,12 @@ type RequestQuery struct {
 	fieldId string // 异步任务 ID
 }
 
+// 异步任务 ID
 func (query *RequestQuery) GetId() string {
 	return query.fieldId
 }
+
+// 异步任务 ID
 func (query *RequestQuery) SetId(value string) *RequestQuery {
 	query.fieldId = value
 	return query
@@ -52,16 +55,23 @@ type FetchTaskInfo struct {
 	inner innerFetchTaskInfo
 }
 
+// 异步任务 ID
 func (j *FetchTaskInfo) GetId() string {
 	return j.inner.Id
 }
+
+// 异步任务 ID
 func (j *FetchTaskInfo) SetId(value string) *FetchTaskInfo {
 	j.inner.Id = value
 	return j
 }
+
+// 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 func (j *FetchTaskInfo) GetQueuedTasksCount() int64 {
 	return j.inner.QueuedTasksCount
 }
+
+// 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 func (j *FetchTaskInfo) SetQueuedTasksCount(value int64) *FetchTaskInfo {
 	j.inner.QueuedTasksCount = value
 	return j
@@ -87,16 +97,23 @@ func (j *FetchTaskInfo) validate() error {
 // 获取 API 所用的响应体参数
 type ResponseBody = FetchTaskInfo
 
+// 异步任务 ID
 func (request *Response) GetId() string {
 	return request.Body.GetId()
 }
+
+// 异步任务 ID
 func (request *Response) SetId(value string) *Response {
 	request.Body.SetId(value)
 	return request
 }
+
+// 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 func (request *Response) GetQueuedTasksCount() int64 {
 	return request.Body.GetQueuedTasksCount()
 }
+
+// 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 func (request *Response) SetQueuedTasksCount(value int64) *Response {
 	request.Body.SetQueuedTasksCount(value)
 	return request
@@ -109,10 +126,13 @@ type Request struct {
 	Query                  RequestQuery
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
@@ -126,6 +146,8 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceApi}

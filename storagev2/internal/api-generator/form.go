@@ -26,6 +26,9 @@ type (
 func (form *FormUrlencodedRequestStruct) Generate(group *jen.Group, options CodeGeneratorOptions) error {
 	var err error
 	options.Name = strcase.ToCamel(options.Name)
+	if options.Documentation != "" {
+		group.Add(jen.Comment(options.Documentation))
+	}
 	group.Add(
 		jen.Type().Id(options.Name).StructFunc(func(group *jen.Group) {
 			for _, field := range form.Fields {
@@ -43,15 +46,11 @@ func (form *FormUrlencodedRequestStruct) Generate(group *jen.Group, options Code
 	}
 
 	for _, field := range form.Fields {
-		if code, err := form.generateGetterFunc(field, options); err != nil {
+		if err = form.generateGetterFunc(group, field, options); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
-		if code, err := form.generateSetterFunc(field, options); err != nil {
+		if err = form.generateSetterFunc(group, field, options); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
 	}
 
@@ -86,21 +85,20 @@ func (form *FormUrlencodedRequestStruct) Generate(group *jen.Group, options Code
 
 func (form *FormUrlencodedRequestStruct) GenerateAliasesFor(group *jen.Group, structName, fieldName string) error {
 	for _, field := range form.Fields {
-		if code, err := form.generateAliasGetterFunc(field, structName, fieldName); err != nil {
+		if err := form.generateAliasGetterFunc(group, field, structName, fieldName); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
-		if code, err := form.generateAliasSetterFunc(field, structName, fieldName); err != nil {
+		if err := form.generateAliasSetterFunc(group, field, structName, fieldName); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
 	}
 	return nil
 }
 
-func (form *FormUrlencodedRequestStruct) generateAliasGetterFunc(field FormUrlencodedRequestField, structName, fieldName string) (jen.Code, error) {
+func (form *FormUrlencodedRequestStruct) generateAliasGetterFunc(group *jen.Group, field FormUrlencodedRequestField, structName, fieldName string) error {
+	if field.Documentation != "" {
+		group.Add(jen.Comment(field.Documentation))
+	}
 	code := jen.Func().
 		Params(jen.Id("request").Op("*").Id(structName)).
 		Id(makeGetterMethodName(field.FieldName)).
@@ -110,24 +108,28 @@ func (form *FormUrlencodedRequestStruct) generateAliasGetterFunc(field FormUrlen
 	}
 	code, err := field.Type.AddTypeToStatement(code)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	code = code.BlockFunc(func(group *jen.Group) {
 		group.Add(jen.Return(jen.Id("request").Dot(fieldName).Dot(makeGetterMethodName(field.FieldName)).Call()))
 	})
-	return code, nil
+	group.Add(code)
+	return nil
 }
 
-func (form *FormUrlencodedRequestStruct) generateAliasSetterFunc(field FormUrlencodedRequestField, structName, fieldName string) (jen.Code, error) {
+func (form *FormUrlencodedRequestStruct) generateAliasSetterFunc(group *jen.Group, field FormUrlencodedRequestField, structName, fieldName string) error {
+	if field.Documentation != "" {
+		group.Add(jen.Comment(field.Documentation))
+	}
 	params := jen.Id("value")
 	if field.Multiple {
 		params = params.Index()
 	}
 	params, err := field.Type.AddTypeToStatement(params)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return jen.Func().
+	group.Add(jen.Func().
 		Params(jen.Id("request").Op("*").Id(structName)).
 		Id(makeSetterMethodName(field.FieldName)).
 		Params(params).
@@ -135,7 +137,8 @@ func (form *FormUrlencodedRequestStruct) generateAliasSetterFunc(field FormUrlen
 		BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Id("request").Dot(fieldName).Dot(makeSetterMethodName(field.FieldName)).Call(jen.Id("value")))
 			group.Add(jen.Return(jen.Id("request")))
-		}), nil
+		}))
+	return nil
 }
 
 func (form *FormUrlencodedRequestStruct) generateField(field FormUrlencodedRequestField) (jen.Code, error) {
@@ -153,7 +156,10 @@ func (form *FormUrlencodedRequestStruct) generateField(field FormUrlencodedReque
 	return code, nil
 }
 
-func (form *FormUrlencodedRequestStruct) generateGetterFunc(field FormUrlencodedRequestField, options CodeGeneratorOptions) (jen.Code, error) {
+func (form *FormUrlencodedRequestStruct) generateGetterFunc(group *jen.Group, field FormUrlencodedRequestField, options CodeGeneratorOptions) error {
+	if field.Documentation != "" {
+		group.Add(jen.Comment(field.Documentation))
+	}
 	code := jen.Func().
 		Params(jen.Id("form").Op("*").Id(options.Name)).
 		Id(makeGetterMethodName(field.FieldName)).
@@ -163,24 +169,28 @@ func (form *FormUrlencodedRequestStruct) generateGetterFunc(field FormUrlencoded
 	}
 	code, err := field.Type.AddTypeToStatement(code)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	code = code.BlockFunc(func(group *jen.Group) {
 		group.Add(jen.Return(jen.Id("form").Dot("field" + strcase.ToCamel(field.FieldName))))
 	})
-	return code, nil
+	group.Add(code)
+	return nil
 }
 
-func (form *FormUrlencodedRequestStruct) generateSetterFunc(field FormUrlencodedRequestField, options CodeGeneratorOptions) (jen.Code, error) {
+func (form *FormUrlencodedRequestStruct) generateSetterFunc(group *jen.Group, field FormUrlencodedRequestField, options CodeGeneratorOptions) error {
+	if field.Documentation != "" {
+		group.Add(jen.Comment(field.Documentation))
+	}
 	params := jen.Id("value")
 	if field.Multiple {
 		params = params.Index()
 	}
 	params, err := field.Type.AddTypeToStatement(params)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return jen.Func().
+	group.Add(jen.Func().
 		Params(jen.Id("form").Op("*").Id(options.Name)).
 		Id(makeSetterMethodName(field.FieldName)).
 		Params(params).
@@ -188,7 +198,8 @@ func (form *FormUrlencodedRequestStruct) generateSetterFunc(field FormUrlencoded
 		BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Id("form").Dot("field" + strcase.ToCamel(field.FieldName)).Op("=").Id("value"))
 			group.Add(jen.Return(jen.Id("form")))
-		}), nil
+		}))
+	return nil
 }
 
 func (form *FormUrlencodedRequestStruct) generateSetCall(field FormUrlencodedRequestField) (jen.Code, error) {

@@ -14,29 +14,41 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的路径参数
 type RequestPath struct {
 	fieldBucketName string
 	fieldObjectName string
 	fieldUploadId   string
 }
 
+// 存储空间名称
 func (pp *RequestPath) GetBucketName() string {
 	return pp.fieldBucketName
 }
+
+// 存储空间名称
 func (pp *RequestPath) SetBucketName(value string) *RequestPath {
 	pp.fieldBucketName = value
 	return pp
 }
+
+// 对象名称
 func (pp *RequestPath) GetObjectName() string {
 	return pp.fieldObjectName
 }
+
+// 对象名称
 func (pp *RequestPath) SetObjectName(value string) *RequestPath {
 	pp.fieldObjectName = value
 	return pp
 }
+
+// 在服务端申请的 Multipart Upload 任务 id
 func (pp *RequestPath) GetUploadId() string {
 	return pp.fieldUploadId
 }
+
+// 在服务端申请的 Multipart Upload 任务 id
 func (pp *RequestPath) SetUploadId(value string) *RequestPath {
 	pp.fieldUploadId = value
 	return pp
@@ -60,23 +72,35 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
+// 存储空间名称
 func (request *Request) GetBucketName() string {
 	return request.Path.GetBucketName()
 }
+
+// 存储空间名称
 func (request *Request) SetBucketName(value string) *Request {
 	request.Path.SetBucketName(value)
 	return request
 }
+
+// 对象名称
 func (request *Request) GetObjectName() string {
 	return request.Path.GetObjectName()
 }
+
+// 对象名称
 func (request *Request) SetObjectName(value string) *Request {
 	request.Path.SetObjectName(value)
 	return request
 }
+
+// 在服务端申请的 Multipart Upload 任务 id
 func (request *Request) GetUploadId() string {
 	return request.Path.GetUploadId()
 }
+
+// 在服务端申请的 Multipart Upload 任务 id
 func (request *Request) SetUploadId(value string) *Request {
 	request.Path.SetUploadId(value)
 	return request
@@ -92,16 +116,23 @@ type PartInfo struct {
 	inner innerPartInfo
 }
 
+// 每一个上传的分片都有一个标识它的号码
 func (j *PartInfo) GetPartNumber() int64 {
 	return j.inner.PartNumber
 }
+
+// 每一个上传的分片都有一个标识它的号码
 func (j *PartInfo) SetPartNumber(value int64) *PartInfo {
 	j.inner.PartNumber = value
 	return j
 }
+
+// 上传块的 etag
 func (j *PartInfo) GetEtag() string {
 	return j.inner.Etag
 }
+
+// 上传块的 etag
 func (j *PartInfo) SetEtag(value string) *PartInfo {
 	j.inner.Etag = value
 	return j
@@ -139,37 +170,56 @@ type ObjectInfo struct {
 	inner innerObjectInfo
 }
 
+// 已经上传的分片列表
 func (j *ObjectInfo) GetParts() Parts {
 	return j.inner.Parts
 }
+
+// 已经上传的分片列表
 func (j *ObjectInfo) SetParts(value Parts) *ObjectInfo {
 	j.inner.Parts = value
 	return j
 }
+
+// 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
 func (j *ObjectInfo) GetFileName() string {
 	return j.inner.FileName
 }
+
+// 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
 func (j *ObjectInfo) SetFileName(value string) *ObjectInfo {
 	j.inner.FileName = value
 	return j
 }
+
+// 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
 func (j *ObjectInfo) GetMimeType() string {
 	return j.inner.MimeType
 }
+
+// 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
 func (j *ObjectInfo) SetMimeType(value string) *ObjectInfo {
 	j.inner.MimeType = value
 	return j
 }
+
+// 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
 func (j *ObjectInfo) GetMetadata() map[string]string {
 	return j.inner.Metadata
 }
+
+// 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
 func (j *ObjectInfo) SetMetadata(value map[string]string) *ObjectInfo {
 	j.inner.Metadata = value
 	return j
 }
+
+// 用户自定义变量
 func (j *ObjectInfo) GetCustomVars() map[string]string {
 	return j.inner.CustomVars
 }
+
+// 用户自定义变量
 func (j *ObjectInfo) SetCustomVars(value map[string]string) *ObjectInfo {
 	j.inner.CustomVars = value
 	return j
@@ -197,42 +247,62 @@ func (j *ObjectInfo) validate() error {
 // 调用 API 所用的请求体
 type RequestBody = ObjectInfo
 
+// 已经上传的分片列表
 func (request *Request) GetParts() Parts {
 	return request.Body.GetParts()
 }
+
+// 已经上传的分片列表
 func (request *Request) SetParts(value Parts) *Request {
 	request.Body.SetParts(value)
 	return request
 }
+
+// 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
 func (request *Request) GetFileName() string {
 	return request.Body.GetFileName()
 }
+
+// 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
 func (request *Request) SetFileName(value string) *Request {
 	request.Body.SetFileName(value)
 	return request
 }
+
+// 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
 func (request *Request) GetMimeType() string {
 	return request.Body.GetMimeType()
 }
+
+// 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
 func (request *Request) SetMimeType(value string) *Request {
 	request.Body.SetMimeType(value)
 	return request
 }
+
+// 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
 func (request *Request) GetMetadata() map[string]string {
 	return request.Body.GetMetadata()
 }
+
+// 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
 func (request *Request) SetMetadata(value map[string]string) *Request {
 	request.Body.SetMetadata(value)
 	return request
 }
+
+// 用户自定义变量
 func (request *Request) GetCustomVars() map[string]string {
 	return request.Body.GetCustomVars()
 }
+
+// 用户自定义变量
 func (request *Request) SetCustomVars(value map[string]string) *Request {
 	request.Body.SetCustomVars(value)
 	return request
 }
 
+// 获取 API 所用的响应体参数
 type ResponseBody = interface{}
 
 // 调用 API 所用的请求
@@ -244,14 +314,19 @@ type Request struct {
 	Body                   RequestBody
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置上传凭证
 func (request *Request) SetUpToken(upToken uptoken.Provider) *Request {
 	request.upToken = upToken
 	return request
@@ -275,6 +350,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceUp}

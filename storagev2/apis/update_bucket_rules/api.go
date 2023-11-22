@@ -15,6 +15,7 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的请求体
 type RequestBody struct {
 	fieldBucket                 string // 空间名称
 	fieldName                   string // 要修改的规则名称
@@ -25,51 +26,78 @@ type RequestBody struct {
 	fieldToDeepArchiveAfterDays int64  // 指定文件上传多少天后转深度归档存储。指定为 0 表示不转深度归档存储
 }
 
+// 空间名称
 func (form *RequestBody) GetBucket() string {
 	return form.fieldBucket
 }
+
+// 空间名称
 func (form *RequestBody) SetBucket(value string) *RequestBody {
 	form.fieldBucket = value
 	return form
 }
+
+// 要修改的规则名称
 func (form *RequestBody) GetName() string {
 	return form.fieldName
 }
+
+// 要修改的规则名称
 func (form *RequestBody) SetName(value string) *RequestBody {
 	form.fieldName = value
 	return form
 }
+
+// 指定匹配的对象名称前缀
 func (form *RequestBody) GetPrefix() string {
 	return form.fieldPrefix
 }
+
+// 指定匹配的对象名称前缀
 func (form *RequestBody) SetPrefix(value string) *RequestBody {
 	form.fieldPrefix = value
 	return form
 }
+
+// 指定上传文件多少天后删除，指定为 0 表示不删除，大于 0 表示多少天后删除
 func (form *RequestBody) GetDeleteAfterDays() int64 {
 	return form.fieldDeleteAfterDays
 }
+
+// 指定上传文件多少天后删除，指定为 0 表示不删除，大于 0 表示多少天后删除
 func (form *RequestBody) SetDeleteAfterDays(value int64) *RequestBody {
 	form.fieldDeleteAfterDays = value
 	return form
 }
+
+// 指定文件上传多少天后转低频存储。指定为 0 表示不转低频存储，小于 0 表示上传的文件立即变低频存储
 func (form *RequestBody) GetToIaAfterDays() int64 {
 	return form.fieldToIaAfterDays
 }
+
+// 指定文件上传多少天后转低频存储。指定为 0 表示不转低频存储，小于 0 表示上传的文件立即变低频存储
 func (form *RequestBody) SetToIaAfterDays(value int64) *RequestBody {
 	form.fieldToIaAfterDays = value
 	return form
 }
+
+// 指定文件上传多少天后转归档存储。指定为 0 表示不转归档存储，小于 0 表示上传的文件立即变归档存储
 func (form *RequestBody) GetToArchiveAfterDays() int64 {
 	return form.fieldToArchiveAfterDays
 }
+
+// 指定文件上传多少天后转归档存储。指定为 0 表示不转归档存储，小于 0 表示上传的文件立即变归档存储
 func (form *RequestBody) SetToArchiveAfterDays(value int64) *RequestBody {
 	form.fieldToArchiveAfterDays = value
 	return form
 }
+
+// 指定文件上传多少天后转深度归档存储。指定为 0 表示不转深度归档存储
 func (form *RequestBody) GetToDeepArchiveAfterDays() int64 {
 	return form.fieldToDeepArchiveAfterDays
 }
+
+// 指定文件上传多少天后转深度归档存储。指定为 0 表示不转深度归档存储
 func (form *RequestBody) SetToDeepArchiveAfterDays(value int64) *RequestBody {
 	form.fieldToDeepArchiveAfterDays = value
 	return form
@@ -106,51 +134,79 @@ func (form *RequestBody) build() (url.Values, error) {
 	}
 	return formValues, nil
 }
+
+// 空间名称
 func (request *Request) GetBucket() string {
 	return request.Body.GetBucket()
 }
+
+// 空间名称
 func (request *Request) SetBucket(value string) *Request {
 	request.Body.SetBucket(value)
 	return request
 }
+
+// 要修改的规则名称
 func (request *Request) GetName() string {
 	return request.Body.GetName()
 }
+
+// 要修改的规则名称
 func (request *Request) SetName(value string) *Request {
 	request.Body.SetName(value)
 	return request
 }
+
+// 指定匹配的对象名称前缀
 func (request *Request) GetPrefix() string {
 	return request.Body.GetPrefix()
 }
+
+// 指定匹配的对象名称前缀
 func (request *Request) SetPrefix(value string) *Request {
 	request.Body.SetPrefix(value)
 	return request
 }
+
+// 指定上传文件多少天后删除，指定为 0 表示不删除，大于 0 表示多少天后删除
 func (request *Request) GetDeleteAfterDays() int64 {
 	return request.Body.GetDeleteAfterDays()
 }
+
+// 指定上传文件多少天后删除，指定为 0 表示不删除，大于 0 表示多少天后删除
 func (request *Request) SetDeleteAfterDays(value int64) *Request {
 	request.Body.SetDeleteAfterDays(value)
 	return request
 }
+
+// 指定文件上传多少天后转低频存储。指定为 0 表示不转低频存储，小于 0 表示上传的文件立即变低频存储
 func (request *Request) GetToIaAfterDays() int64 {
 	return request.Body.GetToIaAfterDays()
 }
+
+// 指定文件上传多少天后转低频存储。指定为 0 表示不转低频存储，小于 0 表示上传的文件立即变低频存储
 func (request *Request) SetToIaAfterDays(value int64) *Request {
 	request.Body.SetToIaAfterDays(value)
 	return request
 }
+
+// 指定文件上传多少天后转归档存储。指定为 0 表示不转归档存储，小于 0 表示上传的文件立即变归档存储
 func (request *Request) GetToArchiveAfterDays() int64 {
 	return request.Body.GetToArchiveAfterDays()
 }
+
+// 指定文件上传多少天后转归档存储。指定为 0 表示不转归档存储，小于 0 表示上传的文件立即变归档存储
 func (request *Request) SetToArchiveAfterDays(value int64) *Request {
 	request.Body.SetToArchiveAfterDays(value)
 	return request
 }
+
+// 指定文件上传多少天后转深度归档存储。指定为 0 表示不转深度归档存储
 func (request *Request) GetToDeepArchiveAfterDays() int64 {
 	return request.Body.GetToDeepArchiveAfterDays()
 }
+
+// 指定文件上传多少天后转深度归档存储。指定为 0 表示不转深度归档存储
 func (request *Request) SetToDeepArchiveAfterDays(value int64) *Request {
 	request.Body.SetToDeepArchiveAfterDays(value)
 	return request
@@ -164,14 +220,19 @@ type Request struct {
 	Body                   RequestBody
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -195,6 +256,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceBucket}

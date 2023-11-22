@@ -15,29 +15,41 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的路径参数
 type RequestPath struct {
 	fieldSrcEntry  string
 	fieldDestEntry string
 	fieldIsForce   bool
 }
 
+// 指定源对象空间与源对象名称
 func (pp *RequestPath) GetSrcEntry() string {
 	return pp.fieldSrcEntry
 }
+
+// 指定源对象空间与源对象名称
 func (pp *RequestPath) SetSrcEntry(value string) *RequestPath {
 	pp.fieldSrcEntry = value
 	return pp
 }
+
+// 指定目标对象空间与目标对象名称
 func (pp *RequestPath) GetDestEntry() string {
 	return pp.fieldDestEntry
 }
+
+// 指定目标对象空间与目标对象名称
 func (pp *RequestPath) SetDestEntry(value string) *RequestPath {
 	pp.fieldDestEntry = value
 	return pp
 }
+
+// 如果目标对象名已被占用，则返回错误码 614，且不做任何覆盖操作；如果指定为 true，会强制覆盖目标对象
 func (pp *RequestPath) IsForce() bool {
 	return pp.fieldIsForce
 }
+
+// 如果目标对象名已被占用，则返回错误码 614，且不做任何覆盖操作；如果指定为 true，会强制覆盖目标对象
 func (pp *RequestPath) SetForce(value bool) *RequestPath {
 	pp.fieldIsForce = value
 	return pp
@@ -62,23 +74,35 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
+// 指定源对象空间与源对象名称
 func (request *Request) GetSrcEntry() string {
 	return request.Path.GetSrcEntry()
 }
+
+// 指定源对象空间与源对象名称
 func (request *Request) SetSrcEntry(value string) *Request {
 	request.Path.SetSrcEntry(value)
 	return request
 }
+
+// 指定目标对象空间与目标对象名称
 func (request *Request) GetDestEntry() string {
 	return request.Path.GetDestEntry()
 }
+
+// 指定目标对象空间与目标对象名称
 func (request *Request) SetDestEntry(value string) *Request {
 	request.Path.SetDestEntry(value)
 	return request
 }
+
+// 如果目标对象名已被占用，则返回错误码 614，且不做任何覆盖操作；如果指定为 true，会强制覆盖目标对象
 func (request *Request) IsForce() bool {
 	return request.Path.IsForce()
 }
+
+// 如果目标对象名已被占用，则返回错误码 614，且不做任何覆盖操作；如果指定为 true，会强制覆盖目标对象
 func (request *Request) SetForce(value bool) *Request {
 	request.Path.SetForce(value)
 	return request
@@ -92,14 +116,19 @@ type Request struct {
 	credentials            credentials.CredentialsProvider
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -123,6 +152,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceRs}

@@ -47,15 +47,11 @@ func (names QueryNames) Generate(group *jen.Group, options CodeGeneratorOptions)
 		return err
 	}
 	for _, name := range names {
-		if code, err := names.generateGetterFunc(name, options); err != nil {
+		if err = names.generateGetterFunc(group, name, options); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
-		if code, err := names.generateSetterFunc(name, options); err != nil {
+		if err = names.generateSetterFunc(group, name, options); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
 	}
 	if code := names.generateServiceBucketField(options); code != nil {
@@ -73,11 +69,9 @@ func (names QueryNames) Generate(group *jen.Group, options CodeGeneratorOptions)
 					jen.Id("allQuery").Op(":=").Make(jen.Qual("net/url", "Values")),
 				)
 				for _, queryName := range names {
-					if code, e := names.generateSetCall(queryName, options); e != nil {
+					if e := names.generateSetCall(group, queryName, options); e != nil {
 						err = e
 						return
-					} else {
-						group.Add(code)
 					}
 				}
 				group.Add(jen.Return(jen.Id("allQuery"), jen.Nil()))
@@ -143,27 +137,34 @@ func (names QueryNames) generateField(queryName QueryName, options CodeGenerator
 	return code, nil
 }
 
-func (names QueryNames) generateGetterFunc(queryName QueryName, options CodeGeneratorOptions) (jen.Code, error) {
+func (names QueryNames) generateGetterFunc(group *jen.Group, queryName QueryName, options CodeGeneratorOptions) error {
+	if queryName.Documentation != "" {
+		group.Add(jen.Comment(queryName.Documentation))
+	}
 	code := jen.Func().
 		Params(jen.Id("query").Op("*").Id(options.Name)).
 		Id(makeGetterMethodName(queryName.FieldName)).
 		Params()
 	code, err := queryName.QueryType.AddTypeToStatement(code)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	code = code.BlockFunc(func(group *jen.Group) {
-		group.Add(jen.Return(jen.Id("query").Dot("field" + strcase.ToCamel(queryName.FieldName))))
+		group.Return(jen.Id("query").Dot("field" + strcase.ToCamel(queryName.FieldName)))
 	})
-	return code, nil
+	group.Add(code)
+	return nil
 }
 
-func (names QueryNames) generateSetterFunc(queryName QueryName, options CodeGeneratorOptions) (jen.Code, error) {
+func (names QueryNames) generateSetterFunc(group *jen.Group, queryName QueryName, options CodeGeneratorOptions) error {
+	if queryName.Documentation != "" {
+		group.Add(jen.Comment(queryName.Documentation))
+	}
 	params, err := queryName.QueryType.AddTypeToStatement(jen.Id("value"))
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return jen.Func().
+	group.Add(jen.Func().
 		Params(jen.Id("query").Op("*").Id(options.Name)).
 		Id(makeSetterMethodName(queryName.FieldName)).
 		Params(params).
@@ -171,19 +172,20 @@ func (names QueryNames) generateSetterFunc(queryName QueryName, options CodeGene
 		BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Id("query").Dot("field" + strcase.ToCamel(queryName.FieldName)).Op("=").Id("value"))
 			group.Add(jen.Return(jen.Id("query")))
-		}), nil
+		}))
+	return nil
 }
 
-func (names QueryNames) generateSetCall(queryName QueryName, options CodeGeneratorOptions) (jen.Code, error) {
+func (names QueryNames) generateSetCall(group *jen.Group, queryName QueryName, options CodeGeneratorOptions) error {
 	fieldName := strcase.ToCamel(queryName.FieldName)
 	field := jen.Id("query").Dot("field" + fieldName)
 	valueConvertCode, err := queryName.QueryType.GenerateConvertCodeToString(field)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	zeroValue, err := queryName.QueryType.ZeroValue()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	condition := field.Clone()
@@ -192,37 +194,35 @@ func (names QueryNames) generateSetCall(queryName QueryName, options CodeGenerat
 	}
 	setQueryFunc := func(queryName string, value jen.Code) func(group *jen.Group) {
 		return func(group *jen.Group) {
-			group.Add(jen.Id("allQuery").Dot("Set").Call(jen.Lit(queryName), value))
+			group.Id("allQuery").Dot("Set").Call(jen.Lit(queryName), value)
 		}
 	}
 	appendMissingRequiredFieldErrorFunc := func(fieldName string) func(group *jen.Group) {
 		return func(group *jen.Group) {
-			group.Add(jen.Return(
+			group.Return(
 				jen.Nil(),
 				jen.Qual(PackageNameErrors, "MissingRequiredFieldError").
 					ValuesFunc(func(group *jen.Group) {
 						group.Add(jen.Id("Name").Op(":").Lit(fieldName))
 					}),
-			))
+			)
 		}
 	}
 	switch queryName.Optional.ToOptionalType() {
 	case OptionalTypeRequired:
-		return jen.If(condition).
-				BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)).
-				Else().
-				BlockFunc(appendMissingRequiredFieldErrorFunc(fieldName)),
-			nil
+		group.Add(jen.If(condition).
+			BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)).
+			Else().
+			BlockFunc(appendMissingRequiredFieldErrorFunc(fieldName)))
 	case OptionalTypeOmitEmpty:
-		return jen.If(condition).
-				BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)),
-			nil
+		group.Add(jen.If(condition).
+			BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)))
 	case OptionalTypeKeepEmpty:
-		return jen.BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)),
-			nil
+		group.Add(jen.BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)))
 	default:
-		return nil, errors.New("unknown OptionalType")
+		return errors.New("unknown OptionalType")
 	}
+	return nil
 }
 
 func (names QueryNames) getServiceBucketField() *QueryName {

@@ -15,21 +15,29 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的路径参数
 type RequestPath struct {
 	fieldCtx         string
 	fieldChunkOffset int64
 }
 
+// 前一次上传返回的块级上传控制信息
 func (pp *RequestPath) GetCtx() string {
 	return pp.fieldCtx
 }
+
+// 前一次上传返回的块级上传控制信息
 func (pp *RequestPath) SetCtx(value string) *RequestPath {
 	pp.fieldCtx = value
 	return pp
 }
+
+// 当前片在整个块中的起始偏移
 func (pp *RequestPath) GetChunkOffset() int64 {
 	return pp.fieldChunkOffset
 }
+
+// 当前片在整个块中的起始偏移
 func (pp *RequestPath) SetChunkOffset(value int64) *RequestPath {
 	pp.fieldChunkOffset = value
 	return pp
@@ -44,16 +52,24 @@ func (path *RequestPath) build() ([]string, error) {
 	allSegments = append(allSegments, strconv.FormatInt(path.fieldChunkOffset, 10))
 	return allSegments, nil
 }
+
+// 前一次上传返回的块级上传控制信息
 func (request *Request) GetCtx() string {
 	return request.Path.GetCtx()
 }
+
+// 前一次上传返回的块级上传控制信息
 func (request *Request) SetCtx(value string) *Request {
 	request.Path.SetCtx(value)
 	return request
 }
+
+// 当前片在整个块中的起始偏移
 func (request *Request) GetChunkOffset() int64 {
 	return request.Path.GetChunkOffset()
 }
+
+// 当前片在整个块中的起始偏移
 func (request *Request) SetChunkOffset(value int64) *Request {
 	request.Path.SetChunkOffset(value)
 	return request
@@ -73,44 +89,67 @@ type ChunkInfo struct {
 	inner innerChunkInfo
 }
 
+// 本次上传成功后的块级上传控制信息，用于后续上传片（bput）及创建文件（mkfile）
 func (j *ChunkInfo) GetCtx() string {
 	return j.inner.Ctx
 }
+
+// 本次上传成功后的块级上传控制信息，用于后续上传片（bput）及创建文件（mkfile）
 func (j *ChunkInfo) SetCtx(value string) *ChunkInfo {
 	j.inner.Ctx = value
 	return j
 }
+
+// 上传块 SHA1 值，使用 URL 安全的 Base64 编码
 func (j *ChunkInfo) GetChecksum() string {
 	return j.inner.Checksum
 }
+
+// 上传块 SHA1 值，使用 URL 安全的 Base64 编码
 func (j *ChunkInfo) SetChecksum(value string) *ChunkInfo {
 	j.inner.Checksum = value
 	return j
 }
+
+// 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
 func (j *ChunkInfo) GetCrc32() int64 {
 	return j.inner.Crc32
 }
+
+// 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
 func (j *ChunkInfo) SetCrc32(value int64) *ChunkInfo {
 	j.inner.Crc32 = value
 	return j
 }
+
+// 下一个上传块在切割块中的偏移
 func (j *ChunkInfo) GetOffset() int64 {
 	return j.inner.Offset
 }
+
+// 下一个上传块在切割块中的偏移
 func (j *ChunkInfo) SetOffset(value int64) *ChunkInfo {
 	j.inner.Offset = value
 	return j
 }
+
+// 后续上传接收地址
 func (j *ChunkInfo) GetHost() string {
 	return j.inner.Host
 }
+
+// 后续上传接收地址
 func (j *ChunkInfo) SetHost(value string) *ChunkInfo {
 	j.inner.Host = value
 	return j
 }
+
+// `ctx` 过期时间
 func (j *ChunkInfo) GetExpiredAt() string {
 	return j.inner.ExpiredAt
 }
+
+// `ctx` 过期时间
 func (j *ChunkInfo) SetExpiredAt(value string) *ChunkInfo {
 	j.inner.ExpiredAt = value
 	return j
@@ -148,44 +187,67 @@ func (j *ChunkInfo) validate() error {
 // 获取 API 所用的响应体参数
 type ResponseBody = ChunkInfo
 
+// 本次上传成功后的块级上传控制信息，用于后续上传片（bput）及创建文件（mkfile）
 func (request *Response) GetCtx() string {
 	return request.Body.GetCtx()
 }
+
+// 本次上传成功后的块级上传控制信息，用于后续上传片（bput）及创建文件（mkfile）
 func (request *Response) SetCtx(value string) *Response {
 	request.Body.SetCtx(value)
 	return request
 }
+
+// 上传块 SHA1 值，使用 URL 安全的 Base64 编码
 func (request *Response) GetChecksum() string {
 	return request.Body.GetChecksum()
 }
+
+// 上传块 SHA1 值，使用 URL 安全的 Base64 编码
 func (request *Response) SetChecksum(value string) *Response {
 	request.Body.SetChecksum(value)
 	return request
 }
+
+// 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
 func (request *Response) GetCrc32() int64 {
 	return request.Body.GetCrc32()
 }
+
+// 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
 func (request *Response) SetCrc32(value int64) *Response {
 	request.Body.SetCrc32(value)
 	return request
 }
+
+// 下一个上传块在切割块中的偏移
 func (request *Response) GetOffset() int64 {
 	return request.Body.GetOffset()
 }
+
+// 下一个上传块在切割块中的偏移
 func (request *Response) SetOffset(value int64) *Response {
 	request.Body.SetOffset(value)
 	return request
 }
+
+// 后续上传接收地址
 func (request *Response) GetHost() string {
 	return request.Body.GetHost()
 }
+
+// 后续上传接收地址
 func (request *Response) SetHost(value string) *Response {
 	request.Body.SetHost(value)
 	return request
 }
+
+// `ctx` 过期时间
 func (request *Response) GetExpiredAt() string {
 	return request.Body.GetExpiredAt()
 }
+
+// `ctx` 过期时间
 func (request *Response) SetExpiredAt(value string) *Response {
 	request.Body.SetExpiredAt(value)
 	return request
@@ -200,14 +262,19 @@ type Request struct {
 	Body                   io.ReadSeekCloser
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置上传凭证
 func (request *Request) SetUpToken(upToken uptoken.Provider) *Request {
 	request.upToken = upToken
 	return request
@@ -231,6 +298,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceUp}
