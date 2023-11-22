@@ -38,19 +38,19 @@ type (
 
 	// BucketRegionsQueryer 空间区域查询器选项
 	BucketRegionsQueryerOptions struct {
-		// 使用 HTTPS 协议
-		UseHttps bool
+		// 使用 HTTP 协议
+		UseHttp bool
 
 		// 压缩周期（默认：60s）
 		CompactInterval time.Duration
 
-		// 持久化路径
+		// 持久化路径（默认：$TMPDIR/qiniu-golang-sdk/query_v4_01.cache.json）
 		PersistentFilePath string
 
 		// 持久化周期（默认：60s）
 		PersistentDuration time.Duration
 
-		// 单域名重试次数
+		// 单域名重试次数（默认：2）
 		RetryMax int
 
 		// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 RetryMax 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
@@ -105,6 +105,9 @@ func NewBucketRegionsQueryer(bucketHosts Endpoints, opts *BucketRegionsQueryerOp
 	if opts == nil {
 		opts = &BucketRegionsQueryerOptions{}
 	}
+	if opts.RetryMax <= 0 {
+		opts.RetryMax = 2
+	}
 	if opts.CompactInterval == time.Duration(0) {
 		opts.CompactInterval = time.Minute
 	}
@@ -135,8 +138,8 @@ func NewBucketRegionsQueryer(bucketHosts Endpoints, opts *BucketRegionsQueryerOp
 		queryer = &bucketRegionsQueryer{
 			bucketHosts: bucketHosts,
 			cache:       persistentCache,
-			client:      makeBucketQueryClient(opts.Client, bucketHosts, opts.UseHttps, opts.RetryMax, opts.HostFreezeDuration),
-			useHttps:    opts.UseHttps,
+			client:      makeBucketQueryClient(opts.Client, bucketHosts, !opts.UseHttp, opts.RetryMax, opts.HostFreezeDuration),
+			useHttps:    !opts.UseHttp,
 		}
 		queryerCaches[crc64Value] = queryer
 		return queryer, nil
@@ -266,7 +269,7 @@ func makeBucketQueryClient(client *client.Client, bucketHosts Endpoints, useHttp
 
 func (opts *BucketRegionsQueryerOptions) toBytes() []byte {
 	bytes := make([]byte, 0, 1024)
-	bytes = strconv.AppendBool(bytes, opts.UseHttps)
+	bytes = strconv.AppendBool(bytes, opts.UseHttp)
 	bytes = strconv.AppendInt(bytes, int64(opts.CompactInterval), 36)
 	bytes = append(bytes, []byte(opts.PersistentFilePath)...)
 	bytes = append(bytes, byte(0))
