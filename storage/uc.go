@@ -14,10 +14,14 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket_rules"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket_taggings"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_cors_rules"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_quota"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_rules"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_taggings"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_access_mode"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_cors_rules"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_max_age"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_private"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_quota"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_remark"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_taggings"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/update_bucket_rules"
@@ -570,42 +574,41 @@ type BucketQuota struct {
 
 // SetBucketQuota 设置存储空间的配额限制
 // 配额限制主要是两块， 空间存储量的限制和空间文件数限制
-func (m *BucketManager) SetBucketQuota(bucket string, size, count int64) (err error) {
-	reqURL := fmt.Sprintf("%s/setbucketquota/%s/size/%d/count/%d", getUcHost(m.Cfg.UseHTTPS), bucket, size, count)
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, nil)
+func (m *BucketManager) SetBucketQuota(bucket string, size, count int64) error {
+	_, err := new(set_bucket_quota.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucket(bucket).
+		SetSize(size).
+		SetCount(count).
+		Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // GetBucketQuota 获取存储空间的配额信息
 func (m *BucketManager) GetBucketQuota(bucket string) (quota BucketQuota, err error) {
-	reqURL := fmt.Sprintf("%s/getbucketquota/%s", getUcHost(m.Cfg.UseHTTPS), bucket)
-	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, &quota)
-	return quota, err
+	response, err := new(get_bucket_quota.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucket(bucket).
+		Send(context.Background(), m.makeHttpClientOptions())
+	if err != nil {
+		return BucketQuota{}, err
+	}
+	return BucketQuota{
+		Size:  response.GetSize(),
+		Count: response.GetCount(),
+	}, nil
 }
 
 // SetBucketAccessStyle 可以用来开启或关闭制定存储空间的原图保护
 // mode - 1 ==> 开启原图保护
 // mode - 0 ==> 关闭原图保护
 func (m *BucketManager) SetBucketAccessStyle(bucket string, mode int) error {
-	reqURL := fmt.Sprintf("%s/accessMode/%s/mode/%d", getUcHost(m.Cfg.UseHTTPS), bucket, mode)
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, nil)
+	_, err := new(set_bucket_access_mode.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucket(bucket).
+		SetMode(int64(mode)).
+		Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // TurnOffBucketProtected 开启指定存储空间的原图保护
@@ -621,14 +624,12 @@ func (m *BucketManager) TurnOffBucketProtected(bucket string) error {
 // SetBucketMaxAge 设置指定存储空间的MaxAge响应头
 // maxAge <= 0时，表示使用默认值31536000
 func (m *BucketManager) SetBucketMaxAge(bucket string, maxAge int64) error {
-	reqURL := fmt.Sprintf("%s/maxAge?bucket=%s&maxAge=%d", getUcHost(m.Cfg.UseHTTPS), bucket, maxAge)
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, nil)
+	_, err := new(set_bucket_max_age.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucket(bucket).
+		SetMaxAge(maxAge).
+		Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // SetBucketAccessMode 设置指定空间的私有属性
