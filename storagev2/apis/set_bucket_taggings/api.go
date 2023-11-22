@@ -129,7 +129,7 @@ func (j *TagsInfo) UnmarshalJSON(data []byte) error {
 
 //lint:ignore U1000 may not call it
 func (j *TagsInfo) validate() error {
-	if len(j.inner.Tags) > 0 {
+	if len(j.inner.Tags) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Tags"}
 	}
 	for _, value := range j.inner.Tags {

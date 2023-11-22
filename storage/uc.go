@@ -12,9 +12,12 @@ import (
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/add_bucket_rules"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket_rules"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket_taggings"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_rules"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_taggings"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_private"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_remark"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_taggings"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/update_bucket_rules"
 
 	"github.com/qiniu/go-sdk/v7/auth"
@@ -672,56 +675,43 @@ type BucketTag struct {
 // SetTagging 该方法为覆盖所有 Bucket 上之前设置的标签，标签 Key 最大 64 字节，Value 最大 128 字节，均不能为空，且区分大小写
 // Key 不能以 kodo 为前缀，Key 和 Value 的字符只能为：字母，数字，空格，+，-，=，.，_，:，/，@，不能支持中文
 func (m *BucketManager) SetTagging(bucket string, tags map[string]string) error {
-	tagging := BucketTagging{Tags: make([]BucketTag, 0, len(tags))}
-	for key, value := range tags {
-		tagging.Tags = append(tagging.Tags, BucketTag{Key: key, Value: value})
+	tagPairs := make(set_bucket_taggings.Tags, 0, len(tags))
+	for k, v := range tags {
+		var t set_bucket_taggings.TagInfo
+		t.SetKey(k).SetValue(v)
+		tagPairs = append(tagPairs, t)
 	}
-	getBody, err := clientv2.GetJsonRequestBody(tagging)
-	if err != nil {
-		return err
-	}
-
-	reqURL := fmt.Sprintf("%s/bucketTagging?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodPut,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: getBody,
-	}, nil)
+	_, err := new(set_bucket_taggings.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucket(bucket).
+		SetTags(tagPairs).
+		Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // ClearTagging 清空 Bucket 标签
 func (m *BucketManager) ClearTagging(bucket string) error {
-	reqURL := fmt.Sprintf("%s/bucketTagging?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodDelete,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, nil)
+	_, err := new(delete_bucket_taggings.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucketName(bucket).
+		Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // GetTagging 获取 Bucket 标签
-func (m *BucketManager) GetTagging(bucket string) (tags map[string]string, err error) {
-	var tagging BucketTagging
-	reqURL := fmt.Sprintf("%s/bucketTagging?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
-	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodGet,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, &tagging)
+func (m *BucketManager) GetTagging(bucket string) (map[string]string, error) {
+	response, err := new(get_bucket_taggings.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucketName(bucket).
+		Send(context.Background(), m.makeHttpClientOptions())
 	if err != nil {
-		return
+		return nil, err
 	}
-	tags = make(map[string]string, len(tagging.Tags))
-	for _, tag := range tagging.Tags {
-		tags[tag.Key] = tag.Value
+	tags := make(map[string]string, len(response.GetTags()))
+	for _, tag := range response.GetTags() {
+		tags[tag.GetKey()] = tag.GetValue()
 	}
-	return
+	return tags, nil
 }
 
 func (m *BucketManager) getUCClient() clientv2.Client {

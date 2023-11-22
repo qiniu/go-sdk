@@ -380,7 +380,7 @@ func (j *ListedObjectEntries) UnmarshalJSON(data []byte) error {
 
 //lint:ignore U1000 may not call it
 func (j *ListedObjectEntries) validate() error {
-	if len(j.inner.Items) > 0 {
+	if len(j.inner.Items) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Items"}
 	}
 	for _, value := range j.inner.Items {

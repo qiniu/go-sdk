@@ -317,7 +317,7 @@ func (j *ListedPartsResponse) validate() error {
 	if j.inner.PartNumberMarker == 0 {
 		return errors.MissingRequiredFieldError{Name: "PartNumberMarker"}
 	}
-	if len(j.inner.Parts) > 0 {
+	if len(j.inner.Parts) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Parts"}
 	}
 	for _, value := range j.inner.Parts {

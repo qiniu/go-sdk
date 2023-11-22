@@ -219,7 +219,7 @@ func (j *BucketsResultV4) validate() error {
 	if j.inner.NextMarker == "" {
 		return errors.MissingRequiredFieldError{Name: "NextMarker"}
 	}
-	if len(j.inner.Buckets) > 0 {
+	if len(j.inner.Buckets) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Buckets"}
 	}
 	for _, value := range j.inner.Buckets {
