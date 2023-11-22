@@ -91,7 +91,7 @@ func (j *RegionsInfo) UnmarshalJSON(data []byte) error {
 
 //lint:ignore U1000 may not call it
 func (j *RegionsInfo) validate() error {
-	if len(j.inner.Regions) > 0 {
+	if len(j.inner.Regions) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Regions"}
 	}
 	for _, value := range j.inner.Regions {

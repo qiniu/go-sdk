@@ -273,11 +273,11 @@ func (jsonStruct *JsonStruct) generateValidateFunc(options CodeGeneratorOptions)
 					} else if field.Type.Boolean {
 						// do nothing
 					} else if field.Type.Array != nil {
-						cond = jen.Len(jen.Id("j").Dot("inner").Dot(fieldName)).Op(">").Lit(0)
+						cond = jen.Len(jen.Id("j").Dot("inner").Dot(fieldName)).Op("==").Lit(0)
 					} else if field.Type.Struct != nil {
 						// do nothing
 					} else {
-						cond = jen.Id("j").Dot("inner").Dot(fieldName).Op("!=").Nil()
+						cond = jen.Id("j").Dot("inner").Dot(fieldName).Op("==").Nil()
 					}
 					if cond != nil {
 						group.Add(jen.If(cond).BlockFunc(func(group *jen.Group) {

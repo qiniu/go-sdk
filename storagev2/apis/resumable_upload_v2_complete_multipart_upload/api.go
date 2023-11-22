@@ -233,7 +233,7 @@ func (j *ObjectInfo) UnmarshalJSON(data []byte) error {
 
 //lint:ignore U1000 may not call it
 func (j *ObjectInfo) validate() error {
-	if len(j.inner.Parts) > 0 {
+	if len(j.inner.Parts) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Parts"}
 	}
 	for _, value := range j.inner.Parts {
