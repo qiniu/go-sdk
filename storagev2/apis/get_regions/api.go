@@ -107,12 +107,12 @@ type ResponseBody = RegionsInfo
 
 // 区域列表
 func (request *Response) GetRegions() Regions {
-	return request.Body.GetRegions()
+	return request.body.GetRegions()
 }
 
 // 区域列表
 func (request *Response) SetRegions(value Regions) *Response {
-	request.Body.SetRegions(value)
+	request.body.SetRegions(value)
 	return request
 }
 
@@ -190,10 +190,21 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
-	return &Response{Body: respBody}, nil
+	return &Response{body: respBody}, nil
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	Body ResponseBody
+	body ResponseBody
+}
+
+// 获取请求体
+func (response *Response) GetBody() *ResponseBody {
+	return &response.body
+}
+
+// 设置请求体
+func (response *Response) SetBody(body ResponseBody) *Response {
+	response.body = body
+	return response
 }

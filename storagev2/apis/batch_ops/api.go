@@ -44,12 +44,12 @@ func (form *RequestBody) build() (url.Values, error) {
 
 // 单一对象管理指令
 func (request *Request) GetOperations() []string {
-	return request.Body.GetOperations()
+	return request.body.GetOperations()
 }
 
 // 单一对象管理指令
 func (request *Request) SetOperations(value []string) *Request {
-	request.Body.SetOperations(value)
+	request.body.SetOperations(value)
 	return request
 }
 
@@ -299,7 +299,7 @@ type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
 	credentials            credentials.CredentialsProvider
-	Body                   RequestBody
+	body                   RequestBody
 }
 
 // 覆盖默认的存储区域域名列表
@@ -336,6 +336,17 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求体
+func (request *Request) GetBody() *RequestBody {
+	return &request.body
+}
+
+// 设置请求体
+func (request *Request) SetBody(body RequestBody) *Request {
+	request.body = body
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
@@ -344,7 +355,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	pathSegments = append(pathSegments, "batch")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	body, err := request.Body.build()
+	body, err := request.body.build()
 	if err != nil {
 		return nil, err
 	}
@@ -391,10 +402,21 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
-	return &Response{Body: respBody}, nil
+	return &Response{body: respBody}, nil
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	Body ResponseBody
+	body ResponseBody
+}
+
+// 获取请求体
+func (response *Response) GetBody() ResponseBody {
+	return response.body
+}
+
+// 设置请求体
+func (response *Response) SetBody(body ResponseBody) *Response {
+	response.body = body
+	return response
 }

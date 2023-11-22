@@ -68,24 +68,24 @@ func (query *RequestQuery) build() (url.Values, error) {
 	return allQuery, nil
 }
 func (request *Request) GetRegion() string {
-	return request.Query.GetRegion()
+	return request.query.GetRegion()
 }
 func (request *Request) SetRegion(value string) *Request {
-	request.Query.SetRegion(value)
+	request.query.SetRegion(value)
 	return request
 }
 func (request *Request) GetLimit() string {
-	return request.Query.GetLimit()
+	return request.query.GetLimit()
 }
 func (request *Request) SetLimit(value string) *Request {
-	request.Query.SetLimit(value)
+	request.query.SetLimit(value)
 	return request
 }
 func (request *Request) GetMarker() string {
-	return request.Query.GetMarker()
+	return request.query.GetMarker()
 }
 func (request *Request) SetMarker(value string) *Request {
-	request.Query.SetMarker(value)
+	request.query.SetMarker(value)
 	return request
 }
 
@@ -235,30 +235,30 @@ type ResponseBody = BucketsResultV4
 
 // 下一页开始的空间标识
 func (request *Response) GetNextMarker() string {
-	return request.Body.GetNextMarker()
+	return request.body.GetNextMarker()
 }
 
 // 下一页开始的空间标识
 func (request *Response) SetNextMarker(value string) *Response {
-	request.Body.SetNextMarker(value)
+	request.body.SetNextMarker(value)
 	return request
 }
 
 // 是否所有的结果都已经返回
 func (request *Response) IsTruncated() bool {
-	return request.Body.IsTruncated()
+	return request.body.IsTruncated()
 }
 
 // 是否所有的结果都已经返回
 func (request *Response) SetTruncated(value bool) *Response {
-	request.Body.SetTruncated(value)
+	request.body.SetTruncated(value)
 	return request
 }
 func (request *Response) GetBuckets() BucketsV4 {
-	return request.Body.GetBuckets()
+	return request.body.GetBuckets()
 }
 func (request *Response) SetBuckets(value BucketsV4) *Response {
-	request.Body.SetBuckets(value)
+	request.body.SetBuckets(value)
 	return request
 }
 
@@ -266,7 +266,7 @@ func (request *Response) SetBuckets(value BucketsV4) *Response {
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Query                  RequestQuery
+	query                  RequestQuery
 	credentials            credentials.CredentialsProvider
 }
 
@@ -304,6 +304,17 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求查询参数
+func (request *Request) GetQuery() *RequestQuery {
+	return &request.query
+}
+
+// 设置请求查询参数
+func (request *Request) SetQuery(query RequestQuery) *Request {
+	request.query = query
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
@@ -313,7 +324,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
 	rawQuery += "apiVersion=v4" + "&"
-	if query, err := request.Query.build(); err != nil {
+	if query, err := request.query.build(); err != nil {
 		return nil, err
 	} else {
 		rawQuery += query.Encode()
@@ -357,10 +368,21 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
-	return &Response{Body: respBody}, nil
+	return &Response{body: respBody}, nil
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	Body ResponseBody
+	body ResponseBody
+}
+
+// 获取请求体
+func (response *Response) GetBody() *ResponseBody {
+	return &response.body
+}
+
+// 设置请求体
+func (response *Response) SetBody(body ResponseBody) *Response {
+	response.body = body
+	return response
 }

@@ -395,7 +395,7 @@ func (m *BucketManager) Buckets(shared bool) (buckets []string, err error) {
 	if err != nil {
 		return nil, err
 	}
-	return response.Body, nil
+	return response.GetBody(), nil
 }
 
 // BucketsV4 获取该用户的指定区域内的空间信息，注意该 API 以分页形式返回 Bucket 列表
@@ -546,7 +546,7 @@ func (m *BucketManager) ChangeMimeAndMeta(bucket, key, newMime string, metas map
 		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
 		SetEntry(bucket + ":" + key).SetMimeType(newMime)
 	for k, v := range normalizeMeta(metas) {
-		request.Path.Append(k, v)
+		request.GetPath().Append(k, v)
 	}
 	_, err := request.
 		Send(context.Background(), m.makeHttpClientOptions())
@@ -666,8 +666,8 @@ func (m *BucketManager) BatchWithContext(ctx context.Context, bucket string, ope
 	if err != nil {
 		return nil, err
 	}
-	rets := make([]BatchOpRet, 0, len(response.Body))
-	for _, op := range response.Body {
+	rets := make([]BatchOpRet, 0, len(response.GetBody()))
+	for _, op := range response.GetBody() {
 		rets = append(rets, convertToBatchOptRet(op))
 	}
 	return rets, nil

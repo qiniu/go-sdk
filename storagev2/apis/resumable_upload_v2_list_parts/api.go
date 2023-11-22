@@ -77,34 +77,34 @@ func (path *RequestPath) build() ([]string, error) {
 
 // 存储空间名称
 func (request *Request) GetBucketName() string {
-	return request.Path.GetBucketName()
+	return request.path.GetBucketName()
 }
 
 // 存储空间名称
 func (request *Request) SetBucketName(value string) *Request {
-	request.Path.SetBucketName(value)
+	request.path.SetBucketName(value)
 	return request
 }
 
 // 对象名称
 func (request *Request) GetObjectName() string {
-	return request.Path.GetObjectName()
+	return request.path.GetObjectName()
 }
 
 // 对象名称
 func (request *Request) SetObjectName(value string) *Request {
-	request.Path.SetObjectName(value)
+	request.path.SetObjectName(value)
 	return request
 }
 
 // 在服务端申请的 Multipart Upload 任务 id
 func (request *Request) GetUploadId() string {
-	return request.Path.GetUploadId()
+	return request.path.GetUploadId()
 }
 
 // 在服务端申请的 Multipart Upload 任务 id
 func (request *Request) SetUploadId(value string) *Request {
-	request.Path.SetUploadId(value)
+	request.path.SetUploadId(value)
 	return request
 }
 
@@ -146,17 +146,17 @@ func (query *RequestQuery) build() (url.Values, error) {
 	return allQuery, nil
 }
 func (request *Request) GetMaxParts() int64 {
-	return request.Query.GetMaxParts()
+	return request.query.GetMaxParts()
 }
 func (request *Request) SetMaxParts(value int64) *Request {
-	request.Query.SetMaxParts(value)
+	request.query.SetMaxParts(value)
 	return request
 }
 func (request *Request) GetPartNumberMarker() int64 {
-	return request.Query.GetPartNumberMarker()
+	return request.query.GetPartNumberMarker()
 }
 func (request *Request) SetPartNumberMarker(value int64) *Request {
-	request.Query.SetPartNumberMarker(value)
+	request.query.SetPartNumberMarker(value)
 	return request
 }
 
@@ -333,45 +333,45 @@ type ResponseBody = ListedPartsResponse
 
 // 在服务端申请的 Multipart Upload 任务 id
 func (request *Response) GetUploadId() string {
-	return request.Body.GetUploadId()
+	return request.body.GetUploadId()
 }
 
 // 在服务端申请的 Multipart Upload 任务 id
 func (request *Response) SetUploadId(value string) *Response {
-	request.Body.SetUploadId(value)
+	request.body.SetUploadId(value)
 	return request
 }
 
 // UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
 func (request *Response) GetExpiredAt() int64 {
-	return request.Body.GetExpiredAt()
+	return request.body.GetExpiredAt()
 }
 
 // UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
 func (request *Response) SetExpiredAt(value int64) *Response {
-	request.Body.SetExpiredAt(value)
+	request.body.SetExpiredAt(value)
 	return request
 }
 
 // 下次继续列举的起始位置，0 表示列举结束，没有更多分片
 func (request *Response) GetPartNumberMarker() int64 {
-	return request.Body.GetPartNumberMarker()
+	return request.body.GetPartNumberMarker()
 }
 
 // 下次继续列举的起始位置，0 表示列举结束，没有更多分片
 func (request *Response) SetPartNumberMarker(value int64) *Response {
-	request.Body.SetPartNumberMarker(value)
+	request.body.SetPartNumberMarker(value)
 	return request
 }
 
 // 返回所有已经上传成功的分片信息
 func (request *Response) GetParts() ListedParts {
-	return request.Body.GetParts()
+	return request.body.GetParts()
 }
 
 // 返回所有已经上传成功的分片信息
 func (request *Response) SetParts(value ListedParts) *Response {
-	request.Body.SetParts(value)
+	request.body.SetParts(value)
 	return request
 }
 
@@ -379,8 +379,8 @@ func (request *Response) SetParts(value ListedParts) *Response {
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Path                   RequestPath
-	Query                  RequestQuery
+	path                   RequestPath
+	query                  RequestQuery
 	upToken                uptoken.Provider
 }
 
@@ -421,20 +421,42 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求路径
+func (request *Request) GetPath() *RequestPath {
+	return &request.path
+}
+
+// 获取请求查询参数
+func (request *Request) GetQuery() *RequestQuery {
+	return &request.query
+}
+
+// 设置请求路径
+func (request *Request) SetPath(path RequestPath) *Request {
+	request.path = path
+	return request
+}
+
+// 设置请求查询参数
+func (request *Request) SetQuery(query RequestQuery) *Request {
+	request.query = query
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceUp}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "buckets")
-	if segments, err := request.Path.build(); err != nil {
+	if segments, err := request.path.build(); err != nil {
 		return nil, err
 	} else {
 		pathSegments = append(pathSegments, segments...)
 	}
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	if query, err := request.Query.build(); err != nil {
+	if query, err := request.query.build(); err != nil {
 		return nil, err
 	} else {
 		rawQuery += query.Encode()
@@ -482,10 +504,21 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
-	return &Response{Body: respBody}, nil
+	return &Response{body: respBody}, nil
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	Body ResponseBody
+	body ResponseBody
+}
+
+// 获取请求体
+func (response *Response) GetBody() *ResponseBody {
+	return &response.body
+}
+
+// 设置请求体
+func (response *Response) SetBody(body ResponseBody) *Response {
+	response.body = body
+	return response
 }

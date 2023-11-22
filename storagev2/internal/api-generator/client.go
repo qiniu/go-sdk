@@ -41,7 +41,7 @@ func (description *ApiDetailedDescription) Generate(group *jen.Group, _ CodeGene
 			apiDetailedDescription: description,
 		}); err != nil {
 			return err
-		} else if err = pp.GenerateAliasesFor(group, "Request", "Path"); err != nil {
+		} else if err = pp.GenerateAliasesFor(group, "Request", "path"); err != nil {
 			return err
 		}
 	}
@@ -52,7 +52,7 @@ func (description *ApiDetailedDescription) Generate(group *jen.Group, _ CodeGene
 			apiDetailedDescription: description,
 		}); err != nil {
 			return err
-		} else if err = queryNames.GenerateAliasesFor(group, "Request", "Query"); err != nil {
+		} else if err = queryNames.GenerateAliasesFor(group, "Request", "query"); err != nil {
 			return err
 		}
 	}
@@ -63,7 +63,7 @@ func (description *ApiDetailedDescription) Generate(group *jen.Group, _ CodeGene
 			apiDetailedDescription: description,
 		}); err != nil {
 			return err
-		} else if err = headerNames.GenerateAliasesFor(group, "Request", "Headers"); err != nil {
+		} else if err = headerNames.GenerateAliasesFor(group, "Request", "headers"); err != nil {
 			return err
 		}
 	}
@@ -84,7 +84,7 @@ func (description *ApiDetailedDescription) Generate(group *jen.Group, _ CodeGene
 			}); err != nil {
 				return err
 			}
-			if err := codeGenerator.GenerateAliasesFor(group, "Request", "Body"); err != nil {
+			if err := codeGenerator.GenerateAliasesFor(group, "Request", "body"); err != nil {
 				return err
 			}
 		}
@@ -98,7 +98,7 @@ func (description *ApiDetailedDescription) Generate(group *jen.Group, _ CodeGene
 			}); err != nil {
 				return err
 			}
-			if err := json.GenerateAliasesFor(group, "Response", "Body"); err != nil {
+			if err := json.GenerateAliasesFor(group, "Response", "body"); err != nil {
 				return err
 			}
 		}

@@ -38,10 +38,10 @@ func (query *RequestQuery) build() (url.Values, error) {
 	return allQuery, nil
 }
 func (request *Request) GetId() string {
-	return request.Query.GetId()
+	return request.query.GetId()
 }
 func (request *Request) SetId(value string) *Request {
-	request.Query.SetId(value)
+	request.query.SetId(value)
 	return request
 }
 
@@ -99,23 +99,23 @@ type ResponseBody = FetchTaskInfo
 
 // 异步任务 ID
 func (request *Response) GetId() string {
-	return request.Body.GetId()
+	return request.body.GetId()
 }
 
 // 异步任务 ID
 func (request *Response) SetId(value string) *Response {
-	request.Body.SetId(value)
+	request.body.SetId(value)
 	return request
 }
 
 // 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 func (request *Response) GetQueuedTasksCount() int64 {
-	return request.Body.GetQueuedTasksCount()
+	return request.body.GetQueuedTasksCount()
 }
 
 // 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 func (request *Response) SetQueuedTasksCount(value int64) *Response {
-	request.Body.SetQueuedTasksCount(value)
+	request.body.SetQueuedTasksCount(value)
 	return request
 }
 
@@ -123,7 +123,7 @@ func (request *Response) SetQueuedTasksCount(value int64) *Response {
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Query                  RequestQuery
+	query                  RequestQuery
 }
 
 // 覆盖默认的存储区域域名列表
@@ -147,6 +147,17 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求查询参数
+func (request *Request) GetQuery() *RequestQuery {
+	return &request.query
+}
+
+// 设置请求查询参数
+func (request *Request) SetQuery(query RequestQuery) *Request {
+	request.query = query
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
@@ -155,7 +166,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	pathSegments = append(pathSegments, "sisyphus", "fetch")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	if query, err := request.Query.build(); err != nil {
+	if query, err := request.query.build(); err != nil {
 		return nil, err
 	} else {
 		rawQuery += query.Encode()
@@ -203,10 +214,21 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
-	return &Response{Body: respBody}, nil
+	return &Response{body: respBody}, nil
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	Body ResponseBody
+	body ResponseBody
+}
+
+// 获取请求体
+func (response *Response) GetBody() *ResponseBody {
+	return &response.body
+}
+
+// 设置请求体
+func (response *Response) SetBody(body ResponseBody) *Response {
+	response.body = body
+	return response
 }

@@ -96,45 +96,45 @@ func (path *RequestPath) build() ([]string, error) {
 
 // 对象大小
 func (request *Request) GetSize() int64 {
-	return request.Path.GetSize()
+	return request.path.GetSize()
 }
 
 // 对象大小
 func (request *Request) SetSize(value int64) *Request {
-	request.Path.SetSize(value)
+	request.path.SetSize(value)
 	return request
 }
 
 // 对象名称
 func (request *Request) GetObjectName() string {
-	return request.Path.GetObjectName()
+	return request.path.GetObjectName()
 }
 
 // 对象名称
 func (request *Request) SetObjectName(value string) *Request {
-	request.Path.SetObjectName(value)
+	request.path.SetObjectName(value)
 	return request
 }
 
 // 文件名称，若未指定，则魔法变量中无法使用fname，ext，fprefix
 func (request *Request) GetFileName() string {
-	return request.Path.GetFileName()
+	return request.path.GetFileName()
 }
 
 // 文件名称，若未指定，则魔法变量中无法使用fname，ext，fprefix
 func (request *Request) SetFileName(value string) *Request {
-	request.Path.SetFileName(value)
+	request.path.SetFileName(value)
 	return request
 }
 
 // 文件 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
 func (request *Request) GetMimeType() string {
-	return request.Path.GetMimeType()
+	return request.path.GetMimeType()
 }
 
 // 文件 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
 func (request *Request) SetMimeType(value string) *Request {
-	request.Path.SetMimeType(value)
+	request.path.SetMimeType(value)
 	return request
 }
 
@@ -145,9 +145,9 @@ type ResponseBody = interface{}
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Path                   RequestPath
+	path                   RequestPath
 	upToken                uptoken.Provider
-	Body                   io.ReadSeekCloser
+	body                   io.ReadSeekCloser
 }
 
 // 覆盖默认的存储区域域名列表
@@ -187,20 +187,42 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求路径
+func (request *Request) GetPath() *RequestPath {
+	return &request.path
+}
+
+// 获取请求体
+func (request *Request) GetBody() io.ReadSeekCloser {
+	return request.body
+}
+
+// 设置请求路径
+func (request *Request) SetPath(path RequestPath) *Request {
+	request.path = path
+	return request
+}
+
+// 设置请求体
+func (request *Request) SetBody(body io.ReadSeekCloser) *Request {
+	request.body = body
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceUp}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "mkfile")
-	if segments, err := request.Path.build(); err != nil {
+	if segments, err := request.path.build(); err != nil {
 		return nil, err
 	} else {
 		pathSegments = append(pathSegments, segments...)
 	}
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: request.upToken, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(request.Body)}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: request.upToken, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(request.body)}
 	var queryer region.BucketRegionsQueryer
 	if client.GetRegions() == nil && client.GetEndpoints() == nil {
 		queryer = client.GetBucketQueryer()
@@ -243,10 +265,21 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
-	return &Response{Body: respBody}, nil
+	return &Response{body: respBody}, nil
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	Body ResponseBody
+	body ResponseBody
+}
+
+// 获取请求体
+func (response *Response) GetBody() ResponseBody {
+	return response.body
+}
+
+// 设置请求体
+func (response *Response) SetBody(body ResponseBody) *Response {
+	response.body = body
+	return response
 }

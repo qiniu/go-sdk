@@ -78,34 +78,34 @@ func (path *RequestPath) build() ([]string, error) {
 
 // 需要设定镜像源的目标空间名
 func (request *Request) GetBucket() string {
-	return request.Path.GetBucket()
+	return request.path.GetBucket()
 }
 
 // 需要设定镜像源的目标空间名
 func (request *Request) SetBucket(value string) *Request {
-	request.Path.SetBucket(value)
+	request.path.SetBucket(value)
 	return request
 }
 
 // 镜像源的访问域名，必须设置为形如 `http(s)://source.com` 或 `http(s)://114.114.114.114` 的字符串
 func (request *Request) GetSrcSiteUrl() string {
-	return request.Path.GetSrcSiteUrl()
+	return request.path.GetSrcSiteUrl()
 }
 
 // 镜像源的访问域名，必须设置为形如 `http(s)://source.com` 或 `http(s)://114.114.114.114` 的字符串
 func (request *Request) SetSrcSiteUrl(value string) *Request {
-	request.Path.SetSrcSiteUrl(value)
+	request.path.SetSrcSiteUrl(value)
 	return request
 }
 
 // 回源时使用的 `Host` 头部值
 func (request *Request) GetHost() string {
-	return request.Path.GetHost()
+	return request.path.GetHost()
 }
 
 // 回源时使用的 `Host` 头部值
 func (request *Request) SetHost(value string) *Request {
-	request.Path.SetHost(value)
+	request.path.SetHost(value)
 	return request
 }
 
@@ -113,7 +113,7 @@ func (request *Request) SetHost(value string) *Request {
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Path                   RequestPath
+	path                   RequestPath
 	credentials            credentials.CredentialsProvider
 }
 
@@ -138,7 +138,7 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
 	}
-	if bucketName, err := request.Path.getBucketName(); err != nil || bucketName != "" {
+	if bucketName, err := request.path.getBucketName(); err != nil || bucketName != "" {
 		return bucketName, err
 	}
 	return "", nil
@@ -154,13 +154,24 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求路径
+func (request *Request) GetPath() *RequestPath {
+	return &request.path
+}
+
+// 设置请求路径
+func (request *Request) SetPath(path RequestPath) *Request {
+	request.path = path
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "image")
-	if segments, err := request.Path.build(); err != nil {
+	if segments, err := request.path.build(); err != nil {
 		return nil, err
 	} else {
 		pathSegments = append(pathSegments, segments...)
@@ -206,8 +217,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	return &Response{}, nil
+	return &Response{}, resp.Body.Close()
 }
 
 // 获取 API 所用的响应

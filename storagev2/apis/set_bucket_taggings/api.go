@@ -43,10 +43,10 @@ func (query *RequestQuery) build() (url.Values, error) {
 	return allQuery, nil
 }
 func (request *Request) GetBucket() string {
-	return request.Query.GetBucket()
+	return request.query.GetBucket()
 }
 func (request *Request) SetBucket(value string) *Request {
-	request.Query.SetBucket(value)
+	request.query.SetBucket(value)
 	return request
 }
 
@@ -145,12 +145,12 @@ type RequestBody = TagsInfo
 
 // 标签列表
 func (request *Request) GetTags() Tags {
-	return request.Body.GetTags()
+	return request.body.GetTags()
 }
 
 // 标签列表
 func (request *Request) SetTags(value Tags) *Request {
-	request.Body.SetTags(value)
+	request.body.SetTags(value)
 	return request
 }
 
@@ -158,9 +158,9 @@ func (request *Request) SetTags(value Tags) *Request {
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Query                  RequestQuery
+	query                  RequestQuery
 	credentials            credentials.CredentialsProvider
-	Body                   RequestBody
+	body                   RequestBody
 }
 
 // 覆盖默认的存储区域域名列表
@@ -184,7 +184,7 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
 	}
-	if bucketName, err := request.Query.getBucketName(); err != nil || bucketName != "" {
+	if bucketName, err := request.query.getBucketName(); err != nil || bucketName != "" {
 		return bucketName, err
 	}
 	return "", nil
@@ -200,6 +200,28 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求查询参数
+func (request *Request) GetQuery() *RequestQuery {
+	return &request.query
+}
+
+// 获取请求体
+func (request *Request) GetBody() *RequestBody {
+	return &request.body
+}
+
+// 设置请求查询参数
+func (request *Request) SetQuery(query RequestQuery) *Request {
+	request.query = query
+	return request
+}
+
+// 设置请求体
+func (request *Request) SetBody(body RequestBody) *Request {
+	request.body = body
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
@@ -208,15 +230,15 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	pathSegments = append(pathSegments, "bucketTagging")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	if query, err := request.Query.build(); err != nil {
+	if query, err := request.query.build(); err != nil {
 		return nil, err
 	} else {
 		rawQuery += query.Encode()
 	}
-	if err := request.Body.validate(); err != nil {
+	if err := request.body.validate(); err != nil {
 		return nil, err
 	}
-	body, err := httpclient.GetJsonRequestBody(&request.Body)
+	body, err := httpclient.GetJsonRequestBody(&request.body)
 	if err != nil {
 		return nil, err
 	}
@@ -259,8 +281,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	return &Response{}, nil
+	return &Response{}, resp.Body.Close()
 }
 
 // 获取 API 所用的响应

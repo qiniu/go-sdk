@@ -33,6 +33,8 @@ func (request *ApiRequestDescription) Generate(group *jen.Group, opts CodeGenera
 	request.generateSetAuthFunc(group, opts)
 	request.generateGetBucketNameFunc(group, opts)
 	request.generateGetAccessKeyFunc(group, opts)
+	request.generateGetters(group, opts)
+	request.generateSetters(group, opts)
 	return request.generateSendFunc(group, opts)
 }
 
@@ -48,13 +50,13 @@ func (request *ApiRequestDescription) generateRequestStruct(group *jen.Group, op
 				group.Add(jen.Id("overwrittenBucketName").Id("string"))
 
 				if pp := request.PathParams; pp != nil {
-					group.Add(jen.Id("Path").Id("RequestPath"))
+					group.Add(jen.Id("path").Id("RequestPath"))
 				}
 				if names := request.QueryNames; names != nil {
-					group.Add(jen.Id("Query").Id("RequestQuery"))
+					group.Add(jen.Id("query").Id("RequestQuery"))
 				}
 				if names := request.HeaderNames; names != nil {
-					group.Add(jen.Id("Headers").Id("RequestHeaders"))
+					group.Add(jen.Id("headers").Id("RequestHeaders"))
 				}
 				if authorization := request.Authorization; authorization != nil {
 					switch authorization.ToAuthorization() {
@@ -66,13 +68,13 @@ func (request *ApiRequestDescription) generateRequestStruct(group *jen.Group, op
 				}
 				if body := request.Body; body != nil {
 					if body.Json != nil {
-						group.Add(jen.Id("Body").Id("RequestBody"))
+						group.Add(jen.Id("body").Id("RequestBody"))
 					} else if body.FormUrlencoded != nil {
-						group.Add(jen.Id("Body").Id("RequestBody"))
+						group.Add(jen.Id("body").Id("RequestBody"))
 					} else if body.MultipartFormData != nil {
-						group.Add(jen.Id("Body").Id("RequestBody"))
+						group.Add(jen.Id("body").Id("RequestBody"))
 					} else if body.BinaryData {
-						group.Add(jen.Id("Body").Qual(PackageNameInternalIo, "ReadSeekCloser"))
+						group.Add(jen.Id("body").Qual(PackageNameInternalIo, "ReadSeekCloser"))
 					}
 				}
 			}),
@@ -162,7 +164,7 @@ func (request *ApiRequestDescription) generateGetBucketNameFunc(group *jen.Group
 					if field := pp.getServiceBucketField(); field != nil && field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
 						group.Add(
 							jen.If(
-								jen.List(jen.Id("bucketName"), jen.Err()).Op(":=").Id("request").Dot("Path").Dot("getBucketName").Call(),
+								jen.List(jen.Id("bucketName"), jen.Err()).Op(":=").Id("request").Dot("path").Dot("getBucketName").Call(),
 								jen.Err().Op("!=").Nil().Op("||").Id("bucketName").Op("!=").Lit(""),
 							).BlockFunc(func(group *jen.Group) {
 								group.Return(jen.Id("bucketName"), jen.Err())
@@ -174,7 +176,7 @@ func (request *ApiRequestDescription) generateGetBucketNameFunc(group *jen.Group
 					if field := query.getServiceBucketField(); field != nil && field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
 						group.Add(
 							jen.If(
-								jen.List(jen.Id("bucketName"), jen.Err()).Op(":=").Id("request").Dot("Query").Dot("getBucketName").Call(),
+								jen.List(jen.Id("bucketName"), jen.Err()).Op(":=").Id("request").Dot("query").Dot("getBucketName").Call(),
 								jen.Err().Op("!=").Nil().Op("||").Id("bucketName").Op("!=").Lit(""),
 							).BlockFunc(func(group *jen.Group) {
 								group.Return(jen.Id("bucketName"), jen.Err())
@@ -226,7 +228,7 @@ func (request *ApiRequestDescription) generateGetBucketNameFunc(group *jen.Group
 					if hasServiceBucketType {
 						group.Add(
 							jen.If(
-								jen.List(jen.Id("bucketName"), jen.Err()).Op(":=").Id("request").Dot("Body").Dot("getBucketName").Call(params...),
+								jen.List(jen.Id("bucketName"), jen.Err()).Op(":=").Id("request").Dot("body").Dot("getBucketName").Call(params...),
 								jen.Err().Op("!=").Nil().Op("||").Id("bucketName").Op("!=").Lit(""),
 							).BlockFunc(func(group *jen.Group) {
 								group.Return(jen.Id("bucketName"), jen.Err())
@@ -282,12 +284,12 @@ func (request *ApiRequestDescription) generateGetAccessKeyFunc(group *jen.Group,
 						if field := multipartForm.getServiceBucketField(); field != nil && field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
 							fieldName := "field" + strcase.ToCamel(field.FieldName)
 							group.Add(
-								jen.If(jen.Id("request").Dot("Body").Dot(fieldName).Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+								jen.If(jen.Id("request").Dot("body").Dot(fieldName).Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
 									group.If(
 										jen.List(jen.Id("accessKey"), jen.Err()).
 											Op(":=").
 											Id("request").
-											Dot("Body").
+											Dot("body").
 											Dot(fieldName).
 											Dot("RetrieveAccessKey").
 											Call(jen.Id("ctx")),
@@ -339,7 +341,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 				)
 				if description.Request.HeaderNames != nil {
 					group.Add(
-						jen.List(jen.Id("headers"), jen.Err()).Op(":=").Id("request").Dot("Headers").Dot("build").Call(),
+						jen.List(jen.Id("headers"), jen.Err()).Op(":=").Id("request").Dot("headers").Dot("build").Call(),
 					)
 					group.Add(
 						jen.If(
@@ -364,7 +366,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 							jen.List(jen.Id("segments"), jen.Err()).
 								Op(":=").
 								Id("request").
-								Dot("Path").
+								Dot("path").
 								Dot("build").
 								Call(),
 							jen.Err().Op("!=").Nil(),
@@ -394,7 +396,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 				if description.Request.QueryNames != nil {
 					group.Add(
 						jen.If(
-							jen.List(jen.Id("query"), jen.Err()).Op(":=").Id("request").Dot("Query").Dot("build").Call(),
+							jen.List(jen.Id("query"), jen.Err()).Op(":=").Id("request").Dot("query").Dot("build").Call(),
 							jen.Err().Op("!=").Nil(),
 						).BlockFunc(func(group *jen.Group) {
 							group.Add(jen.Return(jen.Nil(), jen.Err()))
@@ -412,7 +414,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 									jen.Err().
 										Op(":=").
 										Id("request").
-										Dot("Body").
+										Dot("body").
 										Dot("validate").
 										Call(),
 									jen.Err().Op("!=").Nil(),
@@ -425,7 +427,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 							jen.List(jen.Id("body"), jen.Err()).
 								Op(":=").
 								Qual(PackageNameHttpClient, "GetJsonRequestBody").
-								Call(jen.Op("&").Id("request").Dot("Body")),
+								Call(jen.Op("&").Id("request").Dot("body")),
 						)
 						group.Add(
 							jen.If(jen.Err().Op("!=").Nil()).
@@ -438,7 +440,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 							jen.List(jen.Id("body"), jen.Err()).
 								Op(":=").
 								Id("request").
-								Dot("Body").
+								Dot("body").
 								Dot("build").
 								Call(jen.Id("ctx")),
 						)
@@ -453,7 +455,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 							jen.List(jen.Id("body"), jen.Err()).
 								Op(":=").
 								Id("request").
-								Dot("Body").
+								Dot("body").
 								Dot("build").
 								Call(),
 						)
@@ -513,7 +515,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 										jen.Id("RequestBody").
 											Op(":").
 											Qual(PackageNameHttpClient, "GetRequestBodyFromReadSeekCloser").
-											Call(jen.Id("request").Dot("Body")),
+											Call(jen.Id("request").Dot("body")),
 									)
 								}
 							}
@@ -653,7 +655,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 								jen.Op("&").
 									Id("Response").
 									Values(
-										jen.Id("Body").
+										jen.Id("body").
 											Op(":").
 											Id("respBody"),
 									),
@@ -681,7 +683,7 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 							jen.Return(
 								jen.Op("&").
 									Id("Response").
-									Values(jen.Id("Body").
+									Values(jen.Id("body").
 										Op(":").
 										Id("resp").
 										Dot("Body")), jen.Nil(),
@@ -705,12 +707,161 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 								group.Return(jen.Nil(), jen.Err())
 							}),
 					)
-					group.Add(jen.Defer().Id("resp").Dot("Body").Dot("Close").Call())
-					group.Add(jen.Return(jen.Op("&").Id("Response").Values(), jen.Nil()))
+					group.Add(jen.Return(jen.Op("&").Id("Response").Values(), jen.Id("resp").Dot("Body").Dot("Close").Call()))
 				}
 			}),
 	)
 	return
+}
+
+func (request *ApiRequestDescription) generateGetters(group *jen.Group, opts CodeGeneratorOptions) {
+	structName := strcase.ToCamel(opts.Name)
+	if pp := request.PathParams; pp != nil {
+		group.Add(jen.Comment("获取请求路径"))
+		group.Add(
+			jen.Func().
+				Params(jen.Id("request").Op("*").Id(structName)).
+				Id("GetPath").
+				Params().
+				Params(jen.Op("*").Id("RequestPath")).
+				BlockFunc(func(group *jen.Group) {
+					group.Return(jen.Op("&").Id("request").Dot("path"))
+				}),
+		)
+	}
+	if names := request.QueryNames; names != nil {
+		group.Add(jen.Comment("获取请求查询参数"))
+		group.Add(
+			jen.Func().
+				Params(jen.Id("request").Op("*").Id(structName)).
+				Id("GetQuery").
+				Params().
+				Params(jen.Op("*").Id("RequestQuery")).
+				BlockFunc(func(group *jen.Group) {
+					group.Return(jen.Op("&").Id("request").Dot("query"))
+				}),
+		)
+	}
+	if names := request.HeaderNames; names != nil {
+		group.Add(jen.Comment("获取请求 HTTP Header"))
+		group.Add(
+			jen.Func().
+				Params(jen.Id("request").Op("*").Id(structName)).
+				Id("GetHeaders").
+				Params().
+				Params(jen.Op("*").Id("RequestHeaders")).
+				BlockFunc(func(group *jen.Group) {
+					group.Return(jen.Op("&").Id("request").Dot("headers"))
+				}),
+		)
+	}
+	if body := request.Body; body != nil {
+		var (
+			returnType    jen.Code
+			returnPointer bool
+		)
+		if json := body.Json; json != nil {
+			if json.Struct != nil {
+				returnType = jen.Op("*").Id("RequestBody")
+				returnPointer = true
+			} else {
+				returnType = jen.Id("RequestBody")
+			}
+		} else if body.FormUrlencoded != nil {
+			returnType = jen.Op("*").Id("RequestBody")
+			returnPointer = true
+		} else if body.MultipartFormData != nil {
+			returnType = jen.Op("*").Id("RequestBody")
+			returnPointer = true
+		} else if body.BinaryData {
+			returnType = jen.Qual(PackageNameInternalIo, "ReadSeekCloser")
+		}
+		group.Add(jen.Comment("获取请求体"))
+		group.Add(
+			jen.Func().
+				Params(jen.Id("request").Op("*").Id(structName)).
+				Id("GetBody").
+				Params().
+				Params(returnType).
+				BlockFunc(func(group *jen.Group) {
+					if returnPointer {
+						group.Return(jen.Op("&").Id("request").Dot("body"))
+					} else {
+						group.Return(jen.Id("request").Dot("body"))
+					}
+				}),
+		)
+	}
+}
+
+func (request *ApiRequestDescription) generateSetters(group *jen.Group, opts CodeGeneratorOptions) {
+	structName := strcase.ToCamel(opts.Name)
+	if pp := request.PathParams; pp != nil {
+		group.Add(jen.Comment("设置请求路径"))
+		group.Add(
+			jen.Func().
+				Params(jen.Id("request").Op("*").Id(structName)).
+				Id("SetPath").
+				Params(jen.Id("path").Id("RequestPath")).
+				Params(jen.Op("*").Id(structName)).
+				BlockFunc(func(group *jen.Group) {
+					group.Add(jen.Id("request").Dot("path").Op("=").Id("path"))
+					group.Add(jen.Return(jen.Id("request")))
+				}),
+		)
+	}
+	if names := request.QueryNames; names != nil {
+		group.Add(jen.Comment("设置请求查询参数"))
+		group.Add(
+			jen.Func().
+				Params(jen.Id("request").Op("*").Id(structName)).
+				Id("SetQuery").
+				Params(jen.Id("query").Id("RequestQuery")).
+				Params(jen.Op("*").Id(structName)).
+				BlockFunc(func(group *jen.Group) {
+					group.Add(jen.Id("request").Dot("query").Op("=").Id("query"))
+					group.Add(jen.Return(jen.Id("request")))
+				}),
+		)
+	}
+	if names := request.HeaderNames; names != nil {
+		group.Add(jen.Comment("设置请求 HTTP Header"))
+		group.Add(
+			jen.Func().
+				Params(jen.Id("request").Op("*").Id(structName)).
+				Id("SetHeaders").
+				Params(jen.Id("headers").Id("RequestHeaders")).
+				Params(jen.Op("*").Id(structName)).
+				BlockFunc(func(group *jen.Group) {
+					group.Add(jen.Id("request").Dot("headers").Op("=").Id("headers"))
+					group.Add(jen.Return(jen.Id("request")))
+				}),
+		)
+	}
+	if body := request.Body; body != nil {
+		var returnType jen.Code
+		if body.Json != nil {
+			returnType = jen.Id("RequestBody")
+		} else if body.FormUrlencoded != nil {
+			returnType = jen.Id("RequestBody")
+		} else if body.MultipartFormData != nil {
+			returnType = jen.Id("RequestBody")
+		} else if body.BinaryData {
+			returnType = jen.Qual(PackageNameInternalIo, "ReadSeekCloser")
+		}
+		group.Add(jen.Comment("设置请求体"))
+		group.Add(
+			jen.Func().
+				Params(jen.Id("request").Op("*").Id(structName)).
+				Id("SetBody").
+				Params(jen.Id("body").Add(returnType)).
+				Params(jen.Op("*").Id(structName)).
+				BlockFunc(func(group *jen.Group) {
+					group.Add(jen.Id("request").Dot("body").Op("=").Id("body"))
+					group.Add(jen.Return(jen.Id("request")))
+				}),
+		)
+	}
 }
 
 func (body *RequestBody) UnmarshalYAML(value *yaml.Node) error {

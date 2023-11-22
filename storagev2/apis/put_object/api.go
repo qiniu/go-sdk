@@ -111,31 +111,31 @@ func (form *RequestBody) build(ctx context.Context) (*httpclient.MultipartForm, 
 	return multipartForm, nil
 }
 func (request *Request) GetObjectName() string {
-	return request.Body.GetObjectName()
+	return request.body.GetObjectName()
 }
 func (request *Request) SetObjectName(value string) *Request {
-	request.Body.SetObjectName(value)
+	request.body.SetObjectName(value)
 	return request
 }
 func (request *Request) GetUploadToken() uptoken.Provider {
-	return request.Body.GetUploadToken()
+	return request.body.GetUploadToken()
 }
 func (request *Request) SetUploadToken(value uptoken.Provider) *Request {
-	request.Body.SetUploadToken(value)
+	request.body.SetUploadToken(value)
 	return request
 }
 func (request *Request) GetCrc32() int64 {
-	return request.Body.GetCrc32()
+	return request.body.GetCrc32()
 }
 func (request *Request) SetCrc32(value int64) *Request {
-	request.Body.SetCrc32(value)
+	request.body.SetCrc32(value)
 	return request
 }
 func (request *Request) GetFile() (io.ReadSeekCloser, string) {
-	return request.Body.GetFile()
+	return request.body.GetFile()
 }
 func (request *Request) SetFile(value io.ReadSeekCloser, fileName string) *Request {
-	request.Body.SetFile(value, fileName)
+	request.body.SetFile(value, fileName)
 	return request
 }
 
@@ -146,7 +146,7 @@ type ResponseBody = interface{}
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Body                   RequestBody
+	body                   RequestBody
 }
 
 // 覆盖默认的存储区域域名列表
@@ -164,20 +164,31 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
 	}
-	if bucketName, err := request.Body.getBucketName(ctx); err != nil || bucketName != "" {
+	if bucketName, err := request.body.getBucketName(ctx); err != nil || bucketName != "" {
 		return bucketName, err
 	}
 	return "", nil
 }
 func (request *Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.Body.fieldUploadToken != nil {
-		if accessKey, err := request.Body.fieldUploadToken.RetrieveAccessKey(ctx); err != nil {
+	if request.body.fieldUploadToken != nil {
+		if accessKey, err := request.body.fieldUploadToken.RetrieveAccessKey(ctx); err != nil {
 			return "", err
 		} else {
 			return accessKey, nil
 		}
 	}
 	return "", nil
+}
+
+// 获取请求体
+func (request *Request) GetBody() *RequestBody {
+	return &request.body
+}
+
+// 设置请求体
+func (request *Request) SetBody(body RequestBody) *Request {
+	request.body = body
+	return request
 }
 
 // 发送请求
@@ -188,7 +199,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	pathSegments = append(pathSegments, "")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	body, err := request.Body.build(ctx)
+	body, err := request.body.build(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -235,10 +246,21 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
-	return &Response{Body: respBody}, nil
+	return &Response{body: respBody}, nil
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	Body ResponseBody
+	body ResponseBody
+}
+
+// 获取请求体
+func (response *Response) GetBody() ResponseBody {
+	return response.body
+}
+
+// 设置请求体
+func (response *Response) SetBody(body ResponseBody) *Response {
+	response.body = body
+	return response
 }

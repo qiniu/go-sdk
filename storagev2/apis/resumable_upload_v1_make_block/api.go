@@ -42,12 +42,12 @@ func (path *RequestPath) build() ([]string, error) {
 
 // 块大小，单位为字节，每块均为 4 MB，最后一块大小不超过 4 MB
 func (request *Request) GetBlockSize() int64 {
-	return request.Path.GetBlockSize()
+	return request.path.GetBlockSize()
 }
 
 // 块大小，单位为字节，每块均为 4 MB，最后一块大小不超过 4 MB
 func (request *Request) SetBlockSize(value int64) *Request {
-	request.Path.SetBlockSize(value)
+	request.path.SetBlockSize(value)
 	return request
 }
 
@@ -165,67 +165,67 @@ type ResponseBody = NewBlockInfo
 
 // 本次上传成功后的块级上传控制信息，用于后续上传片（bput）及创建文件（mkfile）
 func (request *Response) GetCtx() string {
-	return request.Body.GetCtx()
+	return request.body.GetCtx()
 }
 
 // 本次上传成功后的块级上传控制信息，用于后续上传片（bput）及创建文件（mkfile）
 func (request *Response) SetCtx(value string) *Response {
-	request.Body.SetCtx(value)
+	request.body.SetCtx(value)
 	return request
 }
 
 // 上传块 SHA1 值，使用 URL 安全的 Base64 编码
 func (request *Response) GetChecksum() string {
-	return request.Body.GetChecksum()
+	return request.body.GetChecksum()
 }
 
 // 上传块 SHA1 值，使用 URL 安全的 Base64 编码
 func (request *Response) SetChecksum(value string) *Response {
-	request.Body.SetChecksum(value)
+	request.body.SetChecksum(value)
 	return request
 }
 
 // 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
 func (request *Response) GetCrc32() int64 {
-	return request.Body.GetCrc32()
+	return request.body.GetCrc32()
 }
 
 // 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
 func (request *Response) SetCrc32(value int64) *Response {
-	request.Body.SetCrc32(value)
+	request.body.SetCrc32(value)
 	return request
 }
 
 // 下一个上传块在切割块中的偏移
 func (request *Response) GetOffset() int64 {
-	return request.Body.GetOffset()
+	return request.body.GetOffset()
 }
 
 // 下一个上传块在切割块中的偏移
 func (request *Response) SetOffset(value int64) *Response {
-	request.Body.SetOffset(value)
+	request.body.SetOffset(value)
 	return request
 }
 
 // 后续上传接收地址
 func (request *Response) GetHost() string {
-	return request.Body.GetHost()
+	return request.body.GetHost()
 }
 
 // 后续上传接收地址
 func (request *Response) SetHost(value string) *Response {
-	request.Body.SetHost(value)
+	request.body.SetHost(value)
 	return request
 }
 
 // `ctx` 过期时间
 func (request *Response) GetExpiredAt() int64 {
-	return request.Body.GetExpiredAt()
+	return request.body.GetExpiredAt()
 }
 
 // `ctx` 过期时间
 func (request *Response) SetExpiredAt(value int64) *Response {
-	request.Body.SetExpiredAt(value)
+	request.body.SetExpiredAt(value)
 	return request
 }
 
@@ -233,9 +233,9 @@ func (request *Response) SetExpiredAt(value int64) *Response {
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
-	Path                   RequestPath
+	path                   RequestPath
 	upToken                uptoken.Provider
-	Body                   io.ReadSeekCloser
+	body                   io.ReadSeekCloser
 }
 
 // 覆盖默认的存储区域域名列表
@@ -275,20 +275,42 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	return "", nil
 }
 
+// 获取请求路径
+func (request *Request) GetPath() *RequestPath {
+	return &request.path
+}
+
+// 获取请求体
+func (request *Request) GetBody() io.ReadSeekCloser {
+	return request.body
+}
+
+// 设置请求路径
+func (request *Request) SetPath(path RequestPath) *Request {
+	request.path = path
+	return request
+}
+
+// 设置请求体
+func (request *Request) SetBody(body io.ReadSeekCloser) *Request {
+	request.body = body
+	return request
+}
+
 // 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceUp}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "mkblk")
-	if segments, err := request.Path.build(); err != nil {
+	if segments, err := request.path.build(); err != nil {
 		return nil, err
 	} else {
 		pathSegments = append(pathSegments, segments...)
 	}
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: request.upToken, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(request.Body)}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: request.upToken, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(request.body)}
 	var queryer region.BucketRegionsQueryer
 	if client.GetRegions() == nil && client.GetEndpoints() == nil {
 		queryer = client.GetBucketQueryer()
@@ -331,10 +353,21 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
-	return &Response{Body: respBody}, nil
+	return &Response{body: respBody}, nil
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	Body ResponseBody
+	body ResponseBody
+}
+
+// 获取请求体
+func (response *Response) GetBody() *ResponseBody {
+	return &response.body
+}
+
+// 设置请求体
+func (response *Response) SetBody(body ResponseBody) *Response {
+	response.body = body
+	return response
 }
