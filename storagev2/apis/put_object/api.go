@@ -14,6 +14,7 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的请求体
 type RequestBody struct {
 	fieldObjectName    string
 	fieldUploadToken   uptoken.Provider
@@ -23,30 +24,45 @@ type RequestBody struct {
 	extendedMap        map[string]string
 }
 
+// 对象名称，如果不传入，则通过上传策略中的 `saveKey` 字段决定，如果 `saveKey` 也没有置顶，则使用对象的哈希值
 func (form *RequestBody) GetObjectName() string {
 	return form.fieldObjectName
 }
+
+// 对象名称，如果不传入，则通过上传策略中的 `saveKey` 字段决定，如果 `saveKey` 也没有置顶，则使用对象的哈希值
 func (form *RequestBody) SetObjectName(value string) *RequestBody {
 	form.fieldObjectName = value
 	return form
 }
+
+// 上传凭证
 func (form *RequestBody) GetUploadToken() uptoken.Provider {
 	return form.fieldUploadToken
 }
+
+// 上传凭证
 func (form *RequestBody) SetUploadToken(value uptoken.Provider) *RequestBody {
 	form.fieldUploadToken = value
 	return form
 }
+
+// 上传内容的 CRC32 校验码，如果指定此值，则七牛服务器会使用此值进行内容检验
 func (form *RequestBody) GetCrc32() int64 {
 	return form.fieldCrc32
 }
+
+// 上传内容的 CRC32 校验码，如果指定此值，则七牛服务器会使用此值进行内容检验
 func (form *RequestBody) SetCrc32(value int64) *RequestBody {
 	form.fieldCrc32 = value
 	return form
 }
+
+// 上传文件的内容
 func (form *RequestBody) GetFile() (io.ReadSeekCloser, string) {
 	return form.fieldFile, form.fieldFile_FileName
 }
+
+// 上传文件的内容
 func (form *RequestBody) SetFile(value io.ReadSeekCloser, fileName string) *RequestBody {
 	form.fieldFile = value
 	form.fieldFile_FileName = fileName
@@ -123,6 +139,7 @@ func (request *Request) SetFile(value io.ReadSeekCloser, fileName string) *Reque
 	return request
 }
 
+// 获取 API 所用的响应体参数
 type ResponseBody = interface{}
 
 // 调用 API 所用的请求
@@ -132,10 +149,13 @@ type Request struct {
 	Body                   RequestBody
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
@@ -159,6 +179,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceUp}

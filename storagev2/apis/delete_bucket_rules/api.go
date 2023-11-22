@@ -14,21 +14,29 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的请求体
 type RequestBody struct {
 	fieldBucket string // 空间名称
 	fieldName   string // 要删除的规则名称
 }
 
+// 空间名称
 func (form *RequestBody) GetBucket() string {
 	return form.fieldBucket
 }
+
+// 空间名称
 func (form *RequestBody) SetBucket(value string) *RequestBody {
 	form.fieldBucket = value
 	return form
 }
+
+// 要删除的规则名称
 func (form *RequestBody) GetName() string {
 	return form.fieldName
 }
+
+// 要删除的规则名称
 func (form *RequestBody) SetName(value string) *RequestBody {
 	form.fieldName = value
 	return form
@@ -50,16 +58,24 @@ func (form *RequestBody) build() (url.Values, error) {
 	}
 	return formValues, nil
 }
+
+// 空间名称
 func (request *Request) GetBucket() string {
 	return request.Body.GetBucket()
 }
+
+// 空间名称
 func (request *Request) SetBucket(value string) *Request {
 	request.Body.SetBucket(value)
 	return request
 }
+
+// 要删除的规则名称
 func (request *Request) GetName() string {
 	return request.Body.GetName()
 }
+
+// 要删除的规则名称
 func (request *Request) SetName(value string) *Request {
 	request.Body.SetName(value)
 	return request
@@ -73,14 +89,19 @@ type Request struct {
 	Body                   RequestBody
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -104,6 +125,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceBucket}

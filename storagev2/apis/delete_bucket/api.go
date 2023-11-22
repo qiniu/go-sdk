@@ -13,13 +13,17 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的路径参数
 type RequestPath struct {
 	fieldBucket string
 }
 
+// 需要删除的目标空间名
 func (pp *RequestPath) GetBucket() string {
 	return pp.fieldBucket
 }
+
+// 需要删除的目标空间名
 func (pp *RequestPath) SetBucket(value string) *RequestPath {
 	pp.fieldBucket = value
 	return pp
@@ -36,9 +40,13 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
+// 需要删除的目标空间名
 func (request *Request) GetBucket() string {
 	return request.Path.GetBucket()
 }
+
+// 需要删除的目标空间名
 func (request *Request) SetBucket(value string) *Request {
 	request.Path.SetBucket(value)
 	return request
@@ -52,14 +60,19 @@ type Request struct {
 	credentials            credentials.CredentialsProvider
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -83,6 +96,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceBucket}

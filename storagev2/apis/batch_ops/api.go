@@ -15,13 +15,17 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的请求体
 type RequestBody struct {
 	fieldOperations []string // 单一对象管理指令
 }
 
+// 单一对象管理指令
 func (form *RequestBody) GetOperations() []string {
 	return form.fieldOperations
 }
+
+// 单一对象管理指令
 func (form *RequestBody) SetOperations(value []string) *RequestBody {
 	form.fieldOperations = value
 	return form
@@ -37,9 +41,13 @@ func (form *RequestBody) build() (url.Values, error) {
 	}
 	return formValues, nil
 }
+
+// 单一对象管理指令
 func (request *Request) GetOperations() []string {
 	return request.Body.GetOperations()
 }
+
+// 单一对象管理指令
 func (request *Request) SetOperations(value []string) *Request {
 	request.Body.SetOperations(value)
 	return request
@@ -67,100 +75,155 @@ type OperationResponseData struct {
 	inner innerOperationResponseData
 }
 
+// 管理指令的错误信息，仅在发生错误时才返回
 func (j *OperationResponseData) GetError() string {
 	return j.inner.Error
 }
+
+// 管理指令的错误信息，仅在发生错误时才返回
 func (j *OperationResponseData) SetError(value string) *OperationResponseData {
 	j.inner.Error = value
 	return j
 }
+
+// 对象大小，单位为字节，仅对 stat 指令才有效
 func (j *OperationResponseData) GetSize() int64 {
 	return j.inner.Size
 }
+
+// 对象大小，单位为字节，仅对 stat 指令才有效
 func (j *OperationResponseData) SetSize(value int64) *OperationResponseData {
 	j.inner.Size = value
 	return j
 }
+
+// 对象哈希值，仅对 stat 指令才有效
 func (j *OperationResponseData) GetHash() string {
 	return j.inner.Hash
 }
+
+// 对象哈希值，仅对 stat 指令才有效
 func (j *OperationResponseData) SetHash(value string) *OperationResponseData {
 	j.inner.Hash = value
 	return j
 }
+
+// 对象 MIME 类型，仅对 stat 指令才有效
 func (j *OperationResponseData) GetMimeType() string {
 	return j.inner.MimeType
 }
+
+// 对象 MIME 类型，仅对 stat 指令才有效
 func (j *OperationResponseData) SetMimeType(value string) *OperationResponseData {
 	j.inner.MimeType = value
 	return j
 }
+
+// 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储，仅对 stat 指令才有效
 func (j *OperationResponseData) GetType() int64 {
 	return j.inner.Type
 }
+
+// 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储，仅对 stat 指令才有效
 func (j *OperationResponseData) SetType(value int64) *OperationResponseData {
 	j.inner.Type = value
 	return j
 }
+
+// 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒，仅对 stat 指令才有效
 func (j *OperationResponseData) GetPutTime() int64 {
 	return j.inner.PutTime
 }
+
+// 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒，仅对 stat 指令才有效
 func (j *OperationResponseData) SetPutTime(value int64) *OperationResponseData {
 	j.inner.PutTime = value
 	return j
 }
+
+// 资源内容的唯一属主标识
 func (j *OperationResponseData) GetEndUser() string {
 	return j.inner.EndUser
 }
+
+// 资源内容的唯一属主标识
 func (j *OperationResponseData) SetEndUser(value string) *OperationResponseData {
 	j.inner.EndUser = value
 	return j
 }
+
+// 归档存储文件的解冻状态，`2` 表示解冻完成，`1` 表示解冻中；归档文件冻结时，不返回该字段，仅对 stat 指令才有效
 func (j *OperationResponseData) GetRestoringStatus() int64 {
 	return j.inner.RestoringStatus
 }
+
+// 归档存储文件的解冻状态，`2` 表示解冻完成，`1` 表示解冻中；归档文件冻结时，不返回该字段，仅对 stat 指令才有效
 func (j *OperationResponseData) SetRestoringStatus(value int64) *OperationResponseData {
 	j.inner.RestoringStatus = value
 	return j
 }
+
+// 文件状态。`1` 表示禁用；只有禁用状态的文件才会返回该字段，仅对 stat 指令才有效
 func (j *OperationResponseData) GetStatus() int64 {
 	return j.inner.Status
 }
+
+// 文件状态。`1` 表示禁用；只有禁用状态的文件才会返回该字段，仅对 stat 指令才有效
 func (j *OperationResponseData) SetStatus(value int64) *OperationResponseData {
 	j.inner.Status = value
 	return j
 }
+
+// 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回，仅对 stat 指令才有效
 func (j *OperationResponseData) GetMd5() string {
 	return j.inner.Md5
 }
+
+// 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回，仅对 stat 指令才有效
 func (j *OperationResponseData) SetMd5(value string) *OperationResponseData {
 	j.inner.Md5 = value
 	return j
 }
+
+// 文件过期删除日期，UNIX 时间戳格式，文件在设置过期时间后才会返回该字段，仅对 stat 指令才有效
 func (j *OperationResponseData) GetExpirationTime() int64 {
 	return j.inner.ExpirationTime
 }
+
+// 文件过期删除日期，UNIX 时间戳格式，文件在设置过期时间后才会返回该字段，仅对 stat 指令才有效
 func (j *OperationResponseData) SetExpirationTime(value int64) *OperationResponseData {
 	j.inner.ExpirationTime = value
 	return j
 }
+
+// 文件生命周期中转为低频存储的日期，UNIX 时间戳格式，文件在设置转低频后才会返回该字段，仅对 stat 指令才有效
 func (j *OperationResponseData) GetTransitionToIaTime() int64 {
 	return j.inner.TransitionToIaTime
 }
+
+// 文件生命周期中转为低频存储的日期，UNIX 时间戳格式，文件在设置转低频后才会返回该字段，仅对 stat 指令才有效
 func (j *OperationResponseData) SetTransitionToIaTime(value int64) *OperationResponseData {
 	j.inner.TransitionToIaTime = value
 	return j
 }
+
+// 文件生命周期中转为归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段，仅对 stat 指令才有效
 func (j *OperationResponseData) GetTransitionToArchiveTime() int64 {
 	return j.inner.TransitionToArchiveTime
 }
+
+// 文件生命周期中转为归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段，仅对 stat 指令才有效
 func (j *OperationResponseData) SetTransitionToArchiveTime(value int64) *OperationResponseData {
 	j.inner.TransitionToArchiveTime = value
 	return j
 }
+
+// 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段，仅对 stat 指令才有效
 func (j *OperationResponseData) GetTransitionToDeepArchiveTime() int64 {
 	return j.inner.TransitionToDeepArchiveTime
 }
+
+// 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段，仅对 stat 指令才有效
 func (j *OperationResponseData) SetTransitionToDeepArchiveTime(value int64) *OperationResponseData {
 	j.inner.TransitionToDeepArchiveTime = value
 	return j
@@ -189,16 +252,23 @@ type OperationResponse struct {
 	inner innerOperationResponse
 }
 
+// 响应状态码
 func (j *OperationResponse) GetCode() int64 {
 	return j.inner.Code
 }
+
+// 响应状态码
 func (j *OperationResponse) SetCode(value int64) *OperationResponse {
 	j.inner.Code = value
 	return j
 }
+
+// 响应数据
 func (j *OperationResponse) GetData() OperationResponseData {
 	return j.inner.Data
 }
+
+// 响应数据
 func (j *OperationResponse) SetData(value OperationResponseData) *OperationResponse {
 	j.inner.Data = value
 	return j
@@ -232,14 +302,19 @@ type Request struct {
 	Body                   RequestBody
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -260,6 +335,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceRs}

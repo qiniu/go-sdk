@@ -34,86 +34,133 @@ type NewFetchTaskParams struct {
 	inner innerNewFetchTaskParams
 }
 
+// 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
 func (j *NewFetchTaskParams) GetUrl() string {
 	return j.inner.Url
 }
+
+// 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
 func (j *NewFetchTaskParams) SetUrl(value string) *NewFetchTaskParams {
 	j.inner.Url = value
 	return j
 }
+
+// 所在区域的存储空间
 func (j *NewFetchTaskParams) GetBucket() string {
 	return j.inner.Bucket
 }
+
+// 所在区域的存储空间
 func (j *NewFetchTaskParams) SetBucket(value string) *NewFetchTaskParams {
 	j.inner.Bucket = value
 	return j
 }
+
+// 从指定 URL 下载数据时使用的 Host
 func (j *NewFetchTaskParams) GetHost() string {
 	return j.inner.Host
 }
+
+// 从指定 URL 下载数据时使用的 Host
 func (j *NewFetchTaskParams) SetHost(value string) *NewFetchTaskParams {
 	j.inner.Host = value
 	return j
 }
+
+// 对象名称，如果不传，则默认为文件的哈希值
 func (j *NewFetchTaskParams) GetKey() string {
 	return j.inner.Key
 }
+
+// 对象名称，如果不传，则默认为文件的哈希值
 func (j *NewFetchTaskParams) SetKey(value string) *NewFetchTaskParams {
 	j.inner.Key = value
 	return j
 }
+
+// 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
 func (j *NewFetchTaskParams) GetMd5() string {
 	return j.inner.Md5
 }
+
+// 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
 func (j *NewFetchTaskParams) SetMd5(value string) *NewFetchTaskParams {
 	j.inner.Md5 = value
 	return j
 }
+
+// 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
 func (j *NewFetchTaskParams) GetEtag() string {
 	return j.inner.Etag
 }
+
+// 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
 func (j *NewFetchTaskParams) SetEtag(value string) *NewFetchTaskParams {
 	j.inner.Etag = value
 	return j
 }
+
+// 回调 URL
 func (j *NewFetchTaskParams) GetCallbackUrl() string {
 	return j.inner.CallbackUrl
 }
+
+// 回调 URL
 func (j *NewFetchTaskParams) SetCallbackUrl(value string) *NewFetchTaskParams {
 	j.inner.CallbackUrl = value
 	return j
 }
+
+// 回调负荷，如果 callback_url 不为空则必须指定
 func (j *NewFetchTaskParams) GetCallbackBody() string {
 	return j.inner.CallbackBody
 }
+
+// 回调负荷，如果 callback_url 不为空则必须指定
 func (j *NewFetchTaskParams) SetCallbackBody(value string) *NewFetchTaskParams {
 	j.inner.CallbackBody = value
 	return j
 }
+
+// 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
 func (j *NewFetchTaskParams) GetCallbackBodyType() string {
 	return j.inner.CallbackBodyType
 }
+
+// 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
 func (j *NewFetchTaskParams) SetCallbackBodyType(value string) *NewFetchTaskParams {
 	j.inner.CallbackBodyType = value
 	return j
 }
+
+// 回调时使用的 Host
 func (j *NewFetchTaskParams) GetCallbackHost() string {
 	return j.inner.CallbackHost
 }
+
+// 回调时使用的 Host
 func (j *NewFetchTaskParams) SetCallbackHost(value string) *NewFetchTaskParams {
 	j.inner.CallbackHost = value
 	return j
 }
+
+// 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
 func (j *NewFetchTaskParams) GetFileType() int64 {
 	return j.inner.FileType
 }
+
+// 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
 func (j *NewFetchTaskParams) SetFileType(value int64) *NewFetchTaskParams {
 	j.inner.FileType = value
 	return j
 }
+
+// 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
 func (j *NewFetchTaskParams) GetIgnoreSameKey() bool {
 	return j.inner.IgnoreSameKey
 }
+
+// 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
 func (j *NewFetchTaskParams) SetIgnoreSameKey(value bool) *NewFetchTaskParams {
 	j.inner.IgnoreSameKey = value
 	return j
@@ -142,86 +189,133 @@ func (j *NewFetchTaskParams) validate() error {
 // 调用 API 所用的请求体
 type RequestBody = NewFetchTaskParams
 
+// 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
 func (request *Request) GetUrl() string {
 	return request.Body.GetUrl()
 }
+
+// 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
 func (request *Request) SetUrl(value string) *Request {
 	request.Body.SetUrl(value)
 	return request
 }
+
+// 所在区域的存储空间
 func (request *Request) GetBucket() string {
 	return request.Body.GetBucket()
 }
+
+// 所在区域的存储空间
 func (request *Request) SetBucket(value string) *Request {
 	request.Body.SetBucket(value)
 	return request
 }
+
+// 从指定 URL 下载数据时使用的 Host
 func (request *Request) GetHost() string {
 	return request.Body.GetHost()
 }
+
+// 从指定 URL 下载数据时使用的 Host
 func (request *Request) SetHost(value string) *Request {
 	request.Body.SetHost(value)
 	return request
 }
+
+// 对象名称，如果不传，则默认为文件的哈希值
 func (request *Request) GetKey() string {
 	return request.Body.GetKey()
 }
+
+// 对象名称，如果不传，则默认为文件的哈希值
 func (request *Request) SetKey(value string) *Request {
 	request.Body.SetKey(value)
 	return request
 }
+
+// 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
 func (request *Request) GetMd5() string {
 	return request.Body.GetMd5()
 }
+
+// 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
 func (request *Request) SetMd5(value string) *Request {
 	request.Body.SetMd5(value)
 	return request
 }
+
+// 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
 func (request *Request) GetEtag() string {
 	return request.Body.GetEtag()
 }
+
+// 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
 func (request *Request) SetEtag(value string) *Request {
 	request.Body.SetEtag(value)
 	return request
 }
+
+// 回调 URL
 func (request *Request) GetCallbackUrl() string {
 	return request.Body.GetCallbackUrl()
 }
+
+// 回调 URL
 func (request *Request) SetCallbackUrl(value string) *Request {
 	request.Body.SetCallbackUrl(value)
 	return request
 }
+
+// 回调负荷，如果 callback_url 不为空则必须指定
 func (request *Request) GetCallbackBody() string {
 	return request.Body.GetCallbackBody()
 }
+
+// 回调负荷，如果 callback_url 不为空则必须指定
 func (request *Request) SetCallbackBody(value string) *Request {
 	request.Body.SetCallbackBody(value)
 	return request
 }
+
+// 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
 func (request *Request) GetCallbackBodyType() string {
 	return request.Body.GetCallbackBodyType()
 }
+
+// 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
 func (request *Request) SetCallbackBodyType(value string) *Request {
 	request.Body.SetCallbackBodyType(value)
 	return request
 }
+
+// 回调时使用的 Host
 func (request *Request) GetCallbackHost() string {
 	return request.Body.GetCallbackHost()
 }
+
+// 回调时使用的 Host
 func (request *Request) SetCallbackHost(value string) *Request {
 	request.Body.SetCallbackHost(value)
 	return request
 }
+
+// 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
 func (request *Request) GetFileType() int64 {
 	return request.Body.GetFileType()
 }
+
+// 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
 func (request *Request) SetFileType(value int64) *Request {
 	request.Body.SetFileType(value)
 	return request
 }
+
+// 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
 func (request *Request) GetIgnoreSameKey() bool {
 	return request.Body.GetIgnoreSameKey()
 }
+
+// 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
 func (request *Request) SetIgnoreSameKey(value bool) *Request {
 	request.Body.SetIgnoreSameKey(value)
 	return request
@@ -237,16 +331,23 @@ type NewFetchTaskInfo struct {
 	inner innerNewFetchTaskInfo
 }
 
+// 异步任务 ID
 func (j *NewFetchTaskInfo) GetId() string {
 	return j.inner.Id
 }
+
+// 异步任务 ID
 func (j *NewFetchTaskInfo) SetId(value string) *NewFetchTaskInfo {
 	j.inner.Id = value
 	return j
 }
+
+// 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 func (j *NewFetchTaskInfo) GetQueuedTasksCount() int64 {
 	return j.inner.QueuedTasksCount
 }
+
+// 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 func (j *NewFetchTaskInfo) SetQueuedTasksCount(value int64) *NewFetchTaskInfo {
 	j.inner.QueuedTasksCount = value
 	return j
@@ -272,16 +373,23 @@ func (j *NewFetchTaskInfo) validate() error {
 // 获取 API 所用的响应体参数
 type ResponseBody = NewFetchTaskInfo
 
+// 异步任务 ID
 func (request *Response) GetId() string {
 	return request.Body.GetId()
 }
+
+// 异步任务 ID
 func (request *Response) SetId(value string) *Response {
 	request.Body.SetId(value)
 	return request
 }
+
+// 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 func (request *Response) GetQueuedTasksCount() int64 {
 	return request.Body.GetQueuedTasksCount()
 }
+
+// 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 func (request *Response) SetQueuedTasksCount(value int64) *Response {
 	request.Body.SetQueuedTasksCount(value)
 	return request
@@ -295,14 +403,19 @@ type Request struct {
 	Body                   RequestBody
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -326,6 +439,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceApi}

@@ -35,6 +35,9 @@ type (
 func (pp *PathParams) Generate(group *jen.Group, options CodeGeneratorOptions) error {
 	var err error
 	options.Name = strcase.ToCamel(options.Name)
+	if options.Documentation != "" {
+		group.Add(jen.Comment(options.Documentation))
+	}
 	group.Add(
 		jen.Type().Id(options.Name).StructFunc(func(group *jen.Group) {
 			for _, namedPathParam := range pp.Named {
@@ -51,21 +54,18 @@ func (pp *PathParams) Generate(group *jen.Group, options CodeGeneratorOptions) e
 		}),
 	)
 	for _, named := range pp.Named {
-		if code, err := pp.generateGetterFunc(named, options); err != nil {
+		if err = pp.generateGetterFunc(group, named, options); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
-		if code, err := pp.generateSetterFunc(named, options); err != nil {
+		if err = pp.generateSetterFunc(group, named, options); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
 	}
 	if code := pp.generateServiceBucketField(options); code != nil {
 		group.Add(code)
 	}
 	if pp.Free != nil {
+		group.Add(jen.Comment("追加自定义路径参数"))
 		group.Add(
 			jen.Func().
 				Params(jen.Id("path").Op("*").Id(options.Name)).
@@ -208,41 +208,44 @@ func (pp *PathParams) Generate(group *jen.Group, options CodeGeneratorOptions) e
 
 func (pp *PathParams) GenerateAliasesFor(group *jen.Group, structName, fieldName string) error {
 	for _, named := range pp.Named {
-		if code, err := pp.generateAliasGetterFunc(named, structName, fieldName); err != nil {
+		if err := pp.generateAliasGetterFunc(group, named, structName, fieldName); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
-		if code, err := pp.generateAliasSetterFunc(named, structName, fieldName); err != nil {
+		if err := pp.generateAliasSetterFunc(group, named, structName, fieldName); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
 	}
 	return nil
 }
 
-func (pp *PathParams) generateAliasGetterFunc(named NamedPathParam, structName, fieldName string) (jen.Code, error) {
+func (pp *PathParams) generateAliasGetterFunc(group *jen.Group, named NamedPathParam, structName, fieldName string) error {
+	if named.Documentation != "" {
+		group.Add(jen.Comment(named.Documentation))
+	}
 	code := jen.Func().
 		Params(jen.Id("request").Op("*").Id(structName)).
 		Id(makeGetterMethodName(named.FieldName)).
 		Params()
 	code, err := named.Type.AddTypeToStatement(code)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	code = code.BlockFunc(func(group *jen.Group) {
 		group.Add(jen.Return(jen.Id("request").Dot(fieldName).Dot(makeGetterMethodName(named.FieldName)).Call()))
 	})
-	return code, nil
+	group.Add(code)
+	return nil
 }
 
-func (pp *PathParams) generateAliasSetterFunc(named NamedPathParam, structName, fieldName string) (jen.Code, error) {
+func (pp *PathParams) generateAliasSetterFunc(group *jen.Group, named NamedPathParam, structName, fieldName string) error {
+	if named.Documentation != "" {
+		group.Add(jen.Comment(named.Documentation))
+	}
 	params, err := named.Type.AddTypeToStatement(jen.Id("value"))
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return jen.Func().
+	group.Add(jen.Func().
 		Params(jen.Id("request").Op("*").Id(structName)).
 		Id(makeSetterMethodName(named.FieldName)).
 		Params(params).
@@ -250,30 +253,38 @@ func (pp *PathParams) generateAliasSetterFunc(named NamedPathParam, structName, 
 		BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Id("request").Dot(fieldName).Dot(makeSetterMethodName(named.FieldName)).Call(jen.Id("value")))
 			group.Add(jen.Return(jen.Id("request")))
-		}), nil
+		}))
+	return nil
 }
 
-func (pp *PathParams) generateGetterFunc(named NamedPathParam, options CodeGeneratorOptions) (jen.Code, error) {
+func (pp *PathParams) generateGetterFunc(group *jen.Group, named NamedPathParam, options CodeGeneratorOptions) error {
+	if named.Documentation != "" {
+		group.Add(jen.Comment(named.Documentation))
+	}
 	code := jen.Func().
 		Params(jen.Id("pp").Op("*").Id(options.Name)).
 		Id(makeGetterMethodName(named.FieldName)).
 		Params()
 	code, err := named.Type.AddTypeToStatement(code)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	code = code.BlockFunc(func(group *jen.Group) {
 		group.Add(jen.Return(jen.Id("pp").Dot("field" + strcase.ToCamel(named.FieldName))))
 	})
-	return code, nil
+	group.Add(code)
+	return nil
 }
 
-func (pp *PathParams) generateSetterFunc(named NamedPathParam, options CodeGeneratorOptions) (jen.Code, error) {
+func (pp *PathParams) generateSetterFunc(group *jen.Group, named NamedPathParam, options CodeGeneratorOptions) error {
+	if named.Documentation != "" {
+		group.Add(jen.Comment(named.Documentation))
+	}
 	params, err := named.Type.AddTypeToStatement(jen.Id("value"))
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return jen.Func().
+	group.Add(jen.Func().
 		Params(jen.Id("pp").Op("*").Id(options.Name)).
 		Id(makeSetterMethodName(named.FieldName)).
 		Params(params).
@@ -281,7 +292,8 @@ func (pp *PathParams) generateSetterFunc(named NamedPathParam, options CodeGener
 		BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Id("pp").Dot("field" + strcase.ToCamel(named.FieldName)).Op("=").Id("value"))
 			group.Add(jen.Return(jen.Id("pp")))
-		}), nil
+		}))
+	return nil
 }
 
 func (pp *PathParams) getServiceBucketField() *NamedPathParam {

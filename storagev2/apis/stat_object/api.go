@@ -17,13 +17,17 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的路径参数
 type RequestPath struct {
 	fieldEntry string
 }
 
+// 指定目标对象空间与目标对象名称
 func (pp *RequestPath) GetEntry() string {
 	return pp.fieldEntry
 }
+
+// 指定目标对象空间与目标对象名称
 func (pp *RequestPath) SetEntry(value string) *RequestPath {
 	pp.fieldEntry = value
 	return pp
@@ -40,9 +44,13 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
+// 指定目标对象空间与目标对象名称
 func (request *Request) GetEntry() string {
 	return request.Path.GetEntry()
 }
+
+// 指定目标对象空间与目标对象名称
 func (request *Request) SetEntry(value string) *Request {
 	request.Path.SetEntry(value)
 	return request
@@ -53,9 +61,12 @@ type RequestQuery struct {
 	fieldNeedParts bool // 如果文件是通过分片上传的，是否返回对应的分片信息
 }
 
+// 如果文件是通过分片上传的，是否返回对应的分片信息
 func (query *RequestQuery) GetNeedParts() bool {
 	return query.fieldNeedParts
 }
+
+// 如果文件是通过分片上传的，是否返回对应的分片信息
 func (query *RequestQuery) SetNeedParts(value bool) *RequestQuery {
 	query.fieldNeedParts = value
 	return query
@@ -103,107 +114,166 @@ type ObjectMetadata struct {
 	inner innerObjectMetadata
 }
 
+// 对象大小，单位为字节
 func (j *ObjectMetadata) GetSize() int64 {
 	return j.inner.Size
 }
+
+// 对象大小，单位为字节
 func (j *ObjectMetadata) SetSize(value int64) *ObjectMetadata {
 	j.inner.Size = value
 	return j
 }
+
+// 对象哈希值
 func (j *ObjectMetadata) GetHash() string {
 	return j.inner.Hash
 }
+
+// 对象哈希值
 func (j *ObjectMetadata) SetHash(value string) *ObjectMetadata {
 	j.inner.Hash = value
 	return j
 }
+
+// 对象 MIME 类型
 func (j *ObjectMetadata) GetMimeType() string {
 	return j.inner.MimeType
 }
+
+// 对象 MIME 类型
 func (j *ObjectMetadata) SetMimeType(value string) *ObjectMetadata {
 	j.inner.MimeType = value
 	return j
 }
+
+// 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
 func (j *ObjectMetadata) GetType() int64 {
 	return j.inner.Type
 }
+
+// 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
 func (j *ObjectMetadata) SetType(value int64) *ObjectMetadata {
 	j.inner.Type = value
 	return j
 }
+
+// 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
 func (j *ObjectMetadata) GetPutTime() int64 {
 	return j.inner.PutTime
 }
+
+// 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
 func (j *ObjectMetadata) SetPutTime(value int64) *ObjectMetadata {
 	j.inner.PutTime = value
 	return j
 }
+
+// 资源内容的唯一属主标识
 func (j *ObjectMetadata) GetEndUser() string {
 	return j.inner.EndUser
 }
+
+// 资源内容的唯一属主标识
 func (j *ObjectMetadata) SetEndUser(value string) *ObjectMetadata {
 	j.inner.EndUser = value
 	return j
 }
+
+// 归档存储文件的解冻状态，`2` 表示解冻完成，`1` 表示解冻中；归档文件冻结时，不返回该字段
 func (j *ObjectMetadata) GetRestoringStatus() int64 {
 	return j.inner.RestoringStatus
 }
+
+// 归档存储文件的解冻状态，`2` 表示解冻完成，`1` 表示解冻中；归档文件冻结时，不返回该字段
 func (j *ObjectMetadata) SetRestoringStatus(value int64) *ObjectMetadata {
 	j.inner.RestoringStatus = value
 	return j
 }
+
+// 文件状态。`1` 表示禁用；只有禁用状态的文件才会返回该字段
 func (j *ObjectMetadata) GetStatus() int64 {
 	return j.inner.Status
 }
+
+// 文件状态。`1` 表示禁用；只有禁用状态的文件才会返回该字段
 func (j *ObjectMetadata) SetStatus(value int64) *ObjectMetadata {
 	j.inner.Status = value
 	return j
 }
+
+// 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
 func (j *ObjectMetadata) GetMd5() string {
 	return j.inner.Md5
 }
+
+// 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
 func (j *ObjectMetadata) SetMd5(value string) *ObjectMetadata {
 	j.inner.Md5 = value
 	return j
 }
+
+// 文件过期删除日期，UNIX 时间戳格式，文件在设置过期时间后才会返回该字段
 func (j *ObjectMetadata) GetExpirationTime() int64 {
 	return j.inner.ExpirationTime
 }
+
+// 文件过期删除日期，UNIX 时间戳格式，文件在设置过期时间后才会返回该字段
 func (j *ObjectMetadata) SetExpirationTime(value int64) *ObjectMetadata {
 	j.inner.ExpirationTime = value
 	return j
 }
+
+// 文件生命周期中转为低频存储的日期，UNIX 时间戳格式，文件在设置转低频后才会返回该字段
 func (j *ObjectMetadata) GetTransitionToIaTime() int64 {
 	return j.inner.TransitionToIaTime
 }
+
+// 文件生命周期中转为低频存储的日期，UNIX 时间戳格式，文件在设置转低频后才会返回该字段
 func (j *ObjectMetadata) SetTransitionToIaTime(value int64) *ObjectMetadata {
 	j.inner.TransitionToIaTime = value
 	return j
 }
+
+// 文件生命周期中转为归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
 func (j *ObjectMetadata) GetTransitionToArchiveTime() int64 {
 	return j.inner.TransitionToArchiveTime
 }
+
+// 文件生命周期中转为归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
 func (j *ObjectMetadata) SetTransitionToArchiveTime(value int64) *ObjectMetadata {
 	j.inner.TransitionToArchiveTime = value
 	return j
 }
+
+// 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
 func (j *ObjectMetadata) GetTransitionToDeepArchiveTime() int64 {
 	return j.inner.TransitionToDeepArchiveTime
 }
+
+// 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
 func (j *ObjectMetadata) SetTransitionToDeepArchiveTime(value int64) *ObjectMetadata {
 	j.inner.TransitionToDeepArchiveTime = value
 	return j
 }
+
+// 对象存储元信息
 func (j *ObjectMetadata) GetMetadata() map[string]string {
 	return j.inner.Metadata
 }
+
+// 对象存储元信息
 func (j *ObjectMetadata) SetMetadata(value map[string]string) *ObjectMetadata {
 	j.inner.Metadata = value
 	return j
 }
+
+// 每个分片的大小，如没有指定 need_parts 参数则不返回
 func (j *ObjectMetadata) GetParts() PartSizes {
 	return j.inner.Parts
 }
+
+// 每个分片的大小，如没有指定 need_parts 参数则不返回
 func (j *ObjectMetadata) SetParts(value PartSizes) *ObjectMetadata {
 	j.inner.Parts = value
 	return j
@@ -238,107 +308,166 @@ func (j *ObjectMetadata) validate() error {
 // 获取 API 所用的响应体参数
 type ResponseBody = ObjectMetadata
 
+// 对象大小，单位为字节
 func (request *Response) GetSize() int64 {
 	return request.Body.GetSize()
 }
+
+// 对象大小，单位为字节
 func (request *Response) SetSize(value int64) *Response {
 	request.Body.SetSize(value)
 	return request
 }
+
+// 对象哈希值
 func (request *Response) GetHash() string {
 	return request.Body.GetHash()
 }
+
+// 对象哈希值
 func (request *Response) SetHash(value string) *Response {
 	request.Body.SetHash(value)
 	return request
 }
+
+// 对象 MIME 类型
 func (request *Response) GetMimeType() string {
 	return request.Body.GetMimeType()
 }
+
+// 对象 MIME 类型
 func (request *Response) SetMimeType(value string) *Response {
 	request.Body.SetMimeType(value)
 	return request
 }
+
+// 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
 func (request *Response) GetType() int64 {
 	return request.Body.GetType()
 }
+
+// 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
 func (request *Response) SetType(value int64) *Response {
 	request.Body.SetType(value)
 	return request
 }
+
+// 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
 func (request *Response) GetPutTime() int64 {
 	return request.Body.GetPutTime()
 }
+
+// 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
 func (request *Response) SetPutTime(value int64) *Response {
 	request.Body.SetPutTime(value)
 	return request
 }
+
+// 资源内容的唯一属主标识
 func (request *Response) GetEndUser() string {
 	return request.Body.GetEndUser()
 }
+
+// 资源内容的唯一属主标识
 func (request *Response) SetEndUser(value string) *Response {
 	request.Body.SetEndUser(value)
 	return request
 }
+
+// 归档存储文件的解冻状态，`2` 表示解冻完成，`1` 表示解冻中；归档文件冻结时，不返回该字段
 func (request *Response) GetRestoringStatus() int64 {
 	return request.Body.GetRestoringStatus()
 }
+
+// 归档存储文件的解冻状态，`2` 表示解冻完成，`1` 表示解冻中；归档文件冻结时，不返回该字段
 func (request *Response) SetRestoringStatus(value int64) *Response {
 	request.Body.SetRestoringStatus(value)
 	return request
 }
+
+// 文件状态。`1` 表示禁用；只有禁用状态的文件才会返回该字段
 func (request *Response) GetStatus() int64 {
 	return request.Body.GetStatus()
 }
+
+// 文件状态。`1` 表示禁用；只有禁用状态的文件才会返回该字段
 func (request *Response) SetStatus(value int64) *Response {
 	request.Body.SetStatus(value)
 	return request
 }
+
+// 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
 func (request *Response) GetMd5() string {
 	return request.Body.GetMd5()
 }
+
+// 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
 func (request *Response) SetMd5(value string) *Response {
 	request.Body.SetMd5(value)
 	return request
 }
+
+// 文件过期删除日期，UNIX 时间戳格式，文件在设置过期时间后才会返回该字段
 func (request *Response) GetExpirationTime() int64 {
 	return request.Body.GetExpirationTime()
 }
+
+// 文件过期删除日期，UNIX 时间戳格式，文件在设置过期时间后才会返回该字段
 func (request *Response) SetExpirationTime(value int64) *Response {
 	request.Body.SetExpirationTime(value)
 	return request
 }
+
+// 文件生命周期中转为低频存储的日期，UNIX 时间戳格式，文件在设置转低频后才会返回该字段
 func (request *Response) GetTransitionToIaTime() int64 {
 	return request.Body.GetTransitionToIaTime()
 }
+
+// 文件生命周期中转为低频存储的日期，UNIX 时间戳格式，文件在设置转低频后才会返回该字段
 func (request *Response) SetTransitionToIaTime(value int64) *Response {
 	request.Body.SetTransitionToIaTime(value)
 	return request
 }
+
+// 文件生命周期中转为归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
 func (request *Response) GetTransitionToArchiveTime() int64 {
 	return request.Body.GetTransitionToArchiveTime()
 }
+
+// 文件生命周期中转为归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
 func (request *Response) SetTransitionToArchiveTime(value int64) *Response {
 	request.Body.SetTransitionToArchiveTime(value)
 	return request
 }
+
+// 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
 func (request *Response) GetTransitionToDeepArchiveTime() int64 {
 	return request.Body.GetTransitionToDeepArchiveTime()
 }
+
+// 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
 func (request *Response) SetTransitionToDeepArchiveTime(value int64) *Response {
 	request.Body.SetTransitionToDeepArchiveTime(value)
 	return request
 }
+
+// 对象存储元信息
 func (request *Response) GetMetadata() map[string]string {
 	return request.Body.GetMetadata()
 }
+
+// 对象存储元信息
 func (request *Response) SetMetadata(value map[string]string) *Response {
 	request.Body.SetMetadata(value)
 	return request
 }
+
+// 每个分片的大小，如没有指定 need_parts 参数则不返回
 func (request *Response) GetParts() PartSizes {
 	return request.Body.GetParts()
 }
+
+// 每个分片的大小，如没有指定 need_parts 参数则不返回
 func (request *Response) SetParts(value PartSizes) *Response {
 	request.Body.SetParts(value)
 	return request
@@ -353,14 +482,19 @@ type Request struct {
 	credentials            credentials.CredentialsProvider
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -384,6 +518,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceRs}

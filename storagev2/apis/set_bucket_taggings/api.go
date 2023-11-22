@@ -20,9 +20,12 @@ type RequestQuery struct {
 	fieldBucket string // 空间名称
 }
 
+// 空间名称
 func (query *RequestQuery) GetBucket() string {
 	return query.fieldBucket
 }
+
+// 空间名称
 func (query *RequestQuery) SetBucket(value string) *RequestQuery {
 	query.fieldBucket = value
 	return query
@@ -57,16 +60,23 @@ type TagInfo struct {
 	inner innerTagInfo
 }
 
+// 标签名称，最大 64 Byte，不能为空且大小写敏感，不能以 kodo 为前缀(预留), 不支持中文字符，可使用的字符有：字母，数字，空格，+ - = . _ : / @
 func (j *TagInfo) GetKey() string {
 	return j.inner.Key
 }
+
+// 标签名称，最大 64 Byte，不能为空且大小写敏感，不能以 kodo 为前缀(预留), 不支持中文字符，可使用的字符有：字母，数字，空格，+ - = . _ : / @
 func (j *TagInfo) SetKey(value string) *TagInfo {
 	j.inner.Key = value
 	return j
 }
+
+// 标签值，最大 128 Byte，不能为空且大小写敏感，不支持中文字符，可使用的字符有：字母，数字，空格，+ - = . _ : / @
 func (j *TagInfo) GetValue() string {
 	return j.inner.Value
 }
+
+// 标签值，最大 128 Byte，不能为空且大小写敏感，不支持中文字符，可使用的字符有：字母，数字，空格，+ - = . _ : / @
 func (j *TagInfo) SetValue(value string) *TagInfo {
 	j.inner.Value = value
 	return j
@@ -100,9 +110,12 @@ type TagsInfo struct {
 	inner innerTagsInfo
 }
 
+// 标签列表
 func (j *TagsInfo) GetTags() Tags {
 	return j.inner.Tags
 }
+
+// 标签列表
 func (j *TagsInfo) SetTags(value Tags) *TagsInfo {
 	j.inner.Tags = value
 	return j
@@ -130,9 +143,12 @@ func (j *TagsInfo) validate() error {
 // 调用 API 所用的请求体
 type RequestBody = TagsInfo
 
+// 标签列表
 func (request *Request) GetTags() Tags {
 	return request.Body.GetTags()
 }
+
+// 标签列表
 func (request *Request) SetTags(value Tags) *Request {
 	request.Body.SetTags(value)
 	return request
@@ -147,14 +163,19 @@ type Request struct {
 	Body                   RequestBody
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -178,6 +199,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceBucket}

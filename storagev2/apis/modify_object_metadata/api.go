@@ -14,6 +14,7 @@ import (
 	"strings"
 )
 
+// 调用 API 所用的路径参数
 type RequestPath struct {
 	fieldEntry       string
 	fieldMimeType    string
@@ -21,23 +22,34 @@ type RequestPath struct {
 	extendedSegments []string
 }
 
+// 指定目标对象空间与目标对象名称
 func (pp *RequestPath) GetEntry() string {
 	return pp.fieldEntry
 }
+
+// 指定目标对象空间与目标对象名称
 func (pp *RequestPath) SetEntry(value string) *RequestPath {
 	pp.fieldEntry = value
 	return pp
 }
+
+// 新的 MIME 类型
 func (pp *RequestPath) GetMimeType() string {
 	return pp.fieldMimeType
 }
+
+// 新的 MIME 类型
 func (pp *RequestPath) SetMimeType(value string) *RequestPath {
 	pp.fieldMimeType = value
 	return pp
 }
+
+// 条件匹配，当前支持设置 hash、mime、fsize、putTime 条件，只有条件匹配才会执行修改操作，格式为 condKey1=condVal1&condKey2=condVal2
 func (pp *RequestPath) GetCondition() string {
 	return pp.fieldCondition
 }
+
+// 条件匹配，当前支持设置 hash、mime、fsize、putTime 条件，只有条件匹配才会执行修改操作，格式为 condKey1=condVal1&condKey2=condVal2
 func (pp *RequestPath) SetCondition(value string) *RequestPath {
 	pp.fieldCondition = value
 	return pp
@@ -45,6 +57,8 @@ func (pp *RequestPath) SetCondition(value string) *RequestPath {
 func (pp *RequestPath) getBucketName() (string, error) {
 	return strings.SplitN(pp.fieldEntry, ":", 2)[0], nil
 }
+
+// 追加自定义路径参数
 func (path *RequestPath) Append(key string, value string) *RequestPath {
 	path.extendedSegments = append(path.extendedSegments, key)
 	path.extendedSegments = append(path.extendedSegments, base64.URLEncoding.EncodeToString([]byte(value)))
@@ -66,23 +80,35 @@ func (path *RequestPath) build() ([]string, error) {
 	allSegments = append(allSegments, path.extendedSegments...)
 	return allSegments, nil
 }
+
+// 指定目标对象空间与目标对象名称
 func (request *Request) GetEntry() string {
 	return request.Path.GetEntry()
 }
+
+// 指定目标对象空间与目标对象名称
 func (request *Request) SetEntry(value string) *Request {
 	request.Path.SetEntry(value)
 	return request
 }
+
+// 新的 MIME 类型
 func (request *Request) GetMimeType() string {
 	return request.Path.GetMimeType()
 }
+
+// 新的 MIME 类型
 func (request *Request) SetMimeType(value string) *Request {
 	request.Path.SetMimeType(value)
 	return request
 }
+
+// 条件匹配，当前支持设置 hash、mime、fsize、putTime 条件，只有条件匹配才会执行修改操作，格式为 condKey1=condVal1&condKey2=condVal2
 func (request *Request) GetCondition() string {
 	return request.Path.GetCondition()
 }
+
+// 条件匹配，当前支持设置 hash、mime、fsize、putTime 条件，只有条件匹配才会执行修改操作，格式为 condKey1=condVal1&condKey2=condVal2
 func (request *Request) SetCondition(value string) *Request {
 	request.Path.SetCondition(value)
 	return request
@@ -96,14 +122,19 @@ type Request struct {
 	credentials            credentials.CredentialsProvider
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -127,6 +158,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceRs}

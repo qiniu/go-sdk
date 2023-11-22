@@ -32,6 +32,9 @@ func (mff *MultipartFormFields) Generate(group *jen.Group, options CodeGenerator
 	var err error
 	options.Name = strcase.ToCamel(options.Name)
 
+	if options.Documentation != "" {
+		group.Add(jen.Comment(options.Documentation))
+	}
 	group.Add(
 		jen.Type().Id(options.Name).StructFunc(func(group *jen.Group) {
 			for _, named := range mff.Named {
@@ -51,15 +54,11 @@ func (mff *MultipartFormFields) Generate(group *jen.Group, options CodeGenerator
 		}),
 	)
 	for _, named := range mff.Named {
-		if code, err := mff.generateGetterFunc(named, options); err != nil {
+		if err = mff.generateGetterFunc(group, named, options); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
-		if code, err := mff.generateSetterFunc(named, options); err != nil {
+		if err = mff.generateSetterFunc(group, named, options); err != nil {
 			return err
-		} else {
-			group.Add(code)
 		}
 	}
 	if code := mff.generateServiceBucketField(options); code != nil {
@@ -243,11 +242,14 @@ func (mff *MultipartFormFields) generateAliasSetterFunc(named NamedMultipartForm
 		}), nil
 }
 
-func (mff *MultipartFormFields) generateGetterFunc(named NamedMultipartFormField, options CodeGeneratorOptions) (jen.Code, error) {
+func (mff *MultipartFormFields) generateGetterFunc(group *jen.Group, named NamedMultipartFormField, options CodeGeneratorOptions) error {
 	var (
 		fieldName = strcase.ToCamel(named.FieldName)
 		err       error
 	)
+	if named.Documentation != "" {
+		group.Add(jen.Comment(named.Documentation))
+	}
 	code := jen.Func().
 		Params(jen.Id("form").Op("*").Id(options.Name)).
 		Id("Get" + fieldName).
@@ -263,31 +265,35 @@ func (mff *MultipartFormFields) generateGetterFunc(named NamedMultipartFormField
 			})
 	default:
 		if code, err = named.Type.AddTypeToStatement(code); err != nil {
-			return nil, err
+			return err
 		}
 		code = code.BlockFunc(func(group *jen.Group) {
 			group.Add(jen.Return(jen.Id("form").Dot("field" + fieldName)))
 		})
 	}
-	return code, nil
+	group.Add(code)
+	return nil
 }
 
-func (mff *MultipartFormFields) generateSetterFunc(named NamedMultipartFormField, options CodeGeneratorOptions) (jen.Code, error) {
+func (mff *MultipartFormFields) generateSetterFunc(group *jen.Group, named NamedMultipartFormField, options CodeGeneratorOptions) error {
 	var (
 		params    []jen.Code
 		fieldName = strcase.ToCamel(named.FieldName)
 	)
+	if named.Documentation != "" {
+		group.Add(jen.Comment(named.Documentation))
+	}
 	switch named.Type.ToMultipartFormDataType() {
 	case MultipartFormDataTypeBinaryData:
 		params = []jen.Code{jen.Id("value").Qual(PackageNameInternalIo, "ReadSeekCloser"), jen.Id("fileName").String()}
 	default:
 		p, err := named.Type.AddTypeToStatement(jen.Id("value"))
 		if err != nil {
-			return nil, err
+			return err
 		}
 		params = []jen.Code{p}
 	}
-	return jen.Func().
+	group.Add(jen.Func().
 		Params(jen.Id("form").Op("*").Id(options.Name)).
 		Id("Set" + fieldName).
 		Params(params...).
@@ -298,7 +304,8 @@ func (mff *MultipartFormFields) generateSetterFunc(named NamedMultipartFormField
 				group.Add(jen.Id("form").Dot("field" + fieldName + "_FileName").Op("=").Id("fileName"))
 			}
 			group.Add(jen.Return(jen.Id("form")))
-		}), nil
+		}))
+	return nil
 }
 
 func (mff *MultipartFormFields) getServiceBucketField() *NamedMultipartFormField {

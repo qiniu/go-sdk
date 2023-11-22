@@ -22,23 +22,34 @@ type RequestQuery struct {
 	fieldMarker string // 列举开始的空间标识
 }
 
+// 区域 ID
 func (query *RequestQuery) GetRegion() string {
 	return query.fieldRegion
 }
+
+// 区域 ID
 func (query *RequestQuery) SetRegion(value string) *RequestQuery {
 	query.fieldRegion = value
 	return query
 }
+
+// 分页大小。默认20，取值范围 1～100。
 func (query *RequestQuery) GetLimit() string {
 	return query.fieldLimit
 }
+
+// 分页大小。默认20，取值范围 1～100。
 func (query *RequestQuery) SetLimit(value string) *RequestQuery {
 	query.fieldLimit = value
 	return query
 }
+
+// 列举开始的空间标识
 func (query *RequestQuery) GetMarker() string {
 	return query.fieldMarker
 }
+
+// 列举开始的空间标识
 func (query *RequestQuery) SetMarker(value string) *RequestQuery {
 	query.fieldMarker = value
 	return query
@@ -90,30 +101,45 @@ type BucketV4 struct {
 	inner innerBucketV4
 }
 
+// 空间名称
 func (j *BucketV4) GetName() string {
 	return j.inner.Name
 }
+
+// 空间名称
 func (j *BucketV4) SetName(value string) *BucketV4 {
 	j.inner.Name = value
 	return j
 }
+
+// 空间区域 ID
 func (j *BucketV4) GetRegion() string {
 	return j.inner.Region
 }
+
+// 空间区域 ID
 func (j *BucketV4) SetRegion(value string) *BucketV4 {
 	j.inner.Region = value
 	return j
 }
+
+// 空间是否私有
 func (j *BucketV4) GetPrivate() bool {
 	return j.inner.Private
 }
+
+// 空间是否私有
 func (j *BucketV4) SetPrivate(value bool) *BucketV4 {
 	j.inner.Private = value
 	return j
 }
+
+// 空间创建时间
 func (j *BucketV4) GetCreatedTime() string {
 	return j.inner.CreatedTime
 }
+
+// 空间创建时间
 func (j *BucketV4) SetCreatedTime(value string) *BucketV4 {
 	j.inner.CreatedTime = value
 	return j
@@ -153,16 +179,23 @@ type BucketsResultV4 struct {
 	inner innerBucketsResultV4
 }
 
+// 下一页开始的空间标识
 func (j *BucketsResultV4) GetNextMarker() string {
 	return j.inner.NextMarker
 }
+
+// 下一页开始的空间标识
 func (j *BucketsResultV4) SetNextMarker(value string) *BucketsResultV4 {
 	j.inner.NextMarker = value
 	return j
 }
+
+// 是否所有的结果都已经返回
 func (j *BucketsResultV4) IsTruncated() bool {
 	return j.inner.IsTruncated
 }
+
+// 是否所有的结果都已经返回
 func (j *BucketsResultV4) SetTruncated(value bool) *BucketsResultV4 {
 	j.inner.IsTruncated = value
 	return j
@@ -200,16 +233,23 @@ func (j *BucketsResultV4) validate() error {
 // 获取 API 所用的响应体参数
 type ResponseBody = BucketsResultV4
 
+// 下一页开始的空间标识
 func (request *Response) GetNextMarker() string {
 	return request.Body.GetNextMarker()
 }
+
+// 下一页开始的空间标识
 func (request *Response) SetNextMarker(value string) *Response {
 	request.Body.SetNextMarker(value)
 	return request
 }
+
+// 是否所有的结果都已经返回
 func (request *Response) IsTruncated() bool {
 	return request.Body.IsTruncated()
 }
+
+// 是否所有的结果都已经返回
 func (request *Response) SetTruncated(value bool) *Response {
 	request.Body.SetTruncated(value)
 	return request
@@ -230,14 +270,19 @@ type Request struct {
 	credentials            credentials.CredentialsProvider
 }
 
+// 覆盖默认的存储区域域名列表
 func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
 	request.overwrittenBucketHosts = bucketHosts
 	return request
 }
+
+// 覆盖存储空间名称
 func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
 func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
 	request.credentials = credentials
 	return request
@@ -258,6 +303,8 @@ func (request *Request) getAccessKey(ctx context.Context) (string, error) {
 	}
 	return "", nil
 }
+
+// 发送请求
 func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
 	client := httpclient.NewHttpClient(options)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
