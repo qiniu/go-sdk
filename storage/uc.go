@@ -10,8 +10,12 @@ import (
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/add_bucket_rules"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket_rules"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_rules"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_private"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_remark"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/update_bucket_rules"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 )
@@ -305,80 +309,68 @@ type BucketLifeCycleRule struct {
 }
 
 // SetBucketLifeCycleRule 设置存储空间内文件的生命周期规则
-func (m *BucketManager) AddBucketLifeCycleRule(bucketName string, lifeCycleRule *BucketLifeCycleRule) (err error) {
-	params := make(map[string][]string)
-
-	// 没有检查参数的合法性，交给服务端检查
-	params["bucket"] = []string{bucketName}
-	params["name"] = []string{lifeCycleRule.Name}
-	params["prefix"] = []string{lifeCycleRule.Prefix}
-	params["delete_after_days"] = []string{strconv.Itoa(lifeCycleRule.DeleteAfterDays)}
-	params["to_ia_after_days"] = []string{strconv.Itoa(lifeCycleRule.ToLineAfterDays)}
-	params["to_archive_after_days"] = []string{strconv.Itoa(lifeCycleRule.ToArchiveAfterDays)}
-	params["to_archive_ir_after_days"] = []string{strconv.Itoa(lifeCycleRule.ToArchiveIRAfterDays)}
-	params["to_deep_archive_after_days"] = []string{strconv.Itoa(lifeCycleRule.ToDeepArchiveAfterDays)}
-
-	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/add"
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: clientv2.GetFormRequestBody(params),
-	}, nil)
+func (m *BucketManager) AddBucketLifeCycleRule(bucketName string, lifeCycleRule *BucketLifeCycleRule) error {
+	_, err := new(add_bucket_rules.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucket(bucketName).
+		SetName(lifeCycleRule.Name).
+		SetPrefix(lifeCycleRule.Prefix).
+		SetDeleteAfterDays(int64(lifeCycleRule.DeleteAfterDays)).
+		SetToIaAfterDays(int64(lifeCycleRule.ToLineAfterDays)).
+		SetToArchiveAfterDays(int64(lifeCycleRule.ToArchiveAfterDays)).
+		SetToArchiveIrAfterDays(int64(lifeCycleRule.ToArchiveIRAfterDays)).
+		SetToDeepArchiveAfterDays(int64(lifeCycleRule.ToDeepArchiveAfterDays)).
+		Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // DelBucketLifeCycleRule 删除特定存储空间上设定的规则
-func (m *BucketManager) DelBucketLifeCycleRule(bucketName, ruleName string) (err error) {
-	params := make(map[string][]string)
-
-	params["bucket"] = []string{bucketName}
-	params["name"] = []string{ruleName}
-
-	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/delete"
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: clientv2.GetFormRequestBody(params),
-	}, nil)
+func (m *BucketManager) DelBucketLifeCycleRule(bucketName, ruleName string) error {
+	_, err := new(delete_bucket_rules.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucket(bucketName).
+		SetName(ruleName).
+		Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // UpdateBucketLifeCycleRule 更新特定存储空间上的生命周期规则
-func (m *BucketManager) UpdateBucketLifeCycleRule(bucketName string, rule *BucketLifeCycleRule) (err error) {
-	params := make(map[string][]string)
-
-	params["bucket"] = []string{bucketName}
-	params["name"] = []string{rule.Name}
-	params["prefix"] = []string{rule.Prefix}
-	params["delete_after_days"] = []string{strconv.Itoa(rule.DeleteAfterDays)}
-	params["to_line_after_days"] = []string{strconv.Itoa(rule.ToLineAfterDays)}
-	params["to_archive_after_days"] = []string{strconv.Itoa(rule.ToArchiveAfterDays)}
-	params["to_archive_ir_after_days"] = []string{strconv.Itoa(rule.ToArchiveIRAfterDays)}
-	params["to_deep_archive_after_days"] = []string{strconv.Itoa(rule.ToDeepArchiveAfterDays)}
-
-	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/update"
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: clientv2.GetFormRequestBody(params),
-	}, nil)
+func (m *BucketManager) UpdateBucketLifeCycleRule(bucketName string, rule *BucketLifeCycleRule) error {
+	_, err := new(update_bucket_rules.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucket(bucketName).
+		SetName(rule.Name).
+		SetPrefix(rule.Prefix).
+		SetDeleteAfterDays(int64(rule.DeleteAfterDays)).
+		SetToIaAfterDays(int64(rule.ToLineAfterDays)).
+		SetToArchiveAfterDays(int64(rule.ToArchiveAfterDays)).
+		SetToArchiveIrAfterDays(int64(rule.ToArchiveIRAfterDays)).
+		SetToDeepArchiveAfterDays(int64(rule.ToDeepArchiveAfterDays)).
+		Send(context.Background(), m.makeHttpClientOptions())
+	return err
 }
 
 // GetBucketLifeCycleRule 获取指定空间上设置的生命周期规则
-func (m *BucketManager) GetBucketLifeCycleRule(bucketName string) (rules []BucketLifeCycleRule, err error) {
-	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/get?bucket=" + bucketName
-	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodGet,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, &rules)
-	return rules, err
+func (m *BucketManager) GetBucketLifeCycleRule(bucketName string) ([]BucketLifeCycleRule, error) {
+	response, err := new(get_bucket_rules.Request).
+		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
+		SetBucket(bucketName).
+		Send(context.Background(), m.makeHttpClientOptions())
+	if err != nil {
+		return nil, err
+	}
+	rules := make([]BucketLifeCycleRule, 0, len(response.Body))
+	for _, rule := range response.Body {
+		rules = append(rules, BucketLifeCycleRule{
+			Name:                   rule.GetName(),
+			Prefix:                 rule.GetPrefix(),
+			DeleteAfterDays:        int(rule.GetDeleteAfterDays()),
+			ToLineAfterDays:        int(rule.GetToIaAfterDays()),
+			ToArchiveAfterDays:     int(rule.GetToArchiveAfterDays()),
+			ToDeepArchiveAfterDays: int(rule.GetToDeepArchiveAfterDays()),
+		})
+	}
+	return rules, nil
 }
 
 // BucketEnvent 定义了存储空间发生事件时候的通知规则
