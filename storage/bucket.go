@@ -976,7 +976,7 @@ func (m *BucketManager) makeHttpClientOptions() *http_client.HttpClientOptions {
 		options.Credentials = m.Mac
 	}
 	if cfg := m.Cfg; cfg != nil {
-		options.UseHttps = m.Cfg.UseHTTPS
+		options.UseInsecureProtocol = !m.Cfg.UseHTTPS
 		if region := m.Cfg.GetRegion(); region != nil {
 			options.Regions = region
 		}

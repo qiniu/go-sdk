@@ -562,11 +562,29 @@ func (request *ApiRequestDescription) generateSendFunc(group *jen.Group, opts Co
 											}),
 										)
 										group.Add(
+											jen.Id("queryerOptions").
+												Op(":=").
+												Qual(PackageNameRegion, "BucketRegionsQueryerOptions").
+												ValuesFunc(func(group *jen.Group) {
+													group.Add(jen.Id("UseInsecureProtocol").Op(":").Id("options").Dot("UseInsecureProtocol"))
+													group.Add(jen.Id("HostFreezeDuration").Op(":").Id("options").Dot("HostFreezeDuration"))
+													group.Add(jen.Id("Client").Op(":").Id("options").Dot("Client"))
+												}),
+										)
+										group.Add(
+											jen.If(
+												jen.Id("hostRetryConfig").Op(":=").Id("options").Dot("HostRetryConfig"),
+												jen.Id("hostRetryConfig").Op("!=").Nil(),
+											).BlockFunc(func(group *jen.Group) {
+												group.Id("queryerOptions").Dot("RetryMax").Op("=").Id("hostRetryConfig").Dot("RetryMax")
+											}),
+										)
+										group.Add(
 											jen.If(
 												jen.List(jen.Id("queryer"), jen.Err()).
 													Op("=").
 													Qual(PackageNameRegion, "NewBucketRegionsQueryer").
-													Call(jen.Id("bucketHosts"), jen.Nil()),
+													Call(jen.Id("bucketHosts"), jen.Op("&").Id("queryerOptions")),
 												jen.Err().Op("!=").Nil(),
 											).BlockFunc(func(group *jen.Group) {
 												group.Add(jen.Return(jen.Nil(), jen.Err()))
