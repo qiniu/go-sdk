@@ -134,7 +134,11 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 					return nil, err
 				}
 			}
-			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, nil); err != nil {
+			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: options.UseInsecureProtocol, HostFreezeDuration: options.HostFreezeDuration, Client: options.Client}
+			if hostRetryConfig := options.HostRetryConfig; hostRetryConfig != nil {
+				queryerOptions.RetryMax = hostRetryConfig.RetryMax
+			}
+			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
 				return nil, err
 			}
 		}

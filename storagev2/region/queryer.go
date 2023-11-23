@@ -16,7 +16,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/cache"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
@@ -39,7 +38,7 @@ type (
 	// BucketRegionsQueryer 空间区域查询器选项
 	BucketRegionsQueryerOptions struct {
 		// 使用 HTTP 协议
-		UseHttp bool
+		UseInsecureProtocol bool
 
 		// 压缩周期（默认：60s）
 		CompactInterval time.Duration
@@ -56,7 +55,8 @@ type (
 		// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 RetryMax 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 		HostFreezeDuration time.Duration
 
-		Client *client.Client
+		// HTTP 客户端，如果不配置则使用默认的 HTTP 客户端
+		Client clientv2.Client
 	}
 
 	bucketRegionsProvider struct {
@@ -138,8 +138,8 @@ func NewBucketRegionsQueryer(bucketHosts Endpoints, opts *BucketRegionsQueryerOp
 		queryer = &bucketRegionsQueryer{
 			bucketHosts: bucketHosts,
 			cache:       persistentCache,
-			client:      makeBucketQueryClient(opts.Client, bucketHosts, !opts.UseHttp, opts.RetryMax, opts.HostFreezeDuration),
-			useHttps:    !opts.UseHttp,
+			client:      makeBucketQueryClient(opts.Client, bucketHosts, !opts.UseInsecureProtocol, opts.RetryMax, opts.HostFreezeDuration),
+			useHttps:    !opts.UseInsecureProtocol,
 		}
 		queryerCaches[crc64Value] = queryer
 		return queryer, nil
@@ -246,7 +246,7 @@ func makeHostsCacheKey(hosts []string) string {
 	return fmt.Sprintf("%x", md5.Sum([]byte(strings.Join(sortedHosts, ","))))
 }
 
-func makeBucketQueryClient(client *client.Client, bucketHosts Endpoints, useHttps bool, retryMax int, hostFreezeDuration time.Duration) clientv2.Client {
+func makeBucketQueryClient(client clientv2.Client, bucketHosts Endpoints, useHttps bool, retryMax int, hostFreezeDuration time.Duration) clientv2.Client {
 	is := []clientv2.Interceptor{
 		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
 			RetryConfig: clientv2.RetryConfig{
@@ -264,12 +264,12 @@ func makeBucketQueryClient(client *client.Client, bucketHosts Endpoints, useHttp
 			ShouldRetry:   nil,
 		}),
 	}
-	return clientv2.NewClient(clientv2.NewClientWithClientV1(client), is...)
+	return clientv2.NewClient(client, is...)
 }
 
 func (opts *BucketRegionsQueryerOptions) toBytes() []byte {
 	bytes := make([]byte, 0, 1024)
-	bytes = strconv.AppendBool(bytes, opts.UseHttp)
+	bytes = strconv.AppendBool(bytes, opts.UseInsecureProtocol)
 	bytes = strconv.AppendInt(bytes, int64(opts.CompactInterval), 36)
 	bytes = append(bytes, []byte(opts.PersistentFilePath)...)
 	bytes = append(bytes, byte(0))
@@ -277,7 +277,7 @@ func (opts *BucketRegionsQueryerOptions) toBytes() []byte {
 	bytes = strconv.AppendInt(bytes, int64(opts.RetryMax), 36)
 	bytes = strconv.AppendInt(bytes, int64(opts.HostFreezeDuration), 36)
 	if opts.Client != nil {
-		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(opts.Client))), 10)
+		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(&opts.Client))), 10)
 	} else {
 		bytes = strconv.AppendUint(bytes, 0, 10)
 	}

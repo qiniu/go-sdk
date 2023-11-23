@@ -50,19 +50,20 @@ type (
 
 	// HttpClientOptions 为构建 HttpClient 提供了可选参数
 	HttpClientOptions struct {
-		Client             Client
-		BucketQueryer      region.BucketRegionsQueryer
-		Endpoints          region.EndpointsProvider
-		Regions            region.RegionsProvider
-		Credentials        credentials.CredentialsProvider
-		Interceptors       []Interceptor
-		UseHttps           bool
-		HostRetryConfig    *clientv2.RetryConfig
-		HostsRetryConfig   *clientv2.RetryConfig
-		HostFreezeDuration time.Duration
-		ShouldFreezeHost   func(req *http.Request, resp *http.Response, err error) bool
+		Client              Client
+		BucketQueryer       region.BucketRegionsQueryer
+		Endpoints           region.EndpointsProvider
+		Regions             region.RegionsProvider
+		Credentials         credentials.CredentialsProvider
+		Interceptors        []Interceptor
+		UseInsecureProtocol bool
+		HostRetryConfig     *clientv2.RetryConfig
+		HostsRetryConfig    *clientv2.RetryConfig
+		HostFreezeDuration  time.Duration
+		ShouldFreezeHost    func(req *http.Request, resp *http.Response, err error) bool
 	}
 
+	// Request 包含一个具体的 HTTP 请求的参数
 	Request struct {
 		Method       string
 		ServiceNames []region.ServiceName
@@ -109,7 +110,7 @@ func NewHttpClient(options *HttpClientOptions) *HttpClient {
 	} else {
 		httpClient = &HttpClient{
 			client:             clientv2.NewClient(options.Client, options.Interceptors...),
-			useHttps:           options.UseHttps,
+			useHttps:           !options.UseInsecureProtocol,
 			bucketQueryer:      options.BucketQueryer,
 			endpoints:          options.Endpoints,
 			regions:            options.Regions,
@@ -363,7 +364,7 @@ func (opts *HttpClientOptions) toBytes() []byte {
 			bytes = strconv.AppendUint(bytes, 0, 10)
 		}
 	}
-	bytes = strconv.AppendBool(bytes, opts.UseHttps)
+	bytes = strconv.AppendBool(bytes, opts.UseInsecureProtocol)
 	if opts.HostRetryConfig != nil {
 		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(opts.HostRetryConfig))), 10)
 	} else {
