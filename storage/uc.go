@@ -293,6 +293,12 @@ type BucketLifeCycleRule struct {
 	// > 0 表示多少天后转低频存储
 	ToLineAfterDays int `json:"to_line_after_days"`
 
+	// 指定文件上传多少天后转归档直读存储。
+	// 0 表示不转归档直读存储，
+	// < 0 表示上传的文件立即变归档直读存储
+	// > 0 表示多少天后转归档直读存储
+	ToArchiveIRAfterDays int `json:"to_archive_ir_after_days"`
+
 	// 指定文件上传多少天后转归档存储。
 	// 0 表示不转归档存储，
 	// < 0 表示上传的文件立即变归档存储
@@ -316,6 +322,7 @@ func (m *BucketManager) AddBucketLifeCycleRule(bucketName string, lifeCycleRule 
 	params["delete_after_days"] = []string{strconv.Itoa(lifeCycleRule.DeleteAfterDays)}
 	params["to_ia_after_days"] = []string{strconv.Itoa(lifeCycleRule.ToLineAfterDays)}
 	params["to_archive_after_days"] = []string{strconv.Itoa(lifeCycleRule.ToArchiveAfterDays)}
+	params["to_archive_ir_after_days"] = []string{strconv.Itoa(lifeCycleRule.ToArchiveIRAfterDays)}
 	params["to_deep_archive_after_days"] = []string{strconv.Itoa(lifeCycleRule.ToDeepArchiveAfterDays)}
 
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/add"
@@ -355,6 +362,7 @@ func (m *BucketManager) UpdateBucketLifeCycleRule(bucketName string, rule *Bucke
 	params["delete_after_days"] = []string{strconv.Itoa(rule.DeleteAfterDays)}
 	params["to_line_after_days"] = []string{strconv.Itoa(rule.ToLineAfterDays)}
 	params["to_archive_after_days"] = []string{strconv.Itoa(rule.ToArchiveAfterDays)}
+	params["to_archive_ir_after_days"] = []string{strconv.Itoa(rule.ToArchiveIRAfterDays)}
 	params["to_deep_archive_after_days"] = []string{strconv.Itoa(rule.ToDeepArchiveAfterDays)}
 
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/rules/update"

@@ -783,6 +783,7 @@ func TestBucketLifeCycleRule(t *testing.T) {
 		Prefix:                 "testPutFileKey",
 		DeleteAfterDays:        13,
 		ToLineAfterDays:        1,
+		ToArchiveIRAfterDays:   2,
 		ToArchiveAfterDays:     6,
 		ToDeepArchiveAfterDays: 10,
 	})
@@ -798,7 +799,7 @@ func TestBucketLifeCycleRule(t *testing.T) {
 	ruleExists := false
 	for _, r := range rules {
 		if r.Name == "golangIntegrationTest" && r.Prefix == "testPutFileKey" && r.DeleteAfterDays == 13 &&
-			r.ToLineAfterDays == 1 && r.ToArchiveAfterDays == 6 && r.ToDeepArchiveAfterDays == 10 {
+			r.ToLineAfterDays == 1 && r.ToArchiveIRAfterDays == 2 && r.ToArchiveAfterDays == 6 && r.ToDeepArchiveAfterDays == 10 {
 			ruleExists = true
 			break
 		}
@@ -812,6 +813,7 @@ func TestBucketLifeCycleRule(t *testing.T) {
 		Prefix:                 "testPutFileKey",
 		DeleteAfterDays:        22,
 		ToLineAfterDays:        11,
+		ToArchiveIRAfterDays:   12,
 		ToArchiveAfterDays:     16,
 		ToDeepArchiveAfterDays: 20,
 	})
@@ -827,7 +829,7 @@ func TestBucketLifeCycleRule(t *testing.T) {
 	ruleExists = false
 	for _, r := range rules {
 		if r.Name == "golangIntegrationTest" && r.Prefix == "testPutFileKey" && r.DeleteAfterDays == 22 &&
-			r.ToLineAfterDays == 11 && r.ToArchiveAfterDays == 16 && r.ToDeepArchiveAfterDays == 20 {
+			r.ToLineAfterDays == 11 && r.ToArchiveIRAfterDays == 12 && r.ToArchiveAfterDays == 16 && r.ToDeepArchiveAfterDays == 20 {
 			ruleExists = true
 			break
 		}
@@ -979,7 +981,7 @@ func TestMakeURL(t *testing.T) {
 		"":            "",
 		"abc_def.mp4": "abc_def.mp4",
 		"/ab/cd":      "/ab/cd",
-		"ab/中文/de":    "ab/%E4%B8%AD%E6%96%87/de",
+		"ab/中文/de":  "ab/%E4%B8%AD%E6%96%87/de",
 		// "ab+-*de f":   "ab%2B-%2Ade%20f",
 		"ab:cd": "ab%3Acd",
 		// "ab@cd":            "ab%40cd",
