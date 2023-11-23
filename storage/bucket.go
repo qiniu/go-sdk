@@ -889,8 +889,8 @@ func (m *BucketManager) ApiHost(bucket string) (apiHost string, err error) {
 
 func (m *BucketManager) Zone(bucket string) (z *Zone, err error) {
 
-	if m.Cfg.Zone != nil {
-		z = m.Cfg.Zone
+	z = m.Cfg.GetRegion()
+	if z != nil {
 		return
 	}
 
