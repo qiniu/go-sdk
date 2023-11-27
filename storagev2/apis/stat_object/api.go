@@ -105,6 +105,7 @@ type innerObjectMetadata struct {
 	TransitionToIaTime          int64             `json:"transitionToIA,omitempty"`          // 文件生命周期中转为低频存储的日期，UNIX 时间戳格式，文件在设置转低频后才会返回该字段
 	TransitionToArchiveTime     int64             `json:"transitionToARCHIVE,omitempty"`     // 文件生命周期中转为归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
 	TransitionToDeepArchiveTime int64             `json:"transitionToDeepArchive,omitempty"` // 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
+	TransitionToArchiveIrTime   int64             `json:"transitionToArchiveIR,omitempty"`   // 文件生命周期中转为归档直读存储的日期，UNIX 时间戳格式，文件在设置转归档直读后才会返回该字段
 	Metadata                    map[string]string `json:"x-qn-meta,omitempty"`               // 对象存储元信息
 	Parts                       PartSizes         `json:"parts,omitempty"`                   // 每个分片的大小，如没有指定 need_parts 参数则不返回
 }
@@ -254,6 +255,17 @@ func (j *ObjectMetadata) GetTransitionToDeepArchiveTime() int64 {
 // 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
 func (j *ObjectMetadata) SetTransitionToDeepArchiveTime(value int64) *ObjectMetadata {
 	j.inner.TransitionToDeepArchiveTime = value
+	return j
+}
+
+// 文件生命周期中转为归档直读存储的日期，UNIX 时间戳格式，文件在设置转归档直读后才会返回该字段
+func (j *ObjectMetadata) GetTransitionToArchiveIrTime() int64 {
+	return j.inner.TransitionToArchiveIrTime
+}
+
+// 文件生命周期中转为归档直读存储的日期，UNIX 时间戳格式，文件在设置转归档直读后才会返回该字段
+func (j *ObjectMetadata) SetTransitionToArchiveIrTime(value int64) *ObjectMetadata {
+	j.inner.TransitionToArchiveIrTime = value
 	return j
 }
 
@@ -448,6 +460,17 @@ func (request *Response) GetTransitionToDeepArchiveTime() int64 {
 // 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
 func (request *Response) SetTransitionToDeepArchiveTime(value int64) *Response {
 	request.body.SetTransitionToDeepArchiveTime(value)
+	return request
+}
+
+// 文件生命周期中转为归档直读存储的日期，UNIX 时间戳格式，文件在设置转归档直读后才会返回该字段
+func (request *Response) GetTransitionToArchiveIrTime() int64 {
+	return request.body.GetTransitionToArchiveIrTime()
+}
+
+// 文件生命周期中转为归档直读存储的日期，UNIX 时间戳格式，文件在设置转归档直读后才会返回该字段
+func (request *Response) SetTransitionToArchiveIrTime(value int64) *Response {
+	request.body.SetTransitionToArchiveIrTime(value)
 	return request
 }
 

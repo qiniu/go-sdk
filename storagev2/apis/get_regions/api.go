@@ -6,6 +6,8 @@ package get_regions
 import (
 	"context"
 	"encoding/json"
+	auth "github.com/qiniu/go-sdk/v7/auth"
+	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
@@ -120,6 +122,7 @@ func (request *Response) SetRegions(value Regions) *Response {
 type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
+	credentials            credentials.CredentialsProvider
 }
 
 // 覆盖默认的存储区域域名列表
@@ -133,6 +136,12 @@ func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
+func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
+	request.credentials = credentials
+	return request
+}
 func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
@@ -140,6 +149,13 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	return "", nil
 }
 func (request *Request) getAccessKey(ctx context.Context) (string, error) {
+	if request.credentials != nil {
+		if credentials, err := request.credentials.Get(ctx); err != nil {
+			return "", err
+		} else {
+			return credentials.AccessKey, nil
+		}
+	}
 	return "", nil
 }
 
@@ -151,7 +167,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	pathSegments = append(pathSegments, "regions")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: request.credentials}
 	var queryer region.BucketRegionsQueryer
 	if client.GetRegions() == nil && client.GetEndpoints() == nil {
 		queryer = client.GetBucketQueryer()

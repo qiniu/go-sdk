@@ -21,7 +21,11 @@ import (
 )
 
 var UserAgent = getUserAgentWithAppName("default")
-var DefaultClient = Client{&http.Client{Transport: http.DefaultTransport}}
+var DefaultClient = Client{
+	&http.Client{
+		Transport: http.DefaultTransport,
+	},
+}
 
 // 用来打印调试信息
 var DebugMode = false
