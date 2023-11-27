@@ -21,6 +21,7 @@ type RequestPath struct {
 	fieldToIaAfterDays          int64
 	fieldToArchiveAfterDays     int64
 	fieldToDeepArchiveAfterDays int64
+	fieldToArchiveIrAfterDays   int64
 	fieldDeleteAfterDays        int64
 }
 
@@ -68,6 +69,17 @@ func (pp *RequestPath) SetToDeepArchiveAfterDays(value int64) *RequestPath {
 	return pp
 }
 
+// 指定文件上传后在设置的 toArchiveIRAfterDays 转换到归档直读存储类型， 设置为 -1 表示取消已设置的转归档直读存储的生命周期规则
+func (pp *RequestPath) GetToArchiveIrAfterDays() int64 {
+	return pp.fieldToArchiveIrAfterDays
+}
+
+// 指定文件上传后在设置的 toArchiveIRAfterDays 转换到归档直读存储类型， 设置为 -1 表示取消已设置的转归档直读存储的生命周期规则
+func (pp *RequestPath) SetToArchiveIrAfterDays(value int64) *RequestPath {
+	pp.fieldToArchiveIrAfterDays = value
+	return pp
+}
+
 // 指定文件上传后在设置的 DeleteAfterDays 过期删除，删除后不可恢复，设置为 -1 表示取消已设置的过期删除的生命周期规则
 func (pp *RequestPath) GetDeleteAfterDays() int64 {
 	return pp.fieldDeleteAfterDays
@@ -96,6 +108,9 @@ func (path *RequestPath) build() ([]string, error) {
 	}
 	if path.fieldToDeepArchiveAfterDays != 0 {
 		allSegments = append(allSegments, "toDeepArchiveAfterDays", strconv.FormatInt(path.fieldToDeepArchiveAfterDays, 10))
+	}
+	if path.fieldToArchiveIrAfterDays != 0 {
+		allSegments = append(allSegments, "toArchiveIRAfterDays", strconv.FormatInt(path.fieldToArchiveIrAfterDays, 10))
 	}
 	if path.fieldDeleteAfterDays != 0 {
 		allSegments = append(allSegments, "deleteAfterDays", strconv.FormatInt(path.fieldDeleteAfterDays, 10))
@@ -144,6 +159,17 @@ func (request *Request) GetToDeepArchiveAfterDays() int64 {
 // 指定文件上传后在设置的 toDeepArchiveAfterDays 转换到深度归档存储类型， 设置为 -1 表示取消已设置的转深度归档存储的生命周期规则
 func (request *Request) SetToDeepArchiveAfterDays(value int64) *Request {
 	request.path.SetToDeepArchiveAfterDays(value)
+	return request
+}
+
+// 指定文件上传后在设置的 toArchiveIRAfterDays 转换到归档直读存储类型， 设置为 -1 表示取消已设置的转归档直读存储的生命周期规则
+func (request *Request) GetToArchiveIrAfterDays() int64 {
+	return request.path.GetToArchiveIrAfterDays()
+}
+
+// 指定文件上传后在设置的 toArchiveIRAfterDays 转换到归档直读存储类型， 设置为 -1 表示取消已设置的转归档直读存储的生命周期规则
+func (request *Request) SetToArchiveIrAfterDays(value int64) *Request {
+	request.path.SetToArchiveIrAfterDays(value)
 	return request
 }
 

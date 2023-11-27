@@ -68,6 +68,7 @@ type innerOperationResponseData struct {
 	TransitionToIaTime          int64  `json:"transitionToIA,omitempty"`          // 文件生命周期中转为低频存储的日期，UNIX 时间戳格式，文件在设置转低频后才会返回该字段，仅对 stat 指令才有效
 	TransitionToArchiveTime     int64  `json:"transitionToARCHIVE,omitempty"`     // 文件生命周期中转为归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段，仅对 stat 指令才有效
 	TransitionToDeepArchiveTime int64  `json:"transitionToDeepArchive,omitempty"` // 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段，仅对 stat 指令才有效
+	TransitionToArchiveIrTime   int64  `json:"transitionToArchiveIR,omitempty"`   // 文件生命周期中转为归档直读存储的日期，UNIX 时间戳格式，文件在设置转归档直读后才会返回该字段，仅对 stat 指令才有效
 }
 
 // 管理指令的响应数据
@@ -226,6 +227,17 @@ func (j *OperationResponseData) GetTransitionToDeepArchiveTime() int64 {
 // 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段，仅对 stat 指令才有效
 func (j *OperationResponseData) SetTransitionToDeepArchiveTime(value int64) *OperationResponseData {
 	j.inner.TransitionToDeepArchiveTime = value
+	return j
+}
+
+// 文件生命周期中转为归档直读存储的日期，UNIX 时间戳格式，文件在设置转归档直读后才会返回该字段，仅对 stat 指令才有效
+func (j *OperationResponseData) GetTransitionToArchiveIrTime() int64 {
+	return j.inner.TransitionToArchiveIrTime
+}
+
+// 文件生命周期中转为归档直读存储的日期，UNIX 时间戳格式，文件在设置转归档直读后才会返回该字段，仅对 stat 指令才有效
+func (j *OperationResponseData) SetTransitionToArchiveIrTime(value int64) *OperationResponseData {
+	j.inner.TransitionToArchiveIrTime = value
 	return j
 }
 func (j *OperationResponseData) MarshalJSON() ([]byte, error) {

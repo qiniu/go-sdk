@@ -6,6 +6,8 @@ package get_async_fetch_task
 import (
 	"context"
 	"encoding/json"
+	auth "github.com/qiniu/go-sdk/v7/auth"
+	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
@@ -124,6 +126,7 @@ type Request struct {
 	overwrittenBucketHosts region.EndpointsProvider
 	overwrittenBucketName  string
 	query                  RequestQuery
+	credentials            credentials.CredentialsProvider
 }
 
 // 覆盖默认的存储区域域名列表
@@ -137,6 +140,12 @@ func (request *Request) OverwriteBucketName(bucketName string) *Request {
 	request.overwrittenBucketName = bucketName
 	return request
 }
+
+// 设置鉴权
+func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
+	request.credentials = credentials
+	return request
+}
 func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	if request.overwrittenBucketName != "" {
 		return request.overwrittenBucketName, nil
@@ -144,6 +153,13 @@ func (request *Request) getBucketName(ctx context.Context) (string, error) {
 	return "", nil
 }
 func (request *Request) getAccessKey(ctx context.Context) (string, error) {
+	if request.credentials != nil {
+		if credentials, err := request.credentials.Get(ctx); err != nil {
+			return "", err
+		} else {
+			return credentials.AccessKey, nil
+		}
+	}
 	return "", nil
 }
 
@@ -171,7 +187,7 @@ func (request *Request) Send(ctx context.Context, options *httpclient.HttpClient
 	} else {
 		rawQuery += query.Encode()
 	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: request.credentials}
 	var queryer region.BucketRegionsQueryer
 	if client.GetRegions() == nil && client.GetEndpoints() == nil {
 		queryer = client.GetBucketQueryer()
