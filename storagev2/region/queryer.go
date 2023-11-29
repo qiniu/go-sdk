@@ -77,7 +77,7 @@ type (
 	}
 
 	v4QueryRegion struct {
-		RegionId RegionID            `json:"region"`
+		RegionId string              `json:"region"`
 		Ttl      int64               `json:"ttl"`
 		Io       v4QueryServiceHosts `json:"io"`
 		IoSrc    v4QueryServiceHosts `json:"io_src"`
