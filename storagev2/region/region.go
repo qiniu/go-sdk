@@ -15,9 +15,6 @@ import (
 )
 
 type (
-	// 区域 ID
-	RegionID string
-
 	// 服务地址
 	//
 	// 可以存储域名或 IP，端口和协议可选
@@ -30,7 +27,7 @@ type (
 	//
 	// 可能有多个机房信息，每个机房可能有多个服务地址
 	Region struct {
-		RegionID RegionID  `json:"region_id,omitempty"`
+		RegionID string    `json:"region_id,omitempty"`
 		Up       Endpoints `json:"up,omitempty"`
 		Io       Endpoints `json:"io,omitempty"`
 		IoSrc    Endpoints `json:"io_src,omitempty"`
@@ -89,7 +86,7 @@ var (
 )
 
 // 根据 RegionID 获取公有云区域信息
-func GetRegionByID(regionID RegionID, useHttps bool) *Region {
+func GetRegionByID(regionID string, useHttps bool) *Region {
 	region := &Region{RegionID: regionID}
 	if regionID == "z0" {
 		region.Up.Preferred = []string{makeHost("upload.qiniup.com", useHttps), makeHost("up.qiniup.com", useHttps)}
