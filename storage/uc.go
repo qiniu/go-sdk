@@ -289,24 +289,21 @@ type BucketLifeCycleRule struct {
 
 	// 在多少天后转低频存储
 	// 0  - 表示不转低频
-	// < 0 表示上传的文件立即使用低频存储
 	// > 0 表示多少天后转低频存储
 	ToLineAfterDays int `json:"to_line_after_days"`
 
 	// 指定文件上传多少天后转归档直读存储。
 	// 0 表示不转归档直读存储，
-	// < 0 表示上传的文件立即变归档直读存储
 	// > 0 表示多少天后转归档直读存储
 	ToArchiveIRAfterDays int `json:"to_archive_ir_after_days"`
 
 	// 指定文件上传多少天后转归档存储。
 	// 0 表示不转归档存储，
-	// < 0 表示上传的文件立即变归档存储
 	// > 0 表示多少天后转归档存储
 	ToArchiveAfterDays int `json:"to_archive_after_days"`
 
 	// 指定文件上传多少天后转深度归档存储。
-	// < 0 表示上传的文件立即变深度归档存储
+	// 0 表示不转深度归档存储
 	// > 0 表示多少天后转深度归档存储
 	ToDeepArchiveAfterDays int `json:"to_deep_archive_after_days"`
 }

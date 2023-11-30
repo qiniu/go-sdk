@@ -216,10 +216,11 @@ func TestStat(t *testing.T) {
 	if e := bucketManager.AddBucketLifeCycleRule(testBucket, &BucketLifeCycleRule{
 		Name:                   ruleName,
 		Prefix:                 "",
-		ToLineAfterDays:        1,
-		ToArchiveAfterDays:     2,
-		ToDeepArchiveAfterDays: 3,
-		DeleteAfterDays:        4,
+		ToLineAfterDays:        10,
+		ToArchiveIRAfterDays:   20,
+		ToArchiveAfterDays:     30,
+		ToDeepArchiveAfterDays: 40,
+		DeleteAfterDays:        50,
 	}); e != nil {
 		t.Logf("Stat AddBucketLifeCycleRule() error, %s", e)
 		t.Fail()
@@ -235,7 +236,8 @@ func TestStat(t *testing.T) {
 	}
 	client.DebugMode = true
 	if info, e := bucketManager.Stat(testBucket, copyKey); e != nil ||
-		len(info.Hash) == 0 || info.Expiration == 0 {
+		len(info.Hash) == 0 || info.Expiration == 0 || info.TransitionToArchive == 0 ||
+		info.TransitionToIA == 0 || info.TransitionToArchiveIR == 0 || info.TransitionToDeepArchive == 0 {
 		t.Logf("3 Stat() error, %v", e)
 		t.Fail()
 	} else {
