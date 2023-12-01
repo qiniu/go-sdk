@@ -139,12 +139,21 @@ type FileInfo struct {
 
 func (f *FileInfo) String() string {
 	str := ""
-	str += fmt.Sprintf("Hash:     %s\n", f.Hash)
-	str += fmt.Sprintf("Fsize:    %d\n", f.Fsize)
-	str += fmt.Sprintf("PutTime:  %d\n", f.PutTime)
-	str += fmt.Sprintf("MimeType: %s\n", f.MimeType)
-	str += fmt.Sprintf("Type:     %d\n", f.Type)
-	str += fmt.Sprintf("Status:   %d\n", f.Status)
+	str += fmt.Sprintf("Hash:                      %s\n", f.Hash)
+	str += fmt.Sprintf("Fsize:                     %d\n", f.Fsize)
+	str += fmt.Sprintf("PutTime:                   %d\n", f.PutTime)
+	str += fmt.Sprintf("MimeType:                  %s\n", f.MimeType)
+	str += fmt.Sprintf("Type:                      %d\n", f.Type)
+	str += fmt.Sprintf("RestoreStatus:             %d\n", f.RestoreStatus)
+	str += fmt.Sprintf("Status:                    %d\n", f.Status)
+	str += fmt.Sprintf("Md5:                       %s\n", f.Md5)
+	str += fmt.Sprintf("EndUser:                   %s\n", f.EndUser)
+	str += fmt.Sprintf("Expiration:                %d\n", f.Expiration)
+	str += fmt.Sprintf("TransitionToIA:            %d\n", f.TransitionToIA)
+	str += fmt.Sprintf("TransitionToArchiveIR:     %d\n", f.TransitionToArchiveIR)
+	str += fmt.Sprintf("TransitionToArchive:       %d\n", f.TransitionToArchive)
+	str += fmt.Sprintf("TransitionToDeepArchive:   %d\n", f.TransitionToDeepArchive)
+	str += fmt.Sprintf("MetaData:                  %d\n", f.MetaData)
 	return str
 }
 

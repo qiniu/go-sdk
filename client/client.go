@@ -246,11 +246,18 @@ func parseError(e *ErrorInfo, r io.Reader) {
 }
 
 func ResponseError(resp *http.Response) error {
-
 	e := &ErrorInfo{
 		Reqid: resp.Header.Get("X-Reqid"),
 		Code:  resp.StatusCode,
 	}
+
+	defer func() {
+		if resp.Body != nil {
+			io.Copy(ioutil.Discard, resp.Body)
+			resp.Body.Close()
+		}
+	}()
+
 	if resp.StatusCode > 299 {
 		if resp.ContentLength != 0 {
 			ct, ok := resp.Header["Content-Type"]
