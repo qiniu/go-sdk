@@ -42,6 +42,7 @@ type (
 		endpoints          region.EndpointsProvider
 		regions            region.RegionsProvider
 		credentials        credentials.CredentialsProvider
+		uptoken            uptoken.Provider
 		hostRetryConfig    *clientv2.RetryConfig
 		hostsRetryConfig   *clientv2.RetryConfig
 		hostFreezeDuration time.Duration
@@ -55,6 +56,7 @@ type (
 		Endpoints           region.EndpointsProvider
 		Regions             region.RegionsProvider
 		Credentials         credentials.CredentialsProvider
+		UpToken             uptoken.Provider
 		Interceptors        []Interceptor
 		UseInsecureProtocol bool
 		HostRetryConfig     *clientv2.RetryConfig
@@ -135,6 +137,10 @@ func (httpClient *HttpClient) Do(ctx context.Context, request *Request) (*http.R
 	if credentialsProvider == nil {
 		credentialsProvider = httpClient.credentials
 	}
+	upTokenProvider := request.UpToken
+	if upTokenProvider == nil {
+		upTokenProvider = httpClient.uptoken
+	}
 	if credentialsProvider != nil {
 		if credentials, err := credentialsProvider.Get(ctx); err != nil {
 			return nil, err
@@ -145,8 +151,8 @@ func (httpClient *HttpClient) Do(ctx context.Context, request *Request) (*http.R
 			}))
 		}
 
-	} else if request.UpToken != nil {
-		if upToken, err := request.UpToken.RetrieveUpToken(ctx); err != nil {
+	} else if upTokenProvider != nil {
+		if upToken, err := upTokenProvider.RetrieveUpToken(ctx); err != nil {
 			return nil, err
 		} else {
 			req.Header.Set("Authorization", "UpToken "+upToken)
@@ -184,6 +190,26 @@ func (httpClient *HttpClient) GetEndpoints() region.EndpointsProvider {
 
 func (httpClient *HttpClient) GetRegions() region.RegionsProvider {
 	return httpClient.regions
+}
+
+func (httpClient *HttpClient) GetClient() Client {
+	return httpClient.client
+}
+
+func (httpClient *HttpClient) UseInsecureProtocol() bool {
+	return !httpClient.useHttps
+}
+
+func (httpClient *HttpClient) GetHostFreezeDuration() time.Duration {
+	return httpClient.hostFreezeDuration
+}
+
+func (httpClient *HttpClient) GetHostRetryConfig() *clientv2.RetryConfig {
+	return httpClient.hostRetryConfig
+}
+
+func (httpClient *HttpClient) GetHostsRetryConfig() *clientv2.RetryConfig {
+	return httpClient.hostsRetryConfig
 }
 
 func (httpClient *HttpClient) getEndpoints(ctx context.Context, request *Request) (region.Endpoints, error) {
@@ -353,6 +379,16 @@ func (opts *HttpClientOptions) toBytes() []byte {
 	}
 	if opts.Regions != nil {
 		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(&opts.Regions))), 10)
+	} else {
+		bytes = strconv.AppendUint(bytes, 0, 10)
+	}
+	if opts.Credentials != nil {
+		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(&opts.Credentials))), 10)
+	} else {
+		bytes = strconv.AppendUint(bytes, 0, 10)
+	}
+	if opts.UpToken != nil {
+		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(&opts.UpToken))), 10)
 	} else {
 		bytes = strconv.AppendUint(bytes, 0, 10)
 	}

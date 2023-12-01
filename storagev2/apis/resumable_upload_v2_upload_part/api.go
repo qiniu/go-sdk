@@ -4,406 +4,57 @@
 package resumable_upload_v2_upload_part
 
 import (
-	"context"
-	"encoding/base64"
 	"encoding/json"
 	io "github.com/qiniu/go-sdk/v7/internal/io"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
-	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strconv"
-	"strings"
 )
-
-// 调用 API 所用的路径参数
-type RequestPath struct {
-	fieldBucketName string
-	fieldObjectName string
-	fieldUploadId   string
-	fieldPartNumber int64
-}
-
-// 存储空间名称
-func (pp *RequestPath) GetBucketName() string {
-	return pp.fieldBucketName
-}
-
-// 存储空间名称
-func (pp *RequestPath) SetBucketName(value string) *RequestPath {
-	pp.fieldBucketName = value
-	return pp
-}
-
-// 对象名称
-func (pp *RequestPath) GetObjectName() string {
-	return pp.fieldObjectName
-}
-
-// 对象名称
-func (pp *RequestPath) SetObjectName(value string) *RequestPath {
-	pp.fieldObjectName = value
-	return pp
-}
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (pp *RequestPath) GetUploadId() string {
-	return pp.fieldUploadId
-}
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (pp *RequestPath) SetUploadId(value string) *RequestPath {
-	pp.fieldUploadId = value
-	return pp
-}
-
-// 每一个上传的分片都有一个标识它的号码
-func (pp *RequestPath) GetPartNumber() int64 {
-	return pp.fieldPartNumber
-}
-
-// 每一个上传的分片都有一个标识它的号码
-func (pp *RequestPath) SetPartNumber(value int64) *RequestPath {
-	pp.fieldPartNumber = value
-	return pp
-}
-func (path *RequestPath) build() ([]string, error) {
-	var allSegments []string
-	if path.fieldBucketName != "" {
-		allSegments = append(allSegments, path.fieldBucketName)
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
-	}
-	if path.fieldObjectName != "" {
-		allSegments = append(allSegments, "objects", base64.URLEncoding.EncodeToString([]byte(path.fieldObjectName)))
-	} else {
-		allSegments = append(allSegments, "objects", "~")
-	}
-	if path.fieldUploadId != "" {
-		allSegments = append(allSegments, "uploads", path.fieldUploadId)
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "UploadId"}
-	}
-	if path.fieldPartNumber != 0 {
-		allSegments = append(allSegments, strconv.FormatInt(path.fieldPartNumber, 10))
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "PartNumber"}
-	}
-	return allSegments, nil
-}
-
-// 存储空间名称
-func (request *Request) GetBucketName() string {
-	return request.path.GetBucketName()
-}
-
-// 存储空间名称
-func (request *Request) SetBucketName(value string) *Request {
-	request.path.SetBucketName(value)
-	return request
-}
-
-// 对象名称
-func (request *Request) GetObjectName() string {
-	return request.path.GetObjectName()
-}
-
-// 对象名称
-func (request *Request) SetObjectName(value string) *Request {
-	request.path.SetObjectName(value)
-	return request
-}
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (request *Request) GetUploadId() string {
-	return request.path.GetUploadId()
-}
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (request *Request) SetUploadId(value string) *Request {
-	request.path.SetUploadId(value)
-	return request
-}
-
-// 每一个上传的分片都有一个标识它的号码
-func (request *Request) GetPartNumber() int64 {
-	return request.path.GetPartNumber()
-}
-
-// 每一个上传的分片都有一个标识它的号码
-func (request *Request) SetPartNumber(value int64) *Request {
-	request.path.SetPartNumber(value)
-	return request
-}
-
-// 调用 API 所用的 HTTP 头参数
-type RequestHeaders struct {
-	fieldMd5 string // 上传块内容的 md5 值，如果指定服务端会进行校验，不指定不校验
-}
-
-// 上传块内容的 md5 值，如果指定服务端会进行校验，不指定不校验
-func (header *RequestHeaders) GetMd5() string {
-	return header.fieldMd5
-}
-
-// 上传块内容的 md5 值，如果指定服务端会进行校验，不指定不校验
-func (header *RequestHeaders) SetMd5(value string) *RequestHeaders {
-	header.fieldMd5 = value
-	return header
-}
-func (headers *RequestHeaders) build() (http.Header, error) {
-	allHeaders := make(http.Header)
-	if headers.fieldMd5 != "" {
-		allHeaders.Set("Content-MD5", headers.fieldMd5)
-	}
-	return allHeaders, nil
-}
-
-// 上传块内容的 md5 值，如果指定服务端会进行校验，不指定不校验
-func (request *Request) GetMd5() string {
-	return request.headers.GetMd5()
-}
-
-// 上传块内容的 md5 值，如果指定服务端会进行校验，不指定不校验
-func (request *Request) SetMd5(value string) *Request {
-	request.headers.SetMd5(value)
-	return request
-}
-
-type innerNewPartInfo struct {
-	Etag string `json:"etag"` // 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
-	Md5  string `json:"md5"`  // 上传块内容的 MD5 值
-}
-
-// 返回本次上传的分片相关信息
-type NewPartInfo struct {
-	inner innerNewPartInfo
-}
-
-// 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
-func (j *NewPartInfo) GetEtag() string {
-	return j.inner.Etag
-}
-
-// 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
-func (j *NewPartInfo) SetEtag(value string) *NewPartInfo {
-	j.inner.Etag = value
-	return j
-}
-
-// 上传块内容的 MD5 值
-func (j *NewPartInfo) GetMd5() string {
-	return j.inner.Md5
-}
-
-// 上传块内容的 MD5 值
-func (j *NewPartInfo) SetMd5(value string) *NewPartInfo {
-	j.inner.Md5 = value
-	return j
-}
-func (j *NewPartInfo) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
-}
-func (j *NewPartInfo) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
-}
-
-//lint:ignore U1000 may not call it
-func (j *NewPartInfo) validate() error {
-	if j.inner.Etag == "" {
-		return errors.MissingRequiredFieldError{Name: "Etag"}
-	}
-	if j.inner.Md5 == "" {
-		return errors.MissingRequiredFieldError{Name: "Md5"}
-	}
-	return nil
-}
-
-// 获取 API 所用的响应体参数
-type ResponseBody = NewPartInfo
-
-// 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
-func (request *Response) GetEtag() string {
-	return request.body.GetEtag()
-}
-
-// 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
-func (request *Response) SetEtag(value string) *Response {
-	request.body.SetEtag(value)
-	return request
-}
-
-// 上传块内容的 MD5 值
-func (request *Response) GetMd5() string {
-	return request.body.GetMd5()
-}
-
-// 上传块内容的 MD5 值
-func (request *Response) SetMd5(value string) *Response {
-	request.body.SetMd5(value)
-	return request
-}
 
 // 调用 API 所用的请求
 type Request struct {
-	overwrittenBucketHosts region.EndpointsProvider
-	overwrittenBucketName  string
-	path                   RequestPath
-	headers                RequestHeaders
-	upToken                uptoken.Provider
-	body                   io.ReadSeekCloser
-}
-
-// 覆盖默认的存储区域域名列表
-func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
-	request.overwrittenBucketHosts = bucketHosts
-	return request
-}
-
-// 覆盖存储空间名称
-func (request *Request) OverwriteBucketName(bucketName string) *Request {
-	request.overwrittenBucketName = bucketName
-	return request
-}
-
-// 设置上传凭证
-func (request *Request) SetUpToken(upToken uptoken.Provider) *Request {
-	request.upToken = upToken
-	return request
-}
-func (request *Request) getBucketName(ctx context.Context) (string, error) {
-	if request.overwrittenBucketName != "" {
-		return request.overwrittenBucketName, nil
-	}
-	if request.upToken != nil {
-		if putPolicy, err := request.upToken.RetrievePutPolicy(ctx); err != nil {
-			return "", err
-		} else {
-			return putPolicy.GetBucketName()
-		}
-	}
-	return "", nil
-}
-func (request *Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.upToken != nil {
-		return request.upToken.RetrieveAccessKey(ctx)
-	}
-	return "", nil
-}
-
-// 获取请求路径
-func (request *Request) GetPath() *RequestPath {
-	return &request.path
-}
-
-// 获取请求 HTTP Header
-func (request *Request) GetHeaders() *RequestHeaders {
-	return &request.headers
-}
-
-// 获取请求体
-func (request *Request) GetBody() io.ReadSeekCloser {
-	return request.body
-}
-
-// 设置请求路径
-func (request *Request) SetPath(path RequestPath) *Request {
-	request.path = path
-	return request
-}
-
-// 设置请求 HTTP Header
-func (request *Request) SetHeaders(headers RequestHeaders) *Request {
-	request.headers = headers
-	return request
-}
-
-// 设置请求体
-func (request *Request) SetBody(body io.ReadSeekCloser) *Request {
-	request.body = body
-	return request
-}
-
-// 发送请求
-func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
-	client := httpclient.NewHttpClient(options)
-	serviceNames := []region.ServiceName{region.ServiceUp}
-	headers, err := request.headers.build()
-	if err != nil {
-		return nil, err
-	}
-	var pathSegments []string
-	pathSegments = append(pathSegments, "buckets")
-	if segments, err := request.path.build(); err != nil {
-		return nil, err
-	} else {
-		pathSegments = append(pathSegments, segments...)
-	}
-	path := "/" + strings.Join(pathSegments, "/")
-	var rawQuery string
-	req := httpclient.Request{Method: "PUT", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Header: headers, UpToken: request.upToken, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(request.body)}
-	var queryer region.BucketRegionsQueryer
-	if client.GetRegions() == nil && client.GetEndpoints() == nil {
-		queryer = client.GetBucketQueryer()
-		if queryer == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			var err error
-			if request.overwrittenBucketHosts != nil {
-				if bucketHosts, err = request.overwrittenBucketHosts.GetEndpoints(ctx); err != nil {
-					return nil, err
-				}
-			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: options.UseInsecureProtocol, HostFreezeDuration: options.HostFreezeDuration, Client: options.Client}
-			if hostRetryConfig := options.HostRetryConfig; hostRetryConfig != nil {
-				queryerOptions.RetryMax = hostRetryConfig.RetryMax
-			}
-			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
-				return nil, err
-			}
-		}
-	}
-	if queryer != nil {
-		bucketName, err := request.getBucketName(ctx)
-		if err != nil {
-			return nil, err
-		}
-		accessKey, err := request.getAccessKey(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if accessKey == "" {
-			if credentialsProvider := client.GetCredentials(); credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
-					return nil, err
-				} else if creds != nil {
-					accessKey = creds.AccessKey
-				}
-			}
-		}
-		if accessKey != "" && bucketName != "" {
-			req.Region = queryer.Query(accessKey, bucketName)
-		}
-	}
-	var respBody ResponseBody
-	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
-		return nil, err
-	}
-	return &Response{body: respBody}, nil
+	BucketName string            // 存储空间名称
+	ObjectName string            // 对象名称
+	UploadId   string            // 在服务端申请的 Multipart Upload 任务 id
+	PartNumber int64             // 每一个上传的分片都有一个标识它的号码
+	Md5        string            // 上传块内容的 md5 值，如果指定服务端会进行校验，不指定不校验
+	UpToken    uptoken.Provider  // 上传凭证，如果为空，则使用 HttpClientOptions 中的 UpToken
+	Body       io.ReadSeekCloser // 请求体
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	body ResponseBody
+	Etag string // 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
+	Md5  string // 上传块内容的 MD5 值
 }
 
-// 获取请求体
-func (response *Response) GetBody() *ResponseBody {
-	return &response.body
+// 返回本次上传的分片相关信息
+type NewPartInfo = Response
+type jsonResponse struct {
+	Etag string `json:"etag"` // 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
+	Md5  string `json:"md5"`  // 上传块内容的 MD5 值
 }
 
-// 设置请求体
-func (response *Response) SetBody(body ResponseBody) *Response {
-	response.body = body
-	return response
+func (j *Response) MarshalJSON() ([]byte, error) {
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonResponse{Etag: j.Etag, Md5: j.Md5})
+}
+func (j *Response) UnmarshalJSON(data []byte) error {
+	var nj jsonResponse
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.Etag = nj.Etag
+	j.Md5 = nj.Md5
+	return nil
+}
+func (j *Response) validate() error {
+	if j.Etag == "" {
+		return errors.MissingRequiredFieldError{Name: "Etag"}
+	}
+	if j.Md5 == "" {
+		return errors.MissingRequiredFieldError{Name: "Md5"}
+	}
+	return nil
 }

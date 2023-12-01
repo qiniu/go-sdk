@@ -4,287 +4,89 @@
 package get_bucket_rules
 
 import (
-	"context"
 	"encoding/json"
-	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
-	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"net/url"
-	"strings"
 )
 
-// 调用 API 所用的 URL 查询参数
-type RequestQuery struct {
-	fieldBucket string // 空间名称
+// 调用 API 所用的请求
+type Request struct {
+	Bucket      string                          // 空间名称
+	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
 }
 
-// 空间名称
-func (query *RequestQuery) GetBucket() string {
-	return query.fieldBucket
-}
-
-// 空间名称
-func (query *RequestQuery) SetBucket(value string) *RequestQuery {
-	query.fieldBucket = value
-	return query
-}
-func (query *RequestQuery) build() (url.Values, error) {
-	allQuery := make(url.Values)
-	if query.fieldBucket != "" {
-		allQuery.Set("bucket", query.fieldBucket)
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "Bucket"}
-	}
-	return allQuery, nil
-}
-func (request *Request) GetBucket() string {
-	return request.query.GetBucket()
-}
-func (request *Request) SetBucket(value string) *Request {
-	request.query.SetBucket(value)
-	return request
-}
-
-type innerBucketRule struct {
-	Name                   string `json:"name"`                       // 空间规则名称
-	Prefix                 string `json:"prefix"`                     // 匹配的对象名称前缀
-	DeleteAfterDays        int64  `json:"delete_after_days"`          // 上传文件多少天后删除
-	ToIaAfterDays          int64  `json:"to_line_after_days"`         // 文件上传多少天后转低频存储
-	ToArchiveAfterDays     int64  `json:"to_archive_after_days"`      // 文件上传多少天后转归档存储
-	ToDeepArchiveAfterDays int64  `json:"to_deep_archive_after_days"` // 文件上传多少天后转深度归档存储
-	CreatedTime            string `json:"ctime"`                      // 规则创建时间
+// 获取 API 所用的响应
+type Response struct {
+	BucketRules BucketRules // 空间规则列表
 }
 
 // 空间规则
 type BucketRule struct {
-	inner innerBucketRule
+	Name                   string // 空间规则名称
+	Prefix                 string // 匹配的对象名称前缀
+	DeleteAfterDays        int64  // 上传文件多少天后删除
+	ToIaAfterDays          int64  // 文件上传多少天后转低频存储
+	ToArchiveAfterDays     int64  // 文件上传多少天后转归档存储
+	ToDeepArchiveAfterDays int64  // 文件上传多少天后转深度归档存储
+	ToArchiveIrAfterDays   int64  // 文件上传多少天后转归档直读存储
+	CreatedTime            string // 规则创建时间
+}
+type jsonBucketRule struct {
+	Name                   string `json:"name"`                                 // 空间规则名称
+	Prefix                 string `json:"prefix"`                               // 匹配的对象名称前缀
+	DeleteAfterDays        int64  `json:"delete_after_days,omitempty"`          // 上传文件多少天后删除
+	ToIaAfterDays          int64  `json:"to_line_after_days,omitempty"`         // 文件上传多少天后转低频存储
+	ToArchiveAfterDays     int64  `json:"to_archive_after_days,omitempty"`      // 文件上传多少天后转归档存储
+	ToDeepArchiveAfterDays int64  `json:"to_deep_archive_after_days,omitempty"` // 文件上传多少天后转深度归档存储
+	ToArchiveIrAfterDays   int64  `json:"to_archive_ir_after_days,omitempty"`   // 文件上传多少天后转归档直读存储
+	CreatedTime            string `json:"ctime"`                                // 规则创建时间
 }
 
-// 空间规则名称
-func (j *BucketRule) GetName() string {
-	return j.inner.Name
-}
-
-// 空间规则名称
-func (j *BucketRule) SetName(value string) *BucketRule {
-	j.inner.Name = value
-	return j
-}
-
-// 匹配的对象名称前缀
-func (j *BucketRule) GetPrefix() string {
-	return j.inner.Prefix
-}
-
-// 匹配的对象名称前缀
-func (j *BucketRule) SetPrefix(value string) *BucketRule {
-	j.inner.Prefix = value
-	return j
-}
-
-// 上传文件多少天后删除
-func (j *BucketRule) GetDeleteAfterDays() int64 {
-	return j.inner.DeleteAfterDays
-}
-
-// 上传文件多少天后删除
-func (j *BucketRule) SetDeleteAfterDays(value int64) *BucketRule {
-	j.inner.DeleteAfterDays = value
-	return j
-}
-
-// 文件上传多少天后转低频存储
-func (j *BucketRule) GetToIaAfterDays() int64 {
-	return j.inner.ToIaAfterDays
-}
-
-// 文件上传多少天后转低频存储
-func (j *BucketRule) SetToIaAfterDays(value int64) *BucketRule {
-	j.inner.ToIaAfterDays = value
-	return j
-}
-
-// 文件上传多少天后转归档存储
-func (j *BucketRule) GetToArchiveAfterDays() int64 {
-	return j.inner.ToArchiveAfterDays
-}
-
-// 文件上传多少天后转归档存储
-func (j *BucketRule) SetToArchiveAfterDays(value int64) *BucketRule {
-	j.inner.ToArchiveAfterDays = value
-	return j
-}
-
-// 文件上传多少天后转深度归档存储
-func (j *BucketRule) GetToDeepArchiveAfterDays() int64 {
-	return j.inner.ToDeepArchiveAfterDays
-}
-
-// 文件上传多少天后转深度归档存储
-func (j *BucketRule) SetToDeepArchiveAfterDays(value int64) *BucketRule {
-	j.inner.ToDeepArchiveAfterDays = value
-	return j
-}
-
-// 规则创建时间
-func (j *BucketRule) GetCreatedTime() string {
-	return j.inner.CreatedTime
-}
-
-// 规则创建时间
-func (j *BucketRule) SetCreatedTime(value string) *BucketRule {
-	j.inner.CreatedTime = value
-	return j
-}
 func (j *BucketRule) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonBucketRule{Name: j.Name, Prefix: j.Prefix, DeleteAfterDays: j.DeleteAfterDays, ToIaAfterDays: j.ToIaAfterDays, ToArchiveAfterDays: j.ToArchiveAfterDays, ToDeepArchiveAfterDays: j.ToDeepArchiveAfterDays, ToArchiveIrAfterDays: j.ToArchiveIrAfterDays, CreatedTime: j.CreatedTime})
 }
 func (j *BucketRule) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
+	var nj jsonBucketRule
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.Name = nj.Name
+	j.Prefix = nj.Prefix
+	j.DeleteAfterDays = nj.DeleteAfterDays
+	j.ToIaAfterDays = nj.ToIaAfterDays
+	j.ToArchiveAfterDays = nj.ToArchiveAfterDays
+	j.ToDeepArchiveAfterDays = nj.ToDeepArchiveAfterDays
+	j.ToArchiveIrAfterDays = nj.ToArchiveIrAfterDays
+	j.CreatedTime = nj.CreatedTime
+	return nil
 }
-
-//lint:ignore U1000 may not call it
 func (j *BucketRule) validate() error {
-	if j.inner.Name == "" {
+	if j.Name == "" {
 		return errors.MissingRequiredFieldError{Name: "Name"}
 	}
-	if j.inner.Prefix == "" {
+	if j.Prefix == "" {
 		return errors.MissingRequiredFieldError{Name: "Prefix"}
 	}
-	if j.inner.CreatedTime == "" {
+	if j.CreatedTime == "" {
 		return errors.MissingRequiredFieldError{Name: "CreatedTime"}
 	}
 	return nil
 }
 
 // 空间规则列表
-type BucketRules = []BucketRule
+type BucketRules []BucketRule
 
-// 获取 API 所用的响应体参数
-type ResponseBody = BucketRules
-
-// 调用 API 所用的请求
-type Request struct {
-	overwrittenBucketHosts region.EndpointsProvider
-	overwrittenBucketName  string
-	query                  RequestQuery
-	credentials            credentials.CredentialsProvider
+func (j *Response) MarshalJSON() ([]byte, error) {
+	return json.Marshal(j.BucketRules)
 }
-
-// 覆盖默认的存储区域域名列表
-func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
-	request.overwrittenBucketHosts = bucketHosts
-	return request
-}
-
-// 覆盖存储空间名称
-func (request *Request) OverwriteBucketName(bucketName string) *Request {
-	request.overwrittenBucketName = bucketName
-	return request
-}
-
-// 设置鉴权
-func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
-	request.credentials = credentials
-	return request
-}
-func (request *Request) getBucketName(ctx context.Context) (string, error) {
-	if request.overwrittenBucketName != "" {
-		return request.overwrittenBucketName, nil
+func (j *Response) UnmarshalJSON(data []byte) error {
+	var array BucketRules
+	if err := json.Unmarshal(data, &array); err != nil {
+		return err
 	}
-	return "", nil
-}
-func (request *Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.credentials != nil {
-		if credentials, err := request.credentials.Get(ctx); err != nil {
-			return "", err
-		} else {
-			return credentials.AccessKey, nil
-		}
-	}
-	return "", nil
-}
-
-// 获取请求查询参数
-func (request *Request) GetQuery() *RequestQuery {
-	return &request.query
-}
-
-// 设置请求查询参数
-func (request *Request) SetQuery(query RequestQuery) *Request {
-	request.query = query
-	return request
-}
-
-// 发送请求
-func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
-	client := httpclient.NewHttpClient(options)
-	serviceNames := []region.ServiceName{region.ServiceBucket}
-	var pathSegments []string
-	pathSegments = append(pathSegments, "rules", "get")
-	path := "/" + strings.Join(pathSegments, "/")
-	var rawQuery string
-	if query, err := request.query.build(); err != nil {
-		return nil, err
-	} else {
-		rawQuery += query.Encode()
-	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: request.credentials}
-	var queryer region.BucketRegionsQueryer
-	if client.GetRegions() == nil && client.GetEndpoints() == nil {
-		queryer = client.GetBucketQueryer()
-		if queryer == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			if request.overwrittenBucketHosts != nil {
-				req.Endpoints = request.overwrittenBucketHosts
-			} else {
-				req.Endpoints = bucketHosts
-			}
-		}
-	}
-	if queryer != nil {
-		bucketName, err := request.getBucketName(ctx)
-		if err != nil {
-			return nil, err
-		}
-		accessKey, err := request.getAccessKey(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if accessKey == "" {
-			if credentialsProvider := client.GetCredentials(); credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
-					return nil, err
-				} else if creds != nil {
-					accessKey = creds.AccessKey
-				}
-			}
-		}
-		if accessKey != "" && bucketName != "" {
-			req.Region = queryer.Query(accessKey, bucketName)
-		}
-	}
-	var respBody ResponseBody
-	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
-		return nil, err
-	}
-	return &Response{body: respBody}, nil
-}
-
-// 获取 API 所用的响应
-type Response struct {
-	body ResponseBody
-}
-
-// 获取请求体
-func (response *Response) GetBody() ResponseBody {
-	return response.body
-}
-
-// 设置请求体
-func (response *Response) SetBody(body ResponseBody) *Response {
-	response.body = body
-	return response
+	j.BucketRules = array
+	return nil
 }

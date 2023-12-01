@@ -4,161 +4,27 @@
 package get_objects
 
 import (
-	"context"
 	"encoding/json"
-	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
-	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"net/url"
-	"strconv"
-	"strings"
 )
 
-// 调用 API 所用的 URL 查询参数
-type RequestQuery struct {
-	fieldBucket    string // 指定存储空间
-	fieldMarker    string // 上一次列举返回的位置标记，作为本次列举的起点信息
-	fieldLimit     int64  // 本次列举的条目数，范围为 1-1000
-	fieldPrefix    string // 指定前缀，只有资源名匹配该前缀的资源会被列出
-	fieldDelimiter string // 指定目录分隔符，列出所有公共前缀（模拟列出目录效果）
-	fieldNeedParts bool   // 如果文件是通过分片上传的，是否返回对应的分片信息
+// 调用 API 所用的请求
+type Request struct {
+	Bucket      string                          // 指定存储空间
+	Marker      string                          // 上一次列举返回的位置标记，作为本次列举的起点信息
+	Limit       int64                           // 本次列举的条目数，范围为 1-1000
+	Prefix      string                          // 指定前缀，只有资源名匹配该前缀的资源会被列出
+	Delimiter   string                          // 指定目录分隔符，列出所有公共前缀（模拟列出目录效果）
+	NeedParts   bool                            // 如果文件是通过分片上传的，是否返回对应的分片信息
+	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
 }
 
-// 指定存储空间
-func (query *RequestQuery) GetBucket() string {
-	return query.fieldBucket
-}
-
-// 指定存储空间
-func (query *RequestQuery) SetBucket(value string) *RequestQuery {
-	query.fieldBucket = value
-	return query
-}
-
-// 上一次列举返回的位置标记，作为本次列举的起点信息
-func (query *RequestQuery) GetMarker() string {
-	return query.fieldMarker
-}
-
-// 上一次列举返回的位置标记，作为本次列举的起点信息
-func (query *RequestQuery) SetMarker(value string) *RequestQuery {
-	query.fieldMarker = value
-	return query
-}
-
-// 本次列举的条目数，范围为 1-1000
-func (query *RequestQuery) GetLimit() int64 {
-	return query.fieldLimit
-}
-
-// 本次列举的条目数，范围为 1-1000
-func (query *RequestQuery) SetLimit(value int64) *RequestQuery {
-	query.fieldLimit = value
-	return query
-}
-
-// 指定前缀，只有资源名匹配该前缀的资源会被列出
-func (query *RequestQuery) GetPrefix() string {
-	return query.fieldPrefix
-}
-
-// 指定前缀，只有资源名匹配该前缀的资源会被列出
-func (query *RequestQuery) SetPrefix(value string) *RequestQuery {
-	query.fieldPrefix = value
-	return query
-}
-
-// 指定目录分隔符，列出所有公共前缀（模拟列出目录效果）
-func (query *RequestQuery) GetDelimiter() string {
-	return query.fieldDelimiter
-}
-
-// 指定目录分隔符，列出所有公共前缀（模拟列出目录效果）
-func (query *RequestQuery) SetDelimiter(value string) *RequestQuery {
-	query.fieldDelimiter = value
-	return query
-}
-
-// 如果文件是通过分片上传的，是否返回对应的分片信息
-func (query *RequestQuery) GetNeedParts() bool {
-	return query.fieldNeedParts
-}
-
-// 如果文件是通过分片上传的，是否返回对应的分片信息
-func (query *RequestQuery) SetNeedParts(value bool) *RequestQuery {
-	query.fieldNeedParts = value
-	return query
-}
-func (query *RequestQuery) getBucketName() (string, error) {
-	return query.fieldBucket, nil
-}
-func (query *RequestQuery) build() (url.Values, error) {
-	allQuery := make(url.Values)
-	if query.fieldBucket != "" {
-		allQuery.Set("bucket", query.fieldBucket)
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "Bucket"}
-	}
-	if query.fieldMarker != "" {
-		allQuery.Set("marker", query.fieldMarker)
-	}
-	if query.fieldLimit != 0 {
-		allQuery.Set("limit", strconv.FormatInt(query.fieldLimit, 10))
-	}
-	if query.fieldPrefix != "" {
-		allQuery.Set("prefix", query.fieldPrefix)
-	}
-	if query.fieldDelimiter != "" {
-		allQuery.Set("delimiter", query.fieldDelimiter)
-	}
-	if query.fieldNeedParts {
-		allQuery.Set("needparts", strconv.FormatBool(query.fieldNeedParts))
-	}
-	return allQuery, nil
-}
-func (request *Request) GetBucket() string {
-	return request.query.GetBucket()
-}
-func (request *Request) SetBucket(value string) *Request {
-	request.query.SetBucket(value)
-	return request
-}
-func (request *Request) GetMarker() string {
-	return request.query.GetMarker()
-}
-func (request *Request) SetMarker(value string) *Request {
-	request.query.SetMarker(value)
-	return request
-}
-func (request *Request) GetLimit() int64 {
-	return request.query.GetLimit()
-}
-func (request *Request) SetLimit(value int64) *Request {
-	request.query.SetLimit(value)
-	return request
-}
-func (request *Request) GetPrefix() string {
-	return request.query.GetPrefix()
-}
-func (request *Request) SetPrefix(value string) *Request {
-	request.query.SetPrefix(value)
-	return request
-}
-func (request *Request) GetDelimiter() string {
-	return request.query.GetDelimiter()
-}
-func (request *Request) SetDelimiter(value string) *Request {
-	request.query.SetDelimiter(value)
-	return request
-}
-func (request *Request) GetNeedParts() bool {
-	return request.query.GetNeedParts()
-}
-func (request *Request) SetNeedParts(value bool) *Request {
-	request.query.SetNeedParts(value)
-	return request
+// 获取 API 所用的响应
+type Response struct {
+	Marker         string         // 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
+	CommonPrefixes CommonPrefixes // 公共前缀的数组，如没有指定 delimiter 参数则不返回
+	Items          ListedObjects  // 条目的数组，不能用来判断是否还有剩余条目
 }
 
 // 公共前缀的数组
@@ -167,9 +33,20 @@ type CommonPrefixes = []string
 // 每个分片的大小
 type PartSizes = []int64
 
-// 每个分片的大小，如没有指定 need_parts 参数则不返回
-type Parts = PartSizes
-type innerListedObjectEntry struct {
+// 对象条目，包含对象的元信息
+type ListedObjectEntry struct {
+	Key             string    // 对象名称
+	PutTime         int64     // 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
+	Hash            string    // 文件的哈希值
+	Size            int64     // 对象大小，单位为字节
+	MimeType        string    // 对象 MIME 类型
+	Type            int64     // 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
+	EndUser         string    // 资源内容的唯一属主标识
+	RestoringStatus int64     // 文件的存储状态，即禁用状态和启用状态间的的互相转换，`0` 表示启用，`1`表示禁用
+	Md5             string    // 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
+	Parts           PartSizes // 每个分片的大小，如没有指定 need_parts 参数则不返回
+}
+type jsonListedObjectEntry struct {
 	Key             string    `json:"key"`               // 对象名称
 	PutTime         int64     `json:"putTime"`           // 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
 	Hash            string    `json:"hash"`              // 文件的哈希值
@@ -182,142 +59,43 @@ type innerListedObjectEntry struct {
 	Parts           PartSizes `json:"parts,omitempty"`   // 每个分片的大小，如没有指定 need_parts 参数则不返回
 }
 
-// 对象条目，包含对象的元信息
-type ListedObjectEntry struct {
-	inner innerListedObjectEntry
-}
-
-// 对象名称
-func (j *ListedObjectEntry) GetKey() string {
-	return j.inner.Key
-}
-
-// 对象名称
-func (j *ListedObjectEntry) SetKey(value string) *ListedObjectEntry {
-	j.inner.Key = value
-	return j
-}
-
-// 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
-func (j *ListedObjectEntry) GetPutTime() int64 {
-	return j.inner.PutTime
-}
-
-// 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
-func (j *ListedObjectEntry) SetPutTime(value int64) *ListedObjectEntry {
-	j.inner.PutTime = value
-	return j
-}
-
-// 文件的哈希值
-func (j *ListedObjectEntry) GetHash() string {
-	return j.inner.Hash
-}
-
-// 文件的哈希值
-func (j *ListedObjectEntry) SetHash(value string) *ListedObjectEntry {
-	j.inner.Hash = value
-	return j
-}
-
-// 对象大小，单位为字节
-func (j *ListedObjectEntry) GetSize() int64 {
-	return j.inner.Size
-}
-
-// 对象大小，单位为字节
-func (j *ListedObjectEntry) SetSize(value int64) *ListedObjectEntry {
-	j.inner.Size = value
-	return j
-}
-
-// 对象 MIME 类型
-func (j *ListedObjectEntry) GetMimeType() string {
-	return j.inner.MimeType
-}
-
-// 对象 MIME 类型
-func (j *ListedObjectEntry) SetMimeType(value string) *ListedObjectEntry {
-	j.inner.MimeType = value
-	return j
-}
-
-// 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
-func (j *ListedObjectEntry) GetType() int64 {
-	return j.inner.Type
-}
-
-// 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
-func (j *ListedObjectEntry) SetType(value int64) *ListedObjectEntry {
-	j.inner.Type = value
-	return j
-}
-
-// 资源内容的唯一属主标识
-func (j *ListedObjectEntry) GetEndUser() string {
-	return j.inner.EndUser
-}
-
-// 资源内容的唯一属主标识
-func (j *ListedObjectEntry) SetEndUser(value string) *ListedObjectEntry {
-	j.inner.EndUser = value
-	return j
-}
-
-// 文件的存储状态，即禁用状态和启用状态间的的互相转换，`0` 表示启用，`1`表示禁用
-func (j *ListedObjectEntry) GetRestoringStatus() int64 {
-	return j.inner.RestoringStatus
-}
-
-// 文件的存储状态，即禁用状态和启用状态间的的互相转换，`0` 表示启用，`1`表示禁用
-func (j *ListedObjectEntry) SetRestoringStatus(value int64) *ListedObjectEntry {
-	j.inner.RestoringStatus = value
-	return j
-}
-
-// 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
-func (j *ListedObjectEntry) GetMd5() string {
-	return j.inner.Md5
-}
-
-// 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
-func (j *ListedObjectEntry) SetMd5(value string) *ListedObjectEntry {
-	j.inner.Md5 = value
-	return j
-}
-
-// 每个分片的大小，如没有指定 need_parts 参数则不返回
-func (j *ListedObjectEntry) GetParts() PartSizes {
-	return j.inner.Parts
-}
-
-// 每个分片的大小，如没有指定 need_parts 参数则不返回
-func (j *ListedObjectEntry) SetParts(value PartSizes) *ListedObjectEntry {
-	j.inner.Parts = value
-	return j
-}
 func (j *ListedObjectEntry) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonListedObjectEntry{Key: j.Key, PutTime: j.PutTime, Hash: j.Hash, Size: j.Size, MimeType: j.MimeType, Type: j.Type, EndUser: j.EndUser, RestoringStatus: j.RestoringStatus, Md5: j.Md5, Parts: j.Parts})
 }
 func (j *ListedObjectEntry) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
+	var nj jsonListedObjectEntry
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.Key = nj.Key
+	j.PutTime = nj.PutTime
+	j.Hash = nj.Hash
+	j.Size = nj.Size
+	j.MimeType = nj.MimeType
+	j.Type = nj.Type
+	j.EndUser = nj.EndUser
+	j.RestoringStatus = nj.RestoringStatus
+	j.Md5 = nj.Md5
+	j.Parts = nj.Parts
+	return nil
 }
-
-//lint:ignore U1000 may not call it
 func (j *ListedObjectEntry) validate() error {
-	if j.inner.Key == "" {
+	if j.Key == "" {
 		return errors.MissingRequiredFieldError{Name: "Key"}
 	}
-	if j.inner.PutTime == 0 {
+	if j.PutTime == 0 {
 		return errors.MissingRequiredFieldError{Name: "PutTime"}
 	}
-	if j.inner.Hash == "" {
+	if j.Hash == "" {
 		return errors.MissingRequiredFieldError{Name: "Hash"}
 	}
-	if j.inner.Size == 0 {
+	if j.Size == 0 {
 		return errors.MissingRequiredFieldError{Name: "Size"}
 	}
-	if j.inner.MimeType == "" {
+	if j.MimeType == "" {
 		return errors.MissingRequiredFieldError{Name: "MimeType"}
 	}
 	return nil
@@ -326,238 +104,38 @@ func (j *ListedObjectEntry) validate() error {
 // 条目的数组，不能用来判断是否还有剩余条目
 type ListedObjects = []ListedObjectEntry
 
-// 条目的数组，不能用来判断是否还有剩余条目
-type Items = ListedObjects
-type innerListedObjectEntries struct {
+// 本次列举的对象条目信息
+type ListedObjectEntries = Response
+type jsonResponse struct {
 	Marker         string         `json:"marker,omitempty"`          // 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
 	CommonPrefixes CommonPrefixes `json:"common_prefixes,omitempty"` // 公共前缀的数组，如没有指定 delimiter 参数则不返回
 	Items          ListedObjects  `json:"items"`                     // 条目的数组，不能用来判断是否还有剩余条目
 }
 
-// 本次列举的对象条目信息
-type ListedObjectEntries struct {
-	inner innerListedObjectEntries
+func (j *Response) MarshalJSON() ([]byte, error) {
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonResponse{Marker: j.Marker, CommonPrefixes: j.CommonPrefixes, Items: j.Items})
 }
-
-// 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
-func (j *ListedObjectEntries) GetMarker() string {
-	return j.inner.Marker
+func (j *Response) UnmarshalJSON(data []byte) error {
+	var nj jsonResponse
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.Marker = nj.Marker
+	j.CommonPrefixes = nj.CommonPrefixes
+	j.Items = nj.Items
+	return nil
 }
-
-// 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
-func (j *ListedObjectEntries) SetMarker(value string) *ListedObjectEntries {
-	j.inner.Marker = value
-	return j
-}
-
-// 公共前缀的数组，如没有指定 delimiter 参数则不返回
-func (j *ListedObjectEntries) GetCommonPrefixes() CommonPrefixes {
-	return j.inner.CommonPrefixes
-}
-
-// 公共前缀的数组，如没有指定 delimiter 参数则不返回
-func (j *ListedObjectEntries) SetCommonPrefixes(value CommonPrefixes) *ListedObjectEntries {
-	j.inner.CommonPrefixes = value
-	return j
-}
-
-// 条目的数组，不能用来判断是否还有剩余条目
-func (j *ListedObjectEntries) GetItems() ListedObjects {
-	return j.inner.Items
-}
-
-// 条目的数组，不能用来判断是否还有剩余条目
-func (j *ListedObjectEntries) SetItems(value ListedObjects) *ListedObjectEntries {
-	j.inner.Items = value
-	return j
-}
-func (j *ListedObjectEntries) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
-}
-func (j *ListedObjectEntries) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
-}
-
-//lint:ignore U1000 may not call it
-func (j *ListedObjectEntries) validate() error {
-	if len(j.inner.Items) == 0 {
+func (j *Response) validate() error {
+	if len(j.Items) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Items"}
 	}
-	for _, value := range j.inner.Items {
+	for _, value := range j.Items {
 		if err := value.validate(); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-// 获取 API 所用的响应体参数
-type ResponseBody = ListedObjectEntries
-
-// 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
-func (request *Response) GetMarker() string {
-	return request.body.GetMarker()
-}
-
-// 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
-func (request *Response) SetMarker(value string) *Response {
-	request.body.SetMarker(value)
-	return request
-}
-
-// 公共前缀的数组，如没有指定 delimiter 参数则不返回
-func (request *Response) GetCommonPrefixes() CommonPrefixes {
-	return request.body.GetCommonPrefixes()
-}
-
-// 公共前缀的数组，如没有指定 delimiter 参数则不返回
-func (request *Response) SetCommonPrefixes(value CommonPrefixes) *Response {
-	request.body.SetCommonPrefixes(value)
-	return request
-}
-
-// 条目的数组，不能用来判断是否还有剩余条目
-func (request *Response) GetItems() ListedObjects {
-	return request.body.GetItems()
-}
-
-// 条目的数组，不能用来判断是否还有剩余条目
-func (request *Response) SetItems(value ListedObjects) *Response {
-	request.body.SetItems(value)
-	return request
-}
-
-// 调用 API 所用的请求
-type Request struct {
-	overwrittenBucketHosts region.EndpointsProvider
-	overwrittenBucketName  string
-	query                  RequestQuery
-	credentials            credentials.CredentialsProvider
-}
-
-// 覆盖默认的存储区域域名列表
-func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
-	request.overwrittenBucketHosts = bucketHosts
-	return request
-}
-
-// 覆盖存储空间名称
-func (request *Request) OverwriteBucketName(bucketName string) *Request {
-	request.overwrittenBucketName = bucketName
-	return request
-}
-
-// 设置鉴权
-func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
-	request.credentials = credentials
-	return request
-}
-func (request *Request) getBucketName(ctx context.Context) (string, error) {
-	if request.overwrittenBucketName != "" {
-		return request.overwrittenBucketName, nil
-	}
-	if bucketName, err := request.query.getBucketName(); err != nil || bucketName != "" {
-		return bucketName, err
-	}
-	return "", nil
-}
-func (request *Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.credentials != nil {
-		if credentials, err := request.credentials.Get(ctx); err != nil {
-			return "", err
-		} else {
-			return credentials.AccessKey, nil
-		}
-	}
-	return "", nil
-}
-
-// 获取请求查询参数
-func (request *Request) GetQuery() *RequestQuery {
-	return &request.query
-}
-
-// 设置请求查询参数
-func (request *Request) SetQuery(query RequestQuery) *Request {
-	request.query = query
-	return request
-}
-
-// 发送请求
-func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
-	client := httpclient.NewHttpClient(options)
-	serviceNames := []region.ServiceName{region.ServiceRsf}
-	var pathSegments []string
-	pathSegments = append(pathSegments, "list")
-	path := "/" + strings.Join(pathSegments, "/")
-	var rawQuery string
-	if query, err := request.query.build(); err != nil {
-		return nil, err
-	} else {
-		rawQuery += query.Encode()
-	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: request.credentials}
-	var queryer region.BucketRegionsQueryer
-	if client.GetRegions() == nil && client.GetEndpoints() == nil {
-		queryer = client.GetBucketQueryer()
-		if queryer == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			var err error
-			if request.overwrittenBucketHosts != nil {
-				if bucketHosts, err = request.overwrittenBucketHosts.GetEndpoints(ctx); err != nil {
-					return nil, err
-				}
-			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: options.UseInsecureProtocol, HostFreezeDuration: options.HostFreezeDuration, Client: options.Client}
-			if hostRetryConfig := options.HostRetryConfig; hostRetryConfig != nil {
-				queryerOptions.RetryMax = hostRetryConfig.RetryMax
-			}
-			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
-				return nil, err
-			}
-		}
-	}
-	if queryer != nil {
-		bucketName, err := request.getBucketName(ctx)
-		if err != nil {
-			return nil, err
-		}
-		accessKey, err := request.getAccessKey(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if accessKey == "" {
-			if credentialsProvider := client.GetCredentials(); credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
-					return nil, err
-				} else if creds != nil {
-					accessKey = creds.AccessKey
-				}
-			}
-		}
-		if accessKey != "" && bucketName != "" {
-			req.Region = queryer.Query(accessKey, bucketName)
-		}
-	}
-	var respBody ResponseBody
-	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
-		return nil, err
-	}
-	return &Response{body: respBody}, nil
-}
-
-// 获取 API 所用的响应
-type Response struct {
-	body ResponseBody
-}
-
-// 获取请求体
-func (response *Response) GetBody() *ResponseBody {
-	return &response.body
-}
-
-// 设置请求体
-func (response *Response) SetBody(body ResponseBody) *Response {
-	response.body = body
-	return response
 }

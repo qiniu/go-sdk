@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/dave/jennifer/jen"
@@ -19,81 +20,51 @@ type (
 	}
 )
 
-func (response *ApiResponseDescription) Generate(group *jen.Group, opts CodeGeneratorOptions) error {
+func (response *ApiResponseDescription) generate(group *jen.Group, opts CodeGeneratorOptions) (err error) {
 	if opts.Documentation != "" {
 		group.Add(jen.Comment(opts.Documentation))
 	}
-	group.Add(jen.Type().Id(strcase.ToCamel(opts.Name)).StructFunc(func(group *jen.Group) {
-		if body := response.Body; body != nil {
-			if body.Json != nil {
-				group.Add(jen.Id("body").Id("ResponseBody"))
-			} else if body.BinaryDataStream {
-				group.Add(jen.Id("body").Qual("io", "ReadCloser"))
-			}
+	group.Add(jen.Type().
+		Id(strcase.ToCamel(opts.Name)).
+		StructFunc(func(group *jen.Group) {
+			err = response.addFields(group)
+		}))
+	if err != nil {
+		return
+	}
+
+	if body := response.Body; body != nil {
+		if bodyJson := body.Json; bodyJson != nil {
+			bodyJson.generate(group, opts)
 		}
-	}))
-	response.generateGetters(group, opts)
-	response.generateSetters(group, opts)
-	return nil
+	}
+
+	return
 }
 
-func (response *ApiResponseDescription) generateGetters(group *jen.Group, opts CodeGeneratorOptions) {
-	structName := strcase.ToCamel(opts.Name)
+func (response *ApiResponseDescription) addFields(group *jen.Group) (err error) {
 	if body := response.Body; body != nil {
-		var (
-			returnType    jen.Code
-			returnPointer bool
-		)
-		if json := body.Json; json != nil {
-			if json.Struct != nil {
-				returnType = jen.Op("*").Id("ResponseBody")
-				returnPointer = true
+		if bodyJson := body.Json; bodyJson != nil {
+			if jsonStruct := bodyJson.Struct; jsonStruct != nil {
+				if err = jsonStruct.addFields(group, false); err != nil {
+					return
+				}
+			} else if jsonArray := bodyJson.Array; jsonArray != nil {
+				if err = jsonArray.addFields(group); err != nil {
+					return
+				}
+			} else if bodyJson.Any {
+				group.Add(jen.Id("Body").Interface())
+			} else if bodyJson.StringMap {
+				group.Add(jen.Id("Body").Map(jen.String()).String())
 			} else {
-				returnType = jen.Id("ResponseBody")
+				return errors.New("response body should be struct or array")
 			}
 		} else if body.BinaryDataStream {
-			returnType = jen.Qual("io", "ReadCloser")
+			group.Add(jen.Id("Body").Qual("io", "ReadCloser"))
 		}
-		group.Add(jen.Comment("获取请求体"))
-		group.Add(
-			jen.Func().
-				Params(jen.Id("response").Op("*").Id(structName)).
-				Id("GetBody").
-				Params().
-				Params(returnType).
-				BlockFunc(func(group *jen.Group) {
-					if returnPointer {
-						group.Return(jen.Op("&").Id("response").Dot("body"))
-					} else {
-						group.Return(jen.Id("response").Dot("body"))
-					}
-				}),
-		)
 	}
-}
-
-func (response *ApiResponseDescription) generateSetters(group *jen.Group, opts CodeGeneratorOptions) {
-	structName := strcase.ToCamel(opts.Name)
-	if body := response.Body; body != nil {
-		var returnType jen.Code
-		if body.Json != nil {
-			returnType = jen.Id("ResponseBody")
-		} else if body.BinaryDataStream {
-			returnType = jen.Qual("io", "ReadCloser")
-		}
-		group.Add(jen.Comment("设置请求体"))
-		group.Add(
-			jen.Func().
-				Params(jen.Id("response").Op("*").Id(structName)).
-				Id("SetBody").
-				Params(jen.Id("body").Add(returnType)).
-				Params(jen.Op("*").Id(structName)).
-				BlockFunc(func(group *jen.Group) {
-					group.Add(jen.Id("response").Dot("body").Op("=").Id("body"))
-					group.Add(jen.Return(jen.Id("response")))
-				}),
-		)
-	}
+	return
 }
 
 func (body *ResponseBody) UnmarshalYAML(value *yaml.Node) error {

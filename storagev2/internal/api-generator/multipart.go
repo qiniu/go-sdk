@@ -28,66 +28,83 @@ type (
 	}
 )
 
-func (mff *MultipartFormFields) Generate(group *jen.Group, options CodeGeneratorOptions) error {
-	var err error
-	options.Name = strcase.ToCamel(options.Name)
-
-	if options.Documentation != "" {
-		group.Add(jen.Comment(options.Documentation))
-	}
-	group.Add(
-		jen.Type().Id(options.Name).StructFunc(func(group *jen.Group) {
-			for _, named := range mff.Named {
-				code, e := named.Type.AddTypeToStatement(jen.Id("field" + strcase.ToCamel(named.FieldName)))
-				if e != nil {
-					err = e
-					return
-				}
-				group.Add(code)
-				if named.Type.ToMultipartFormDataType() == MultipartFormDataTypeBinaryData {
-					group.Add(jen.Id("field" + strcase.ToCamel(named.FieldName) + "_FileName").String())
-				}
-			}
-			if mff.Free != nil {
-				group.Add(jen.Id("extendedMap").Map(jen.String()).String())
-			}
-		}),
-	)
+func (mff *MultipartFormFields) addFields(group *jen.Group) error {
 	for _, named := range mff.Named {
-		if err = mff.generateGetterFunc(group, named, options); err != nil {
+		fieldName := strcase.ToCamel(named.FieldName)
+		code, err := named.Type.AddTypeToStatement(jen.Id(fieldName))
+		if err != nil {
 			return err
 		}
-		if err = mff.generateSetterFunc(group, named, options); err != nil {
-			return err
-		}
-	}
-	if code := mff.generateServiceBucketField(options); code != nil {
 		group.Add(code)
+		if named.Type.ToMultipartFormDataType() == MultipartFormDataTypeBinaryData {
+			group.Add(jen.Id(fieldName + "_FileName").String())
+		}
 	}
-	if mff.Free != nil {
-		group.Add(
-			jen.Func().Params(jen.Id("form").Op("*").Id(options.Name)).
-				Id("Set").
-				Params(jen.Id("key").String(), jen.Id("value").String()).
-				Params(jen.Op("*").Id(options.Name)).
-				BlockFunc(func(group *jen.Group) {
-					group.Add(
-						jen.If(jen.Id("form").Dot("extendedMap").Op("==").Nil()).BlockFunc(func(group *jen.Group) {
-							group.Add(
-								jen.Id("form").Dot("extendedMap").Op("=").Make(jen.Map(jen.String()).String()),
-							)
+	if free := mff.Free; free != nil {
+		group.Add(jen.Id(strcase.ToCamel(free.FieldName)).Map(jen.String()).String())
+	}
+	return nil
+}
+
+func (mff *MultipartFormFields) addGetBucketNameFunc(group *jen.Group, structName string) (bool, error) {
+	field := mff.getServiceBucketField()
+
+	if field == nil || field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
+		return false, nil
+	}
+
+	group.Add(jen.Func().
+		Params(jen.Id("form").Op("*").Id(structName)).
+		Id("getBucketName").
+		Params(jen.Id("ctx").Qual("context", "Context")).
+		Params(jen.String(), jen.Error()).
+		BlockFunc(func(group *jen.Group) {
+			fieldName := strcase.ToCamel(field.FieldName)
+			switch field.ServiceBucket.ToServiceBucketType() {
+			case ServiceBucketTypePlainText:
+				group.Add(jen.Return(jen.Id("form").Dot(fieldName), jen.Nil()))
+			case ServiceBucketTypeEntry:
+				group.Add(
+					jen.Return(
+						jen.Qual("strings", "SplitN").
+							Call(jen.Id("form").Dot(fieldName), jen.Lit(":"), jen.Lit(2)).
+							Index(jen.Lit(0)),
+						jen.Nil(),
+					),
+				)
+			case ServiceBucketTypeUploadToken:
+				group.Add(
+					jen.Id("putPolicy").
+						Op(",").
+						Err().
+						Op(":=").
+						Id("form").
+						Dot(fieldName).
+						Dot("RetrievePutPolicy").
+						Call(jen.Id("ctx")),
+				)
+				group.Add(
+					jen.If(jen.Err().Op("!=").Nil()).
+						BlockFunc(func(group *jen.Group) {
+							group.Add(jen.Return(jen.Lit(""), jen.Err()))
+						}).
+						Else().
+						BlockFunc(func(group *jen.Group) {
+							group.Add(jen.Return(jen.Id("putPolicy").Dot("GetBucketName").Call()))
 						}),
-					)
-					group.Add(
-						jen.Id("form").Dot("extendedMap").Index(jen.Id("key")).Op("=").Id("value"),
-					)
-					group.Add(jen.Return(jen.Id("form")))
-				}),
-		)
-	}
+				)
+			default:
+				panic("unknown ServiceBucketType")
+			}
+		}))
+	return true, nil
+}
+
+func (mff *MultipartFormFields) addBuildFunc(group *jen.Group, structName string) error {
+	var err error
 	group.Add(
 		jen.Func().
-			Params(jen.Id("form").Op("*").Id(options.Name)).
+			Params(jen.Id("form").Op("*").Id(structName)).
 			Id("build").
 			Params(jen.Id("ctx").Qual("context", "Context")).
 			Params(jen.Op("*").Qual(PackageNameHttpClient, "MultipartForm"), jen.Error()).
@@ -103,7 +120,8 @@ func (mff *MultipartFormFields) Generate(group *jen.Group, options CodeGenerator
 						err = e
 						return
 					}
-					field := jen.Id("form").Dot("field" + strcase.ToCamel(named.FieldName))
+					fieldName := strcase.ToCamel(named.FieldName)
+					field := jen.Id("form").Dot(fieldName)
 					var cond *jen.Statement
 					if zeroValue == nil {
 						cond = field.Clone().Op("!=").Nil()
@@ -143,9 +161,18 @@ func (mff *MultipartFormFields) Generate(group *jen.Group, options CodeGenerator
 								jen.Id("upToken"),
 							))
 						case MultipartFormDataTypeBinaryData:
+							group.Add(jen.If(jen.Id("form").Dot(fieldName + "_FileName").Op("==").Lit("").BlockFunc(func(group *jen.Group) {
+								group.Add(jen.Return(
+									jen.Nil(),
+									jen.Qual(PackageNameErrors, "MissingRequiredFieldError").
+										ValuesFunc(func(group *jen.Group) {
+											group.Add(jen.Id("Name").Op(":").Lit(fieldName + "_FileName"))
+										}),
+								))
+							})))
 							group.Add(jen.Id("multipartForm").Dot("SetFile").Call(
 								jen.Lit(named.Key),
-								jen.Id("form").Dot("field"+strcase.ToCamel(named.FieldName)+"_FileName"),
+								jen.Id("form").Dot(fieldName+"_FileName"),
 								field,
 							))
 						}
@@ -156,15 +183,15 @@ func (mff *MultipartFormFields) Generate(group *jen.Group, options CodeGenerator
 								jen.Nil(),
 								jen.Qual(PackageNameErrors, "MissingRequiredFieldError").
 									ValuesFunc(func(group *jen.Group) {
-										group.Add(jen.Id("Name").Op(":").Lit(strcase.ToCamel(named.FieldName)))
+										group.Add(jen.Id("Name").Op(":").Lit(fieldName))
 									}),
 							))
 						})
 					}
 					group.Add(code)
 				}
-				if mff.Free != nil {
-					group.Add(jen.For(jen.List(jen.Id("key"), jen.Id("value")).Op(":=").Range().Id("form").Dot("extendedMap")).BlockFunc(func(group *jen.Group) {
+				if free := mff.Free; free != nil {
+					group.Add(jen.For(jen.List(jen.Id("key"), jen.Id("value")).Op(":=").Range().Id("form").Dot(strcase.ToCamel(free.FieldName))).BlockFunc(func(group *jen.Group) {
 						group.Add(jen.Id("multipartForm").Dot("SetValue").Call(jen.Id("key"), jen.Id("value")))
 					}))
 				}
@@ -172,140 +199,6 @@ func (mff *MultipartFormFields) Generate(group *jen.Group, options CodeGenerator
 			}),
 	)
 	return err
-}
-
-func (mff *MultipartFormFields) GenerateAliasesFor(group *jen.Group, structName, fieldName string) error {
-	for _, namedField := range mff.Named {
-		if code, err := mff.generateAliasGetterFunc(namedField, structName, fieldName); err != nil {
-			return err
-		} else {
-			group.Add(code)
-		}
-		if code, err := mff.generateAliasSetterFunc(namedField, structName, fieldName); err != nil {
-			return err
-		} else {
-			group.Add(code)
-		}
-	}
-	return nil
-}
-
-func (mff *MultipartFormFields) generateAliasGetterFunc(named NamedMultipartFormField, structName, fieldName string) (jen.Code, error) {
-	var err error
-	code := jen.Func().
-		Params(jen.Id("request").Op("*").Id(structName)).
-		Id(makeGetterMethodName(named.FieldName)).
-		Params()
-	switch named.Type.ToMultipartFormDataType() {
-	case MultipartFormDataTypeBinaryData:
-		code = code.Params(jen.Qual(PackageNameInternalIo, "ReadSeekCloser"), jen.String())
-	default:
-		if code, err = named.Type.AddTypeToStatement(code); err != nil {
-			return nil, err
-		}
-	}
-	code = code.BlockFunc(func(group *jen.Group) {
-		group.Return(
-			jen.Id("request").Dot(fieldName).Dot(makeGetterMethodName(named.FieldName)).Call(),
-		)
-	})
-	return code, nil
-}
-
-func (mff *MultipartFormFields) generateAliasSetterFunc(named NamedMultipartFormField, structName, fieldName string) (jen.Code, error) {
-	var (
-		params []jen.Code
-	)
-	switch named.Type.ToMultipartFormDataType() {
-	case MultipartFormDataTypeBinaryData:
-		params = []jen.Code{jen.Id("value").Qual(PackageNameInternalIo, "ReadSeekCloser"), jen.Id("fileName").String()}
-	default:
-		p, err := named.Type.AddTypeToStatement(jen.Id("value"))
-		if err != nil {
-			return nil, err
-		}
-		params = []jen.Code{p}
-	}
-	return jen.Func().
-		Params(jen.Id("request").Op("*").Id(structName)).
-		Id(makeSetterMethodName(named.FieldName)).
-		Params(params...).
-		Params(jen.Op("*").Id(structName)).
-		BlockFunc(func(group *jen.Group) {
-			group.Add(jen.Id("request").Dot(fieldName).Dot(makeSetterMethodName(named.FieldName)).CallFunc(func(group *jen.Group) {
-				group.Add(jen.Id("value"))
-				if named.Type.ToMultipartFormDataType() == MultipartFormDataTypeBinaryData {
-					group.Add(jen.Id("fileName"))
-				}
-			}))
-			group.Add(jen.Return(jen.Id("request")))
-		}), nil
-}
-
-func (mff *MultipartFormFields) generateGetterFunc(group *jen.Group, named NamedMultipartFormField, options CodeGeneratorOptions) error {
-	var (
-		fieldName = strcase.ToCamel(named.FieldName)
-		err       error
-	)
-	if named.Documentation != "" {
-		group.Add(jen.Comment(named.Documentation))
-	}
-	code := jen.Func().
-		Params(jen.Id("form").Op("*").Id(options.Name)).
-		Id("Get" + fieldName).
-		Params()
-	switch named.Type.ToMultipartFormDataType() {
-	case MultipartFormDataTypeBinaryData:
-		code = code.Params(jen.Qual(PackageNameInternalIo, "ReadSeekCloser"), jen.String()).
-			BlockFunc(func(group *jen.Group) {
-				group.Add(jen.Return(
-					jen.Id("form").Dot("field"+fieldName),
-					jen.Id("form").Dot("field"+fieldName+"_FileName"),
-				))
-			})
-	default:
-		if code, err = named.Type.AddTypeToStatement(code); err != nil {
-			return err
-		}
-		code = code.BlockFunc(func(group *jen.Group) {
-			group.Add(jen.Return(jen.Id("form").Dot("field" + fieldName)))
-		})
-	}
-	group.Add(code)
-	return nil
-}
-
-func (mff *MultipartFormFields) generateSetterFunc(group *jen.Group, named NamedMultipartFormField, options CodeGeneratorOptions) error {
-	var (
-		params    []jen.Code
-		fieldName = strcase.ToCamel(named.FieldName)
-	)
-	if named.Documentation != "" {
-		group.Add(jen.Comment(named.Documentation))
-	}
-	switch named.Type.ToMultipartFormDataType() {
-	case MultipartFormDataTypeBinaryData:
-		params = []jen.Code{jen.Id("value").Qual(PackageNameInternalIo, "ReadSeekCloser"), jen.Id("fileName").String()}
-	default:
-		p, err := named.Type.AddTypeToStatement(jen.Id("value"))
-		if err != nil {
-			return err
-		}
-		params = []jen.Code{p}
-	}
-	group.Add(jen.Func().
-		Params(jen.Id("form").Op("*").Id(options.Name)).
-		Id("Set" + fieldName).
-		Params(params...).
-		Params(jen.Op("*").Id(options.Name)).
-		BlockFunc(func(group *jen.Group) {
-			group.Add(jen.Id("form").Dot("field" + fieldName).Op("=").Id("value"))
-			if named.Type.ToMultipartFormDataType() == MultipartFormDataTypeBinaryData {
-				group.Add(jen.Id("form").Dot("field" + fieldName + "_FileName").Op("=").Id("fileName"))
-			}
-			group.Add(jen.Return(jen.Id("form")))
-		}))
-	return nil
 }
 
 func (mff *MultipartFormFields) getServiceBucketField() *NamedMultipartFormField {
@@ -321,54 +214,4 @@ func (mff *MultipartFormFields) getServiceBucketField() *NamedMultipartFormField
 		}
 	}
 	return serviceBucketField
-}
-
-func (mff *MultipartFormFields) generateServiceBucketField(options CodeGeneratorOptions) jen.Code {
-	field := mff.getServiceBucketField()
-	if field == nil || field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
-		return nil
-	}
-	return jen.Func().
-		Params(jen.Id("form").Op("*").Id(options.Name)).
-		Id("getBucketName").
-		Params(jen.Id("ctx").Qual("context", "Context")).
-		Params(jen.String(), jen.Error()).
-		BlockFunc(func(group *jen.Group) {
-			switch field.ServiceBucket.ToServiceBucketType() {
-			case ServiceBucketTypePlainText:
-				group.Add(jen.Return(jen.Id("form").Dot("field"+strcase.ToCamel(field.FieldName)), jen.Nil()))
-			case ServiceBucketTypeEntry:
-				group.Add(
-					jen.Return(
-						jen.Qual("strings", "SplitN").
-							Call(jen.Id("form").Dot("field"+strcase.ToCamel(field.FieldName)), jen.Lit(":"), jen.Lit(2)).
-							Index(jen.Lit(0)),
-						jen.Nil(),
-					),
-				)
-			case ServiceBucketTypeUploadToken:
-				group.Add(
-					jen.Id("putPolicy").
-						Op(",").
-						Err().
-						Op(":=").
-						Id("form").
-						Dot("field" + strcase.ToCamel(field.FieldName)).
-						Dot("RetrievePutPolicy").
-						Call(jen.Id("ctx")),
-				)
-				group.Add(
-					jen.If(jen.Err().Op("!=").Nil()).
-						BlockFunc(func(group *jen.Group) {
-							group.Add(jen.Return(jen.Lit(""), jen.Err()))
-						}).
-						Else().
-						BlockFunc(func(group *jen.Group) {
-							group.Add(jen.Return(jen.Id("putPolicy").Dot("GetBucketName").Call()))
-						}),
-				)
-			default:
-				panic("unknown ServiceBucketType")
-			}
-		})
 }

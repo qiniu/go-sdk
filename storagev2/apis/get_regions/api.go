@@ -4,60 +4,51 @@
 package get_regions
 
 import (
-	"context"
 	"encoding/json"
-	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
-	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"strings"
 )
 
-type innerRegion struct {
-	Id          string `json:"id"`          // 区域 ID
-	Description string `json:"description"` // 区域描述信息
+// 调用 API 所用的请求
+type Request struct {
+	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
+}
+
+// 获取 API 所用的响应
+type Response struct {
+	Regions Regions // 区域列表
 }
 
 // 区域信息
 type Region struct {
-	inner innerRegion
+	Id          string // 区域 ID
+	Description string // 区域描述信息
+}
+type jsonRegion struct {
+	Id          string `json:"id"`          // 区域 ID
+	Description string `json:"description"` // 区域描述信息
 }
 
-// 区域 ID
-func (j *Region) GetId() string {
-	return j.inner.Id
-}
-
-// 区域 ID
-func (j *Region) SetId(value string) *Region {
-	j.inner.Id = value
-	return j
-}
-
-// 区域描述信息
-func (j *Region) GetDescription() string {
-	return j.inner.Description
-}
-
-// 区域描述信息
-func (j *Region) SetDescription(value string) *Region {
-	j.inner.Description = value
-	return j
-}
 func (j *Region) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonRegion{Id: j.Id, Description: j.Description})
 }
 func (j *Region) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
+	var nj jsonRegion
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.Id = nj.Id
+	j.Description = nj.Description
+	return nil
 }
-
-//lint:ignore U1000 may not call it
 func (j *Region) validate() error {
-	if j.inner.Id == "" {
+	if j.Id == "" {
 		return errors.MissingRequiredFieldError{Name: "Id"}
 	}
-	if j.inner.Description == "" {
+	if j.Description == "" {
 		return errors.MissingRequiredFieldError{Name: "Description"}
 	}
 	return nil
@@ -65,162 +56,35 @@ func (j *Region) validate() error {
 
 // 区域列表
 type Regions = []Region
-type innerRegionsInfo struct {
+
+// 所有区域信息
+type RegionsInfo = Response
+type jsonResponse struct {
 	Regions Regions `json:"regions"` // 区域列表
 }
 
-// 所有区域信息
-type RegionsInfo struct {
-	inner innerRegionsInfo
+func (j *Response) MarshalJSON() ([]byte, error) {
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonResponse{Regions: j.Regions})
 }
-
-// 区域列表
-func (j *RegionsInfo) GetRegions() Regions {
-	return j.inner.Regions
+func (j *Response) UnmarshalJSON(data []byte) error {
+	var nj jsonResponse
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.Regions = nj.Regions
+	return nil
 }
-
-// 区域列表
-func (j *RegionsInfo) SetRegions(value Regions) *RegionsInfo {
-	j.inner.Regions = value
-	return j
-}
-func (j *RegionsInfo) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
-}
-func (j *RegionsInfo) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
-}
-
-//lint:ignore U1000 may not call it
-func (j *RegionsInfo) validate() error {
-	if len(j.inner.Regions) == 0 {
+func (j *Response) validate() error {
+	if len(j.Regions) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Regions"}
 	}
-	for _, value := range j.inner.Regions {
+	for _, value := range j.Regions {
 		if err := value.validate(); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-// 获取 API 所用的响应体参数
-type ResponseBody = RegionsInfo
-
-// 区域列表
-func (request *Response) GetRegions() Regions {
-	return request.body.GetRegions()
-}
-
-// 区域列表
-func (request *Response) SetRegions(value Regions) *Response {
-	request.body.SetRegions(value)
-	return request
-}
-
-// 调用 API 所用的请求
-type Request struct {
-	overwrittenBucketHosts region.EndpointsProvider
-	overwrittenBucketName  string
-	credentials            credentials.CredentialsProvider
-}
-
-// 覆盖默认的存储区域域名列表
-func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
-	request.overwrittenBucketHosts = bucketHosts
-	return request
-}
-
-// 覆盖存储空间名称
-func (request *Request) OverwriteBucketName(bucketName string) *Request {
-	request.overwrittenBucketName = bucketName
-	return request
-}
-
-// 设置鉴权
-func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
-	request.credentials = credentials
-	return request
-}
-func (request *Request) getBucketName(ctx context.Context) (string, error) {
-	if request.overwrittenBucketName != "" {
-		return request.overwrittenBucketName, nil
-	}
-	return "", nil
-}
-func (request *Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.credentials != nil {
-		if credentials, err := request.credentials.Get(ctx); err != nil {
-			return "", err
-		} else {
-			return credentials.AccessKey, nil
-		}
-	}
-	return "", nil
-}
-
-// 发送请求
-func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
-	client := httpclient.NewHttpClient(options)
-	serviceNames := []region.ServiceName{region.ServiceBucket}
-	var pathSegments []string
-	pathSegments = append(pathSegments, "regions")
-	path := "/" + strings.Join(pathSegments, "/")
-	var rawQuery string
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: request.credentials}
-	var queryer region.BucketRegionsQueryer
-	if client.GetRegions() == nil && client.GetEndpoints() == nil {
-		queryer = client.GetBucketQueryer()
-		if queryer == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			if request.overwrittenBucketHosts != nil {
-				req.Endpoints = request.overwrittenBucketHosts
-			} else {
-				req.Endpoints = bucketHosts
-			}
-		}
-	}
-	if queryer != nil {
-		bucketName, err := request.getBucketName(ctx)
-		if err != nil {
-			return nil, err
-		}
-		accessKey, err := request.getAccessKey(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if accessKey == "" {
-			if credentialsProvider := client.GetCredentials(); credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
-					return nil, err
-				} else if creds != nil {
-					accessKey = creds.AccessKey
-				}
-			}
-		}
-		if accessKey != "" && bucketName != "" {
-			req.Region = queryer.Query(accessKey, bucketName)
-		}
-	}
-	var respBody ResponseBody
-	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
-		return nil, err
-	}
-	return &Response{body: respBody}, nil
-}
-
-// 获取 API 所用的响应
-type Response struct {
-	body ResponseBody
-}
-
-// 获取请求体
-func (response *Response) GetBody() *ResponseBody {
-	return &response.body
-}
-
-// 设置请求体
-func (response *Response) SetBody(body ResponseBody) *Response {
-	response.body = body
-	return response
 }
