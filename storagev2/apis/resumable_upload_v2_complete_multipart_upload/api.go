@@ -4,152 +4,54 @@
 package resumable_upload_v2_complete_multipart_upload
 
 import (
-	"context"
-	"encoding/base64"
 	"encoding/json"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
-	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"strings"
 )
 
-// 调用 API 所用的路径参数
-type RequestPath struct {
-	fieldBucketName string
-	fieldObjectName string
-	fieldUploadId   string
-}
-
-// 存储空间名称
-func (pp *RequestPath) GetBucketName() string {
-	return pp.fieldBucketName
-}
-
-// 存储空间名称
-func (pp *RequestPath) SetBucketName(value string) *RequestPath {
-	pp.fieldBucketName = value
-	return pp
-}
-
-// 对象名称
-func (pp *RequestPath) GetObjectName() string {
-	return pp.fieldObjectName
-}
-
-// 对象名称
-func (pp *RequestPath) SetObjectName(value string) *RequestPath {
-	pp.fieldObjectName = value
-	return pp
-}
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (pp *RequestPath) GetUploadId() string {
-	return pp.fieldUploadId
-}
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (pp *RequestPath) SetUploadId(value string) *RequestPath {
-	pp.fieldUploadId = value
-	return pp
-}
-func (path *RequestPath) build() ([]string, error) {
-	var allSegments []string
-	if path.fieldBucketName != "" {
-		allSegments = append(allSegments, path.fieldBucketName)
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
-	}
-	if path.fieldObjectName != "" {
-		allSegments = append(allSegments, "objects", base64.URLEncoding.EncodeToString([]byte(path.fieldObjectName)))
-	} else {
-		allSegments = append(allSegments, "objects", "~")
-	}
-	if path.fieldUploadId != "" {
-		allSegments = append(allSegments, "uploads", path.fieldUploadId)
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "UploadId"}
-	}
-	return allSegments, nil
-}
-
-// 存储空间名称
-func (request *Request) GetBucketName() string {
-	return request.path.GetBucketName()
-}
-
-// 存储空间名称
-func (request *Request) SetBucketName(value string) *Request {
-	request.path.SetBucketName(value)
-	return request
-}
-
-// 对象名称
-func (request *Request) GetObjectName() string {
-	return request.path.GetObjectName()
-}
-
-// 对象名称
-func (request *Request) SetObjectName(value string) *Request {
-	request.path.SetObjectName(value)
-	return request
-}
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (request *Request) GetUploadId() string {
-	return request.path.GetUploadId()
-}
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (request *Request) SetUploadId(value string) *Request {
-	request.path.SetUploadId(value)
-	return request
-}
-
-type innerPartInfo struct {
-	PartNumber int64  `json:"partNumber"` // 每一个上传的分片都有一个标识它的号码
-	Etag       string `json:"etag"`       // 上传块的 etag
+// 调用 API 所用的请求
+type Request struct {
+	BucketName string            // 存储空间名称
+	ObjectName string            // 对象名称
+	UploadId   string            // 在服务端申请的 Multipart Upload 任务 id
+	UpToken    uptoken.Provider  // 上传凭证，如果为空，则使用 HttpClientOptions 中的 UpToken
+	Parts      Parts             // 已经上传的分片列表
+	FileName   string            // 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
+	MimeType   string            // 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
+	Metadata   map[string]string // 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
+	CustomVars map[string]string // 用户自定义变量
 }
 
 // 单个分片信息
 type PartInfo struct {
-	inner innerPartInfo
+	PartNumber int64  // 每一个上传的分片都有一个标识它的号码
+	Etag       string // 上传块的 etag
+}
+type jsonPartInfo struct {
+	PartNumber int64  `json:"partNumber"` // 每一个上传的分片都有一个标识它的号码
+	Etag       string `json:"etag"`       // 上传块的 etag
 }
 
-// 每一个上传的分片都有一个标识它的号码
-func (j *PartInfo) GetPartNumber() int64 {
-	return j.inner.PartNumber
-}
-
-// 每一个上传的分片都有一个标识它的号码
-func (j *PartInfo) SetPartNumber(value int64) *PartInfo {
-	j.inner.PartNumber = value
-	return j
-}
-
-// 上传块的 etag
-func (j *PartInfo) GetEtag() string {
-	return j.inner.Etag
-}
-
-// 上传块的 etag
-func (j *PartInfo) SetEtag(value string) *PartInfo {
-	j.inner.Etag = value
-	return j
-}
 func (j *PartInfo) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonPartInfo{PartNumber: j.PartNumber, Etag: j.Etag})
 }
 func (j *PartInfo) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
+	var nj jsonPartInfo
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.PartNumber = nj.PartNumber
+	j.Etag = nj.Etag
+	return nil
 }
-
-//lint:ignore U1000 may not call it
 func (j *PartInfo) validate() error {
-	if j.inner.PartNumber == 0 {
+	if j.PartNumber == 0 {
 		return errors.MissingRequiredFieldError{Name: "PartNumber"}
 	}
-	if j.inner.Etag == "" {
+	if j.Etag == "" {
 		return errors.MissingRequiredFieldError{Name: "Etag"}
 	}
 	return nil
@@ -157,7 +59,10 @@ func (j *PartInfo) validate() error {
 
 // 分片信息列表
 type Parts = []PartInfo
-type innerObjectInfo struct {
+
+// 新上传的对象的相关信息
+type ObjectInfo = Request
+type jsonRequest struct {
 	Parts      Parts             `json:"parts"`                // 已经上传的分片列表
 	FileName   string            `json:"fname,omitempty"`      // 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
 	MimeType   string            `json:"mime_type,omitempty"`  // 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
@@ -165,78 +70,29 @@ type innerObjectInfo struct {
 	CustomVars map[string]string `json:"customVars,omitempty"` // 用户自定义变量
 }
 
-// 新上传的对象的相关信息
-type ObjectInfo struct {
-	inner innerObjectInfo
+func (j *Request) MarshalJSON() ([]byte, error) {
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonRequest{Parts: j.Parts, FileName: j.FileName, MimeType: j.MimeType, Metadata: j.Metadata, CustomVars: j.CustomVars})
 }
-
-// 已经上传的分片列表
-func (j *ObjectInfo) GetParts() Parts {
-	return j.inner.Parts
+func (j *Request) UnmarshalJSON(data []byte) error {
+	var nj jsonRequest
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.Parts = nj.Parts
+	j.FileName = nj.FileName
+	j.MimeType = nj.MimeType
+	j.Metadata = nj.Metadata
+	j.CustomVars = nj.CustomVars
+	return nil
 }
-
-// 已经上传的分片列表
-func (j *ObjectInfo) SetParts(value Parts) *ObjectInfo {
-	j.inner.Parts = value
-	return j
-}
-
-// 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
-func (j *ObjectInfo) GetFileName() string {
-	return j.inner.FileName
-}
-
-// 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
-func (j *ObjectInfo) SetFileName(value string) *ObjectInfo {
-	j.inner.FileName = value
-	return j
-}
-
-// 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
-func (j *ObjectInfo) GetMimeType() string {
-	return j.inner.MimeType
-}
-
-// 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
-func (j *ObjectInfo) SetMimeType(value string) *ObjectInfo {
-	j.inner.MimeType = value
-	return j
-}
-
-// 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
-func (j *ObjectInfo) GetMetadata() map[string]string {
-	return j.inner.Metadata
-}
-
-// 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
-func (j *ObjectInfo) SetMetadata(value map[string]string) *ObjectInfo {
-	j.inner.Metadata = value
-	return j
-}
-
-// 用户自定义变量
-func (j *ObjectInfo) GetCustomVars() map[string]string {
-	return j.inner.CustomVars
-}
-
-// 用户自定义变量
-func (j *ObjectInfo) SetCustomVars(value map[string]string) *ObjectInfo {
-	j.inner.CustomVars = value
-	return j
-}
-func (j *ObjectInfo) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
-}
-func (j *ObjectInfo) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
-}
-
-//lint:ignore U1000 may not call it
-func (j *ObjectInfo) validate() error {
-	if len(j.inner.Parts) == 0 {
+func (j *Request) validate() error {
+	if len(j.Parts) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Parts"}
 	}
-	for _, value := range j.inner.Parts {
+	for _, value := range j.Parts {
 		if err := value.validate(); err != nil {
 			return err
 		}
@@ -244,217 +100,19 @@ func (j *ObjectInfo) validate() error {
 	return nil
 }
 
-// 调用 API 所用的请求体
-type RequestBody = ObjectInfo
-
-// 已经上传的分片列表
-func (request *Request) GetParts() Parts {
-	return request.body.GetParts()
-}
-
-// 已经上传的分片列表
-func (request *Request) SetParts(value Parts) *Request {
-	request.body.SetParts(value)
-	return request
-}
-
-// 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
-func (request *Request) GetFileName() string {
-	return request.body.GetFileName()
-}
-
-// 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
-func (request *Request) SetFileName(value string) *Request {
-	request.body.SetFileName(value)
-	return request
-}
-
-// 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
-func (request *Request) GetMimeType() string {
-	return request.body.GetMimeType()
-}
-
-// 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
-func (request *Request) SetMimeType(value string) *Request {
-	request.body.SetMimeType(value)
-	return request
-}
-
-// 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
-func (request *Request) GetMetadata() map[string]string {
-	return request.body.GetMetadata()
-}
-
-// 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
-func (request *Request) SetMetadata(value map[string]string) *Request {
-	request.body.SetMetadata(value)
-	return request
-}
-
-// 用户自定义变量
-func (request *Request) GetCustomVars() map[string]string {
-	return request.body.GetCustomVars()
-}
-
-// 用户自定义变量
-func (request *Request) SetCustomVars(value map[string]string) *Request {
-	request.body.SetCustomVars(value)
-	return request
-}
-
-// 获取 API 所用的响应体参数
-type ResponseBody = interface{}
-
-// 调用 API 所用的请求
-type Request struct {
-	overwrittenBucketHosts region.EndpointsProvider
-	overwrittenBucketName  string
-	path                   RequestPath
-	upToken                uptoken.Provider
-	body                   RequestBody
-}
-
-// 覆盖默认的存储区域域名列表
-func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
-	request.overwrittenBucketHosts = bucketHosts
-	return request
-}
-
-// 覆盖存储空间名称
-func (request *Request) OverwriteBucketName(bucketName string) *Request {
-	request.overwrittenBucketName = bucketName
-	return request
-}
-
-// 设置上传凭证
-func (request *Request) SetUpToken(upToken uptoken.Provider) *Request {
-	request.upToken = upToken
-	return request
-}
-func (request *Request) getBucketName(ctx context.Context) (string, error) {
-	if request.overwrittenBucketName != "" {
-		return request.overwrittenBucketName, nil
-	}
-	if request.upToken != nil {
-		if putPolicy, err := request.upToken.RetrievePutPolicy(ctx); err != nil {
-			return "", err
-		} else {
-			return putPolicy.GetBucketName()
-		}
-	}
-	return "", nil
-}
-func (request *Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.upToken != nil {
-		return request.upToken.RetrieveAccessKey(ctx)
-	}
-	return "", nil
-}
-
-// 获取请求路径
-func (request *Request) GetPath() *RequestPath {
-	return &request.path
-}
-
-// 获取请求体
-func (request *Request) GetBody() *RequestBody {
-	return &request.body
-}
-
-// 设置请求路径
-func (request *Request) SetPath(path RequestPath) *Request {
-	request.path = path
-	return request
-}
-
-// 设置请求体
-func (request *Request) SetBody(body RequestBody) *Request {
-	request.body = body
-	return request
-}
-
-// 发送请求
-func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
-	client := httpclient.NewHttpClient(options)
-	serviceNames := []region.ServiceName{region.ServiceUp}
-	var pathSegments []string
-	pathSegments = append(pathSegments, "buckets")
-	if segments, err := request.path.build(); err != nil {
-		return nil, err
-	} else {
-		pathSegments = append(pathSegments, segments...)
-	}
-	path := "/" + strings.Join(pathSegments, "/")
-	var rawQuery string
-	if err := request.body.validate(); err != nil {
-		return nil, err
-	}
-	body, err := httpclient.GetJsonRequestBody(&request.body)
-	if err != nil {
-		return nil, err
-	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: request.upToken, RequestBody: body}
-	var queryer region.BucketRegionsQueryer
-	if client.GetRegions() == nil && client.GetEndpoints() == nil {
-		queryer = client.GetBucketQueryer()
-		if queryer == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			var err error
-			if request.overwrittenBucketHosts != nil {
-				if bucketHosts, err = request.overwrittenBucketHosts.GetEndpoints(ctx); err != nil {
-					return nil, err
-				}
-			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: options.UseInsecureProtocol, HostFreezeDuration: options.HostFreezeDuration, Client: options.Client}
-			if hostRetryConfig := options.HostRetryConfig; hostRetryConfig != nil {
-				queryerOptions.RetryMax = hostRetryConfig.RetryMax
-			}
-			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
-				return nil, err
-			}
-		}
-	}
-	if queryer != nil {
-		bucketName, err := request.getBucketName(ctx)
-		if err != nil {
-			return nil, err
-		}
-		accessKey, err := request.getAccessKey(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if accessKey == "" {
-			if credentialsProvider := client.GetCredentials(); credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
-					return nil, err
-				} else if creds != nil {
-					accessKey = creds.AccessKey
-				}
-			}
-		}
-		if accessKey != "" && bucketName != "" {
-			req.Region = queryer.Query(accessKey, bucketName)
-		}
-	}
-	var respBody ResponseBody
-	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
-		return nil, err
-	}
-	return &Response{body: respBody}, nil
-}
-
 // 获取 API 所用的响应
 type Response struct {
-	body ResponseBody
+	Body interface{}
 }
 
-// 获取请求体
-func (response *Response) GetBody() ResponseBody {
-	return response.body
+func (j *Response) MarshalJSON() ([]byte, error) {
+	return json.Marshal(j.Body)
 }
-
-// 设置请求体
-func (response *Response) SetBody(body ResponseBody) *Response {
-	response.body = body
-	return response
+func (j *Response) UnmarshalJSON(data []byte) error {
+	var any interface{}
+	if err := json.Unmarshal(data, &any); err != nil {
+		return err
+	}
+	j.Body = any
+	return nil
 }

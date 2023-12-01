@@ -23,11 +23,11 @@ func TestSignPutPolicy(t *testing.T) {
 		t.Fatalf("failed to create put policy: %s", err)
 	}
 
-	if scope, _ := putPolicy.GetString(uptoken.PutPolicyKeyScope); scope != expectedBucketName {
+	if scope, _ := putPolicy.GetScope(); scope != expectedBucketName {
 		t.Fatalf("unexpected bucket name: %s", expectedBucketName)
 	}
 
-	if actualDeadline, _ := putPolicy.GetInt64(uptoken.PutPolicyKeyDeadline); actualDeadline != expectedExpires {
+	if actualDeadline, _ := putPolicy.GetDeadline(); actualDeadline != expectedExpires {
 		t.Fatalf("unexpected deadline: %d", actualDeadline)
 	}
 
@@ -46,7 +46,7 @@ func TestSignPutPolicy(t *testing.T) {
 
 	if actualPutPolicy, err := parser.RetrievePutPolicy(context.Background()); err != nil {
 		t.Fatalf("failed to retrieve putPolicy: %s", err)
-	} else if actualScope, _ := actualPutPolicy.GetString(uptoken.PutPolicyKeyScope); actualScope != expectedBucketName {
+	} else if actualScope, _ := actualPutPolicy.GetScope(); actualScope != expectedBucketName {
 		t.Fatalf("unexpected scope: %s", actualScope)
 	}
 }

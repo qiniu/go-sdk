@@ -273,3 +273,28 @@ func (t *ServiceBucketType) ToServiceBucketType() ServiceBucketType {
 		panic(fmt.Sprintf("unknown ServiceBucketType: %s", *t))
 	}
 }
+
+func (authorization Authorization) addGetBucketNameFunc(group *jen.Group, structName string) (bool, error) {
+	if authorization.ToAuthorization() == AuthorizationUpToken {
+		group.Add(jen.Func().
+			Params(jen.Id("request").Op("*").Id(structName)).
+			Id("getBucketName").
+			Params(jen.Id("ctx").Qual("context", "Context")).
+			Params(jen.String(), jen.Error()).
+			BlockFunc(func(group *jen.Group) {
+				group.Add(jen.If(jen.Id("request").Dot("UpToken").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+					group.If(
+						jen.List(jen.Id("putPolicy"), jen.Err()).Op(":=").Id("request").Dot("UpToken").Dot("RetrievePutPolicy").Call(jen.Id("ctx")),
+						jen.Err().Op("!=").Nil(),
+					).BlockFunc(func(group *jen.Group) {
+						group.Return(jen.Lit(""), jen.Err())
+					}).Else().BlockFunc(func(group *jen.Group) {
+						group.Return(jen.Id("putPolicy").Dot("GetBucketName").Call())
+					})
+				}))
+				group.Add(jen.Return(jen.Lit(""), jen.Nil()))
+			}))
+		return true, nil
+	}
+	return false, nil
+}

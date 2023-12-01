@@ -4,229 +4,40 @@
 package set_bucket_remark
 
 import (
-	"context"
 	"encoding/json"
-	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
-	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"strings"
 )
-
-// 调用 API 所用的路径参数
-type RequestPath struct {
-	fieldBucket string
-}
-
-// 空间名称
-func (pp *RequestPath) GetBucket() string {
-	return pp.fieldBucket
-}
-
-// 空间名称
-func (pp *RequestPath) SetBucket(value string) *RequestPath {
-	pp.fieldBucket = value
-	return pp
-}
-func (pp *RequestPath) getBucketName() (string, error) {
-	return pp.fieldBucket, nil
-}
-func (path *RequestPath) build() ([]string, error) {
-	var allSegments []string
-	if path.fieldBucket != "" {
-		allSegments = append(allSegments, path.fieldBucket)
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "Bucket"}
-	}
-	return allSegments, nil
-}
-
-// 空间名称
-func (request *Request) GetBucket() string {
-	return request.path.GetBucket()
-}
-
-// 空间名称
-func (request *Request) SetBucket(value string) *Request {
-	request.path.SetBucket(value)
-	return request
-}
-
-type innerRequestBody struct {
-	Remark string `json:"remark"` // 空间备注信息, 字符长度不能超过 100, 允许为空
-}
-
-// 调用 API 所用的请求体
-type RequestBody struct {
-	inner innerRequestBody
-}
-
-// 空间备注信息, 字符长度不能超过 100, 允许为空
-func (j *RequestBody) GetRemark() string {
-	return j.inner.Remark
-}
-
-// 空间备注信息, 字符长度不能超过 100, 允许为空
-func (j *RequestBody) SetRemark(value string) *RequestBody {
-	j.inner.Remark = value
-	return j
-}
-func (j *RequestBody) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
-}
-func (j *RequestBody) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
-}
-
-//lint:ignore U1000 may not call it
-func (j *RequestBody) validate() error {
-	if j.inner.Remark == "" {
-		return errors.MissingRequiredFieldError{Name: "Remark"}
-	}
-	return nil
-}
-
-// 空间备注信息, 字符长度不能超过 100, 允许为空
-func (request *Request) GetRemark() string {
-	return request.body.GetRemark()
-}
-
-// 空间备注信息, 字符长度不能超过 100, 允许为空
-func (request *Request) SetRemark(value string) *Request {
-	request.body.SetRemark(value)
-	return request
-}
 
 // 调用 API 所用的请求
 type Request struct {
-	overwrittenBucketHosts region.EndpointsProvider
-	overwrittenBucketName  string
-	path                   RequestPath
-	credentials            credentials.CredentialsProvider
-	body                   RequestBody
+	Bucket      string                          // 空间名称
+	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
+	Remark      string                          // 空间备注信息, 字符长度不能超过 100, 允许为空
+}
+type jsonRequest struct {
+	Remark string `json:"remark"` // 空间备注信息, 字符长度不能超过 100, 允许为空
 }
 
-// 覆盖默认的存储区域域名列表
-func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
-	request.overwrittenBucketHosts = bucketHosts
-	return request
-}
-
-// 覆盖存储空间名称
-func (request *Request) OverwriteBucketName(bucketName string) *Request {
-	request.overwrittenBucketName = bucketName
-	return request
-}
-
-// 设置鉴权
-func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
-	request.credentials = credentials
-	return request
-}
-func (request *Request) getBucketName(ctx context.Context) (string, error) {
-	if request.overwrittenBucketName != "" {
-		return request.overwrittenBucketName, nil
-	}
-	if bucketName, err := request.path.getBucketName(); err != nil || bucketName != "" {
-		return bucketName, err
-	}
-	return "", nil
-}
-func (request *Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.credentials != nil {
-		if credentials, err := request.credentials.Get(ctx); err != nil {
-			return "", err
-		} else {
-			return credentials.AccessKey, nil
-		}
-	}
-	return "", nil
-}
-
-// 获取请求路径
-func (request *Request) GetPath() *RequestPath {
-	return &request.path
-}
-
-// 获取请求体
-func (request *Request) GetBody() *RequestBody {
-	return &request.body
-}
-
-// 设置请求路径
-func (request *Request) SetPath(path RequestPath) *Request {
-	request.path = path
-	return request
-}
-
-// 设置请求体
-func (request *Request) SetBody(body RequestBody) *Request {
-	request.body = body
-	return request
-}
-
-// 发送请求
-func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
-	client := httpclient.NewHttpClient(options)
-	serviceNames := []region.ServiceName{region.ServiceBucket}
-	var pathSegments []string
-	pathSegments = append(pathSegments, "buckets")
-	if segments, err := request.path.build(); err != nil {
-		return nil, err
-	} else {
-		pathSegments = append(pathSegments, segments...)
-	}
-	path := "/" + strings.Join(pathSegments, "/")
-	var rawQuery string
-	rawQuery += "remark" + "&"
-	if err := request.body.validate(); err != nil {
+func (j *Request) MarshalJSON() ([]byte, error) {
+	if err := j.validate(); err != nil {
 		return nil, err
 	}
-	body, err := httpclient.GetJsonRequestBody(&request.body)
-	if err != nil {
-		return nil, err
+	return json.Marshal(&jsonRequest{Remark: j.Remark})
+}
+func (j *Request) UnmarshalJSON(data []byte) error {
+	var nj jsonRequest
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
 	}
-	req := httpclient.Request{Method: "PUT", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: request.credentials, RequestBody: body}
-	var queryer region.BucketRegionsQueryer
-	if client.GetRegions() == nil && client.GetEndpoints() == nil {
-		queryer = client.GetBucketQueryer()
-		if queryer == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			if request.overwrittenBucketHosts != nil {
-				req.Endpoints = request.overwrittenBucketHosts
-			} else {
-				req.Endpoints = bucketHosts
-			}
-		}
+	j.Remark = nj.Remark
+	return nil
+}
+func (j *Request) validate() error {
+	if j.Remark == "" {
+		return errors.MissingRequiredFieldError{Name: "Remark"}
 	}
-	if queryer != nil {
-		bucketName, err := request.getBucketName(ctx)
-		if err != nil {
-			return nil, err
-		}
-		accessKey, err := request.getAccessKey(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if accessKey == "" {
-			if credentialsProvider := client.GetCredentials(); credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
-					return nil, err
-				} else if creds != nil {
-					accessKey = creds.AccessKey
-				}
-			}
-		}
-		if accessKey != "" && bucketName != "" {
-			req.Region = queryer.Query(accessKey, bucketName)
-		}
-	}
-	resp, err := client.Do(ctx, &req)
-	if err != nil {
-		return nil, err
-	}
-	return &Response{}, resp.Body.Close()
+	return nil
 }
 
 // 获取 API 所用的响应

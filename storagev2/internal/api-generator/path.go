@@ -32,84 +32,87 @@ type (
 	}
 )
 
-func (pp *PathParams) Generate(group *jen.Group, options CodeGeneratorOptions) error {
-	var err error
-	options.Name = strcase.ToCamel(options.Name)
-	if options.Documentation != "" {
-		group.Add(jen.Comment(options.Documentation))
-	}
-	group.Add(
-		jen.Type().Id(options.Name).StructFunc(func(group *jen.Group) {
-			for _, namedPathParam := range pp.Named {
-				code, e := namedPathParam.Type.AddTypeToStatement(jen.Id("field" + strcase.ToCamel(namedPathParam.FieldName)))
-				if e != nil {
-					err = e
-					return
-				}
-				group.Add(code)
-			}
-			if pp.Free != nil {
-				group.Add(jen.Id("extendedSegments").Index().Add(jen.String()))
-			}
-		}),
-	)
-	for _, named := range pp.Named {
-		if err = pp.generateGetterFunc(group, named, options); err != nil {
+func (pp *PathParams) addFields(group *jen.Group) error {
+	for _, namedPathParam := range pp.Named {
+		code, err := namedPathParam.Type.AddTypeToStatement(jen.Id(strcase.ToCamel(namedPathParam.FieldName)))
+		if err != nil {
 			return err
 		}
-		if err = pp.generateSetterFunc(group, named, options); err != nil {
-			return err
+		if namedPathParam.Documentation != "" {
+			code = code.Comment(namedPathParam.Documentation)
 		}
-	}
-	if code := pp.generateServiceBucketField(options); code != nil {
 		group.Add(code)
 	}
-	if pp.Free != nil {
-		group.Add(jen.Comment("追加自定义路径参数"))
-		group.Add(
-			jen.Func().
-				Params(jen.Id("path").Op("*").Id(options.Name)).
-				Id("Append").
-				Params(jen.Id("key").String(), jen.Id("value").String()).
-				Params(jen.Op("*").Id(options.Name)).
-				BlockFunc(func(group *jen.Group) {
-					var keyCode, valueCode jen.Code
-					switch pp.Free.EncodeParamKey.ToEncodeType() {
-					case EncodeTypeNone:
-						keyCode = jen.Id("key")
-					case EncodeTypeUrlsafeBase64, EncodeTypeUrlsafeBase64OrNone:
-						keyCode = jen.Qual("encoding/base64", "URLEncoding").
-							Dot("EncodeToString").
-							Call(jen.Index().Byte().Parens(jen.Id("key")))
-					}
-					group.Add(
-						jen.Id("path").Dot("extendedSegments").Op("=").Append(
-							jen.Id("path").Dot("extendedSegments"),
-							keyCode,
-						),
-					)
-					switch pp.Free.EncodeParamValue.ToEncodeType() {
-					case EncodeTypeNone:
-						valueCode = jen.Id("value")
-					case EncodeTypeUrlsafeBase64, EncodeTypeUrlsafeBase64OrNone:
-						valueCode = jen.Qual("encoding/base64", "URLEncoding").
-							Dot("EncodeToString").
-							Call(jen.Index().Byte().Parens(jen.Id("value")))
-					}
-					group.Add(
-						jen.Id("path").Dot("extendedSegments").Op("=").Append(
-							jen.Id("path").Dot("extendedSegments"),
-							valueCode,
-						),
-					)
-					group.Add(jen.Return(jen.Id("path")))
-				}),
-		)
+	if free := pp.Free; free != nil {
+		freeFieldName := strcase.ToCamel(free.FieldName)
+		code := jen.Id(freeFieldName).Map(jen.String()).String()
+		if free.Documentation != "" {
+			code = code.Comment(free.Documentation)
+		}
+		group.Add(code)
 	}
+	return nil
+}
+
+func (pp *PathParams) addGetBucketNameFunc(group *jen.Group, structName string) (bool, error) {
+	field := pp.getServiceBucketField()
+	if field == nil || field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
+		return false, nil
+	} else if field.Type.ToStringLikeType() != StringLikeTypeString {
+		panic(fmt.Sprintf("service bucket field must be string: %s", field.FieldName))
+	}
+	group.Add(jen.Func().
+		Params(jen.Id("pp").Op("*").Id(structName)).
+		Id("getBucketName").
+		Params(jen.Id("ctx").Qual("context", "Context")).
+		Params(jen.String(), jen.Error()).
+		BlockFunc(func(group *jen.Group) {
+			fieldName := strcase.ToCamel(field.FieldName)
+			switch field.ServiceBucket.ToServiceBucketType() {
+			case ServiceBucketTypePlainText:
+				group.Add(jen.Return(jen.Id("pp").Dot(fieldName), jen.Nil()))
+			case ServiceBucketTypeEntry:
+				group.Add(
+					jen.Return(
+						jen.Qual("strings", "SplitN").
+							Call(jen.Id("pp").Dot(fieldName), jen.Lit(":"), jen.Lit(2)).
+							Index(jen.Lit(0)),
+						jen.Nil(),
+					),
+				)
+			case ServiceBucketTypeUploadToken:
+				group.Add(
+					jen.If(jen.Id("putPolicy"), jen.Err()).
+						Op(":=").
+						Qual(PackageNameUpToken, "NewParser").
+						Call(jen.Id("pp").Dot(fieldName)).
+						Dot("RetrievePutPolicy").
+						Call(jen.Id("ctx")).
+						Op(";").
+						Err().
+						Op("!=").
+						Nil().
+						BlockFunc(func(group *jen.Group) {
+							group.Add(jen.Return(jen.Lit(""), jen.Err()))
+						}).
+						Else().
+						BlockFunc(func(group *jen.Group) {
+							group.Add(jen.Return(jen.Id("putPolicy").Dot("GetBucketName").Call()))
+						}),
+				)
+			default:
+				panic("unknown ServiceBucketType")
+			}
+		}))
+	return true, nil
+}
+
+func (pp *PathParams) addBuildFunc(group *jen.Group, structName string) error {
+	var err error
 	group.Add(
 		jen.Func().
-			Params(jen.Id("path").Op("*").Id(options.Name)).
-			Id("build").
+			Params(jen.Id("path").Op("*").Id(structName)).
+			Id("buildPath").
 			Params().
 			Params(jen.Index().Add(jen.String()), jen.Error()).
 			BlockFunc(func(group *jen.Group) {
@@ -119,7 +122,7 @@ func (pp *PathParams) Generate(group *jen.Group, options CodeGeneratorOptions) e
 						code      jen.Code
 						isNone    bool
 						fieldName = strcase.ToCamel(namedPathParam.FieldName)
-						field     = jen.Id("path").Dot("field" + fieldName)
+						field     = jen.Id("path").Dot(fieldName)
 					)
 					switch namedPathParam.Type.ToStringLikeType() {
 					case StringLikeTypeString:
@@ -197,103 +200,48 @@ func (pp *PathParams) Generate(group *jen.Group, options CodeGeneratorOptions) e
 						}
 					}
 				}
-				if pp.Free != nil {
-					group.Add(jen.Id("allSegments").Op("=").Append(jen.Id("allSegments"), jen.Id("path").Dot("extendedSegments").Op("...")))
+				if free := pp.Free; free != nil {
+					freeFieldName := strcase.ToCamel(free.FieldName)
+					group.Add(
+						jen.For(
+							jen.Id("key").
+								Op(",").
+								Id("value").
+								Op(":=").
+								Range().
+								Id("path").
+								Dot(freeFieldName)).
+							BlockFunc(func(group *jen.Group) {
+								var keyCode, valueCode jen.Code
+								switch free.EncodeParamKey.ToEncodeType() {
+								case EncodeTypeNone:
+									keyCode = jen.Id("key")
+								case EncodeTypeUrlsafeBase64, EncodeTypeUrlsafeBase64OrNone:
+									keyCode = jen.Qual("encoding/base64", "URLEncoding").
+										Dot("EncodeToString").
+										Call(jen.Index().Byte().Parens(jen.Id("key")))
+								}
+								group.Add(
+									jen.Id("allSegments").Op("=").Append(jen.Id("allSegments"), keyCode),
+								)
+								switch free.EncodeParamValue.ToEncodeType() {
+								case EncodeTypeNone:
+									valueCode = jen.Id("value")
+								case EncodeTypeUrlsafeBase64, EncodeTypeUrlsafeBase64OrNone:
+									valueCode = jen.Qual("encoding/base64", "URLEncoding").
+										Dot("EncodeToString").
+										Call(jen.Index().Byte().Parens(jen.Id("value")))
+								}
+								group.Add(
+									jen.Id("allSegments").Op("=").Append(jen.Id("allSegments"), valueCode),
+								)
+							}),
+					)
 				}
 				group.Add(jen.Return(jen.Id("allSegments"), jen.Nil()))
 			}),
 	)
 	return err
-}
-
-func (pp *PathParams) GenerateAliasesFor(group *jen.Group, structName, fieldName string) error {
-	for _, named := range pp.Named {
-		if err := pp.generateAliasGetterFunc(group, named, structName, fieldName); err != nil {
-			return err
-		}
-		if err := pp.generateAliasSetterFunc(group, named, structName, fieldName); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (pp *PathParams) generateAliasGetterFunc(group *jen.Group, named NamedPathParam, structName, fieldName string) error {
-	if named.Documentation != "" {
-		group.Add(jen.Comment(named.Documentation))
-	}
-	code := jen.Func().
-		Params(jen.Id("request").Op("*").Id(structName)).
-		Id(makeGetterMethodName(named.FieldName)).
-		Params()
-	code, err := named.Type.AddTypeToStatement(code)
-	if err != nil {
-		return err
-	}
-	code = code.BlockFunc(func(group *jen.Group) {
-		group.Add(jen.Return(jen.Id("request").Dot(fieldName).Dot(makeGetterMethodName(named.FieldName)).Call()))
-	})
-	group.Add(code)
-	return nil
-}
-
-func (pp *PathParams) generateAliasSetterFunc(group *jen.Group, named NamedPathParam, structName, fieldName string) error {
-	if named.Documentation != "" {
-		group.Add(jen.Comment(named.Documentation))
-	}
-	params, err := named.Type.AddTypeToStatement(jen.Id("value"))
-	if err != nil {
-		return err
-	}
-	group.Add(jen.Func().
-		Params(jen.Id("request").Op("*").Id(structName)).
-		Id(makeSetterMethodName(named.FieldName)).
-		Params(params).
-		Params(jen.Op("*").Id(structName)).
-		BlockFunc(func(group *jen.Group) {
-			group.Add(jen.Id("request").Dot(fieldName).Dot(makeSetterMethodName(named.FieldName)).Call(jen.Id("value")))
-			group.Add(jen.Return(jen.Id("request")))
-		}))
-	return nil
-}
-
-func (pp *PathParams) generateGetterFunc(group *jen.Group, named NamedPathParam, options CodeGeneratorOptions) error {
-	if named.Documentation != "" {
-		group.Add(jen.Comment(named.Documentation))
-	}
-	code := jen.Func().
-		Params(jen.Id("pp").Op("*").Id(options.Name)).
-		Id(makeGetterMethodName(named.FieldName)).
-		Params()
-	code, err := named.Type.AddTypeToStatement(code)
-	if err != nil {
-		return err
-	}
-	code = code.BlockFunc(func(group *jen.Group) {
-		group.Add(jen.Return(jen.Id("pp").Dot("field" + strcase.ToCamel(named.FieldName))))
-	})
-	group.Add(code)
-	return nil
-}
-
-func (pp *PathParams) generateSetterFunc(group *jen.Group, named NamedPathParam, options CodeGeneratorOptions) error {
-	if named.Documentation != "" {
-		group.Add(jen.Comment(named.Documentation))
-	}
-	params, err := named.Type.AddTypeToStatement(jen.Id("value"))
-	if err != nil {
-		return err
-	}
-	group.Add(jen.Func().
-		Params(jen.Id("pp").Op("*").Id(options.Name)).
-		Id(makeSetterMethodName(named.FieldName)).
-		Params(params).
-		Params(jen.Op("*").Id(options.Name)).
-		BlockFunc(func(group *jen.Group) {
-			group.Add(jen.Id("pp").Dot("field" + strcase.ToCamel(named.FieldName)).Op("=").Id("value"))
-			group.Add(jen.Return(jen.Id("pp")))
-		}))
-	return nil
 }
 
 func (pp *PathParams) getServiceBucketField() *NamedPathParam {
@@ -309,55 +257,4 @@ func (pp *PathParams) getServiceBucketField() *NamedPathParam {
 		}
 	}
 	return serviceBucketField
-}
-
-func (pp *PathParams) generateServiceBucketField(options CodeGeneratorOptions) jen.Code {
-	field := pp.getServiceBucketField()
-	if field == nil || field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
-		return nil
-	} else if field.Type.ToStringLikeType() != StringLikeTypeString {
-		panic(fmt.Sprintf("service bucket field must be string: %s", field.FieldName))
-	}
-	return jen.Func().
-		Params(jen.Id("pp").Op("*").Id(options.Name)).
-		Id("getBucketName").
-		Params().
-		Params(jen.String(), jen.Error()).
-		BlockFunc(func(group *jen.Group) {
-			switch field.ServiceBucket.ToServiceBucketType() {
-			case ServiceBucketTypePlainText:
-				group.Add(jen.Return(jen.Id("pp").Dot("field"+strcase.ToCamel(field.FieldName)), jen.Nil()))
-			case ServiceBucketTypeEntry:
-				group.Add(
-					jen.Return(
-						jen.Qual("strings", "SplitN").
-							Call(jen.Id("pp").Dot("field"+strcase.ToCamel(field.FieldName)), jen.Lit(":"), jen.Lit(2)).
-							Index(jen.Lit(0)),
-						jen.Nil(),
-					),
-				)
-			case ServiceBucketTypeUploadToken:
-				group.Add(
-					jen.If(jen.Id("putPolicy"), jen.Err()).
-						Op(":=").
-						Qual(PackageNameUpToken, "NewParser").
-						Call(jen.Id("pp").Dot("field" + strcase.ToCamel(field.FieldName))).
-						Dot("RetrievePutPolicy").
-						Call(jen.Qual("context", "Background").Call()).
-						Op(";").
-						Err().
-						Op("!=").
-						Nil().
-						BlockFunc(func(group *jen.Group) {
-							group.Add(jen.Return(jen.Lit(""), jen.Err()))
-						}).
-						Else().
-						BlockFunc(func(group *jen.Group) {
-							group.Add(jen.Return(jen.Id("putPolicy").Dot("GetBucketName").Call()))
-						}),
-				)
-			default:
-				panic("unknown ServiceBucketType")
-			}
-		})
 }

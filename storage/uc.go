@@ -10,21 +10,9 @@ import (
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
-	"github.com/qiniu/go-sdk/v7/storagev2/apis/add_bucket_rules"
-	"github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket_rules"
-	"github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket_taggings"
-	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_cors_rules"
-	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_quota"
-	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_rules"
-	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_taggings"
-	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_access_mode"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_cors_rules"
-	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_max_age"
-	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_private"
-	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_quota"
-	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_remark"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_taggings"
-	"github.com/qiniu/go-sdk/v7/storagev2/apis/update_bucket_rules"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 )
@@ -252,11 +240,14 @@ func (m *BucketManager) GetBucketInfo(bucketName string) (bucketInfo BucketInfo,
 
 // SetRemark 设置空间备注信息
 func (m *BucketManager) SetRemark(bucketName, remark string) error {
-	_, err := new(set_bucket_remark.Request).
-		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
-		SetBucket(bucketName).
-		SetRemark(remark).
-		Send(context.Background(), m.makeHttpClientOptions())
+	_, err := m.apiClient.SetBucketRemark(
+		context.Background(),
+		&apis.SetBucketRemarkRequest{
+			Bucket: bucketName,
+			Remark: remark,
+		},
+		m.makeRequestOptions(),
+	)
 	return err
 }
 
@@ -319,64 +310,76 @@ type BucketLifeCycleRule struct {
 
 // SetBucketLifeCycleRule 设置存储空间内文件的生命周期规则
 func (m *BucketManager) AddBucketLifeCycleRule(bucketName string, lifeCycleRule *BucketLifeCycleRule) error {
-	_, err := new(add_bucket_rules.Request).
-		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
-		SetBucket(bucketName).
-		SetName(lifeCycleRule.Name).
-		SetPrefix(lifeCycleRule.Prefix).
-		SetDeleteAfterDays(int64(lifeCycleRule.DeleteAfterDays)).
-		SetToIaAfterDays(int64(lifeCycleRule.ToLineAfterDays)).
-		SetToArchiveAfterDays(int64(lifeCycleRule.ToArchiveAfterDays)).
-		SetToArchiveIrAfterDays(int64(lifeCycleRule.ToArchiveIRAfterDays)).
-		SetToDeepArchiveAfterDays(int64(lifeCycleRule.ToDeepArchiveAfterDays)).
-		Send(context.Background(), m.makeHttpClientOptions())
+	_, err := m.apiClient.AddBucketRules(
+		context.Background(),
+		&apis.AddBucketRulesRequest{
+			Bucket:                 bucketName,
+			Name:                   lifeCycleRule.Name,
+			Prefix:                 lifeCycleRule.Prefix,
+			DeleteAfterDays:        int64(lifeCycleRule.DeleteAfterDays),
+			ToIaAfterDays:          int64(lifeCycleRule.ToLineAfterDays),
+			ToArchiveAfterDays:     int64(lifeCycleRule.ToArchiveAfterDays),
+			ToArchiveIrAfterDays:   int64(lifeCycleRule.ToArchiveIRAfterDays),
+			ToDeepArchiveAfterDays: int64(lifeCycleRule.ToDeepArchiveAfterDays),
+		},
+		m.makeRequestOptions(),
+	)
 	return err
 }
 
 // DelBucketLifeCycleRule 删除特定存储空间上设定的规则
 func (m *BucketManager) DelBucketLifeCycleRule(bucketName, ruleName string) error {
-	_, err := new(delete_bucket_rules.Request).
-		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
-		SetBucket(bucketName).
-		SetName(ruleName).
-		Send(context.Background(), m.makeHttpClientOptions())
+	_, err := m.apiClient.DeleteBucketRules(
+		context.Background(),
+		&apis.DeleteBucketRulesRequest{
+			Bucket: bucketName,
+			Name:   ruleName,
+		},
+		m.makeRequestOptions(),
+	)
 	return err
 }
 
 // UpdateBucketLifeCycleRule 更新特定存储空间上的生命周期规则
 func (m *BucketManager) UpdateBucketLifeCycleRule(bucketName string, rule *BucketLifeCycleRule) error {
-	_, err := new(update_bucket_rules.Request).
-		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
-		SetBucket(bucketName).
-		SetName(rule.Name).
-		SetPrefix(rule.Prefix).
-		SetDeleteAfterDays(int64(rule.DeleteAfterDays)).
-		SetToIaAfterDays(int64(rule.ToLineAfterDays)).
-		SetToArchiveAfterDays(int64(rule.ToArchiveAfterDays)).
-		SetToArchiveIrAfterDays(int64(rule.ToArchiveIRAfterDays)).
-		SetToDeepArchiveAfterDays(int64(rule.ToDeepArchiveAfterDays)).
-		Send(context.Background(), m.makeHttpClientOptions())
+	_, err := m.apiClient.UpdateBucketRules(
+		context.Background(),
+		&apis.UpdateBucketRulesRequest{
+			Bucket:                 bucketName,
+			Name:                   rule.Name,
+			Prefix:                 rule.Prefix,
+			DeleteAfterDays:        int64(rule.DeleteAfterDays),
+			ToIaAfterDays:          int64(rule.ToLineAfterDays),
+			ToArchiveAfterDays:     int64(rule.ToArchiveAfterDays),
+			ToArchiveIrAfterDays:   int64(rule.ToArchiveIRAfterDays),
+			ToDeepArchiveAfterDays: int64(rule.ToDeepArchiveAfterDays),
+		},
+		m.makeRequestOptions(),
+	)
 	return err
 }
 
 // GetBucketLifeCycleRule 获取指定空间上设置的生命周期规则
 func (m *BucketManager) GetBucketLifeCycleRule(bucketName string) ([]BucketLifeCycleRule, error) {
-	response, err := new(get_bucket_rules.Request).
-		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
-		SetBucket(bucketName).
-		Send(context.Background(), m.makeHttpClientOptions())
+	response, err := m.apiClient.GetBucketRules(
+		context.Background(),
+		&apis.GetBucketRulesRequest{
+			Bucket: bucketName,
+		},
+		m.makeRequestOptions(),
+	)
 	if err != nil {
 		return nil, err
 	}
-	rules := make([]BucketLifeCycleRule, 0, len(response.GetBody()))
-	for _, rule := range response.GetBody() {
+	rules := make([]BucketLifeCycleRule, 0, len(response.BucketRules))
+	for _, rule := range response.BucketRules {
 		rules = append(rules, BucketLifeCycleRule{
-			Name:                   rule.GetName(),
-			Prefix:                 rule.GetPrefix(),
-			DeleteAfterDays:        int(rule.GetDeleteAfterDays()),
-			ToLineAfterDays:        int(rule.GetToIaAfterDays()),
-			ToArchiveAfterDays:     int(rule.GetToArchiveAfterDays()),
-			ToDeepArchiveAfterDays: int(rule.GetToDeepArchiveAfterDays()),
+			Name:                   rule.Name,
+			Prefix:                 rule.Prefix,
+			DeleteAfterDays:        int(rule.DeleteAfterDays),
+			ToLineAfterDays:        int(rule.ToIaAfterDays),
+			ToArchiveAfterDays:     int(rule.ToArchiveAfterDays),
+			ToDeepArchiveAfterDays: int(rule.ToDeepArchiveAfterDays),
 		})
 	}
 	return rules, nil
@@ -521,39 +524,45 @@ type CorsRule struct {
 func (m *BucketManager) AddCorsRules(bucket string, corsRules []CorsRule) error {
 	rules := make(set_bucket_cors_rules.CorsRules, 0, len(corsRules))
 	for _, rule := range corsRules {
-		var r set_bucket_cors_rules.CorsRule
-		r.SetAllowedMethod(rule.AllowedMethod).
-			SetAllowedOrigin(rule.AllowedOrigin).
-			SetAllowedHeader(rule.AllowedHeader).
-			SetExposedHeader(rule.ExposedHeader).
-			SetMaxAge(rule.MaxAge)
-		rules = append(rules, r)
+		rules = append(rules, set_bucket_cors_rules.CorsRule{
+			AllowedOrigin: rule.AllowedMethod,
+			AllowedMethod: rule.AllowedMethod,
+			AllowedHeader: rule.AllowedHeader,
+			ExposedHeader: rule.ExposedHeader,
+			MaxAge:        rule.MaxAge,
+		})
 	}
-	_, err := new(set_bucket_cors_rules.Request).
-		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
-		SetBucket(bucket).
-		SetBody(rules).
-		Send(context.Background(), m.makeHttpClientOptions())
+	_, err := m.apiClient.SetBucketCorsRules(
+		context.Background(),
+		&apis.SetBucketCorsRulesRequest{
+			Bucket:    bucket,
+			CorsRules: rules,
+		},
+		m.makeRequestOptions(),
+	)
 	return err
 }
 
 // GetCorsRules 获取指定存储空间的跨域规则
 func (m *BucketManager) GetCorsRules(bucket string) ([]CorsRule, error) {
-	response, err := new(get_bucket_cors_rules.Request).
-		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
-		SetBucket(bucket).
-		Send(context.Background(), m.makeHttpClientOptions())
+	response, err := m.apiClient.GetBucketCorsRules(
+		context.Background(),
+		&apis.GetBucketCorsRulesRequest{
+			Bucket: bucket,
+		},
+		m.makeRequestOptions(),
+	)
 	if err != nil {
 		return nil, err
 	}
-	rules := make([]CorsRule, 0, len(response.GetBody()))
-	for _, rule := range response.GetBody() {
+	rules := make([]CorsRule, 0, len(response.CorsRules))
+	for _, rule := range response.CorsRules {
 		rules = append(rules, CorsRule{
-			AllowedOrigin: rule.GetAllowedOrigin(),
-			AllowedMethod: rule.GetAllowedMethod(),
-			AllowedHeader: rule.GetAllowedHeader(),
-			ExposedHeader: rule.GetExposedHeader(),
-			MaxAge:        rule.GetMaxAge(),
+			AllowedOrigin: rule.AllowedOrigin,
+			AllowedMethod: rule.AllowedMethod,
+			AllowedHeader: rule.AllowedHeader,
+			ExposedHeader: rule.ExposedHeader,
+			MaxAge:        rule.MaxAge,
 		})
 	}
 	return rules, nil
@@ -575,27 +584,33 @@ type BucketQuota struct {
 // SetBucketQuota 设置存储空间的配额限制
 // 配额限制主要是两块， 空间存储量的限制和空间文件数限制
 func (m *BucketManager) SetBucketQuota(bucket string, size, count int64) error {
-	_, err := new(set_bucket_quota.Request).
-		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
-		SetBucket(bucket).
-		SetSize(size).
-		SetCount(count).
-		Send(context.Background(), m.makeHttpClientOptions())
+	_, err := m.apiClient.SetBucketQuota(
+		context.Background(),
+		&apis.SetBucketQuotaRequest{
+			Bucket: bucket,
+			Size:   size,
+			Count:  count,
+		},
+		m.makeRequestOptions(),
+	)
 	return err
 }
 
 // GetBucketQuota 获取存储空间的配额信息
 func (m *BucketManager) GetBucketQuota(bucket string) (quota BucketQuota, err error) {
-	response, err := new(get_bucket_quota.Request).
-		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
-		SetBucket(bucket).
-		Send(context.Background(), m.makeHttpClientOptions())
+	response, err := m.apiClient.GetBucketQuota(
+		context.Background(),
+		&apis.GetBucketQuotaRequest{
+			Bucket: bucket,
+		},
+		m.makeRequestOptions(),
+	)
 	if err != nil {
 		return BucketQuota{}, err
 	}
 	return BucketQuota{
-		Size:  response.GetSize(),
-		Count: response.GetCount(),
+		Size:  response.Size,
+		Count: response.Count,
 	}, nil
 }
 
@@ -603,11 +618,14 @@ func (m *BucketManager) GetBucketQuota(bucket string) (quota BucketQuota, err er
 // mode - 1 ==> 开启原图保护
 // mode - 0 ==> 关闭原图保护
 func (m *BucketManager) SetBucketAccessStyle(bucket string, mode int) error {
-	_, err := new(set_bucket_access_mode.Request).
-		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
-		SetBucket(bucket).
-		SetMode(int64(mode)).
-		Send(context.Background(), m.makeHttpClientOptions())
+	_, err := m.apiClient.SetBucketAccessMode(
+		context.Background(),
+		&apis.SetBucketAccessModeRequest{
+			Bucket: bucket,
+			Mode:   int64(mode),
+		},
+		m.makeRequestOptions(),
+	)
 	return err
 }
 
@@ -624,11 +642,14 @@ func (m *BucketManager) TurnOffBucketProtected(bucket string) error {
 // SetBucketMaxAge 设置指定存储空间的MaxAge响应头
 // maxAge <= 0时，表示使用默认值31536000
 func (m *BucketManager) SetBucketMaxAge(bucket string, maxAge int64) error {
-	_, err := new(set_bucket_max_age.Request).
-		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
-		SetBucket(bucket).
-		SetMaxAge(maxAge).
-		Send(context.Background(), m.makeHttpClientOptions())
+	_, err := m.apiClient.SetBucketMaxAge(
+		context.Background(),
+		&apis.SetBucketMaxAgeRequest{
+			Bucket: bucket,
+			MaxAge: maxAge,
+		},
+		m.makeRequestOptions(),
+	)
 	return err
 }
 
@@ -637,11 +658,14 @@ func (m *BucketManager) SetBucketMaxAge(bucket string, maxAge int64) error {
 // mode - 1 表示设置空间为私有空间， 私有空间访问需要鉴权
 // mode - 0 表示设置空间为公开空间
 func (m *BucketManager) SetBucketAccessMode(bucket string, mode int) error {
-	_, err := new(set_bucket_private.Request).
-		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
-		SetBucket(bucket).
-		SetPrivate(int64(mode)).
-		Send(context.Background(), m.makeHttpClientOptions())
+	_, err := m.apiClient.SetBucketPrivate(
+		context.Background(),
+		&apis.SetBucketPrivateRequest{
+			Bucket:    bucket,
+			IsPrivate: int64(mode),
+		},
+		m.makeRequestOptions(),
+	)
 	return err
 }
 
@@ -693,39 +717,46 @@ type BucketTag struct {
 func (m *BucketManager) SetTagging(bucket string, tags map[string]string) error {
 	tagPairs := make(set_bucket_taggings.Tags, 0, len(tags))
 	for k, v := range tags {
-		var t set_bucket_taggings.TagInfo
-		t.SetKey(k).SetValue(v)
-		tagPairs = append(tagPairs, t)
+		tagPairs = append(tagPairs, set_bucket_taggings.TagInfo{Key: k, Value: v})
 	}
-	_, err := new(set_bucket_taggings.Request).
-		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
-		SetBucket(bucket).
-		SetTags(tagPairs).
-		Send(context.Background(), m.makeHttpClientOptions())
+	_, err := m.apiClient.SetBucketTaggings(
+		context.Background(),
+		&apis.SetBucketTaggingsRequest{
+			Bucket: bucket,
+			Tags:   tagPairs,
+		},
+		m.makeRequestOptions(),
+	)
 	return err
 }
 
 // ClearTagging 清空 Bucket 标签
 func (m *BucketManager) ClearTagging(bucket string) error {
-	_, err := new(delete_bucket_taggings.Request).
-		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
-		SetBucketName(bucket).
-		Send(context.Background(), m.makeHttpClientOptions())
+	_, err := m.apiClient.DeleteBucketTaggings(
+		context.Background(),
+		&apis.DeleteBucketTaggingsRequest{
+			BucketName: bucket,
+		},
+		m.makeRequestOptions(),
+	)
 	return err
 }
 
 // GetTagging 获取 Bucket 标签
 func (m *BucketManager) GetTagging(bucket string) (map[string]string, error) {
-	response, err := new(get_bucket_taggings.Request).
-		OverwriteBucketHosts(getUcEndpoint(m.Cfg.UseHTTPS)).
-		SetBucketName(bucket).
-		Send(context.Background(), m.makeHttpClientOptions())
+	response, err := m.apiClient.GetBucketTaggings(
+		context.Background(),
+		&apis.GetBucketTaggingsRequest{
+			BucketName: bucket,
+		},
+		m.makeRequestOptions(),
+	)
 	if err != nil {
 		return nil, err
 	}
-	tags := make(map[string]string, len(response.GetTags()))
-	for _, tag := range response.GetTags() {
-		tags[tag.GetKey()] = tag.GetValue()
+	tags := make(map[string]string, len(response.Tags))
+	for _, tag := range response.Tags {
+		tags[tag.Key] = tag.Value
 	}
 	return tags, nil
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
-	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_regions"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region_v2 "github.com/qiniu/go-sdk/v7/storagev2/region"
 )
@@ -347,23 +347,24 @@ func GetRegionsInfo(mac *auth.Credentials) ([]RegionInfo, error) {
 }
 
 func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]RegionInfo, error) {
-	response, err := new(get_regions.Request).
-		OverwriteBucketHosts(getUcEndpoint(options.UseHttps)).
-		Send(context.Background(), &http_client.HttpClientOptions{
-			HostFreezeDuration: options.HostFreezeDuration,
-			HostRetryConfig: &clientv2.RetryConfig{
-				RetryMax: options.RetryMax,
-			},
-			Credentials: mac,
-		})
+	response, err := apis.NewClient(&http_client.HttpClientOptions{
+		HostFreezeDuration: options.HostFreezeDuration,
+		HostRetryConfig: &clientv2.RetryConfig{
+			RetryMax: options.RetryMax,
+		},
+	}).GetRegions(
+		context.Background(),
+		&apis.GetRegionsRequest{Credentials: mac},
+		&apis.Options{OverwrittenBucketHosts: getUcEndpoint(options.UseHttps)},
+	)
 	if err != nil {
 		return nil, err
 	}
-	regions := make([]RegionInfo, 0, len(response.GetRegions()))
-	for _, region := range response.GetRegions() {
+	regions := make([]RegionInfo, 0, len(response.Regions))
+	for _, region := range response.Regions {
 		regions = append(regions, RegionInfo{
-			ID:          region.GetId(),
-			Description: region.GetDescription(),
+			ID:          region.Id,
+			Description: region.Description,
 		})
 	}
 	return regions, nil

@@ -4,17 +4,31 @@
 package async_fetch_object
 
 import (
-	"context"
 	"encoding/json"
-	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
-	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"strings"
 )
 
-type innerNewFetchTaskParams struct {
+// 调用 API 所用的请求
+type Request struct {
+	Credentials      credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
+	Url              string                          // 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
+	Bucket           string                          // 所在区域的存储空间
+	Host             string                          // 从指定 URL 下载数据时使用的 Host
+	Key              string                          // 对象名称，如果不传，则默认为文件的哈希值
+	Md5              string                          // 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
+	Etag             string                          // 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
+	CallbackUrl      string                          // 回调 URL
+	CallbackBody     string                          // 回调负荷，如果 callback_url 不为空则必须指定
+	CallbackBodyType string                          // 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
+	CallbackHost     string                          // 回调时使用的 Host
+	FileType         int64                           // 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
+	IgnoreSameKey    bool                            // 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
+}
+
+// 要抓取的资源信息
+type NewFetchTaskParams = Request
+type jsonRequest struct {
 	Url              string `json:"url"`                        // 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
 	Bucket           string `json:"bucket"`                     // 所在区域的存储空间
 	Host             string `json:"host,omitempty"`             // 从指定 URL 下载数据时使用的 Host
@@ -29,505 +43,75 @@ type innerNewFetchTaskParams struct {
 	IgnoreSameKey    bool   `json:"ignore_same_key,omitempty"`  // 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
 }
 
-// 要抓取的资源信息
-type NewFetchTaskParams struct {
-	inner innerNewFetchTaskParams
+func (j *Request) MarshalJSON() ([]byte, error) {
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonRequest{Url: j.Url, Bucket: j.Bucket, Host: j.Host, Key: j.Key, Md5: j.Md5, Etag: j.Etag, CallbackUrl: j.CallbackUrl, CallbackBody: j.CallbackBody, CallbackBodyType: j.CallbackBodyType, CallbackHost: j.CallbackHost, FileType: j.FileType, IgnoreSameKey: j.IgnoreSameKey})
 }
-
-// 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
-func (j *NewFetchTaskParams) GetUrl() string {
-	return j.inner.Url
+func (j *Request) UnmarshalJSON(data []byte) error {
+	var nj jsonRequest
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.Url = nj.Url
+	j.Bucket = nj.Bucket
+	j.Host = nj.Host
+	j.Key = nj.Key
+	j.Md5 = nj.Md5
+	j.Etag = nj.Etag
+	j.CallbackUrl = nj.CallbackUrl
+	j.CallbackBody = nj.CallbackBody
+	j.CallbackBodyType = nj.CallbackBodyType
+	j.CallbackHost = nj.CallbackHost
+	j.FileType = nj.FileType
+	j.IgnoreSameKey = nj.IgnoreSameKey
+	return nil
 }
-
-// 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
-func (j *NewFetchTaskParams) SetUrl(value string) *NewFetchTaskParams {
-	j.inner.Url = value
-	return j
-}
-
-// 所在区域的存储空间
-func (j *NewFetchTaskParams) GetBucket() string {
-	return j.inner.Bucket
-}
-
-// 所在区域的存储空间
-func (j *NewFetchTaskParams) SetBucket(value string) *NewFetchTaskParams {
-	j.inner.Bucket = value
-	return j
-}
-
-// 从指定 URL 下载数据时使用的 Host
-func (j *NewFetchTaskParams) GetHost() string {
-	return j.inner.Host
-}
-
-// 从指定 URL 下载数据时使用的 Host
-func (j *NewFetchTaskParams) SetHost(value string) *NewFetchTaskParams {
-	j.inner.Host = value
-	return j
-}
-
-// 对象名称，如果不传，则默认为文件的哈希值
-func (j *NewFetchTaskParams) GetKey() string {
-	return j.inner.Key
-}
-
-// 对象名称，如果不传，则默认为文件的哈希值
-func (j *NewFetchTaskParams) SetKey(value string) *NewFetchTaskParams {
-	j.inner.Key = value
-	return j
-}
-
-// 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
-func (j *NewFetchTaskParams) GetMd5() string {
-	return j.inner.Md5
-}
-
-// 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
-func (j *NewFetchTaskParams) SetMd5(value string) *NewFetchTaskParams {
-	j.inner.Md5 = value
-	return j
-}
-
-// 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
-func (j *NewFetchTaskParams) GetEtag() string {
-	return j.inner.Etag
-}
-
-// 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
-func (j *NewFetchTaskParams) SetEtag(value string) *NewFetchTaskParams {
-	j.inner.Etag = value
-	return j
-}
-
-// 回调 URL
-func (j *NewFetchTaskParams) GetCallbackUrl() string {
-	return j.inner.CallbackUrl
-}
-
-// 回调 URL
-func (j *NewFetchTaskParams) SetCallbackUrl(value string) *NewFetchTaskParams {
-	j.inner.CallbackUrl = value
-	return j
-}
-
-// 回调负荷，如果 callback_url 不为空则必须指定
-func (j *NewFetchTaskParams) GetCallbackBody() string {
-	return j.inner.CallbackBody
-}
-
-// 回调负荷，如果 callback_url 不为空则必须指定
-func (j *NewFetchTaskParams) SetCallbackBody(value string) *NewFetchTaskParams {
-	j.inner.CallbackBody = value
-	return j
-}
-
-// 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
-func (j *NewFetchTaskParams) GetCallbackBodyType() string {
-	return j.inner.CallbackBodyType
-}
-
-// 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
-func (j *NewFetchTaskParams) SetCallbackBodyType(value string) *NewFetchTaskParams {
-	j.inner.CallbackBodyType = value
-	return j
-}
-
-// 回调时使用的 Host
-func (j *NewFetchTaskParams) GetCallbackHost() string {
-	return j.inner.CallbackHost
-}
-
-// 回调时使用的 Host
-func (j *NewFetchTaskParams) SetCallbackHost(value string) *NewFetchTaskParams {
-	j.inner.CallbackHost = value
-	return j
-}
-
-// 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
-func (j *NewFetchTaskParams) GetFileType() int64 {
-	return j.inner.FileType
-}
-
-// 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
-func (j *NewFetchTaskParams) SetFileType(value int64) *NewFetchTaskParams {
-	j.inner.FileType = value
-	return j
-}
-
-// 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
-func (j *NewFetchTaskParams) GetIgnoreSameKey() bool {
-	return j.inner.IgnoreSameKey
-}
-
-// 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
-func (j *NewFetchTaskParams) SetIgnoreSameKey(value bool) *NewFetchTaskParams {
-	j.inner.IgnoreSameKey = value
-	return j
-}
-func (j *NewFetchTaskParams) getBucketName() (string, error) {
-	return j.inner.Bucket, nil
-}
-func (j *NewFetchTaskParams) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
-}
-func (j *NewFetchTaskParams) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
-}
-
-//lint:ignore U1000 may not call it
-func (j *NewFetchTaskParams) validate() error {
-	if j.inner.Url == "" {
+func (j *Request) validate() error {
+	if j.Url == "" {
 		return errors.MissingRequiredFieldError{Name: "Url"}
 	}
-	if j.inner.Bucket == "" {
+	if j.Bucket == "" {
 		return errors.MissingRequiredFieldError{Name: "Bucket"}
 	}
 	return nil
 }
 
-// 调用 API 所用的请求体
-type RequestBody = NewFetchTaskParams
-
-// 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
-func (request *Request) GetUrl() string {
-	return request.body.GetUrl()
+// 获取 API 所用的响应
+type Response struct {
+	Id               string // 异步任务 ID
+	QueuedTasksCount int64  // 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 }
 
-// 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
-func (request *Request) SetUrl(value string) *Request {
-	request.body.SetUrl(value)
-	return request
-}
-
-// 所在区域的存储空间
-func (request *Request) GetBucket() string {
-	return request.body.GetBucket()
-}
-
-// 所在区域的存储空间
-func (request *Request) SetBucket(value string) *Request {
-	request.body.SetBucket(value)
-	return request
-}
-
-// 从指定 URL 下载数据时使用的 Host
-func (request *Request) GetHost() string {
-	return request.body.GetHost()
-}
-
-// 从指定 URL 下载数据时使用的 Host
-func (request *Request) SetHost(value string) *Request {
-	request.body.SetHost(value)
-	return request
-}
-
-// 对象名称，如果不传，则默认为文件的哈希值
-func (request *Request) GetKey() string {
-	return request.body.GetKey()
-}
-
-// 对象名称，如果不传，则默认为文件的哈希值
-func (request *Request) SetKey(value string) *Request {
-	request.body.SetKey(value)
-	return request
-}
-
-// 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
-func (request *Request) GetMd5() string {
-	return request.body.GetMd5()
-}
-
-// 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
-func (request *Request) SetMd5(value string) *Request {
-	request.body.SetMd5(value)
-	return request
-}
-
-// 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
-func (request *Request) GetEtag() string {
-	return request.body.GetEtag()
-}
-
-// 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
-func (request *Request) SetEtag(value string) *Request {
-	request.body.SetEtag(value)
-	return request
-}
-
-// 回调 URL
-func (request *Request) GetCallbackUrl() string {
-	return request.body.GetCallbackUrl()
-}
-
-// 回调 URL
-func (request *Request) SetCallbackUrl(value string) *Request {
-	request.body.SetCallbackUrl(value)
-	return request
-}
-
-// 回调负荷，如果 callback_url 不为空则必须指定
-func (request *Request) GetCallbackBody() string {
-	return request.body.GetCallbackBody()
-}
-
-// 回调负荷，如果 callback_url 不为空则必须指定
-func (request *Request) SetCallbackBody(value string) *Request {
-	request.body.SetCallbackBody(value)
-	return request
-}
-
-// 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
-func (request *Request) GetCallbackBodyType() string {
-	return request.body.GetCallbackBodyType()
-}
-
-// 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
-func (request *Request) SetCallbackBodyType(value string) *Request {
-	request.body.SetCallbackBodyType(value)
-	return request
-}
-
-// 回调时使用的 Host
-func (request *Request) GetCallbackHost() string {
-	return request.body.GetCallbackHost()
-}
-
-// 回调时使用的 Host
-func (request *Request) SetCallbackHost(value string) *Request {
-	request.body.SetCallbackHost(value)
-	return request
-}
-
-// 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
-func (request *Request) GetFileType() int64 {
-	return request.body.GetFileType()
-}
-
-// 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
-func (request *Request) SetFileType(value int64) *Request {
-	request.body.SetFileType(value)
-	return request
-}
-
-// 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
-func (request *Request) GetIgnoreSameKey() bool {
-	return request.body.GetIgnoreSameKey()
-}
-
-// 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
-func (request *Request) SetIgnoreSameKey(value bool) *Request {
-	request.body.SetIgnoreSameKey(value)
-	return request
-}
-
-type innerNewFetchTaskInfo struct {
+// 返回的异步任务信息
+type NewFetchTaskInfo = Response
+type jsonResponse struct {
 	Id               string `json:"id"`   // 异步任务 ID
 	QueuedTasksCount int64  `json:"wait"` // 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
 }
 
-// 返回的异步任务信息
-type NewFetchTaskInfo struct {
-	inner innerNewFetchTaskInfo
+func (j *Response) MarshalJSON() ([]byte, error) {
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonResponse{Id: j.Id, QueuedTasksCount: j.QueuedTasksCount})
 }
-
-// 异步任务 ID
-func (j *NewFetchTaskInfo) GetId() string {
-	return j.inner.Id
+func (j *Response) UnmarshalJSON(data []byte) error {
+	var nj jsonResponse
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.Id = nj.Id
+	j.QueuedTasksCount = nj.QueuedTasksCount
+	return nil
 }
-
-// 异步任务 ID
-func (j *NewFetchTaskInfo) SetId(value string) *NewFetchTaskInfo {
-	j.inner.Id = value
-	return j
-}
-
-// 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
-func (j *NewFetchTaskInfo) GetQueuedTasksCount() int64 {
-	return j.inner.QueuedTasksCount
-}
-
-// 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
-func (j *NewFetchTaskInfo) SetQueuedTasksCount(value int64) *NewFetchTaskInfo {
-	j.inner.QueuedTasksCount = value
-	return j
-}
-func (j *NewFetchTaskInfo) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
-}
-func (j *NewFetchTaskInfo) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
-}
-
-//lint:ignore U1000 may not call it
-func (j *NewFetchTaskInfo) validate() error {
-	if j.inner.Id == "" {
+func (j *Response) validate() error {
+	if j.Id == "" {
 		return errors.MissingRequiredFieldError{Name: "Id"}
 	}
-	if j.inner.QueuedTasksCount == 0 {
+	if j.QueuedTasksCount == 0 {
 		return errors.MissingRequiredFieldError{Name: "QueuedTasksCount"}
 	}
 	return nil
-}
-
-// 获取 API 所用的响应体参数
-type ResponseBody = NewFetchTaskInfo
-
-// 异步任务 ID
-func (request *Response) GetId() string {
-	return request.body.GetId()
-}
-
-// 异步任务 ID
-func (request *Response) SetId(value string) *Response {
-	request.body.SetId(value)
-	return request
-}
-
-// 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
-func (request *Response) GetQueuedTasksCount() int64 {
-	return request.body.GetQueuedTasksCount()
-}
-
-// 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
-func (request *Response) SetQueuedTasksCount(value int64) *Response {
-	request.body.SetQueuedTasksCount(value)
-	return request
-}
-
-// 调用 API 所用的请求
-type Request struct {
-	overwrittenBucketHosts region.EndpointsProvider
-	overwrittenBucketName  string
-	credentials            credentials.CredentialsProvider
-	body                   RequestBody
-}
-
-// 覆盖默认的存储区域域名列表
-func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
-	request.overwrittenBucketHosts = bucketHosts
-	return request
-}
-
-// 覆盖存储空间名称
-func (request *Request) OverwriteBucketName(bucketName string) *Request {
-	request.overwrittenBucketName = bucketName
-	return request
-}
-
-// 设置鉴权
-func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
-	request.credentials = credentials
-	return request
-}
-func (request *Request) getBucketName(ctx context.Context) (string, error) {
-	if request.overwrittenBucketName != "" {
-		return request.overwrittenBucketName, nil
-	}
-	if bucketName, err := request.body.getBucketName(); err != nil || bucketName != "" {
-		return bucketName, err
-	}
-	return "", nil
-}
-func (request *Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.credentials != nil {
-		if credentials, err := request.credentials.Get(ctx); err != nil {
-			return "", err
-		} else {
-			return credentials.AccessKey, nil
-		}
-	}
-	return "", nil
-}
-
-// 获取请求体
-func (request *Request) GetBody() *RequestBody {
-	return &request.body
-}
-
-// 设置请求体
-func (request *Request) SetBody(body RequestBody) *Request {
-	request.body = body
-	return request
-}
-
-// 发送请求
-func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
-	client := httpclient.NewHttpClient(options)
-	serviceNames := []region.ServiceName{region.ServiceApi}
-	var pathSegments []string
-	pathSegments = append(pathSegments, "sisyphus", "fetch")
-	path := "/" + strings.Join(pathSegments, "/")
-	var rawQuery string
-	if err := request.body.validate(); err != nil {
-		return nil, err
-	}
-	body, err := httpclient.GetJsonRequestBody(&request.body)
-	if err != nil {
-		return nil, err
-	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: request.credentials, RequestBody: body}
-	var queryer region.BucketRegionsQueryer
-	if client.GetRegions() == nil && client.GetEndpoints() == nil {
-		queryer = client.GetBucketQueryer()
-		if queryer == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			var err error
-			if request.overwrittenBucketHosts != nil {
-				if bucketHosts, err = request.overwrittenBucketHosts.GetEndpoints(ctx); err != nil {
-					return nil, err
-				}
-			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: options.UseInsecureProtocol, HostFreezeDuration: options.HostFreezeDuration, Client: options.Client}
-			if hostRetryConfig := options.HostRetryConfig; hostRetryConfig != nil {
-				queryerOptions.RetryMax = hostRetryConfig.RetryMax
-			}
-			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
-				return nil, err
-			}
-		}
-	}
-	if queryer != nil {
-		bucketName, err := request.getBucketName(ctx)
-		if err != nil {
-			return nil, err
-		}
-		accessKey, err := request.getAccessKey(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if accessKey == "" {
-			if credentialsProvider := client.GetCredentials(); credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
-					return nil, err
-				} else if creds != nil {
-					accessKey = creds.AccessKey
-				}
-			}
-		}
-		if accessKey != "" && bucketName != "" {
-			req.Region = queryer.Query(accessKey, bucketName)
-		}
-	}
-	var respBody ResponseBody
-	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
-		return nil, err
-	}
-	return &Response{body: respBody}, nil
-}
-
-// 获取 API 所用的响应
-type Response struct {
-	body ResponseBody
-}
-
-// 获取请求体
-func (response *Response) GetBody() *ResponseBody {
-	return &response.body
-}
-
-// 设置请求体
-func (response *Response) SetBody(body ResponseBody) *Response {
-	response.body = body
-	return response
 }

@@ -4,367 +4,65 @@
 package fetch_object
 
 import (
-	"context"
-	"encoding/base64"
 	"encoding/json"
-	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
-	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"strings"
 )
 
-// 调用 API 所用的路径参数
-type RequestPath struct {
-	fieldFromUrl string
-	fieldToEntry string
-	fieldHost    string
+// 调用 API 所用的请求
+type Request struct {
+	FromUrl     string                          // 指定抓取的 URL
+	ToEntry     string                          // 指定目标对象空间与目标对象名称
+	Host        string                          // 指定抓取 URL 请求用的 HOST 参数
+	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
 }
 
-// 指定抓取的 URL
-func (pp *RequestPath) GetFromUrl() string {
-	return pp.fieldFromUrl
+// 获取 API 所用的响应
+type Response struct {
+	Hash       string // 抓取的对象内容的 Etag 值
+	ObjectName string // 抓取后保存的对象名称
+	Size       int64  // 对象大小，单位为字节
+	MimeType   string // 对象 MIME 类型
 }
 
-// 指定抓取的 URL
-func (pp *RequestPath) SetFromUrl(value string) *RequestPath {
-	pp.fieldFromUrl = value
-	return pp
-}
-
-// 指定目标对象空间与目标对象名称
-func (pp *RequestPath) GetToEntry() string {
-	return pp.fieldToEntry
-}
-
-// 指定目标对象空间与目标对象名称
-func (pp *RequestPath) SetToEntry(value string) *RequestPath {
-	pp.fieldToEntry = value
-	return pp
-}
-
-// 指定抓取 URL 请求用的 HOST 参数
-func (pp *RequestPath) GetHost() string {
-	return pp.fieldHost
-}
-
-// 指定抓取 URL 请求用的 HOST 参数
-func (pp *RequestPath) SetHost(value string) *RequestPath {
-	pp.fieldHost = value
-	return pp
-}
-func (pp *RequestPath) getBucketName() (string, error) {
-	return strings.SplitN(pp.fieldToEntry, ":", 2)[0], nil
-}
-func (path *RequestPath) build() ([]string, error) {
-	var allSegments []string
-	if path.fieldFromUrl != "" {
-		allSegments = append(allSegments, base64.URLEncoding.EncodeToString([]byte(path.fieldFromUrl)))
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "FromUrl"}
-	}
-	if path.fieldToEntry != "" {
-		allSegments = append(allSegments, "to", base64.URLEncoding.EncodeToString([]byte(path.fieldToEntry)))
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "ToEntry"}
-	}
-	if path.fieldHost != "" {
-		allSegments = append(allSegments, "host", base64.URLEncoding.EncodeToString([]byte(path.fieldHost)))
-	}
-	return allSegments, nil
-}
-
-// 指定抓取的 URL
-func (request *Request) GetFromUrl() string {
-	return request.path.GetFromUrl()
-}
-
-// 指定抓取的 URL
-func (request *Request) SetFromUrl(value string) *Request {
-	request.path.SetFromUrl(value)
-	return request
-}
-
-// 指定目标对象空间与目标对象名称
-func (request *Request) GetToEntry() string {
-	return request.path.GetToEntry()
-}
-
-// 指定目标对象空间与目标对象名称
-func (request *Request) SetToEntry(value string) *Request {
-	request.path.SetToEntry(value)
-	return request
-}
-
-// 指定抓取 URL 请求用的 HOST 参数
-func (request *Request) GetHost() string {
-	return request.path.GetHost()
-}
-
-// 指定抓取 URL 请求用的 HOST 参数
-func (request *Request) SetHost(value string) *Request {
-	request.path.SetHost(value)
-	return request
-}
-
-type innerFetchedObjectMetadata struct {
+// 抓取到的文件元信息
+type FetchedObjectMetadata = Response
+type jsonResponse struct {
 	Hash       string `json:"hash"`     // 抓取的对象内容的 Etag 值
 	ObjectName string `json:"key"`      // 抓取后保存的对象名称
 	Size       int64  `json:"fsize"`    // 对象大小，单位为字节
 	MimeType   string `json:"mimeType"` // 对象 MIME 类型
 }
 
-// 抓取到的文件元信息
-type FetchedObjectMetadata struct {
-	inner innerFetchedObjectMetadata
+func (j *Response) MarshalJSON() ([]byte, error) {
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonResponse{Hash: j.Hash, ObjectName: j.ObjectName, Size: j.Size, MimeType: j.MimeType})
 }
-
-// 抓取的对象内容的 Etag 值
-func (j *FetchedObjectMetadata) GetHash() string {
-	return j.inner.Hash
+func (j *Response) UnmarshalJSON(data []byte) error {
+	var nj jsonResponse
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.Hash = nj.Hash
+	j.ObjectName = nj.ObjectName
+	j.Size = nj.Size
+	j.MimeType = nj.MimeType
+	return nil
 }
-
-// 抓取的对象内容的 Etag 值
-func (j *FetchedObjectMetadata) SetHash(value string) *FetchedObjectMetadata {
-	j.inner.Hash = value
-	return j
-}
-
-// 抓取后保存的对象名称
-func (j *FetchedObjectMetadata) GetObjectName() string {
-	return j.inner.ObjectName
-}
-
-// 抓取后保存的对象名称
-func (j *FetchedObjectMetadata) SetObjectName(value string) *FetchedObjectMetadata {
-	j.inner.ObjectName = value
-	return j
-}
-
-// 对象大小，单位为字节
-func (j *FetchedObjectMetadata) GetSize() int64 {
-	return j.inner.Size
-}
-
-// 对象大小，单位为字节
-func (j *FetchedObjectMetadata) SetSize(value int64) *FetchedObjectMetadata {
-	j.inner.Size = value
-	return j
-}
-
-// 对象 MIME 类型
-func (j *FetchedObjectMetadata) GetMimeType() string {
-	return j.inner.MimeType
-}
-
-// 对象 MIME 类型
-func (j *FetchedObjectMetadata) SetMimeType(value string) *FetchedObjectMetadata {
-	j.inner.MimeType = value
-	return j
-}
-func (j *FetchedObjectMetadata) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
-}
-func (j *FetchedObjectMetadata) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
-}
-
-//lint:ignore U1000 may not call it
-func (j *FetchedObjectMetadata) validate() error {
-	if j.inner.Hash == "" {
+func (j *Response) validate() error {
+	if j.Hash == "" {
 		return errors.MissingRequiredFieldError{Name: "Hash"}
 	}
-	if j.inner.ObjectName == "" {
+	if j.ObjectName == "" {
 		return errors.MissingRequiredFieldError{Name: "ObjectName"}
 	}
-	if j.inner.Size == 0 {
+	if j.Size == 0 {
 		return errors.MissingRequiredFieldError{Name: "Size"}
 	}
-	if j.inner.MimeType == "" {
+	if j.MimeType == "" {
 		return errors.MissingRequiredFieldError{Name: "MimeType"}
 	}
 	return nil
-}
-
-// 获取 API 所用的响应体参数
-type ResponseBody = FetchedObjectMetadata
-
-// 抓取的对象内容的 Etag 值
-func (request *Response) GetHash() string {
-	return request.body.GetHash()
-}
-
-// 抓取的对象内容的 Etag 值
-func (request *Response) SetHash(value string) *Response {
-	request.body.SetHash(value)
-	return request
-}
-
-// 抓取后保存的对象名称
-func (request *Response) GetObjectName() string {
-	return request.body.GetObjectName()
-}
-
-// 抓取后保存的对象名称
-func (request *Response) SetObjectName(value string) *Response {
-	request.body.SetObjectName(value)
-	return request
-}
-
-// 对象大小，单位为字节
-func (request *Response) GetSize() int64 {
-	return request.body.GetSize()
-}
-
-// 对象大小，单位为字节
-func (request *Response) SetSize(value int64) *Response {
-	request.body.SetSize(value)
-	return request
-}
-
-// 对象 MIME 类型
-func (request *Response) GetMimeType() string {
-	return request.body.GetMimeType()
-}
-
-// 对象 MIME 类型
-func (request *Response) SetMimeType(value string) *Response {
-	request.body.SetMimeType(value)
-	return request
-}
-
-// 调用 API 所用的请求
-type Request struct {
-	overwrittenBucketHosts region.EndpointsProvider
-	overwrittenBucketName  string
-	path                   RequestPath
-	credentials            credentials.CredentialsProvider
-}
-
-// 覆盖默认的存储区域域名列表
-func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
-	request.overwrittenBucketHosts = bucketHosts
-	return request
-}
-
-// 覆盖存储空间名称
-func (request *Request) OverwriteBucketName(bucketName string) *Request {
-	request.overwrittenBucketName = bucketName
-	return request
-}
-
-// 设置鉴权
-func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
-	request.credentials = credentials
-	return request
-}
-func (request *Request) getBucketName(ctx context.Context) (string, error) {
-	if request.overwrittenBucketName != "" {
-		return request.overwrittenBucketName, nil
-	}
-	if bucketName, err := request.path.getBucketName(); err != nil || bucketName != "" {
-		return bucketName, err
-	}
-	return "", nil
-}
-func (request *Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.credentials != nil {
-		if credentials, err := request.credentials.Get(ctx); err != nil {
-			return "", err
-		} else {
-			return credentials.AccessKey, nil
-		}
-	}
-	return "", nil
-}
-
-// 获取请求路径
-func (request *Request) GetPath() *RequestPath {
-	return &request.path
-}
-
-// 设置请求路径
-func (request *Request) SetPath(path RequestPath) *Request {
-	request.path = path
-	return request
-}
-
-// 发送请求
-func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
-	client := httpclient.NewHttpClient(options)
-	serviceNames := []region.ServiceName{region.ServiceIo}
-	var pathSegments []string
-	pathSegments = append(pathSegments, "fetch")
-	if segments, err := request.path.build(); err != nil {
-		return nil, err
-	} else {
-		pathSegments = append(pathSegments, segments...)
-	}
-	path := "/" + strings.Join(pathSegments, "/")
-	var rawQuery string
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: request.credentials}
-	var queryer region.BucketRegionsQueryer
-	if client.GetRegions() == nil && client.GetEndpoints() == nil {
-		queryer = client.GetBucketQueryer()
-		if queryer == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			var err error
-			if request.overwrittenBucketHosts != nil {
-				if bucketHosts, err = request.overwrittenBucketHosts.GetEndpoints(ctx); err != nil {
-					return nil, err
-				}
-			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: options.UseInsecureProtocol, HostFreezeDuration: options.HostFreezeDuration, Client: options.Client}
-			if hostRetryConfig := options.HostRetryConfig; hostRetryConfig != nil {
-				queryerOptions.RetryMax = hostRetryConfig.RetryMax
-			}
-			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
-				return nil, err
-			}
-		}
-	}
-	if queryer != nil {
-		bucketName, err := request.getBucketName(ctx)
-		if err != nil {
-			return nil, err
-		}
-		accessKey, err := request.getAccessKey(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if accessKey == "" {
-			if credentialsProvider := client.GetCredentials(); credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
-					return nil, err
-				} else if creds != nil {
-					accessKey = creds.AccessKey
-				}
-			}
-		}
-		if accessKey != "" && bucketName != "" {
-			req.Region = queryer.Query(accessKey, bucketName)
-		}
-	}
-	var respBody ResponseBody
-	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
-		return nil, err
-	}
-	return &Response{body: respBody}, nil
-}
-
-// 获取 API 所用的响应
-type Response struct {
-	body ResponseBody
-}
-
-// 获取请求体
-func (response *Response) GetBody() *ResponseBody {
-	return &response.body
-}
-
-// 设置请求体
-func (response *Response) SetBody(body ResponseBody) *Response {
-	response.body = body
-	return response
 }

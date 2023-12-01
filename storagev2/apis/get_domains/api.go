@@ -4,180 +4,32 @@
 package get_domains
 
 import (
-	"context"
-	auth "github.com/qiniu/go-sdk/v7/auth"
+	"encoding/json"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
-	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
-	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"net/url"
-	"strings"
 )
-
-// 调用 API 所用的 URL 查询参数
-type RequestQuery struct {
-	fieldBucketName string // 要获取域名列表的目标空间名称
-}
-
-// 要获取域名列表的目标空间名称
-func (query *RequestQuery) GetBucketName() string {
-	return query.fieldBucketName
-}
-
-// 要获取域名列表的目标空间名称
-func (query *RequestQuery) SetBucketName(value string) *RequestQuery {
-	query.fieldBucketName = value
-	return query
-}
-func (query *RequestQuery) getBucketName() (string, error) {
-	return query.fieldBucketName, nil
-}
-func (query *RequestQuery) build() (url.Values, error) {
-	allQuery := make(url.Values)
-	if query.fieldBucketName != "" {
-		allQuery.Set("tbl", query.fieldBucketName)
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
-	}
-	return allQuery, nil
-}
-func (request *Request) GetBucketName() string {
-	return request.query.GetBucketName()
-}
-func (request *Request) SetBucketName(value string) *Request {
-	request.query.SetBucketName(value)
-	return request
-}
-
-// 存储空间的域名列表
-type Domains = []string
-
-// 获取 API 所用的响应体参数
-type ResponseBody = Domains
 
 // 调用 API 所用的请求
 type Request struct {
-	overwrittenBucketHosts region.EndpointsProvider
-	overwrittenBucketName  string
-	query                  RequestQuery
-	credentials            credentials.CredentialsProvider
-}
-
-// 覆盖默认的存储区域域名列表
-func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
-	request.overwrittenBucketHosts = bucketHosts
-	return request
-}
-
-// 覆盖存储空间名称
-func (request *Request) OverwriteBucketName(bucketName string) *Request {
-	request.overwrittenBucketName = bucketName
-	return request
-}
-
-// 设置鉴权
-func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
-	request.credentials = credentials
-	return request
-}
-func (request *Request) getBucketName(ctx context.Context) (string, error) {
-	if request.overwrittenBucketName != "" {
-		return request.overwrittenBucketName, nil
-	}
-	if bucketName, err := request.query.getBucketName(); err != nil || bucketName != "" {
-		return bucketName, err
-	}
-	return "", nil
-}
-func (request *Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.credentials != nil {
-		if credentials, err := request.credentials.Get(ctx); err != nil {
-			return "", err
-		} else {
-			return credentials.AccessKey, nil
-		}
-	}
-	return "", nil
-}
-
-// 获取请求查询参数
-func (request *Request) GetQuery() *RequestQuery {
-	return &request.query
-}
-
-// 设置请求查询参数
-func (request *Request) SetQuery(query RequestQuery) *Request {
-	request.query = query
-	return request
-}
-
-// 发送请求
-func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
-	client := httpclient.NewHttpClient(options)
-	serviceNames := []region.ServiceName{region.ServiceBucket}
-	var pathSegments []string
-	pathSegments = append(pathSegments, "v2", "domains")
-	path := "/" + strings.Join(pathSegments, "/")
-	var rawQuery string
-	if query, err := request.query.build(); err != nil {
-		return nil, err
-	} else {
-		rawQuery += query.Encode()
-	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: request.credentials}
-	var queryer region.BucketRegionsQueryer
-	if client.GetRegions() == nil && client.GetEndpoints() == nil {
-		queryer = client.GetBucketQueryer()
-		if queryer == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			if request.overwrittenBucketHosts != nil {
-				req.Endpoints = request.overwrittenBucketHosts
-			} else {
-				req.Endpoints = bucketHosts
-			}
-		}
-	}
-	if queryer != nil {
-		bucketName, err := request.getBucketName(ctx)
-		if err != nil {
-			return nil, err
-		}
-		accessKey, err := request.getAccessKey(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if accessKey == "" {
-			if credentialsProvider := client.GetCredentials(); credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
-					return nil, err
-				} else if creds != nil {
-					accessKey = creds.AccessKey
-				}
-			}
-		}
-		if accessKey != "" && bucketName != "" {
-			req.Region = queryer.Query(accessKey, bucketName)
-		}
-	}
-	var respBody ResponseBody
-	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
-		return nil, err
-	}
-	return &Response{body: respBody}, nil
+	BucketName  string                          // 要获取域名列表的目标空间名称
+	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
 }
 
 // 获取 API 所用的响应
 type Response struct {
-	body ResponseBody
+	Domains Domains // 存储空间的域名列表
 }
 
-// 获取请求体
-func (response *Response) GetBody() ResponseBody {
-	return response.body
-}
+// 存储空间的域名列表
+type Domains []string
 
-// 设置请求体
-func (response *Response) SetBody(body ResponseBody) *Response {
-	response.body = body
-	return response
+func (j *Response) MarshalJSON() ([]byte, error) {
+	return json.Marshal(j.Domains)
+}
+func (j *Response) UnmarshalJSON(data []byte) error {
+	var array Domains
+	if err := json.Unmarshal(data, &array); err != nil {
+		return err
+	}
+	j.Domains = array
+	return nil
 }

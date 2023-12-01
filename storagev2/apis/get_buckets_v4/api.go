@@ -4,162 +4,65 @@
 package get_buckets_v4
 
 import (
-	"context"
 	"encoding/json"
-	auth "github.com/qiniu/go-sdk/v7/auth"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
-	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"net/url"
-	"strings"
 )
 
-// 调用 API 所用的 URL 查询参数
-type RequestQuery struct {
-	fieldRegion string // 区域 ID
-	fieldLimit  string // 分页大小。默认20，取值范围 1～100。
-	fieldMarker string // 列举开始的空间标识
+// 调用 API 所用的请求
+type Request struct {
+	Region      string                          // 区域 ID
+	Limit       int64                           // 分页大小。默认20，取值范围 1～100。
+	Marker      string                          // 列举开始的空间标识
+	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
 }
 
-// 区域 ID
-func (query *RequestQuery) GetRegion() string {
-	return query.fieldRegion
+// 获取 API 所用的响应
+type Response struct {
+	NextMarker  string // 下一页开始的空间标识
+	IsTruncated bool   // 是否所有的结果都已经返回
+	Buckets     BucketsV4
 }
 
-// 区域 ID
-func (query *RequestQuery) SetRegion(value string) *RequestQuery {
-	query.fieldRegion = value
-	return query
+// 存储空间信息
+type BucketV4 struct {
+	Name        string // 空间名称
+	Region      string // 空间区域 ID
+	Private     bool   // 空间是否私有
+	CreatedTime string // 空间创建时间
 }
-
-// 分页大小。默认20，取值范围 1～100。
-func (query *RequestQuery) GetLimit() string {
-	return query.fieldLimit
-}
-
-// 分页大小。默认20，取值范围 1～100。
-func (query *RequestQuery) SetLimit(value string) *RequestQuery {
-	query.fieldLimit = value
-	return query
-}
-
-// 列举开始的空间标识
-func (query *RequestQuery) GetMarker() string {
-	return query.fieldMarker
-}
-
-// 列举开始的空间标识
-func (query *RequestQuery) SetMarker(value string) *RequestQuery {
-	query.fieldMarker = value
-	return query
-}
-func (query *RequestQuery) build() (url.Values, error) {
-	allQuery := make(url.Values)
-	if query.fieldRegion != "" {
-		allQuery.Set("region", query.fieldRegion)
-	}
-	if query.fieldLimit != "" {
-		allQuery.Set("limit", query.fieldLimit)
-	}
-	if query.fieldMarker != "" {
-		allQuery.Set("marker", query.fieldMarker)
-	}
-	return allQuery, nil
-}
-func (request *Request) GetRegion() string {
-	return request.query.GetRegion()
-}
-func (request *Request) SetRegion(value string) *Request {
-	request.query.SetRegion(value)
-	return request
-}
-func (request *Request) GetLimit() string {
-	return request.query.GetLimit()
-}
-func (request *Request) SetLimit(value string) *Request {
-	request.query.SetLimit(value)
-	return request
-}
-func (request *Request) GetMarker() string {
-	return request.query.GetMarker()
-}
-func (request *Request) SetMarker(value string) *Request {
-	request.query.SetMarker(value)
-	return request
-}
-
-type innerBucketV4 struct {
+type jsonBucketV4 struct {
 	Name        string `json:"name"`    // 空间名称
 	Region      string `json:"region"`  // 空间区域 ID
 	Private     bool   `json:"private"` // 空间是否私有
 	CreatedTime string `json:"ctime"`   // 空间创建时间
 }
 
-// 存储空间信息
-type BucketV4 struct {
-	inner innerBucketV4
-}
-
-// 空间名称
-func (j *BucketV4) GetName() string {
-	return j.inner.Name
-}
-
-// 空间名称
-func (j *BucketV4) SetName(value string) *BucketV4 {
-	j.inner.Name = value
-	return j
-}
-
-// 空间区域 ID
-func (j *BucketV4) GetRegion() string {
-	return j.inner.Region
-}
-
-// 空间区域 ID
-func (j *BucketV4) SetRegion(value string) *BucketV4 {
-	j.inner.Region = value
-	return j
-}
-
-// 空间是否私有
-func (j *BucketV4) GetPrivate() bool {
-	return j.inner.Private
-}
-
-// 空间是否私有
-func (j *BucketV4) SetPrivate(value bool) *BucketV4 {
-	j.inner.Private = value
-	return j
-}
-
-// 空间创建时间
-func (j *BucketV4) GetCreatedTime() string {
-	return j.inner.CreatedTime
-}
-
-// 空间创建时间
-func (j *BucketV4) SetCreatedTime(value string) *BucketV4 {
-	j.inner.CreatedTime = value
-	return j
-}
 func (j *BucketV4) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonBucketV4{Name: j.Name, Region: j.Region, Private: j.Private, CreatedTime: j.CreatedTime})
 }
 func (j *BucketV4) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
+	var nj jsonBucketV4
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.Name = nj.Name
+	j.Region = nj.Region
+	j.Private = nj.Private
+	j.CreatedTime = nj.CreatedTime
+	return nil
 }
-
-//lint:ignore U1000 may not call it
 func (j *BucketV4) validate() error {
-	if j.inner.Name == "" {
+	if j.Name == "" {
 		return errors.MissingRequiredFieldError{Name: "Name"}
 	}
-	if j.inner.Region == "" {
+	if j.Region == "" {
 		return errors.MissingRequiredFieldError{Name: "Region"}
 	}
-	if j.inner.CreatedTime == "" {
+	if j.CreatedTime == "" {
 		return errors.MissingRequiredFieldError{Name: "CreatedTime"}
 	}
 	return nil
@@ -167,222 +70,42 @@ func (j *BucketV4) validate() error {
 
 // 存储空间列表
 type BucketsV4 = []BucketV4
-type Buckets = BucketsV4
-type innerBucketsResultV4 struct {
+
+// 返回所有存储空间结果
+type BucketsResultV4 = Response
+type jsonResponse struct {
 	NextMarker  string    `json:"nextMarker"`  // 下一页开始的空间标识
 	IsTruncated bool      `json:"isTruncated"` // 是否所有的结果都已经返回
 	Buckets     BucketsV4 `json:"buckets"`
 }
 
-// 返回所有存储空间结果
-type BucketsResultV4 struct {
-	inner innerBucketsResultV4
+func (j *Response) MarshalJSON() ([]byte, error) {
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonResponse{NextMarker: j.NextMarker, IsTruncated: j.IsTruncated, Buckets: j.Buckets})
 }
-
-// 下一页开始的空间标识
-func (j *BucketsResultV4) GetNextMarker() string {
-	return j.inner.NextMarker
+func (j *Response) UnmarshalJSON(data []byte) error {
+	var nj jsonResponse
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.NextMarker = nj.NextMarker
+	j.IsTruncated = nj.IsTruncated
+	j.Buckets = nj.Buckets
+	return nil
 }
-
-// 下一页开始的空间标识
-func (j *BucketsResultV4) SetNextMarker(value string) *BucketsResultV4 {
-	j.inner.NextMarker = value
-	return j
-}
-
-// 是否所有的结果都已经返回
-func (j *BucketsResultV4) IsTruncated() bool {
-	return j.inner.IsTruncated
-}
-
-// 是否所有的结果都已经返回
-func (j *BucketsResultV4) SetTruncated(value bool) *BucketsResultV4 {
-	j.inner.IsTruncated = value
-	return j
-}
-func (j *BucketsResultV4) GetBuckets() BucketsV4 {
-	return j.inner.Buckets
-}
-func (j *BucketsResultV4) SetBuckets(value BucketsV4) *BucketsResultV4 {
-	j.inner.Buckets = value
-	return j
-}
-func (j *BucketsResultV4) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
-}
-func (j *BucketsResultV4) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
-}
-
-//lint:ignore U1000 may not call it
-func (j *BucketsResultV4) validate() error {
-	if j.inner.NextMarker == "" {
+func (j *Response) validate() error {
+	if j.NextMarker == "" {
 		return errors.MissingRequiredFieldError{Name: "NextMarker"}
 	}
-	if len(j.inner.Buckets) == 0 {
+	if len(j.Buckets) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Buckets"}
 	}
-	for _, value := range j.inner.Buckets {
+	for _, value := range j.Buckets {
 		if err := value.validate(); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-// 获取 API 所用的响应体参数
-type ResponseBody = BucketsResultV4
-
-// 下一页开始的空间标识
-func (request *Response) GetNextMarker() string {
-	return request.body.GetNextMarker()
-}
-
-// 下一页开始的空间标识
-func (request *Response) SetNextMarker(value string) *Response {
-	request.body.SetNextMarker(value)
-	return request
-}
-
-// 是否所有的结果都已经返回
-func (request *Response) IsTruncated() bool {
-	return request.body.IsTruncated()
-}
-
-// 是否所有的结果都已经返回
-func (request *Response) SetTruncated(value bool) *Response {
-	request.body.SetTruncated(value)
-	return request
-}
-func (request *Response) GetBuckets() BucketsV4 {
-	return request.body.GetBuckets()
-}
-func (request *Response) SetBuckets(value BucketsV4) *Response {
-	request.body.SetBuckets(value)
-	return request
-}
-
-// 调用 API 所用的请求
-type Request struct {
-	overwrittenBucketHosts region.EndpointsProvider
-	overwrittenBucketName  string
-	query                  RequestQuery
-	credentials            credentials.CredentialsProvider
-}
-
-// 覆盖默认的存储区域域名列表
-func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
-	request.overwrittenBucketHosts = bucketHosts
-	return request
-}
-
-// 覆盖存储空间名称
-func (request *Request) OverwriteBucketName(bucketName string) *Request {
-	request.overwrittenBucketName = bucketName
-	return request
-}
-
-// 设置鉴权
-func (request *Request) SetCredentials(credentials credentials.CredentialsProvider) *Request {
-	request.credentials = credentials
-	return request
-}
-func (request *Request) getBucketName(ctx context.Context) (string, error) {
-	if request.overwrittenBucketName != "" {
-		return request.overwrittenBucketName, nil
-	}
-	return "", nil
-}
-func (request *Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.credentials != nil {
-		if credentials, err := request.credentials.Get(ctx); err != nil {
-			return "", err
-		} else {
-			return credentials.AccessKey, nil
-		}
-	}
-	return "", nil
-}
-
-// 获取请求查询参数
-func (request *Request) GetQuery() *RequestQuery {
-	return &request.query
-}
-
-// 设置请求查询参数
-func (request *Request) SetQuery(query RequestQuery) *Request {
-	request.query = query
-	return request
-}
-
-// 发送请求
-func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
-	client := httpclient.NewHttpClient(options)
-	serviceNames := []region.ServiceName{region.ServiceBucket}
-	var pathSegments []string
-	pathSegments = append(pathSegments, "buckets")
-	path := "/" + strings.Join(pathSegments, "/")
-	var rawQuery string
-	rawQuery += "apiVersion=v4" + "&"
-	if query, err := request.query.build(); err != nil {
-		return nil, err
-	} else {
-		rawQuery += query.Encode()
-	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: request.credentials}
-	var queryer region.BucketRegionsQueryer
-	if client.GetRegions() == nil && client.GetEndpoints() == nil {
-		queryer = client.GetBucketQueryer()
-		if queryer == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			if request.overwrittenBucketHosts != nil {
-				req.Endpoints = request.overwrittenBucketHosts
-			} else {
-				req.Endpoints = bucketHosts
-			}
-		}
-	}
-	if queryer != nil {
-		bucketName, err := request.getBucketName(ctx)
-		if err != nil {
-			return nil, err
-		}
-		accessKey, err := request.getAccessKey(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if accessKey == "" {
-			if credentialsProvider := client.GetCredentials(); credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
-					return nil, err
-				} else if creds != nil {
-					accessKey = creds.AccessKey
-				}
-			}
-		}
-		if accessKey != "" && bucketName != "" {
-			req.Region = queryer.Query(accessKey, bucketName)
-		}
-	}
-	var respBody ResponseBody
-	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
-		return nil, err
-	}
-	return &Response{body: respBody}, nil
-}
-
-// 获取 API 所用的响应
-type Response struct {
-	body ResponseBody
-}
-
-// 获取请求体
-func (response *Response) GetBody() *ResponseBody {
-	return &response.body
-}
-
-// 设置请求体
-func (response *Response) SetBody(body ResponseBody) *Response {
-	response.body = body
-	return response
 }

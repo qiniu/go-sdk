@@ -4,236 +4,71 @@
 package resumable_upload_v2_list_parts
 
 import (
-	"context"
-	"encoding/base64"
 	"encoding/json"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
-	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/url"
-	"strconv"
-	"strings"
 )
 
-// 调用 API 所用的路径参数
-type RequestPath struct {
-	fieldBucketName string
-	fieldObjectName string
-	fieldUploadId   string
+// 调用 API 所用的请求
+type Request struct {
+	BucketName       string           // 存储空间名称
+	ObjectName       string           // 对象名称
+	UploadId         string           // 在服务端申请的 Multipart Upload 任务 id
+	MaxParts         int64            // 响应中的最大分片数目。默认值：1000，最大值：1000
+	PartNumberMarker int64            // 指定列举的起始位置，只有 partNumber 值大于该参数的分片会被列出
+	UpToken          uptoken.Provider // 上传凭证，如果为空，则使用 HttpClientOptions 中的 UpToken
 }
 
-// 存储空间名称
-func (pp *RequestPath) GetBucketName() string {
-	return pp.fieldBucketName
+// 获取 API 所用的响应
+type Response struct {
+	UploadId         string      // 在服务端申请的 Multipart Upload 任务 id
+	ExpiredAt        int64       // UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
+	PartNumberMarker int64       // 下次继续列举的起始位置，0 表示列举结束，没有更多分片
+	Parts            ListedParts // 返回所有已经上传成功的分片信息
 }
 
-// 存储空间名称
-func (pp *RequestPath) SetBucketName(value string) *RequestPath {
-	pp.fieldBucketName = value
-	return pp
+// 单个已经上传的分片信息
+type ListedPartInfo struct {
+	Size       int64  // 分片大小
+	Etag       string // 分片内容的 etag
+	PartNumber int64  // 每一个上传的分片都有一个标识它的号码
+	PutTime    int64  // 分片上传时间 UNIX 时间戳
 }
-
-// 对象名称
-func (pp *RequestPath) GetObjectName() string {
-	return pp.fieldObjectName
-}
-
-// 对象名称
-func (pp *RequestPath) SetObjectName(value string) *RequestPath {
-	pp.fieldObjectName = value
-	return pp
-}
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (pp *RequestPath) GetUploadId() string {
-	return pp.fieldUploadId
-}
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (pp *RequestPath) SetUploadId(value string) *RequestPath {
-	pp.fieldUploadId = value
-	return pp
-}
-func (path *RequestPath) build() ([]string, error) {
-	var allSegments []string
-	if path.fieldBucketName != "" {
-		allSegments = append(allSegments, path.fieldBucketName)
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
-	}
-	if path.fieldObjectName != "" {
-		allSegments = append(allSegments, "objects", base64.URLEncoding.EncodeToString([]byte(path.fieldObjectName)))
-	} else {
-		allSegments = append(allSegments, "objects", "~")
-	}
-	if path.fieldUploadId != "" {
-		allSegments = append(allSegments, "uploads", path.fieldUploadId)
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "UploadId"}
-	}
-	return allSegments, nil
-}
-
-// 存储空间名称
-func (request *Request) GetBucketName() string {
-	return request.path.GetBucketName()
-}
-
-// 存储空间名称
-func (request *Request) SetBucketName(value string) *Request {
-	request.path.SetBucketName(value)
-	return request
-}
-
-// 对象名称
-func (request *Request) GetObjectName() string {
-	return request.path.GetObjectName()
-}
-
-// 对象名称
-func (request *Request) SetObjectName(value string) *Request {
-	request.path.SetObjectName(value)
-	return request
-}
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (request *Request) GetUploadId() string {
-	return request.path.GetUploadId()
-}
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (request *Request) SetUploadId(value string) *Request {
-	request.path.SetUploadId(value)
-	return request
-}
-
-// 调用 API 所用的 URL 查询参数
-type RequestQuery struct {
-	fieldMaxParts         int64 // 响应中的最大分片数目。默认值：1000，最大值：1000
-	fieldPartNumberMarker int64 // 指定列举的起始位置，只有 partNumber 值大于该参数的分片会被列出
-}
-
-// 响应中的最大分片数目。默认值：1000，最大值：1000
-func (query *RequestQuery) GetMaxParts() int64 {
-	return query.fieldMaxParts
-}
-
-// 响应中的最大分片数目。默认值：1000，最大值：1000
-func (query *RequestQuery) SetMaxParts(value int64) *RequestQuery {
-	query.fieldMaxParts = value
-	return query
-}
-
-// 指定列举的起始位置，只有 partNumber 值大于该参数的分片会被列出
-func (query *RequestQuery) GetPartNumberMarker() int64 {
-	return query.fieldPartNumberMarker
-}
-
-// 指定列举的起始位置，只有 partNumber 值大于该参数的分片会被列出
-func (query *RequestQuery) SetPartNumberMarker(value int64) *RequestQuery {
-	query.fieldPartNumberMarker = value
-	return query
-}
-func (query *RequestQuery) build() (url.Values, error) {
-	allQuery := make(url.Values)
-	if query.fieldMaxParts != 0 {
-		allQuery.Set("max-parts", strconv.FormatInt(query.fieldMaxParts, 10))
-	}
-	if query.fieldPartNumberMarker != 0 {
-		allQuery.Set("part-number_marker", strconv.FormatInt(query.fieldPartNumberMarker, 10))
-	}
-	return allQuery, nil
-}
-func (request *Request) GetMaxParts() int64 {
-	return request.query.GetMaxParts()
-}
-func (request *Request) SetMaxParts(value int64) *Request {
-	request.query.SetMaxParts(value)
-	return request
-}
-func (request *Request) GetPartNumberMarker() int64 {
-	return request.query.GetPartNumberMarker()
-}
-func (request *Request) SetPartNumberMarker(value int64) *Request {
-	request.query.SetPartNumberMarker(value)
-	return request
-}
-
-type innerListedPartInfo struct {
+type jsonListedPartInfo struct {
 	Size       int64  `json:"size"`       // 分片大小
 	Etag       string `json:"etag"`       // 分片内容的 etag
 	PartNumber int64  `json:"partNumber"` // 每一个上传的分片都有一个标识它的号码
 	PutTime    int64  `json:"putTime"`    // 分片上传时间 UNIX 时间戳
 }
 
-// 单个已经上传的分片信息
-type ListedPartInfo struct {
-	inner innerListedPartInfo
-}
-
-// 分片大小
-func (j *ListedPartInfo) GetSize() int64 {
-	return j.inner.Size
-}
-
-// 分片大小
-func (j *ListedPartInfo) SetSize(value int64) *ListedPartInfo {
-	j.inner.Size = value
-	return j
-}
-
-// 分片内容的 etag
-func (j *ListedPartInfo) GetEtag() string {
-	return j.inner.Etag
-}
-
-// 分片内容的 etag
-func (j *ListedPartInfo) SetEtag(value string) *ListedPartInfo {
-	j.inner.Etag = value
-	return j
-}
-
-// 每一个上传的分片都有一个标识它的号码
-func (j *ListedPartInfo) GetPartNumber() int64 {
-	return j.inner.PartNumber
-}
-
-// 每一个上传的分片都有一个标识它的号码
-func (j *ListedPartInfo) SetPartNumber(value int64) *ListedPartInfo {
-	j.inner.PartNumber = value
-	return j
-}
-
-// 分片上传时间 UNIX 时间戳
-func (j *ListedPartInfo) GetPutTime() int64 {
-	return j.inner.PutTime
-}
-
-// 分片上传时间 UNIX 时间戳
-func (j *ListedPartInfo) SetPutTime(value int64) *ListedPartInfo {
-	j.inner.PutTime = value
-	return j
-}
 func (j *ListedPartInfo) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonListedPartInfo{Size: j.Size, Etag: j.Etag, PartNumber: j.PartNumber, PutTime: j.PutTime})
 }
 func (j *ListedPartInfo) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
+	var nj jsonListedPartInfo
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.Size = nj.Size
+	j.Etag = nj.Etag
+	j.PartNumber = nj.PartNumber
+	j.PutTime = nj.PutTime
+	return nil
 }
-
-//lint:ignore U1000 may not call it
 func (j *ListedPartInfo) validate() error {
-	if j.inner.Size == 0 {
+	if j.Size == 0 {
 		return errors.MissingRequiredFieldError{Name: "Size"}
 	}
-	if j.inner.Etag == "" {
+	if j.Etag == "" {
 		return errors.MissingRequiredFieldError{Name: "Etag"}
 	}
-	if j.inner.PartNumber == 0 {
+	if j.PartNumber == 0 {
 		return errors.MissingRequiredFieldError{Name: "PartNumber"}
 	}
-	if j.inner.PutTime == 0 {
+	if j.PutTime == 0 {
 		return errors.MissingRequiredFieldError{Name: "PutTime"}
 	}
 	return nil
@@ -243,286 +78,48 @@ func (j *ListedPartInfo) validate() error {
 type ListedParts = []ListedPartInfo
 
 // 返回所有已经上传成功的分片信息
-type Parts = ListedParts
-type innerListedPartsResponse struct {
+type ListedPartsResponse = Response
+type jsonResponse struct {
 	UploadId         string      `json:"uploadId"`         // 在服务端申请的 Multipart Upload 任务 id
 	ExpiredAt        int64       `json:"expireAt"`         // UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
 	PartNumberMarker int64       `json:"partNumberMarker"` // 下次继续列举的起始位置，0 表示列举结束，没有更多分片
 	Parts            ListedParts `json:"parts"`            // 返回所有已经上传成功的分片信息
 }
 
-// 返回所有已经上传成功的分片信息
-type ListedPartsResponse struct {
-	inner innerListedPartsResponse
+func (j *Response) MarshalJSON() ([]byte, error) {
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonResponse{UploadId: j.UploadId, ExpiredAt: j.ExpiredAt, PartNumberMarker: j.PartNumberMarker, Parts: j.Parts})
 }
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (j *ListedPartsResponse) GetUploadId() string {
-	return j.inner.UploadId
+func (j *Response) UnmarshalJSON(data []byte) error {
+	var nj jsonResponse
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.UploadId = nj.UploadId
+	j.ExpiredAt = nj.ExpiredAt
+	j.PartNumberMarker = nj.PartNumberMarker
+	j.Parts = nj.Parts
+	return nil
 }
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (j *ListedPartsResponse) SetUploadId(value string) *ListedPartsResponse {
-	j.inner.UploadId = value
-	return j
-}
-
-// UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
-func (j *ListedPartsResponse) GetExpiredAt() int64 {
-	return j.inner.ExpiredAt
-}
-
-// UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
-func (j *ListedPartsResponse) SetExpiredAt(value int64) *ListedPartsResponse {
-	j.inner.ExpiredAt = value
-	return j
-}
-
-// 下次继续列举的起始位置，0 表示列举结束，没有更多分片
-func (j *ListedPartsResponse) GetPartNumberMarker() int64 {
-	return j.inner.PartNumberMarker
-}
-
-// 下次继续列举的起始位置，0 表示列举结束，没有更多分片
-func (j *ListedPartsResponse) SetPartNumberMarker(value int64) *ListedPartsResponse {
-	j.inner.PartNumberMarker = value
-	return j
-}
-
-// 返回所有已经上传成功的分片信息
-func (j *ListedPartsResponse) GetParts() ListedParts {
-	return j.inner.Parts
-}
-
-// 返回所有已经上传成功的分片信息
-func (j *ListedPartsResponse) SetParts(value ListedParts) *ListedPartsResponse {
-	j.inner.Parts = value
-	return j
-}
-func (j *ListedPartsResponse) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.inner)
-}
-func (j *ListedPartsResponse) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &j.inner)
-}
-
-//lint:ignore U1000 may not call it
-func (j *ListedPartsResponse) validate() error {
-	if j.inner.UploadId == "" {
+func (j *Response) validate() error {
+	if j.UploadId == "" {
 		return errors.MissingRequiredFieldError{Name: "UploadId"}
 	}
-	if j.inner.ExpiredAt == 0 {
+	if j.ExpiredAt == 0 {
 		return errors.MissingRequiredFieldError{Name: "ExpiredAt"}
 	}
-	if j.inner.PartNumberMarker == 0 {
+	if j.PartNumberMarker == 0 {
 		return errors.MissingRequiredFieldError{Name: "PartNumberMarker"}
 	}
-	if len(j.inner.Parts) == 0 {
+	if len(j.Parts) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Parts"}
 	}
-	for _, value := range j.inner.Parts {
+	for _, value := range j.Parts {
 		if err := value.validate(); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-// 获取 API 所用的响应体参数
-type ResponseBody = ListedPartsResponse
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (request *Response) GetUploadId() string {
-	return request.body.GetUploadId()
-}
-
-// 在服务端申请的 Multipart Upload 任务 id
-func (request *Response) SetUploadId(value string) *Response {
-	request.body.SetUploadId(value)
-	return request
-}
-
-// UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
-func (request *Response) GetExpiredAt() int64 {
-	return request.body.GetExpiredAt()
-}
-
-// UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
-func (request *Response) SetExpiredAt(value int64) *Response {
-	request.body.SetExpiredAt(value)
-	return request
-}
-
-// 下次继续列举的起始位置，0 表示列举结束，没有更多分片
-func (request *Response) GetPartNumberMarker() int64 {
-	return request.body.GetPartNumberMarker()
-}
-
-// 下次继续列举的起始位置，0 表示列举结束，没有更多分片
-func (request *Response) SetPartNumberMarker(value int64) *Response {
-	request.body.SetPartNumberMarker(value)
-	return request
-}
-
-// 返回所有已经上传成功的分片信息
-func (request *Response) GetParts() ListedParts {
-	return request.body.GetParts()
-}
-
-// 返回所有已经上传成功的分片信息
-func (request *Response) SetParts(value ListedParts) *Response {
-	request.body.SetParts(value)
-	return request
-}
-
-// 调用 API 所用的请求
-type Request struct {
-	overwrittenBucketHosts region.EndpointsProvider
-	overwrittenBucketName  string
-	path                   RequestPath
-	query                  RequestQuery
-	upToken                uptoken.Provider
-}
-
-// 覆盖默认的存储区域域名列表
-func (request *Request) OverwriteBucketHosts(bucketHosts region.EndpointsProvider) *Request {
-	request.overwrittenBucketHosts = bucketHosts
-	return request
-}
-
-// 覆盖存储空间名称
-func (request *Request) OverwriteBucketName(bucketName string) *Request {
-	request.overwrittenBucketName = bucketName
-	return request
-}
-
-// 设置上传凭证
-func (request *Request) SetUpToken(upToken uptoken.Provider) *Request {
-	request.upToken = upToken
-	return request
-}
-func (request *Request) getBucketName(ctx context.Context) (string, error) {
-	if request.overwrittenBucketName != "" {
-		return request.overwrittenBucketName, nil
-	}
-	if request.upToken != nil {
-		if putPolicy, err := request.upToken.RetrievePutPolicy(ctx); err != nil {
-			return "", err
-		} else {
-			return putPolicy.GetBucketName()
-		}
-	}
-	return "", nil
-}
-func (request *Request) getAccessKey(ctx context.Context) (string, error) {
-	if request.upToken != nil {
-		return request.upToken.RetrieveAccessKey(ctx)
-	}
-	return "", nil
-}
-
-// 获取请求路径
-func (request *Request) GetPath() *RequestPath {
-	return &request.path
-}
-
-// 获取请求查询参数
-func (request *Request) GetQuery() *RequestQuery {
-	return &request.query
-}
-
-// 设置请求路径
-func (request *Request) SetPath(path RequestPath) *Request {
-	request.path = path
-	return request
-}
-
-// 设置请求查询参数
-func (request *Request) SetQuery(query RequestQuery) *Request {
-	request.query = query
-	return request
-}
-
-// 发送请求
-func (request *Request) Send(ctx context.Context, options *httpclient.HttpClientOptions) (*Response, error) {
-	client := httpclient.NewHttpClient(options)
-	serviceNames := []region.ServiceName{region.ServiceUp}
-	var pathSegments []string
-	pathSegments = append(pathSegments, "buckets")
-	if segments, err := request.path.build(); err != nil {
-		return nil, err
-	} else {
-		pathSegments = append(pathSegments, segments...)
-	}
-	path := "/" + strings.Join(pathSegments, "/")
-	var rawQuery string
-	if query, err := request.query.build(); err != nil {
-		return nil, err
-	} else {
-		rawQuery += query.Encode()
-	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: request.upToken}
-	var queryer region.BucketRegionsQueryer
-	if client.GetRegions() == nil && client.GetEndpoints() == nil {
-		queryer = client.GetBucketQueryer()
-		if queryer == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			var err error
-			if request.overwrittenBucketHosts != nil {
-				if bucketHosts, err = request.overwrittenBucketHosts.GetEndpoints(ctx); err != nil {
-					return nil, err
-				}
-			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: options.UseInsecureProtocol, HostFreezeDuration: options.HostFreezeDuration, Client: options.Client}
-			if hostRetryConfig := options.HostRetryConfig; hostRetryConfig != nil {
-				queryerOptions.RetryMax = hostRetryConfig.RetryMax
-			}
-			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
-				return nil, err
-			}
-		}
-	}
-	if queryer != nil {
-		bucketName, err := request.getBucketName(ctx)
-		if err != nil {
-			return nil, err
-		}
-		accessKey, err := request.getAccessKey(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if accessKey == "" {
-			if credentialsProvider := client.GetCredentials(); credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
-					return nil, err
-				} else if creds != nil {
-					accessKey = creds.AccessKey
-				}
-			}
-		}
-		if accessKey != "" && bucketName != "" {
-			req.Region = queryer.Query(accessKey, bucketName)
-		}
-	}
-	var respBody ResponseBody
-	if _, err := client.AcceptJson(ctx, &req, &respBody); err != nil {
-		return nil, err
-	}
-	return &Response{body: respBody}, nil
-}
-
-// 获取 API 所用的响应
-type Response struct {
-	body ResponseBody
-}
-
-// 获取请求体
-func (response *Response) GetBody() *ResponseBody {
-	return &response.body
-}
-
-// 设置请求体
-func (response *Response) SetBody(body ResponseBody) *Response {
-	response.body = body
-	return response
 }
