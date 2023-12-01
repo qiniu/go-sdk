@@ -153,7 +153,7 @@ func (f *FileInfo) String() string {
 	str += fmt.Sprintf("TransitionToArchiveIR:     %d\n", f.TransitionToArchiveIR)
 	str += fmt.Sprintf("TransitionToArchive:       %d\n", f.TransitionToArchive)
 	str += fmt.Sprintf("TransitionToDeepArchive:   %d\n", f.TransitionToDeepArchive)
-	str += fmt.Sprintf("MetaData:                  %d\n", f.MetaData)
+	str += fmt.Sprintf("MetaData:                  %s\n", f.MetaData)
 	return str
 }
 
