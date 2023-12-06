@@ -1,6 +1,7 @@
 package clientv2
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -14,6 +15,8 @@ import (
 
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
 )
+
+type contextKeyBufferResponse struct{}
 
 type RetryConfig struct {
 	RetryMax      int                  // 最大重试次数
@@ -37,9 +40,7 @@ func (c *RetryConfig) init() {
 	}
 
 	if c.ShouldRetry == nil {
-		c.ShouldRetry = func(req *http.Request, resp *http.Response, err error) bool {
-			return isSimpleRetryable(req, resp, err)
-		}
+		c.ShouldRetry = isSimpleRetryable
 	}
 }
 
@@ -61,6 +62,7 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 	if interceptor == nil || req == nil {
 		return handler(req)
 	}
+	toBufferResponse := req.Context().Value(contextKeyBufferResponse{}) != nil
 
 	interceptor.config.init()
 
@@ -74,6 +76,12 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 		// Clone 防止后面 Handler 处理对 req 有污染
 		reqBefore := cloneReq(req)
 		resp, err = handler(req)
+
+		if err == nil {
+			if toBufferResponse {
+				err = bufferResponse(resp)
+			}
+		}
 
 		if !interceptor.config.ShouldRetry(reqBefore, resp, err) {
 			return resp, err
@@ -96,6 +104,15 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 		time.Sleep(retryInterval)
 	}
 	return resp, err
+}
+
+func bufferResponse(resp *http.Response) error {
+	buffer, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(buffer))
+	return nil
 }
 
 func isSimpleRetryable(req *http.Request, resp *http.Response, err error) bool {
