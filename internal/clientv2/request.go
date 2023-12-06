@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/qiniu/go-sdk/v7/conf"
+	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
 )
 
 const (
@@ -20,22 +21,6 @@ const (
 	RequestMethodDelete = http.MethodDelete
 )
 
-type nopCloser struct {
-	r io.ReadSeeker
-}
-
-func (nc nopCloser) Read(p []byte) (n int, err error) {
-	return nc.r.Read(p)
-}
-
-func (nc nopCloser) Seek(offset int64, whence int) (int64, error) {
-	return nc.r.Seek(offset, whence)
-}
-
-func (nc nopCloser) Close() error {
-	return nil
-}
-
 type GetRequestBody func(options *RequestParams) (io.ReadCloser, error)
 
 func GetJsonRequestBody(object interface{}) (GetRequestBody, error) {
@@ -45,7 +30,7 @@ func GetJsonRequestBody(object interface{}) (GetRequestBody, error) {
 	}
 	return func(o *RequestParams) (io.ReadCloser, error) {
 		o.Header.Set("Content-Type", conf.CONTENT_TYPE_JSON)
-		return nopCloser{r: bytes.NewReader(reqBody)}, nil
+		return internal_io.NewReadSeekableNopCloser(bytes.NewReader(reqBody)), nil
 	}, nil
 }
 
@@ -53,7 +38,7 @@ func GetFormRequestBody(info map[string][]string) GetRequestBody {
 	body := formStringInfo(info)
 	return func(o *RequestParams) (io.ReadCloser, error) {
 		o.Header.Set("Content-Type", conf.CONTENT_TYPE_FORM)
-		return nopCloser{r: strings.NewReader(body)}, nil
+		return internal_io.NewReadSeekableNopCloser(strings.NewReader(body)), nil
 	}
 }
 

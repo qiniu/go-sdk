@@ -16,6 +16,7 @@ import (
 
 	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/conf"
+	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
 	"github.com/qiniu/go-sdk/v7/internal/log"
 	"github.com/qiniu/go-sdk/v7/reqid"
 )
@@ -230,7 +231,7 @@ func (r *ErrorInfo) HttpCode() int {
 
 func parseError(e *ErrorInfo, r io.Reader) {
 
-	body, err1 := ioutil.ReadAll(r)
+	body, err1 := internal_io.ReadAll(r)
 	if err1 != nil {
 		e.Err = err1.Error()
 		return
@@ -268,7 +269,7 @@ func ResponseError(resp *http.Response) error {
 			if ok && strings.HasPrefix(ct[0], "application/json") {
 				parseError(e, resp.Body)
 			} else {
-				bs, err := ioutil.ReadAll(resp.Body)
+				bs, err := internal_io.ReadAll(resp.Body)
 				if err != nil {
 					e.Err = fmt.Sprintf("failed to read from response body: %s", err)
 				} else {
@@ -283,7 +284,7 @@ func ResponseError(resp *http.Response) error {
 func CallRet(ctx context.Context, ret interface{}, resp *http.Response) (err error) {
 
 	defer func() {
-		io.Copy(ioutil.Discard, resp.Body)
+		internal_io.SinkAll(resp.Body)
 		resp.Body.Close()
 	}()
 

@@ -1,14 +1,13 @@
 package clientv2
 
 import (
-	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
+	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
 )
 
 type HostsRetryConfig struct {
@@ -118,7 +117,7 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 		req = reqBefore
 
 		if resp != nil && resp.Body != nil {
-			io.Copy(ioutil.Discard, resp.Body)
+			internal_io.SinkAll(resp.Body)
 			resp.Body.Close()
 		}
 

@@ -1,9 +1,7 @@
 package clientv2
 
 import (
-	"bytes"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"net/http"
@@ -14,6 +12,7 @@ import (
 	"time"
 
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
+	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
 )
 
 type contextKeyBufferResponse struct{}
@@ -93,7 +92,7 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 		}
 
 		if resp != nil && resp.Body != nil {
-			io.Copy(ioutil.Discard, resp.Body)
+			internal_io.SinkAll(resp.Body)
 			resp.Body.Close()
 		}
 
@@ -107,11 +106,11 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 }
 
 func bufferResponse(resp *http.Response) error {
-	buffer, err := ioutil.ReadAll(resp.Body)
+	buffer, err := internal_io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	resp.Body = io.NopCloser(bytes.NewReader(buffer))
+	resp.Body = internal_io.NewBytesNopCloser(buffer)
 	return nil
 }
 
