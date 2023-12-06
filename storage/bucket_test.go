@@ -216,10 +216,11 @@ func TestStat(t *testing.T) {
 	if e := bucketManager.AddBucketLifeCycleRule(testBucket, &BucketLifeCycleRule{
 		Name:                   ruleName,
 		Prefix:                 "",
-		ToLineAfterDays:        1,
-		ToArchiveAfterDays:     2,
-		ToDeepArchiveAfterDays: 3,
-		DeleteAfterDays:        4,
+		ToLineAfterDays:        10,
+		ToArchiveIRAfterDays:   20,
+		ToArchiveAfterDays:     30,
+		ToDeepArchiveAfterDays: 40,
+		DeleteAfterDays:        50,
 	}); e != nil {
 		t.Logf("Stat AddBucketLifeCycleRule() error, %s", e)
 		t.Fail()
@@ -235,7 +236,8 @@ func TestStat(t *testing.T) {
 	}
 	client.DebugMode = true
 	if info, e := bucketManager.Stat(testBucket, copyKey); e != nil ||
-		len(info.Hash) == 0 || info.Expiration == 0 {
+		len(info.Hash) == 0 || info.Expiration == 0 || info.TransitionToArchive == 0 ||
+		info.TransitionToIA == 0 || info.TransitionToArchiveIR == 0 || info.TransitionToDeepArchive == 0 {
 		t.Logf("3 Stat() error, %v", e)
 		t.Fail()
 	} else {
@@ -783,6 +785,7 @@ func TestBucketLifeCycleRule(t *testing.T) {
 		Prefix:                 "testPutFileKey",
 		DeleteAfterDays:        13,
 		ToLineAfterDays:        1,
+		ToArchiveIRAfterDays:   2,
 		ToArchiveAfterDays:     6,
 		ToDeepArchiveAfterDays: 10,
 	})
@@ -798,7 +801,7 @@ func TestBucketLifeCycleRule(t *testing.T) {
 	ruleExists := false
 	for _, r := range rules {
 		if r.Name == "golangIntegrationTest" && r.Prefix == "testPutFileKey" && r.DeleteAfterDays == 13 &&
-			r.ToLineAfterDays == 1 && r.ToArchiveAfterDays == 6 && r.ToDeepArchiveAfterDays == 10 {
+			r.ToLineAfterDays == 1 && r.ToArchiveIRAfterDays == 2 && r.ToArchiveAfterDays == 6 && r.ToDeepArchiveAfterDays == 10 {
 			ruleExists = true
 			break
 		}
@@ -812,6 +815,7 @@ func TestBucketLifeCycleRule(t *testing.T) {
 		Prefix:                 "testPutFileKey",
 		DeleteAfterDays:        22,
 		ToLineAfterDays:        11,
+		ToArchiveIRAfterDays:   12,
 		ToArchiveAfterDays:     16,
 		ToDeepArchiveAfterDays: 20,
 	})
@@ -827,7 +831,7 @@ func TestBucketLifeCycleRule(t *testing.T) {
 	ruleExists = false
 	for _, r := range rules {
 		if r.Name == "golangIntegrationTest" && r.Prefix == "testPutFileKey" && r.DeleteAfterDays == 22 &&
-			r.ToLineAfterDays == 11 && r.ToArchiveAfterDays == 16 && r.ToDeepArchiveAfterDays == 20 {
+			r.ToLineAfterDays == 11 && r.ToArchiveIRAfterDays == 12 && r.ToArchiveAfterDays == 16 && r.ToDeepArchiveAfterDays == 20 {
 			ruleExists = true
 			break
 		}

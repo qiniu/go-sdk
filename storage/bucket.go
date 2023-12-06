@@ -47,6 +47,7 @@ type FileInfo struct {
 	 * 1 表示低频存储
 	 * 2 表示归档存储
 	 * 3 表示深度归档存储
+	 * 4 表示归档存储直读
 	 */
 	Type int `json:"type"`
 
@@ -103,6 +104,16 @@ type FileInfo struct {
 	TransitionToIA int64 `json:"transitionToIA"`
 
 	/**
+	 * 文件生命周期中转为归档直读存储的日期，int64 类型，Unix 时间戳格式 ，具体日期计算参考 生命周期管理。
+	 * 文件在设置转归档直读后才会返回该字段（通过生命周期规则设置文件转归档直读，仅对该功能发布后满足规则条件新上传文件返回该字段；
+	 * 历史文件想要返回该字段需要在功能发布后可通过 修改文件生命周期 API 指定转归档直读时间；对于已经设置过转归档直读时间的历史文
+	 * 件，到期都会正常执行，只是服务端没有该字段返回)
+	 *
+	 * 例如：值为1568736000的时间，表示文件会在2019/9/18当天转为归档直读存储类型。
+	 */
+	TransitionToArchiveIR int64 `json:"transitionToArchiveIR"`
+
+	/**
 	 * 文件生命周期中转为归档存储的日期，int64 类型，Unix 时间戳格式 ，具体日期计算参考 生命周期管理。
 	 * 文件在设置转归档后才会返回该字段（通过生命周期规则设置文件转归档，仅对该功能发布后满足规则条件新上传文件返回该字段；
 	 * 历史文件想要返回该字段需要在功能发布后可通过 修改文件生命周期 API 指定转归档时间；对于已经设置过转归档时间的历史文
@@ -128,12 +139,21 @@ type FileInfo struct {
 
 func (f *FileInfo) String() string {
 	str := ""
-	str += fmt.Sprintf("Hash:     %s\n", f.Hash)
-	str += fmt.Sprintf("Fsize:    %d\n", f.Fsize)
-	str += fmt.Sprintf("PutTime:  %d\n", f.PutTime)
-	str += fmt.Sprintf("MimeType: %s\n", f.MimeType)
-	str += fmt.Sprintf("Type:     %d\n", f.Type)
-	str += fmt.Sprintf("Status:   %d\n", f.Status)
+	str += fmt.Sprintf("Hash:                      %s\n", f.Hash)
+	str += fmt.Sprintf("Fsize:                     %d\n", f.Fsize)
+	str += fmt.Sprintf("PutTime:                   %d\n", f.PutTime)
+	str += fmt.Sprintf("MimeType:                  %s\n", f.MimeType)
+	str += fmt.Sprintf("Type:                      %d\n", f.Type)
+	str += fmt.Sprintf("RestoreStatus:             %d\n", f.RestoreStatus)
+	str += fmt.Sprintf("Status:                    %d\n", f.Status)
+	str += fmt.Sprintf("Md5:                       %s\n", f.Md5)
+	str += fmt.Sprintf("EndUser:                   %s\n", f.EndUser)
+	str += fmt.Sprintf("Expiration:                %d\n", f.Expiration)
+	str += fmt.Sprintf("TransitionToIA:            %d\n", f.TransitionToIA)
+	str += fmt.Sprintf("TransitionToArchiveIR:     %d\n", f.TransitionToArchiveIR)
+	str += fmt.Sprintf("TransitionToArchive:       %d\n", f.TransitionToArchive)
+	str += fmt.Sprintf("TransitionToDeepArchive:   %d\n", f.TransitionToDeepArchive)
+	str += fmt.Sprintf("MetaData:                  %s\n", f.MetaData)
 	return str
 }
 
@@ -176,6 +196,7 @@ type BatchOpRet struct {
 		 * 1 表示低频存储
 		 * 2 表示归档存储
 		 * 3 表示深度归档存储
+		 * 4 表示归档直读存储
 		 */
 		Type int `json:"type"`
 
@@ -225,6 +246,16 @@ type BatchOpRet struct {
 		 * 例如：值为1568736000的时间，表示文件会在2019/9/18当天转为低频存储类型。
 		 */
 		TransitionToIA *int64 `json:"transitionToIA"`
+
+		/**
+		 * 文件生命周期中转为归档直读存储的日期，int64 类型，Unix 时间戳格式 ，具体日期计算参考 生命周期管理。
+		 * 文件在设置转归档直读后才会返回该字段（通过生命周期规则设置文件转归档直读，仅对该功能发布后满足规则条件新上传文件返回该字段；
+		 * 历史文件想要返回该字段需要在功能发布后可通过 修改文件生命周期 API 指定转归档直读时间；对于已经设置过转归档直读时间的历史文
+		 * 件，到期都会正常执行，只是服务端没有该字段返回)
+		 *
+		 * 例如：值为1568736000的时间，表示文件会在2019/9/18当天转为归档直读存储类型。
+		 */
+		TransitionToArchiveIR int64 `json:"transitionToArchiveIR"`
 
 		/**
 		 * 文件生命周期中转为归档存储的日期，Unix 时间戳格式 ，具体日期计算参考 生命周期管理。
@@ -533,7 +564,7 @@ func (m *BucketManager) ChangeMimeAndMeta(bucket, key, newMime string, metas map
 	return
 }
 
-// ChangeType 用来更新文件的存储类型，0 表示普通存储，1 表示低频存储，2 表示归档存储，3 表示深度归档存储
+// ChangeType 用来更新文件的存储类型，0 表示普通存储，1 表示低频存储，2 表示归档存储，3 表示深度归档存储，4 表示归档直读存储
 func (m *BucketManager) ChangeType(bucket, key string, fileType int) (err error) {
 	reqHost, reqErr := m.RsReqHost(bucket)
 	if reqErr != nil {
@@ -889,8 +920,8 @@ func (m *BucketManager) ApiHost(bucket string) (apiHost string, err error) {
 
 func (m *BucketManager) Zone(bucket string) (z *Zone, err error) {
 
-	if m.Cfg.Zone != nil {
-		z = m.Cfg.Zone
+	z = m.Cfg.GetRegion()
+	if z != nil {
 		return
 	}
 
