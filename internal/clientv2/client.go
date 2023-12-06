@@ -1,12 +1,11 @@
 package clientv2
 
 import (
-	"io"
-	"io/ioutil"
 	"net/http"
 	"sort"
 
 	clientV1 "github.com/qiniu/go-sdk/v7/client"
+	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
 )
 
 type Client interface {
@@ -99,7 +98,7 @@ func DoAndDecodeJsonResponse(c Client, options RequestParams, ret interface{}) e
 	resp, err := Do(c, options)
 	defer func() {
 		if resp != nil && resp.Body != nil {
-			io.Copy(ioutil.Discard, resp.Body)
+			internal_io.SinkAll(resp.Body)
 			resp.Body.Close()
 		}
 	}()

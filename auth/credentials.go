@@ -1,13 +1,11 @@
 package auth
 
 import (
-	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/textproto"
 	"sort"
@@ -15,6 +13,7 @@ import (
 
 	api "github.com/qiniu/go-sdk/v7"
 	"github.com/qiniu/go-sdk/v7/conf"
+	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
 )
 
 const (
@@ -95,7 +94,7 @@ func collectData(req *http.Request) (data []byte, err error) {
 			err = rErr
 			return
 		}
-		req.Body = ioutil.NopCloser(bytes.NewReader(s2))
+		req.Body = internal_io.NewBytesNopCloser(s2)
 		data = append(data, s2...)
 	}
 	return
@@ -174,7 +173,7 @@ func collectDataV2(req *http.Request) (data []byte, err error) {
 			err = rErr
 			return
 		}
-		req.Body = ioutil.NopCloser(bytes.NewReader(s2))
+		req.Body = internal_io.NewBytesNopCloser(s2)
 		data = append(data, s2...)
 	}
 	return

@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
-
 	"github.com/qiniu/go-sdk/v7/client"
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
+	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
 )
 
 // PutExtra 为表单上传的额外可选项
@@ -185,7 +185,7 @@ func (p *FormUploader) put(
 
 	seekableData, ok := data.(io.ReadSeeker)
 	if !ok {
-		dataBytes, rErr := ioutil.ReadAll(data)
+		dataBytes, rErr := internal_io.ReadAll(data)
 		if rErr != nil {
 			return rErr
 		}
@@ -214,7 +214,7 @@ func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upT
 		return cErr
 	}
 	crcReader := newCrc32Reader(formWriter.Boundary(), crc32Hash)
-	crcBytes, rErr := ioutil.ReadAll(crcReader)
+	crcBytes, rErr := internal_io.ReadAll(crcReader)
 	if rErr != nil {
 		return rErr
 	}
