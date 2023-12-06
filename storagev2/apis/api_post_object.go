@@ -88,7 +88,7 @@ func (client *Client) PostObject(ctx context.Context, request *PostObjectRequest
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, RequestBody: httpclient.GetMultipartFormRequestBody(body)}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, BufferResponse: true, RequestBody: httpclient.GetMultipartFormRequestBody(body)}
 	var queryer region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()

@@ -65,11 +65,12 @@ func formStringInfo(info map[string][]string) string {
 }
 
 type RequestParams struct {
-	Context context.Context
-	Method  string
-	Url     string
-	Header  http.Header
-	GetBody GetRequestBody
+	Context        context.Context
+	Method         string
+	Url            string
+	Header         http.Header
+	GetBody        GetRequestBody
+	BufferResponse bool
 }
 
 func (o *RequestParams) init() {
@@ -105,6 +106,9 @@ func NewRequest(options RequestParams) (req *http.Request, err error) {
 	}
 	if options.Context != nil {
 		req = req.WithContext(options.Context)
+	}
+	if options.BufferResponse {
+		req = req.WithContext(context.WithValue(options.Context, contextKeyBufferResponse{}, struct{}{}))
 	}
 	req.Header = options.Header
 	if options.GetBody != nil && body != nil && body != http.NoBody {

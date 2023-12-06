@@ -234,6 +234,11 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							case AuthorizationUpToken:
 								group.Add(jen.Id("UpToken").Op(":").Id("innerRequest").Dot("UpToken"))
 							}
+							if body := description.Response.Body; body != nil {
+								if json := body.Json; json != nil {
+									group.Add(jen.Id("BufferResponse").Op(":").True())
+								}
+							}
 							if requestBody := description.Request.Body; requestBody != nil {
 								if json := requestBody.Json; json != nil {
 									group.Add(jen.Id("RequestBody").Op(":").Id("body"))

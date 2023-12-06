@@ -72,7 +72,7 @@ func (client *Client) ResumableUploadV2InitiateMultipartUpload(ctx context.Conte
 	pathSegments = append(pathSegments, "uploads")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: innerRequest.UpToken}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: innerRequest.UpToken, BufferResponse: true}
 	var queryer region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()

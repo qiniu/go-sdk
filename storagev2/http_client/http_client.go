@@ -67,18 +67,19 @@ type (
 
 	// Request 包含一个具体的 HTTP 请求的参数
 	Request struct {
-		Method       string
-		ServiceNames []region.ServiceName
-		Endpoints    region.EndpointsProvider
-		Region       region.RegionsProvider
-		Path         string
-		RawQuery     string
-		Query        url.Values
-		Header       http.Header
-		RequestBody  GetRequestBody
-		Credentials  credentials.CredentialsProvider
-		AuthType     auth.TokenType
-		UpToken      uptoken.Retriever
+		Method         string
+		ServiceNames   []region.ServiceName
+		Endpoints      region.EndpointsProvider
+		Region         region.RegionsProvider
+		Path           string
+		RawQuery       string
+		Query          url.Values
+		Header         http.Header
+		RequestBody    GetRequestBody
+		Credentials    credentials.CredentialsProvider
+		AuthType       auth.TokenType
+		UpToken        uptoken.Retriever
+		BufferResponse bool
 	}
 )
 
@@ -266,11 +267,12 @@ func (httpClient *HttpClient) makeReq(ctx context.Context, request *Request) (*h
 		interceptors = append(interceptors, clientv2.NewSimpleRetryInterceptor(*httpClient.hostRetryConfig))
 	}
 	req, err := clientv2.NewRequest(clientv2.RequestParams{
-		Context: ctx,
-		Method:  request.Method,
-		Url:     url,
-		Header:  request.Header,
-		GetBody: request.RequestBody,
+		Context:        ctx,
+		Method:         request.Method,
+		Url:            url,
+		Header:         request.Header,
+		GetBody:        request.RequestBody,
+		BufferResponse: request.BufferResponse,
 	})
 	if err != nil {
 		return nil, err

@@ -67,7 +67,7 @@ func (client *Client) ResumableUploadV1Bput(ctx context.Context, request *Resuma
 	}
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: innerRequest.UpToken, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(innerRequest.Body)}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: innerRequest.UpToken, BufferResponse: true, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(innerRequest.Body)}
 	var queryer region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()

@@ -45,7 +45,7 @@ func (client *Client) GetRegions(ctx context.Context, request *GetRegionsRequest
 	pathSegments = append(pathSegments, "regions")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true}
 	var queryer region.BucketRegionsQueryer
 	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
 		queryer = client.client.GetBucketQueryer()
