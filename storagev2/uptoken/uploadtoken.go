@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 
 	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
 )
@@ -35,6 +36,9 @@ type (
 	signer struct {
 		putPolicy           PutPolicy
 		credentialsProvider credentials.CredentialsProvider
+		onceCredentials     sync.Once
+		upToken             string
+		credentials         *credentials.Credentials
 	}
 	parser struct {
 		upToken   string
@@ -45,6 +49,8 @@ type (
 )
 
 // NewSigner 创建上传凭证签发器
+//
+// 需要注意的是 NewSigner 仅仅只会通过 credentials.CredentialsProvider 获取一次鉴权参数，之后就会缓存该鉴权参数，不会反复获取
 func NewSigner(putPolicy PutPolicy, credentialsProvider credentials.CredentialsProvider) Provider {
 	return &signer{putPolicy: putPolicy, credentialsProvider: credentialsProvider}
 }
@@ -54,7 +60,8 @@ func (signer *signer) GetPutPolicy(context.Context) (PutPolicy, error) {
 }
 
 func (signer *signer) GetAccessKey(ctx context.Context) (string, error) {
-	credentials, err := signer.credentialsProvider.Get(ctx)
+	var err error
+	credentials, err := signer.onceGetCredentials(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -62,15 +69,32 @@ func (signer *signer) GetAccessKey(ctx context.Context) (string, error) {
 }
 
 func (signer *signer) GetUpToken(ctx context.Context) (string, error) {
-	credentials, err := signer.credentialsProvider.Get(ctx)
+	return signer.onceGetUpToken(ctx)
+}
+
+func (signer *signer) onceGetCredentials(ctx context.Context) (*credentials.Credentials, error) {
+	var err error
+	signer.onceCredentials.Do(func() {
+		signer.credentials, err = signer.credentialsProvider.Get(ctx)
+	})
+	return signer.credentials, err
+}
+
+func (signer *signer) onceGetUpToken(ctx context.Context) (string, error) {
+	var err error
+	if signer.upToken != "" {
+		return signer.upToken, nil
+	}
+	credentials, err := signer.onceGetCredentials(ctx)
 	if err != nil {
-		return "", err
+		return "", nil
 	}
 	putPolicyJson, err := json.Marshal(signer.putPolicy)
 	if err != nil {
-		return "", err
+		return "", nil
 	}
-	return credentials.SignWithData(putPolicyJson), nil
+	signer.upToken = credentials.SignWithData(putPolicyJson)
+	return signer.upToken, nil
 }
 
 // NewParser 创建上传凭证签发器
@@ -82,7 +106,7 @@ func (parser *parser) GetPutPolicy(context.Context) (PutPolicy, error) {
 	if parser.putPolicy != nil {
 		return parser.putPolicy, nil
 	}
-	splits := parser.retrieveSplits()
+	splits := parser.onceGetSplits()
 	if len(splits) != 3 {
 		return nil, ErrInvalidUpToken
 	}
@@ -98,7 +122,7 @@ func (parser *parser) GetAccessKey(context.Context) (string, error) {
 	if parser.accessKey != "" {
 		return parser.accessKey, nil
 	}
-	splits := parser.retrieveSplits()
+	splits := parser.onceGetSplits()
 	if len(splits) != 3 {
 		return "", ErrInvalidUpToken
 	}
@@ -106,7 +130,7 @@ func (parser *parser) GetAccessKey(context.Context) (string, error) {
 	return parser.accessKey, nil
 }
 
-func (parser *parser) retrieveSplits() []string {
+func (parser *parser) onceGetSplits() []string {
 	if len(parser.splits) > 0 {
 		return parser.splits
 	}
