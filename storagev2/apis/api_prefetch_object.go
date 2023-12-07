@@ -49,7 +49,7 @@ type PrefetchObjectRequest = prefetchobject.Request
 type PrefetchObjectResponse = prefetchobject.Response
 
 // 对于设置了镜像存储的空间，从镜像源站抓取指定名称的对象并存储到该空间中，如果该空间中已存在该名称的对象，则会将镜像源站的对象覆盖空间中相同名称的对象
-func (client *Client) PrefetchObject(ctx context.Context, request *PrefetchObjectRequest, options *Options) (response *PrefetchObjectResponse, err error) {
+func (storage *Storage) PrefetchObject(ctx context.Context, request *PrefetchObjectRequest, options *Options) (response *PrefetchObjectResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -66,8 +66,8 @@ func (client *Client) PrefetchObject(ctx context.Context, request *PrefetchObjec
 	var rawQuery string
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
@@ -76,8 +76,8 @@ func (client *Client) PrefetchObject(ctx context.Context, request *PrefetchObjec
 					return nil, err
 				}
 			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: client.client.UseInsecureProtocol(), HostFreezeDuration: client.client.GetHostFreezeDuration(), Client: client.client.GetClient()}
-			if hostRetryConfig := client.client.GetHostRetryConfig(); hostRetryConfig != nil {
+			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Client: storage.client.GetClient()}
+			if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
 				queryerOptions.RetryMax = hostRetryConfig.RetryMax
 			}
 			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
@@ -97,7 +97,7 @@ func (client *Client) PrefetchObject(ctx context.Context, request *PrefetchObjec
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -109,7 +109,7 @@ func (client *Client) PrefetchObject(ctx context.Context, request *PrefetchObjec
 			req.Region = queryer.Query(accessKey, bucketName)
 		}
 	}
-	resp, err := client.client.Do(ctx, &req)
+	resp, err := storage.client.Do(ctx, &req)
 	if err != nil {
 		return nil, err
 	}

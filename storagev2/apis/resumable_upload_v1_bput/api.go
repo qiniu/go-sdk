@@ -14,7 +14,7 @@ import (
 type Request struct {
 	Ctx         string            // 前一次上传返回的块级上传控制信息
 	ChunkOffset int64             // 当前片在整个块中的起始偏移
-	UpToken     uptoken.Provider  // 上传凭证，如果为空，则使用 HttpClientOptions 中的 UpToken
+	UpToken     uptoken.Provider  // 上传凭证，如果为空，则使用 HTTPClientOptions 中的 UpToken
 	Body        io.ReadSeekCloser // 请求体
 }
 

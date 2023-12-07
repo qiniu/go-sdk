@@ -11,7 +11,7 @@ type Request struct {
 	MimeType    string                          // 新的 MIME 类型
 	Condition   string                          // 条件匹配，当前支持设置 hash、mime、fsize、putTime 条件，只有条件匹配才会执行修改操作，格式为 condKey1=condVal1&condKey2=condVal2
 	MetaData    map[string]string               // 对象存储元信息，键可以自定义，它可以由字母、数字、下划线、减号组成，必须以 x-qn-meta- 为前缀，且长度小于等于 50，单个文件键和值总和大小不能超过 1024 字节，可以同时修改多个键
-	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
+	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HTTPClientOptions 中的 CredentialsProvider
 }
 
 // 获取 API 所用的响应

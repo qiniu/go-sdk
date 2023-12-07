@@ -59,7 +59,7 @@ type SetBucketsMirrorRequest = setbucketsmirror.Request
 type SetBucketsMirrorResponse = setbucketsmirror.Response
 
 // 设置存储空间的镜像源
-func (client *Client) SetBucketsMirror(ctx context.Context, request *SetBucketsMirrorRequest, options *Options) (response *SetBucketsMirrorResponse, err error) {
+func (storage *Storage) SetBucketsMirror(ctx context.Context, request *SetBucketsMirrorRequest, options *Options) (response *SetBucketsMirrorResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -76,8 +76,8 @@ func (client *Client) SetBucketsMirror(ctx context.Context, request *SetBucketsM
 	var rawQuery string
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			if options.OverwrittenBucketHosts != nil {
@@ -99,7 +99,7 @@ func (client *Client) SetBucketsMirror(ctx context.Context, request *SetBucketsM
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -111,7 +111,7 @@ func (client *Client) SetBucketsMirror(ctx context.Context, request *SetBucketsM
 			req.Region = queryer.Query(accessKey, bucketName)
 		}
 	}
-	resp, err := client.client.Do(ctx, &req)
+	resp, err := storage.client.Do(ctx, &req)
 	if err != nil {
 		return nil, err
 	}

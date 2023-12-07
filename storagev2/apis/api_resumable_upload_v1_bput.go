@@ -17,7 +17,7 @@ type innerResumableUploadV1BputRequest resumableuploadv1bput.Request
 
 func (request *innerResumableUploadV1BputRequest) getBucketName(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
-		if putPolicy, err := request.UpToken.RetrievePutPolicy(ctx); err != nil {
+		if putPolicy, err := request.UpToken.GetPutPolicy(ctx); err != nil {
 			return "", err
 		} else {
 			return putPolicy.GetBucketName()
@@ -43,7 +43,7 @@ func (j *innerResumableUploadV1BputRequest) UnmarshalJSON(data []byte) error {
 }
 func (request *innerResumableUploadV1BputRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
-		return request.UpToken.RetrieveAccessKey(ctx)
+		return request.UpToken.GetAccessKey(ctx)
 	}
 	return "", nil
 }
@@ -52,7 +52,7 @@ type ResumableUploadV1BputRequest = resumableuploadv1bput.Request
 type ResumableUploadV1BputResponse = resumableuploadv1bput.Response
 
 // 上传指定块的一片数据，具体数据量可根据现场环境调整，同一块的每片数据必须串行上传
-func (client *Client) ResumableUploadV1Bput(ctx context.Context, request *ResumableUploadV1BputRequest, options *Options) (response *ResumableUploadV1BputResponse, err error) {
+func (storage *Storage) ResumableUploadV1Bput(ctx context.Context, request *ResumableUploadV1BputRequest, options *Options) (response *ResumableUploadV1BputResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -69,8 +69,8 @@ func (client *Client) ResumableUploadV1Bput(ctx context.Context, request *Resuma
 	var rawQuery string
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: innerRequest.UpToken, BufferResponse: true, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(innerRequest.Body)}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
@@ -79,8 +79,8 @@ func (client *Client) ResumableUploadV1Bput(ctx context.Context, request *Resuma
 					return nil, err
 				}
 			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: client.client.UseInsecureProtocol(), HostFreezeDuration: client.client.GetHostFreezeDuration(), Client: client.client.GetClient()}
-			if hostRetryConfig := client.client.GetHostRetryConfig(); hostRetryConfig != nil {
+			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Client: storage.client.GetClient()}
+			if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
 				queryerOptions.RetryMax = hostRetryConfig.RetryMax
 			}
 			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
@@ -100,7 +100,7 @@ func (client *Client) ResumableUploadV1Bput(ctx context.Context, request *Resuma
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -113,7 +113,7 @@ func (client *Client) ResumableUploadV1Bput(ctx context.Context, request *Resuma
 		}
 	}
 	var respBody ResumableUploadV1BputResponse
-	if _, err := client.client.AcceptJson(ctx, &req, &respBody); err != nil {
+	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

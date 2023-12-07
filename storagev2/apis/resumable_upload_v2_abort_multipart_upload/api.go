@@ -10,7 +10,7 @@ type Request struct {
 	BucketName string           // 存储空间名称
 	ObjectName string           // 对象名称
 	UploadId   string           // 在服务端申请的 Multipart Upload 任务 id
-	UpToken    uptoken.Provider // 上传凭证，如果为空，则使用 HttpClientOptions 中的 UpToken
+	UpToken    uptoken.Provider // 上传凭证，如果为空，则使用 HTTPClientOptions 中的 UpToken
 }
 
 // 获取 API 所用的响应

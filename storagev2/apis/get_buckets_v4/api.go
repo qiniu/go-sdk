@@ -14,7 +14,7 @@ type Request struct {
 	Region      string                          // 区域 ID
 	Limit       int64                           // 分页大小。默认20，取值范围 1～100。
 	Marker      string                          // 列举开始的空间标识
-	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
+	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HTTPClientOptions 中的 CredentialsProvider
 }
 
 // 获取 API 所用的响应

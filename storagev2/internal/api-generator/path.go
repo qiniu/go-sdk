@@ -86,7 +86,7 @@ func (pp *PathParams) addGetBucketNameFunc(group *jen.Group, structName string) 
 						Op(":=").
 						Qual(PackageNameUpToken, "NewParser").
 						Call(jen.Id("pp").Dot(fieldName)).
-						Dot("RetrievePutPolicy").
+						Dot("GetPutPolicy").
 						Call(jen.Id("ctx")).
 						Op(";").
 						Err().

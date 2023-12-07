@@ -11,7 +11,7 @@ import (
 
 // 调用 API 所用的请求
 type Request struct {
-	Credentials      credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
+	Credentials      credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HTTPClientOptions 中的 CredentialsProvider
 	Url              string                          // 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
 	Bucket           string                          // 所在区域的存储空间
 	Host             string                          // 从指定 URL 下载数据时使用的 Host

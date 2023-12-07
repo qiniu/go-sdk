@@ -10,7 +10,7 @@ type Request struct {
 	Bucket      string                          // 指定存储空间
 	Size        int64                           // 空间存储量配额，参数传入 0 或不传表示不更改当前配置，传入 -1 表示取消限额
 	Count       int64                           // 空间文件数配额，参数传入 0 或不传表示不更改当前配置，传入 -1 表示取消限额
-	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
+	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HTTPClientOptions 中的 CredentialsProvider
 }
 
 // 获取 API 所用的响应

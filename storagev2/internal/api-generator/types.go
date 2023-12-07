@@ -284,7 +284,7 @@ func (authorization Authorization) addGetBucketNameFunc(group *jen.Group, struct
 			BlockFunc(func(group *jen.Group) {
 				group.Add(jen.If(jen.Id("request").Dot("UpToken").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
 					group.If(
-						jen.List(jen.Id("putPolicy"), jen.Err()).Op(":=").Id("request").Dot("UpToken").Dot("RetrievePutPolicy").Call(jen.Id("ctx")),
+						jen.List(jen.Id("putPolicy"), jen.Err()).Op(":=").Id("request").Dot("UpToken").Dot("GetPutPolicy").Call(jen.Id("ctx")),
 						jen.Err().Op("!=").Nil(),
 					).BlockFunc(func(group *jen.Group) {
 						group.Return(jen.Lit(""), jen.Err())

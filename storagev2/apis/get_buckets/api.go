@@ -11,7 +11,7 @@ import (
 // 调用 API 所用的请求
 type Request struct {
 	Shared      string                          // 包含共享存储空间，如果为 "rd" 则包含具有读权限空间，如果为 "rw" 则包含读写权限空间
-	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
+	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HTTPClientOptions 中的 CredentialsProvider
 }
 
 // 获取 API 所用的响应

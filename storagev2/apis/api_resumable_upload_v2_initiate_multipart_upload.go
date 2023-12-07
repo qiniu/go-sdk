@@ -17,7 +17,7 @@ type innerResumableUploadV2InitiateMultipartUploadRequest resumableuploadv2initi
 
 func (request *innerResumableUploadV2InitiateMultipartUploadRequest) getBucketName(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
-		if putPolicy, err := request.UpToken.RetrievePutPolicy(ctx); err != nil {
+		if putPolicy, err := request.UpToken.GetPutPolicy(ctx); err != nil {
 			return "", err
 		} else {
 			return putPolicy.GetBucketName()
@@ -47,7 +47,7 @@ func (j *innerResumableUploadV2InitiateMultipartUploadRequest) UnmarshalJSON(dat
 }
 func (request *innerResumableUploadV2InitiateMultipartUploadRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
-		return request.UpToken.RetrieveAccessKey(ctx)
+		return request.UpToken.GetAccessKey(ctx)
 	}
 	return "", nil
 }
@@ -56,7 +56,7 @@ type ResumableUploadV2InitiateMultipartUploadRequest = resumableuploadv2initiate
 type ResumableUploadV2InitiateMultipartUploadResponse = resumableuploadv2initiatemultipartupload.Response
 
 // 使用 Multipart Upload 方式上传数据前，必须先调用 API 来获取一个全局唯一的 UploadId，后续的块数据通过 uploadPart API 上传，整个文件完成 completeMultipartUpload API，已经上传块的删除 abortMultipartUpload API 都依赖该 UploadId
-func (client *Client) ResumableUploadV2InitiateMultipartUpload(ctx context.Context, request *ResumableUploadV2InitiateMultipartUploadRequest, options *Options) (response *ResumableUploadV2InitiateMultipartUploadResponse, err error) {
+func (storage *Storage) ResumableUploadV2InitiateMultipartUpload(ctx context.Context, request *ResumableUploadV2InitiateMultipartUploadRequest, options *Options) (response *ResumableUploadV2InitiateMultipartUploadResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -74,8 +74,8 @@ func (client *Client) ResumableUploadV2InitiateMultipartUpload(ctx context.Conte
 	var rawQuery string
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: innerRequest.UpToken, BufferResponse: true}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
@@ -84,8 +84,8 @@ func (client *Client) ResumableUploadV2InitiateMultipartUpload(ctx context.Conte
 					return nil, err
 				}
 			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: client.client.UseInsecureProtocol(), HostFreezeDuration: client.client.GetHostFreezeDuration(), Client: client.client.GetClient()}
-			if hostRetryConfig := client.client.GetHostRetryConfig(); hostRetryConfig != nil {
+			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Client: storage.client.GetClient()}
+			if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
 				queryerOptions.RetryMax = hostRetryConfig.RetryMax
 			}
 			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
@@ -105,7 +105,7 @@ func (client *Client) ResumableUploadV2InitiateMultipartUpload(ctx context.Conte
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -118,7 +118,7 @@ func (client *Client) ResumableUploadV2InitiateMultipartUpload(ctx context.Conte
 		}
 	}
 	var respBody ResumableUploadV2InitiateMultipartUploadResponse
-	if _, err := client.client.AcceptJson(ctx, &req, &respBody); err != nil {
+	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

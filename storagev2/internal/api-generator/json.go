@@ -98,7 +98,7 @@ func (jsonStruct *JsonStruct) addGetBucketNameFunc(group *jen.Group, structName 
 						Op(":=").
 						Qual(PackageNameUpToken, "NewParser").
 						Call(jen.Id("j").Dot(fieldName)).
-						Dot("RetrievePutPolicy").
+						Dot("GetPutPolicy").
 						Call(jen.Id("ctx")).
 						Op(";").
 						Err().

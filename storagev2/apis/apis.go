@@ -8,13 +8,13 @@ import (
 )
 
 // API 客户端
-type Client struct {
-	client *httpclient.HttpClient
+type Storage struct {
+	client *httpclient.HTTPClient
 }
 
 // 创建 API 客户端
-func NewClient(options *httpclient.HttpClientOptions) *Client {
-	return &Client{client: httpclient.NewHttpClient(options)}
+func NewStorage(options *httpclient.HTTPClientOptions) *Storage {
+	return &Storage{client: httpclient.NewHTTPClient(options)}
 }
 
 // API 客户端选项

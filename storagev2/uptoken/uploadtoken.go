@@ -14,23 +14,23 @@ import (
 var ErrInvalidUpToken = errors.New("invalid UpToken")
 
 type (
-	// PutPolicyRetriever 获取上传策略接口
-	PutPolicyRetriever interface {
-		RetrievePutPolicy(context.Context) (PutPolicy, error)
+	// PutPolicyProvider 获取上传策略接口
+	PutPolicyProvider interface {
+		GetPutPolicy(context.Context) (PutPolicy, error)
 	}
-	// AccessKeyRetriever 获取 AccessKey 接口
-	AccessKeyRetriever interface {
-		RetrieveAccessKey(context.Context) (string, error)
+	// AccessKeyProvider 获取 AccessKey 接口
+	AccessKeyProvider interface {
+		GetAccessKey(context.Context) (string, error)
 	}
-	// Retriever 获取上传凭证接口
-	Retriever interface {
-		RetrieveUpToken(context.Context) (string, error)
+	// UpTokenProvider 获取上传凭证接口
+	UpTokenProvider interface {
+		GetUpToken(context.Context) (string, error)
 	}
 	// Provider 获取上传凭证，AccessKey 和上传策略接口
 	Provider interface {
-		PutPolicyRetriever
-		AccessKeyRetriever
-		Retriever
+		PutPolicyProvider
+		AccessKeyProvider
+		UpTokenProvider
 	}
 	signer struct {
 		putPolicy           PutPolicy
@@ -49,11 +49,11 @@ func NewSigner(putPolicy PutPolicy, credentialsProvider credentials.CredentialsP
 	return &signer{putPolicy: putPolicy, credentialsProvider: credentialsProvider}
 }
 
-func (signer *signer) RetrievePutPolicy(context.Context) (PutPolicy, error) {
+func (signer *signer) GetPutPolicy(context.Context) (PutPolicy, error) {
 	return signer.putPolicy, nil
 }
 
-func (signer *signer) RetrieveAccessKey(ctx context.Context) (string, error) {
+func (signer *signer) GetAccessKey(ctx context.Context) (string, error) {
 	credentials, err := signer.credentialsProvider.Get(ctx)
 	if err != nil {
 		return "", err
@@ -61,7 +61,7 @@ func (signer *signer) RetrieveAccessKey(ctx context.Context) (string, error) {
 	return credentials.AccessKey, nil
 }
 
-func (signer *signer) RetrieveUpToken(ctx context.Context) (string, error) {
+func (signer *signer) GetUpToken(ctx context.Context) (string, error) {
 	credentials, err := signer.credentialsProvider.Get(ctx)
 	if err != nil {
 		return "", err
@@ -78,7 +78,7 @@ func NewParser(upToken string) Provider {
 	return &parser{upToken: upToken}
 }
 
-func (parser *parser) RetrievePutPolicy(context.Context) (PutPolicy, error) {
+func (parser *parser) GetPutPolicy(context.Context) (PutPolicy, error) {
 	if parser.putPolicy != nil {
 		return parser.putPolicy, nil
 	}
@@ -94,7 +94,7 @@ func (parser *parser) RetrievePutPolicy(context.Context) (PutPolicy, error) {
 	return parser.putPolicy, err
 }
 
-func (parser *parser) RetrieveAccessKey(context.Context) (string, error) {
+func (parser *parser) GetAccessKey(context.Context) (string, error) {
 	if parser.accessKey != "" {
 		return parser.accessKey, nil
 	}
@@ -114,6 +114,6 @@ func (parser *parser) retrieveSplits() []string {
 	return parser.splits
 }
 
-func (parser *parser) RetrieveUpToken(context.Context) (string, error) {
+func (parser *parser) GetUpToken(context.Context) (string, error) {
 	return parser.upToken, nil
 }

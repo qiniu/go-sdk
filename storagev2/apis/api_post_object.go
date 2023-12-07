@@ -16,7 +16,7 @@ import (
 type innerPostObjectRequest postobject.Request
 
 func (form *innerPostObjectRequest) getBucketName(ctx context.Context) (string, error) {
-	putPolicy, err := form.UploadToken.RetrievePutPolicy(ctx)
+	putPolicy, err := form.UploadToken.GetPutPolicy(ctx)
 	if err != nil {
 		return "", err
 	} else {
@@ -29,7 +29,7 @@ func (form *innerPostObjectRequest) build(ctx context.Context) (*httpclient.Mult
 		multipartForm.SetValue("key", form.ObjectName)
 	}
 	if form.UploadToken != nil {
-		upToken, err := form.UploadToken.RetrieveUpToken(ctx)
+		upToken, err := form.UploadToken.GetUpToken(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -61,7 +61,7 @@ func (j *innerPostObjectRequest) UnmarshalJSON(data []byte) error {
 }
 func (request *innerPostObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UploadToken != nil {
-		if accessKey, err := request.UploadToken.RetrieveAccessKey(ctx); err != nil {
+		if accessKey, err := request.UploadToken.GetAccessKey(ctx); err != nil {
 			return "", err
 		} else {
 			return accessKey, nil
@@ -74,7 +74,7 @@ type PostObjectRequest = postobject.Request
 type PostObjectResponse = postobject.Response
 
 // 在一次 HTTP 会话中上传单一的一个文件
-func (client *Client) PostObject(ctx context.Context, request *PostObjectRequest, options *Options) (response *PostObjectResponse, err error) {
+func (storage *Storage) PostObject(ctx context.Context, request *PostObjectRequest, options *Options) (response *PostObjectResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -90,8 +90,8 @@ func (client *Client) PostObject(ctx context.Context, request *PostObjectRequest
 	}
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, BufferResponse: true, RequestBody: httpclient.GetMultipartFormRequestBody(body)}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
@@ -100,8 +100,8 @@ func (client *Client) PostObject(ctx context.Context, request *PostObjectRequest
 					return nil, err
 				}
 			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: client.client.UseInsecureProtocol(), HostFreezeDuration: client.client.GetHostFreezeDuration(), Client: client.client.GetClient()}
-			if hostRetryConfig := client.client.GetHostRetryConfig(); hostRetryConfig != nil {
+			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Client: storage.client.GetClient()}
+			if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
 				queryerOptions.RetryMax = hostRetryConfig.RetryMax
 			}
 			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
@@ -121,7 +121,7 @@ func (client *Client) PostObject(ctx context.Context, request *PostObjectRequest
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -134,7 +134,7 @@ func (client *Client) PostObject(ctx context.Context, request *PostObjectRequest
 		}
 	}
 	var respBody PostObjectResponse
-	if _, err := client.client.AcceptJson(ctx, &req, &respBody); err != nil {
+	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	PackageNameHttpClient  = "github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	PackageNameHTTPClient  = "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	PackageNameAuth        = "github.com/qiniu/go-sdk/v7/auth"
 	PackageNameCredentials = "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	PackageNameRegion      = "github.com/qiniu/go-sdk/v7/storagev2/region"
@@ -129,19 +129,19 @@ func writeApiClient(storageGeneratedDirPath string) error {
 func generateApiClient(group *jen.Group) {
 	group.Add(jen.Comment("API 客户端"))
 	group.Add(
-		jen.Type().Id("Client").StructFunc(func(group *jen.Group) {
-			group.Add(jen.Id("client").Op("*").Qual(PackageNameHttpClient, "HttpClient"))
+		jen.Type().Id("Storage").StructFunc(func(group *jen.Group) {
+			group.Add(jen.Id("client").Op("*").Qual(PackageNameHTTPClient, "HTTPClient"))
 		}),
 	)
 	group.Add(jen.Comment("创建 API 客户端"))
 	group.Add(
 		jen.Func().
-			Id("NewClient").
-			Params(jen.Id("options").Op("*").Qual(PackageNameHttpClient, "HttpClientOptions")).
-			Params(jen.Op("*").Id("Client")).
+			Id("NewStorage").
+			Params(jen.Id("options").Op("*").Qual(PackageNameHTTPClient, "HTTPClientOptions")).
+			Params(jen.Op("*").Id("Storage")).
 			BlockFunc(func(group *jen.Group) {
-				group.Return(jen.Op("&").Id("Client").ValuesFunc(func(group *jen.Group) {
-					group.Add(jen.Id("client").Op(":").Qual(PackageNameHttpClient, "NewHttpClient").Call(jen.Id("options")))
+				group.Return(jen.Op("&").Id("Storage").ValuesFunc(func(group *jen.Group) {
+					group.Add(jen.Id("client").Op(":").Qual(PackageNameHTTPClient, "NewHTTPClient").Call(jen.Id("options")))
 				}))
 			}),
 	)

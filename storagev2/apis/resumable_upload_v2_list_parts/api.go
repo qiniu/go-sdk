@@ -16,7 +16,7 @@ type Request struct {
 	UploadId         string           // 在服务端申请的 Multipart Upload 任务 id
 	MaxParts         int64            // 响应中的最大分片数目。默认值：1000，最大值：1000
 	PartNumberMarker int64            // 指定列举的起始位置，只有 partNumber 值大于该参数的分片会被列出
-	UpToken          uptoken.Provider // 上传凭证，如果为空，则使用 HttpClientOptions 中的 UpToken
+	UpToken          uptoken.Provider // 上传凭证，如果为空，则使用 HTTPClientOptions 中的 UpToken
 }
 
 // 获取 API 所用的响应

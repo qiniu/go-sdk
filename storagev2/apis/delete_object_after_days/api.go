@@ -9,7 +9,7 @@ import credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 type Request struct {
 	Entry           string                          // 指定目标对象空间与目标对象名称
 	DeleteAfterDays int64                           // 指定文件上传后在设置的 DeleteAfterDays 过期删除，删除后不可恢复，设置为 0 表示取消已设置的过期删除的生命周期规则
-	Credentials     credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
+	Credentials     credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HTTPClientOptions 中的 CredentialsProvider
 }
 
 // 获取 API 所用的响应

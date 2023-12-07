@@ -57,7 +57,7 @@ type FetchObjectRequest = fetchobject.Request
 type FetchObjectResponse = fetchobject.Response
 
 // 从指定 URL 抓取指定名称的对象并存储到该空间中
-func (client *Client) FetchObject(ctx context.Context, request *FetchObjectRequest, options *Options) (response *FetchObjectResponse, err error) {
+func (storage *Storage) FetchObject(ctx context.Context, request *FetchObjectRequest, options *Options) (response *FetchObjectResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -74,8 +74,8 @@ func (client *Client) FetchObject(ctx context.Context, request *FetchObjectReque
 	var rawQuery string
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
@@ -84,8 +84,8 @@ func (client *Client) FetchObject(ctx context.Context, request *FetchObjectReque
 					return nil, err
 				}
 			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: client.client.UseInsecureProtocol(), HostFreezeDuration: client.client.GetHostFreezeDuration(), Client: client.client.GetClient()}
-			if hostRetryConfig := client.client.GetHostRetryConfig(); hostRetryConfig != nil {
+			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Client: storage.client.GetClient()}
+			if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
 				queryerOptions.RetryMax = hostRetryConfig.RetryMax
 			}
 			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
@@ -105,7 +105,7 @@ func (client *Client) FetchObject(ctx context.Context, request *FetchObjectReque
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -118,7 +118,7 @@ func (client *Client) FetchObject(ctx context.Context, request *FetchObjectReque
 		}
 	}
 	var respBody FetchObjectResponse
-	if _, err := client.client.AcceptJson(ctx, &req, &respBody); err != nil {
+	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

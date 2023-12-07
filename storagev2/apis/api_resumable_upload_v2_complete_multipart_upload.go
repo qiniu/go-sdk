@@ -17,7 +17,7 @@ type innerResumableUploadV2CompleteMultipartUploadRequest resumableuploadv2compl
 
 func (request *innerResumableUploadV2CompleteMultipartUploadRequest) getBucketName(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
-		if putPolicy, err := request.UpToken.RetrievePutPolicy(ctx); err != nil {
+		if putPolicy, err := request.UpToken.GetPutPolicy(ctx); err != nil {
 			return "", err
 		} else {
 			return putPolicy.GetBucketName()
@@ -52,7 +52,7 @@ func (j *innerResumableUploadV2CompleteMultipartUploadRequest) UnmarshalJSON(dat
 }
 func (request *innerResumableUploadV2CompleteMultipartUploadRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
-		return request.UpToken.RetrieveAccessKey(ctx)
+		return request.UpToken.GetAccessKey(ctx)
 	}
 	return "", nil
 }
@@ -61,7 +61,7 @@ type ResumableUploadV2CompleteMultipartUploadRequest = resumableuploadv2complete
 type ResumableUploadV2CompleteMultipartUploadResponse = resumableuploadv2completemultipartupload.Response
 
 // 在将所有数据分片都上传完成后，必须调用 completeMultipartUpload API 来完成整个文件的 Multipart Upload。用户需要提供有效数据的分片列表（包括 PartNumber 和调用 uploadPart API 服务端返回的 Etag）。服务端收到用户提交的分片列表后，会逐一验证每个数据分片的有效性。当所有的数据分片验证通过后，会把这些数据分片组合成一个完整的对象
-func (client *Client) ResumableUploadV2CompleteMultipartUpload(ctx context.Context, request *ResumableUploadV2CompleteMultipartUploadRequest, options *Options) (response *ResumableUploadV2CompleteMultipartUploadResponse, err error) {
+func (storage *Storage) ResumableUploadV2CompleteMultipartUpload(ctx context.Context, request *ResumableUploadV2CompleteMultipartUploadRequest, options *Options) (response *ResumableUploadV2CompleteMultipartUploadResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -82,8 +82,8 @@ func (client *Client) ResumableUploadV2CompleteMultipartUpload(ctx context.Conte
 	}
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: innerRequest.UpToken, BufferResponse: true, RequestBody: body}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
@@ -92,8 +92,8 @@ func (client *Client) ResumableUploadV2CompleteMultipartUpload(ctx context.Conte
 					return nil, err
 				}
 			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: client.client.UseInsecureProtocol(), HostFreezeDuration: client.client.GetHostFreezeDuration(), Client: client.client.GetClient()}
-			if hostRetryConfig := client.client.GetHostRetryConfig(); hostRetryConfig != nil {
+			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Client: storage.client.GetClient()}
+			if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
 				queryerOptions.RetryMax = hostRetryConfig.RetryMax
 			}
 			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
@@ -113,7 +113,7 @@ func (client *Client) ResumableUploadV2CompleteMultipartUpload(ctx context.Conte
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -126,7 +126,7 @@ func (client *Client) ResumableUploadV2CompleteMultipartUpload(ctx context.Conte
 		}
 	}
 	var respBody ResumableUploadV2CompleteMultipartUploadResponse
-	if _, err := client.client.AcceptJson(ctx, &req, &respBody); err != nil {
+	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

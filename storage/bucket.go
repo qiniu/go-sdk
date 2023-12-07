@@ -295,7 +295,7 @@ type BucketManager struct {
 	Mac       *auth.Credentials
 	Cfg       *Config
 	options   BucketManagerOptions
-	apiClient *apis.Client
+	apiClient *apis.Storage
 }
 
 // NewBucketManager 用来构建一个新的资源管理对象
@@ -320,7 +320,7 @@ func NewBucketManagerExWithOptions(mac *auth.Credentials, cfg *Config, clt *clie
 		cfg.CentralRsHost = DefaultRsHost
 	}
 
-	opts := http_client.HttpClientOptions{
+	opts := http_client.HTTPClientOptions{
 		HostFreezeDuration: options.HostFreezeDuration,
 		HostRetryConfig: &clientv2.RetryConfig{
 			RetryMax: options.RetryMax,
@@ -338,7 +338,7 @@ func NewBucketManagerExWithOptions(mac *auth.Credentials, cfg *Config, clt *clie
 		Mac:       mac,
 		Cfg:       cfg,
 		options:   options,
-		apiClient: apis.NewClient(&opts),
+		apiClient: apis.NewStorage(&opts),
 	}
 }
 

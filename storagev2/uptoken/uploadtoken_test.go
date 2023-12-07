@@ -32,19 +32,19 @@ func TestSignPutPolicy(t *testing.T) {
 	}
 
 	signer := uptoken.NewSigner(putPolicy, credentials.NewCredentials(expectedAccessKey, expectedSecretKey))
-	upToken, err := signer.RetrieveUpToken(context.Background())
+	upToken, err := signer.GetUpToken(context.Background())
 	if err != nil {
 		t.Fatalf("failed to retrieve uptoken: %s", err)
 	}
 
 	parser := uptoken.NewParser(upToken)
-	if actualAccessKey, err := parser.RetrieveAccessKey(context.Background()); err != nil {
+	if actualAccessKey, err := parser.GetAccessKey(context.Background()); err != nil {
 		t.Fatalf("failed to retrieve accessKey: %s", err)
 	} else if actualAccessKey != expectedAccessKey {
 		t.Fatalf("unexpected accessKey: %s", actualAccessKey)
 	}
 
-	if actualPutPolicy, err := parser.RetrievePutPolicy(context.Background()); err != nil {
+	if actualPutPolicy, err := parser.GetPutPolicy(context.Background()); err != nil {
 		t.Fatalf("failed to retrieve putPolicy: %s", err)
 	} else if actualScope, _ := actualPutPolicy.GetScope(); actualScope != expectedBucketName {
 		t.Fatalf("unexpected scope: %s", actualScope)
