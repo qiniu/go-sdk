@@ -118,6 +118,7 @@ func NewHTTPClient(options *HTTPClientOptions) *HTTPClient {
 			endpoints:          options.Endpoints,
 			regions:            options.Regions,
 			credentials:        options.Credentials,
+			uptoken:            options.UpToken,
 			hostRetryConfig:    options.HostRetryConfig,
 			hostsRetryConfig:   options.HostsRetryConfig,
 			hostFreezeDuration: options.HostFreezeDuration,
@@ -183,6 +184,10 @@ func (httpClient *HTTPClient) GetBucketQueryer() region.BucketRegionsQueryer {
 
 func (httpClient *HTTPClient) GetCredentials() credentials.CredentialsProvider {
 	return httpClient.credentials
+}
+
+func (httpClient *HTTPClient) GetUpToken() uptoken.Provider {
+	return httpClient.uptoken
 }
 
 func (httpClient *HTTPClient) GetEndpoints() region.EndpointsProvider {
