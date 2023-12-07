@@ -7,7 +7,7 @@ import credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 
 // 调用 API 所用的请求
 type Request struct {
-	Credentials            credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
+	Credentials            credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HTTPClientOptions 中的 CredentialsProvider
 	Bucket                 string                          // 空间名称
 	Name                   string                          // 规则名称空间内唯一，长度小于50，不能为空，只能为字母、数字、下划线
 	Prefix                 string                          // 匹配的对象名称前缀，同一个空间内前缀不能重复

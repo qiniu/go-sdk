@@ -66,7 +66,7 @@ func (form *FormUrlencodedRequestStruct) addGetBucketNameFunc(group *jen.Group, 
 						Op(":=").
 						Qual(PackageNameUpToken, "NewParser").
 						Call(jen.Id("form").Dot(fieldName)).
-						Dot("RetrievePutPolicy").
+						Dot("GetPutPolicy").
 						Call(jen.Id("ctx")).
 						Op(";").
 						Err().

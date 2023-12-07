@@ -66,7 +66,7 @@ func (names QueryNames) addGetBucketNameFunc(group *jen.Group, structName string
 						Op(":=").
 						Qual(PackageNameUpToken, "NewParser").
 						Call(jen.Id("query").Dot(fieldName)).
-						Dot("RetrievePutPolicy").
+						Dot("GetPutPolicy").
 						Call(jen.Id("ctx")).
 						Op(";").
 						Err().

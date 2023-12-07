@@ -17,7 +17,7 @@ type innerResumableUploadV2AbortMultipartUploadRequest resumableuploadv2abortmul
 
 func (request *innerResumableUploadV2AbortMultipartUploadRequest) getBucketName(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
-		if putPolicy, err := request.UpToken.RetrievePutPolicy(ctx); err != nil {
+		if putPolicy, err := request.UpToken.GetPutPolicy(ctx); err != nil {
 			return "", err
 		} else {
 			return putPolicy.GetBucketName()
@@ -52,7 +52,7 @@ func (j *innerResumableUploadV2AbortMultipartUploadRequest) UnmarshalJSON(data [
 }
 func (request *innerResumableUploadV2AbortMultipartUploadRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
-		return request.UpToken.RetrieveAccessKey(ctx)
+		return request.UpToken.GetAccessKey(ctx)
 	}
 	return "", nil
 }
@@ -61,7 +61,7 @@ type ResumableUploadV2AbortMultipartUploadRequest = resumableuploadv2abortmultip
 type ResumableUploadV2AbortMultipartUploadResponse = resumableuploadv2abortmultipartupload.Response
 
 // 根据 UploadId 终止 Multipart Upload
-func (client *Client) ResumableUploadV2AbortMultipartUpload(ctx context.Context, request *ResumableUploadV2AbortMultipartUploadRequest, options *Options) (response *ResumableUploadV2AbortMultipartUploadResponse, err error) {
+func (storage *Storage) ResumableUploadV2AbortMultipartUpload(ctx context.Context, request *ResumableUploadV2AbortMultipartUploadRequest, options *Options) (response *ResumableUploadV2AbortMultipartUploadResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -78,8 +78,8 @@ func (client *Client) ResumableUploadV2AbortMultipartUpload(ctx context.Context,
 	var rawQuery string
 	req := httpclient.Request{Method: "DELETE", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: innerRequest.UpToken}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
@@ -88,8 +88,8 @@ func (client *Client) ResumableUploadV2AbortMultipartUpload(ctx context.Context,
 					return nil, err
 				}
 			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: client.client.UseInsecureProtocol(), HostFreezeDuration: client.client.GetHostFreezeDuration(), Client: client.client.GetClient()}
-			if hostRetryConfig := client.client.GetHostRetryConfig(); hostRetryConfig != nil {
+			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Client: storage.client.GetClient()}
+			if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
 				queryerOptions.RetryMax = hostRetryConfig.RetryMax
 			}
 			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
@@ -109,7 +109,7 @@ func (client *Client) ResumableUploadV2AbortMultipartUpload(ctx context.Context,
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -121,7 +121,7 @@ func (client *Client) ResumableUploadV2AbortMultipartUpload(ctx context.Context,
 			req.Region = queryer.Query(accessKey, bucketName)
 		}
 	}
-	resp, err := client.client.Do(ctx, &req)
+	resp, err := storage.client.Do(ctx, &req)
 	if err != nil {
 		return nil, err
 	}

@@ -66,7 +66,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 	}
 	group.Add(
 		jen.Func().
-			Params(jen.Id("client").Op("*").Id("Client")).
+			Params(jen.Id("storage").Op("*").Id("Storage")).
 			Id(strcase.ToCamel(options.Name)).
 			Params(
 				jen.Id("ctx").Qual("context", "Context"),
@@ -169,7 +169,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 						group.Add(
 							jen.List(jen.Id("body"), jen.Err()).
 								Op(":=").
-								Qual(PackageNameHttpClient, "GetJsonRequestBody").
+								Qual(PackageNameHTTPClient, "GetJsonRequestBody").
 								Call(jen.Op("&").Id("innerRequest")),
 						)
 						group.Add(
@@ -215,7 +215,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 				group.Add(
 					jen.Id("req").
 						Op(":=").
-						Qual(PackageNameHttpClient, "Request").
+						Qual(PackageNameHTTPClient, "Request").
 						ValuesFunc(func(group *jen.Group) {
 							group.Add(jen.Id("Method").Op(":").Lit(method))
 							group.Add(jen.Id("ServiceNames").Op(":").Id("serviceNames"))
@@ -246,21 +246,21 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 									group.Add(
 										jen.Id("RequestBody").
 											Op(":").
-											Qual(PackageNameHttpClient, "GetFormRequestBody").
+											Qual(PackageNameHTTPClient, "GetFormRequestBody").
 											Call(jen.Id("body")),
 									)
 								} else if multipartFormData := requestBody.MultipartFormData; multipartFormData != nil {
 									group.Add(
 										jen.Id("RequestBody").
 											Op(":").
-											Qual(PackageNameHttpClient, "GetMultipartFormRequestBody").
+											Qual(PackageNameHTTPClient, "GetMultipartFormRequestBody").
 											Call(jen.Id("body")),
 									)
 								} else if requestBody.BinaryData {
 									group.Add(
 										jen.Id("RequestBody").
 											Op(":").
-											Qual(PackageNameHttpClient, "GetRequestBodyFromReadSeekCloser").
+											Qual(PackageNameHTTPClient, "GetRequestBodyFromReadSeekCloser").
 											Call(jen.Id("innerRequest").Dot("Body")),
 									)
 								}
@@ -270,13 +270,13 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 				group.Add(jen.Var().Id("queryer").Qual(PackageNameRegion, "BucketRegionsQueryer"))
 				group.Add(
 					jen.If(
-						jen.Id("client").Dot("client").Dot("GetRegions").Call().Op("==").Nil().Op("&&").
-							Id("client").Dot("client").Dot("GetEndpoints").Call().Op("==").Nil()).
+						jen.Id("storage").Dot("client").Dot("GetRegions").Call().Op("==").Nil().Op("&&").
+							Id("storage").Dot("client").Dot("GetEndpoints").Call().Op("==").Nil()).
 						BlockFunc(func(group *jen.Group) {
-							group.Add(jen.Id("queryer").Op("=").Id("client").Dot("client").Dot("GetBucketQueryer").Call())
+							group.Add(jen.Id("queryer").Op("=").Id("storage").Dot("client").Dot("GetBucketQueryer").Call())
 							group.Add(
 								jen.If(jen.Id("queryer").Op("==").Nil()).BlockFunc(func(group *jen.Group) {
-									group.Add(jen.Id("bucketHosts").Op(":=").Qual(PackageNameHttpClient, "DefaultBucketHosts").Call())
+									group.Add(jen.Id("bucketHosts").Op(":=").Qual(PackageNameHTTPClient, "DefaultBucketHosts").Call())
 									if description.isBucketService() {
 										group.Add(
 											jen.If(jen.Id("options").Dot("OverwrittenBucketHosts").Op("!=").Nil()).
@@ -312,14 +312,14 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 												Op(":=").
 												Qual(PackageNameRegion, "BucketRegionsQueryerOptions").
 												ValuesFunc(func(group *jen.Group) {
-													group.Add(jen.Id("UseInsecureProtocol").Op(":").Id("client").Dot("client").Dot("UseInsecureProtocol").Call())
-													group.Add(jen.Id("HostFreezeDuration").Op(":").Id("client").Dot("client").Dot("GetHostFreezeDuration").Call())
-													group.Add(jen.Id("Client").Op(":").Id("client").Dot("client").Dot("GetClient").Call())
+													group.Add(jen.Id("UseInsecureProtocol").Op(":").Id("storage").Dot("client").Dot("UseInsecureProtocol").Call())
+													group.Add(jen.Id("HostFreezeDuration").Op(":").Id("storage").Dot("client").Dot("GetHostFreezeDuration").Call())
+													group.Add(jen.Id("Client").Op(":").Id("storage").Dot("client").Dot("GetClient").Call())
 												}),
 										)
 										group.Add(
 											jen.If(
-												jen.Id("hostRetryConfig").Op(":=").Id("client").Dot("client").Dot("GetHostRetryConfig").Call(),
+												jen.Id("hostRetryConfig").Op(":=").Id("storage").Dot("client").Dot("GetHostRetryConfig").Call(),
 												jen.Id("hostRetryConfig").Op("!=").Nil(),
 											).BlockFunc(func(group *jen.Group) {
 												group.Id("queryerOptions").Dot("RetryMax").Op("=").Id("hostRetryConfig").Dot("RetryMax")
@@ -370,7 +370,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 								If(jen.Id("accessKey").Op("==").Lit("")).
 								BlockFunc(func(group *jen.Group) {
 									group.Add(jen.If(
-										jen.Id("credentialsProvider").Op(":=").Id("client").Dot("client").Dot("GetCredentials").Call(),
+										jen.Id("credentialsProvider").Op(":=").Id("storage").Dot("client").Dot("GetCredentials").Call(),
 										jen.Id("credentialsProvider").Op("!=").Nil(),
 									)).BlockFunc(func(group *jen.Group) {
 										group.If(
@@ -407,9 +407,9 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							jen.If(
 								jen.List(jen.Id("_"), jen.Err()).
 									Op(":=").
-									Id("client").
+									Id("storage").
 									Dot("client").
-									Dot("AcceptJson").
+									Dot("DoAndAcceptJSON").
 									Call(
 										jen.Id("ctx"),
 										jen.Op("&").Id("req"),
@@ -425,7 +425,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 						group.Add(
 							jen.List(jen.Id("resp"), jen.Err()).
 								Op(":=").
-								Id("client").
+								Id("storage").
 								Dot("client").
 								Dot("Do").
 								Call(
@@ -454,7 +454,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 					group.Add(
 						jen.List(jen.Id("resp"), jen.Err()).
 							Op(":=").
-							Id("client").
+							Id("storage").
 							Dot("client").
 							Dot("Do").
 							Call(

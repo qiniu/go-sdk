@@ -19,7 +19,7 @@ type innerResumableUploadV2ListPartsRequest resumableuploadv2listparts.Request
 
 func (request *innerResumableUploadV2ListPartsRequest) getBucketName(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
-		if putPolicy, err := request.UpToken.RetrievePutPolicy(ctx); err != nil {
+		if putPolicy, err := request.UpToken.GetPutPolicy(ctx); err != nil {
 			return "", err
 		} else {
 			return putPolicy.GetBucketName()
@@ -64,7 +64,7 @@ func (j *innerResumableUploadV2ListPartsRequest) UnmarshalJSON(data []byte) erro
 }
 func (request *innerResumableUploadV2ListPartsRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
-		return request.UpToken.RetrieveAccessKey(ctx)
+		return request.UpToken.GetAccessKey(ctx)
 	}
 	return "", nil
 }
@@ -73,7 +73,7 @@ type ResumableUploadV2ListPartsRequest = resumableuploadv2listparts.Request
 type ResumableUploadV2ListPartsResponse = resumableuploadv2listparts.Response
 
 // 列举出指定 UploadId 所属任务所有已经上传成功的分片
-func (client *Client) ResumableUploadV2ListParts(ctx context.Context, request *ResumableUploadV2ListPartsRequest, options *Options) (response *ResumableUploadV2ListPartsResponse, err error) {
+func (storage *Storage) ResumableUploadV2ListParts(ctx context.Context, request *ResumableUploadV2ListPartsRequest, options *Options) (response *ResumableUploadV2ListPartsResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -95,8 +95,8 @@ func (client *Client) ResumableUploadV2ListParts(ctx context.Context, request *R
 	}
 	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: innerRequest.UpToken, BufferResponse: true}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
@@ -105,8 +105,8 @@ func (client *Client) ResumableUploadV2ListParts(ctx context.Context, request *R
 					return nil, err
 				}
 			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: client.client.UseInsecureProtocol(), HostFreezeDuration: client.client.GetHostFreezeDuration(), Client: client.client.GetClient()}
-			if hostRetryConfig := client.client.GetHostRetryConfig(); hostRetryConfig != nil {
+			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Client: storage.client.GetClient()}
+			if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
 				queryerOptions.RetryMax = hostRetryConfig.RetryMax
 			}
 			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
@@ -126,7 +126,7 @@ func (client *Client) ResumableUploadV2ListParts(ctx context.Context, request *R
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -139,7 +139,7 @@ func (client *Client) ResumableUploadV2ListParts(ctx context.Context, request *R
 		}
 	}
 	var respBody ResumableUploadV2ListPartsResponse
-	if _, err := client.client.AcceptJson(ctx, &req, &respBody); err != nil {
+	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

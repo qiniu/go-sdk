@@ -38,7 +38,7 @@ type AsyncFetchObjectRequest = asyncfetchobject.Request
 type AsyncFetchObjectResponse = asyncfetchobject.Response
 
 // 从指定 URL 抓取资源，并将该资源存储到指定空间中。每次只抓取一个文件，抓取时可以指定保存空间名和最终资源名
-func (client *Client) AsyncFetchObject(ctx context.Context, request *AsyncFetchObjectRequest, options *Options) (response *AsyncFetchObjectResponse, err error) {
+func (storage *Storage) AsyncFetchObject(ctx context.Context, request *AsyncFetchObjectRequest, options *Options) (response *AsyncFetchObjectResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -54,8 +54,8 @@ func (client *Client) AsyncFetchObject(ctx context.Context, request *AsyncFetchO
 	}
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, RequestBody: body}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
@@ -64,8 +64,8 @@ func (client *Client) AsyncFetchObject(ctx context.Context, request *AsyncFetchO
 					return nil, err
 				}
 			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: client.client.UseInsecureProtocol(), HostFreezeDuration: client.client.GetHostFreezeDuration(), Client: client.client.GetClient()}
-			if hostRetryConfig := client.client.GetHostRetryConfig(); hostRetryConfig != nil {
+			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Client: storage.client.GetClient()}
+			if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
 				queryerOptions.RetryMax = hostRetryConfig.RetryMax
 			}
 			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
@@ -85,7 +85,7 @@ func (client *Client) AsyncFetchObject(ctx context.Context, request *AsyncFetchO
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -98,7 +98,7 @@ func (client *Client) AsyncFetchObject(ctx context.Context, request *AsyncFetchO
 		}
 	}
 	var respBody AsyncFetchObjectResponse
-	if _, err := client.client.AcceptJson(ctx, &req, &respBody); err != nil {
+	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

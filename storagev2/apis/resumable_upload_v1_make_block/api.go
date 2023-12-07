@@ -13,7 +13,7 @@ import (
 // 调用 API 所用的请求
 type Request struct {
 	BlockSize int64             // 块大小，单位为字节，每块均为 4 MB，最后一块大小不超过 4 MB
-	UpToken   uptoken.Provider  // 上传凭证，如果为空，则使用 HttpClientOptions 中的 UpToken
+	UpToken   uptoken.Provider  // 上传凭证，如果为空，则使用 HTTPClientOptions 中的 UpToken
 	Body      io.ReadSeekCloser // 请求体
 }
 

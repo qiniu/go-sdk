@@ -17,7 +17,7 @@ type Request struct {
 	UploadId   string            // 在服务端申请的 Multipart Upload 任务 id
 	PartNumber int64             // 每一个上传的分片都有一个标识它的号码
 	Md5        string            // 上传块内容的 md5 值，如果指定服务端会进行校验，不指定不校验
-	UpToken    uptoken.Provider  // 上传凭证，如果为空，则使用 HttpClientOptions 中的 UpToken
+	UpToken    uptoken.Provider  // 上传凭证，如果为空，则使用 HTTPClientOptions 中的 UpToken
 	Body       io.ReadSeekCloser // 请求体
 }
 

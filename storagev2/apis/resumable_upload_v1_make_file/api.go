@@ -16,7 +16,7 @@ type Request struct {
 	FileName   string            // 文件名称，若未指定，则魔法变量中无法使用fname，ext，fprefix
 	MimeType   string            // 文件 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
 	CustomData map[string]string // 自定义元数据（需要以 `x-qn-meta-` 作为前缀）或自定义变量（需要以 `x:` 作为前缀）
-	UpToken    uptoken.Provider  // 上传凭证，如果为空，则使用 HttpClientOptions 中的 UpToken
+	UpToken    uptoken.Provider  // 上传凭证，如果为空，则使用 HTTPClientOptions 中的 UpToken
 	Body       io.ReadSeekCloser // 请求体
 }
 

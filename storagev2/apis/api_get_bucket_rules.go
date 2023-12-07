@@ -46,7 +46,7 @@ type GetBucketRulesRequest = getbucketrules.Request
 type GetBucketRulesResponse = getbucketrules.Response
 
 // 获取空间规则
-func (client *Client) GetBucketRules(ctx context.Context, request *GetBucketRulesRequest, options *Options) (response *GetBucketRulesResponse, err error) {
+func (storage *Storage) GetBucketRules(ctx context.Context, request *GetBucketRulesRequest, options *Options) (response *GetBucketRulesResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -63,8 +63,8 @@ func (client *Client) GetBucketRules(ctx context.Context, request *GetBucketRule
 	}
 	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			if options.OverwrittenBucketHosts != nil {
@@ -81,7 +81,7 @@ func (client *Client) GetBucketRules(ctx context.Context, request *GetBucketRule
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -94,7 +94,7 @@ func (client *Client) GetBucketRules(ctx context.Context, request *GetBucketRule
 		}
 	}
 	var respBody GetBucketRulesResponse
-	if _, err := client.client.AcceptJson(ctx, &req, &respBody); err != nil {
+	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

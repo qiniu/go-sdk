@@ -68,9 +68,9 @@ func (request *ApiRequestDescription) addFields(group *jen.Group) (err error) {
 	if authorization := request.Authorization; authorization != nil {
 		switch authorization.ToAuthorization() {
 		case AuthorizationQbox, AuthorizationQiniu:
-			group.Add(jen.Id("Credentials").Qual(PackageNameCredentials, "CredentialsProvider").Comment("鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider"))
+			group.Add(jen.Id("Credentials").Qual(PackageNameCredentials, "CredentialsProvider").Comment("鉴权参数，用于生成鉴权凭证，如果为空，则使用 HTTPClientOptions 中的 CredentialsProvider"))
 		case AuthorizationUpToken:
-			group.Add(jen.Id("UpToken").Qual(PackageNameUpToken, "Provider").Comment("上传凭证，如果为空，则使用 HttpClientOptions 中的 UpToken"))
+			group.Add(jen.Id("UpToken").Qual(PackageNameUpToken, "Provider").Comment("上传凭证，如果为空，则使用 HTTPClientOptions 中的 UpToken"))
 		}
 	}
 	if body := request.Body; body != nil {
@@ -134,7 +134,7 @@ func (request *ApiRequestDescription) generateGetAccessKeyFunc(group *jen.Group,
 					case AuthorizationUpToken:
 						group.Add(
 							jen.If(jen.Id("request").Dot("UpToken").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
-								group.Return(jen.Id("request").Dot("UpToken").Dot("RetrieveAccessKey").Call(jen.Id("ctx")))
+								group.Return(jen.Id("request").Dot("UpToken").Dot("GetAccessKey").Call(jen.Id("ctx")))
 							}),
 						)
 					}
@@ -150,7 +150,7 @@ func (request *ApiRequestDescription) generateGetAccessKeyFunc(group *jen.Group,
 											Op(":=").
 											Id("request").
 											Dot(fieldName).
-											Dot("RetrieveAccessKey").
+											Dot("GetAccessKey").
 											Call(jen.Id("ctx")),
 										jen.Err().Op("!=").Nil(),
 									).BlockFunc(func(group *jen.Group) {

@@ -49,7 +49,7 @@ type DeleteBucketTaggingsRequest = deletebuckettaggings.Request
 type DeleteBucketTaggingsResponse = deletebuckettaggings.Response
 
 // 一键删除指定存储空间的所有标签
-func (client *Client) DeleteBucketTaggings(ctx context.Context, request *DeleteBucketTaggingsRequest, options *Options) (response *DeleteBucketTaggingsResponse, err error) {
+func (storage *Storage) DeleteBucketTaggings(ctx context.Context, request *DeleteBucketTaggingsRequest, options *Options) (response *DeleteBucketTaggingsResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -66,8 +66,8 @@ func (client *Client) DeleteBucketTaggings(ctx context.Context, request *DeleteB
 	}
 	req := httpclient.Request{Method: "DELETE", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			if options.OverwrittenBucketHosts != nil {
@@ -89,7 +89,7 @@ func (client *Client) DeleteBucketTaggings(ctx context.Context, request *DeleteB
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -101,7 +101,7 @@ func (client *Client) DeleteBucketTaggings(ctx context.Context, request *DeleteB
 			req.Region = queryer.Query(accessKey, bucketName)
 		}
 	}
-	resp, err := client.client.Do(ctx, &req)
+	resp, err := storage.client.Do(ctx, &req)
 	if err != nil {
 		return nil, err
 	}

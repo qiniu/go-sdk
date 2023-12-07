@@ -48,7 +48,7 @@ type GetBucketCorsRulesRequest = getbucketcorsrules.Request
 type GetBucketCorsRulesResponse = getbucketcorsrules.Response
 
 // 设置空间的跨域规则
-func (client *Client) GetBucketCorsRules(ctx context.Context, request *GetBucketCorsRulesRequest, options *Options) (response *GetBucketCorsRulesResponse, err error) {
+func (storage *Storage) GetBucketCorsRules(ctx context.Context, request *GetBucketCorsRulesRequest, options *Options) (response *GetBucketCorsRulesResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -65,8 +65,8 @@ func (client *Client) GetBucketCorsRules(ctx context.Context, request *GetBucket
 	var rawQuery string
 	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			if options.OverwrittenBucketHosts != nil {
@@ -88,7 +88,7 @@ func (client *Client) GetBucketCorsRules(ctx context.Context, request *GetBucket
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -101,7 +101,7 @@ func (client *Client) GetBucketCorsRules(ctx context.Context, request *GetBucket
 		}
 	}
 	var respBody GetBucketCorsRulesResponse
-	if _, err := client.client.AcceptJson(ctx, &req, &respBody); err != nil {
+	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

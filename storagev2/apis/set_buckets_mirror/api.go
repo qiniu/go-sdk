@@ -10,7 +10,7 @@ type Request struct {
 	Bucket      string                          // 需要设定镜像源的目标空间名
 	SrcSiteUrl  string                          // 镜像源的访问域名，必须设置为形如 `http(s)://source.com` 或 `http(s)://114.114.114.114` 的字符串
 	Host        string                          // 回源时使用的 `Host` 头部值
-	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HttpClientOptions 中的 CredentialsProvider
+	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HTTPClientOptions 中的 CredentialsProvider
 }
 
 // 获取 API 所用的响应

@@ -55,7 +55,7 @@ type RestoreArchivedObjectRequest = restorearchivedobject.Request
 type RestoreArchivedObjectResponse = restorearchivedobject.Response
 
 // 解冻归档存储类型的文件，可设置解冻有效期1～7天，完成解冻任务通常需要1～5分钟
-func (client *Client) RestoreArchivedObject(ctx context.Context, request *RestoreArchivedObjectRequest, options *Options) (response *RestoreArchivedObjectResponse, err error) {
+func (storage *Storage) RestoreArchivedObject(ctx context.Context, request *RestoreArchivedObjectRequest, options *Options) (response *RestoreArchivedObjectResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -72,8 +72,8 @@ func (client *Client) RestoreArchivedObject(ctx context.Context, request *Restor
 	var rawQuery string
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
@@ -82,8 +82,8 @@ func (client *Client) RestoreArchivedObject(ctx context.Context, request *Restor
 					return nil, err
 				}
 			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: client.client.UseInsecureProtocol(), HostFreezeDuration: client.client.GetHostFreezeDuration(), Client: client.client.GetClient()}
-			if hostRetryConfig := client.client.GetHostRetryConfig(); hostRetryConfig != nil {
+			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Client: storage.client.GetClient()}
+			if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
 				queryerOptions.RetryMax = hostRetryConfig.RetryMax
 			}
 			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
@@ -103,7 +103,7 @@ func (client *Client) RestoreArchivedObject(ctx context.Context, request *Restor
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -115,7 +115,7 @@ func (client *Client) RestoreArchivedObject(ctx context.Context, request *Restor
 			req.Region = queryer.Query(accessKey, bucketName)
 		}
 	}
-	resp, err := client.client.Do(ctx, &req)
+	resp, err := storage.client.Do(ctx, &req)
 	if err != nil {
 		return nil, err
 	}

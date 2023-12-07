@@ -80,7 +80,7 @@ func (mff *MultipartFormFields) addGetBucketNameFunc(group *jen.Group, structNam
 						Op(":=").
 						Id("form").
 						Dot(fieldName).
-						Dot("RetrievePutPolicy").
+						Dot("GetPutPolicy").
 						Call(jen.Id("ctx")),
 				)
 				group.Add(
@@ -107,12 +107,12 @@ func (mff *MultipartFormFields) addBuildFunc(group *jen.Group, structName string
 			Params(jen.Id("form").Op("*").Id(structName)).
 			Id("build").
 			Params(jen.Id("ctx").Qual("context", "Context")).
-			Params(jen.Op("*").Qual(PackageNameHttpClient, "MultipartForm"), jen.Error()).
+			Params(jen.Op("*").Qual(PackageNameHTTPClient, "MultipartForm"), jen.Error()).
 			BlockFunc(func(group *jen.Group) {
 				group.Add(
 					jen.Id("multipartForm").
 						Op(":=").
-						New(jen.Qual(PackageNameHttpClient, "MultipartForm")),
+						New(jen.Qual(PackageNameHTTPClient, "MultipartForm")),
 				)
 				for _, named := range mff.Named {
 					zeroValue, e := named.Type.ZeroValue()
@@ -147,7 +147,7 @@ func (mff *MultipartFormFields) addBuildFunc(group *jen.Group, structName string
 									Err().
 									Op(":=").
 									Add(field).
-									Dot("RetrieveUpToken").
+									Dot("GetUpToken").
 									Call(jen.Id("ctx")),
 							)
 							group.Add(

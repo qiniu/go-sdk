@@ -65,7 +65,7 @@ type GetObjectsRequest = getobjects.Request
 type GetObjectsResponse = getobjects.Response
 
 // 列举指定存储空间里的所有对象条目
-func (client *Client) GetObjects(ctx context.Context, request *GetObjectsRequest, options *Options) (response *GetObjectsResponse, err error) {
+func (storage *Storage) GetObjects(ctx context.Context, request *GetObjectsRequest, options *Options) (response *GetObjectsResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -82,8 +82,8 @@ func (client *Client) GetObjects(ctx context.Context, request *GetObjectsRequest
 	}
 	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
@@ -92,8 +92,8 @@ func (client *Client) GetObjects(ctx context.Context, request *GetObjectsRequest
 					return nil, err
 				}
 			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: client.client.UseInsecureProtocol(), HostFreezeDuration: client.client.GetHostFreezeDuration(), Client: client.client.GetClient()}
-			if hostRetryConfig := client.client.GetHostRetryConfig(); hostRetryConfig != nil {
+			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Client: storage.client.GetClient()}
+			if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
 				queryerOptions.RetryMax = hostRetryConfig.RetryMax
 			}
 			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
@@ -113,7 +113,7 @@ func (client *Client) GetObjects(ctx context.Context, request *GetObjectsRequest
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -126,7 +126,7 @@ func (client *Client) GetObjects(ctx context.Context, request *GetObjectsRequest
 		}
 	}
 	var respBody GetObjectsResponse
-	if _, err := client.client.AcceptJson(ctx, &req, &respBody); err != nil {
+	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

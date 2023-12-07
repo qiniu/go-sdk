@@ -48,7 +48,7 @@ type SetBucketCorsRulesRequest = setbucketcorsrules.Request
 type SetBucketCorsRulesResponse = setbucketcorsrules.Response
 
 // 设置空间的跨域规则
-func (client *Client) SetBucketCorsRules(ctx context.Context, request *SetBucketCorsRulesRequest, options *Options) (response *SetBucketCorsRulesResponse, err error) {
+func (storage *Storage) SetBucketCorsRules(ctx context.Context, request *SetBucketCorsRulesRequest, options *Options) (response *SetBucketCorsRulesResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -69,8 +69,8 @@ func (client *Client) SetBucketCorsRules(ctx context.Context, request *SetBucket
 	}
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: body}
 	var queryer region.BucketRegionsQueryer
-	if client.client.GetRegions() == nil && client.client.GetEndpoints() == nil {
-		queryer = client.client.GetBucketQueryer()
+	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			if options.OverwrittenBucketHosts != nil {
@@ -92,7 +92,7 @@ func (client *Client) SetBucketCorsRules(ctx context.Context, request *SetBucket
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		} else if accessKey == "" {
-			if credentialsProvider := client.client.GetCredentials(); credentialsProvider != nil {
+			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
 				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else if creds != nil {
@@ -104,7 +104,7 @@ func (client *Client) SetBucketCorsRules(ctx context.Context, request *SetBucket
 			req.Region = queryer.Query(accessKey, bucketName)
 		}
 	}
-	resp, err := client.client.Do(ctx, &req)
+	resp, err := storage.client.Do(ctx, &req)
 	if err != nil {
 		return nil, err
 	}
