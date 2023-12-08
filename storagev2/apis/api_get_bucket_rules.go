@@ -78,15 +78,6 @@ func (storage *Storage) GetBucketRules(ctx context.Context, request *GetBucketRu
 		bucketName := options.OverwrittenBucketName
 		var accessKey string
 		var err error
-		if bucketName == "" {
-			if upTokenProvider := storage.client.GetUpToken(); upTokenProvider != nil {
-				if putPolicy, err := upTokenProvider.GetPutPolicy(ctx); err != nil {
-					return nil, err
-				} else if bucketName, err = putPolicy.GetBucketName(); err != nil {
-					return nil, err
-				}
-			}
-		}
 		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 			return nil, err
 		}
@@ -96,13 +87,6 @@ func (storage *Storage) GetBucketRules(ctx context.Context, request *GetBucketRu
 					return nil, err
 				} else if creds != nil {
 					accessKey = creds.AccessKey
-				}
-			}
-		}
-		if accessKey == "" {
-			if upTokenProvider := storage.client.GetUpToken(); upTokenProvider != nil {
-				if accessKey, err = upTokenProvider.GetAccessKey(ctx); err != nil {
-					return nil, err
 				}
 			}
 		}
