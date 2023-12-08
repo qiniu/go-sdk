@@ -206,6 +206,22 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 									group.Add(jen.Return(jen.Nil(), jen.Err()))
 								}),
 						)
+					} else if requestBody.BinaryData {
+						group.Add(
+							jen.Id("body").Op(":=").Id("innerRequest").Dot("Body"),
+						)
+						group.Add(
+							jen.If(jen.Id("body").Op("==").Nil()).
+								BlockFunc(func(group *jen.Group) {
+									group.Add(jen.Return(
+										jen.Nil(),
+										jen.Qual(PackageNameErrors, "MissingRequiredFieldError").
+											ValuesFunc(func(group *jen.Group) {
+												group.Add(jen.Id("Name").Op(":").Lit("Body"))
+											}),
+									))
+								}),
+						)
 					}
 				}
 				method, err := description.Method.ToString()
@@ -261,7 +277,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 										jen.Id("RequestBody").
 											Op(":").
 											Qual(PackageNameHTTPClient, "GetRequestBodyFromReadSeekCloser").
-											Call(jen.Id("innerRequest").Dot("Body")),
+											Call(jen.Id("body")),
 									)
 								}
 							}
