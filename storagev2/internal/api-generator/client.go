@@ -361,32 +361,6 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							)
 						}
 						group.Add(
-							jen.If(jen.Id("bucketName").Op("==").Lit("")).BlockFunc(func(group *jen.Group) {
-								group.Add(jen.If(
-									jen.Id("upTokenProvider").Op(":=").Id("storage").Dot("client").Dot("GetUpToken").Call(),
-									jen.Id("upTokenProvider").Op("!=").Nil(),
-								).BlockFunc(func(group *jen.Group) {
-									group.If(
-										jen.List(jen.Id("putPolicy"), jen.Err()).
-											Op(":=").
-											Id("upTokenProvider").
-											Dot("GetPutPolicy").
-											Call(jen.Id("ctx")),
-										jen.Err().Op("!=").Nil(),
-									).BlockFunc(func(group *jen.Group) {
-										group.Return(jen.Nil(), jen.Err())
-									}).Else().
-										If(
-											jen.List(jen.Id("bucketName"), jen.Err()).Op("=").Id("putPolicy").Dot("GetBucketName").Call(),
-											jen.Err().Op("!=").Nil(),
-										).
-										BlockFunc(func(group *jen.Group) {
-											group.Return(jen.Nil(), jen.Err())
-										})
-								}))
-							}),
-						)
-						group.Add(
 							jen.If(
 								jen.List(jen.Id("accessKey"), jen.Err()).Op("=").Id("innerRequest").Dot("getAccessKey").Call(jen.Id("ctx")),
 								jen.Err().Op("!=").Nil(),
@@ -415,26 +389,6 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 											BlockFunc(func(group *jen.Group) {
 												group.Id("accessKey").Op("=").Id("creds").Dot("AccessKey")
 											})
-									}))
-								}),
-						)
-						group.Add(
-							jen.If(jen.Id("accessKey").Op("==").Lit("")).
-								BlockFunc(func(group *jen.Group) {
-									group.Add(jen.If(
-										jen.Id("upTokenProvider").Op(":=").Id("storage").Dot("client").Dot("GetUpToken").Call(),
-										jen.Id("upTokenProvider").Op("!=").Nil(),
-									).BlockFunc(func(group *jen.Group) {
-										group.If(
-											jen.List(jen.Id("accessKey"), jen.Err()).
-												Op("=").
-												Id("upTokenProvider").
-												Dot("GetAccessKey").
-												Call(jen.Id("ctx")),
-											jen.Err().Op("!=").Nil(),
-										).BlockFunc(func(group *jen.Group) {
-											group.Return(jen.Nil(), jen.Err())
-										})
 									}))
 								}),
 						)

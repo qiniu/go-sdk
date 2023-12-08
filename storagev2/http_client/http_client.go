@@ -42,7 +42,6 @@ type (
 		endpoints          region.EndpointsProvider
 		regions            region.RegionsProvider
 		credentials        credentials.CredentialsProvider
-		uptoken            uptoken.Provider
 		hostRetryConfig    *clientv2.RetryConfig
 		hostsRetryConfig   *clientv2.RetryConfig
 		hostFreezeDuration time.Duration
@@ -56,7 +55,6 @@ type (
 		Endpoints           region.EndpointsProvider
 		Regions             region.RegionsProvider
 		Credentials         credentials.CredentialsProvider
-		UpToken             uptoken.Provider
 		Interceptors        []Interceptor
 		UseInsecureProtocol bool
 		HostRetryConfig     *clientv2.RetryConfig
@@ -118,7 +116,6 @@ func NewHTTPClient(options *HTTPClientOptions) *HTTPClient {
 			endpoints:          options.Endpoints,
 			regions:            options.Regions,
 			credentials:        options.Credentials,
-			uptoken:            options.UpToken,
 			hostRetryConfig:    options.HostRetryConfig,
 			hostsRetryConfig:   options.HostsRetryConfig,
 			hostFreezeDuration: options.HostFreezeDuration,
@@ -140,9 +137,6 @@ func (httpClient *HTTPClient) Do(ctx context.Context, request *Request) (*http.R
 		credentialsProvider = httpClient.credentials
 	}
 	upTokenProvider := request.UpToken
-	if upTokenProvider == nil {
-		upTokenProvider = httpClient.uptoken
-	}
 	if credentialsProvider != nil {
 		if credentials, err := credentialsProvider.Get(ctx); err != nil {
 			return nil, err
@@ -184,10 +178,6 @@ func (httpClient *HTTPClient) GetBucketQueryer() region.BucketRegionsQueryer {
 
 func (httpClient *HTTPClient) GetCredentials() credentials.CredentialsProvider {
 	return httpClient.credentials
-}
-
-func (httpClient *HTTPClient) GetUpToken() uptoken.Provider {
-	return httpClient.uptoken
 }
 
 func (httpClient *HTTPClient) GetEndpoints() region.EndpointsProvider {
@@ -391,11 +381,6 @@ func (opts *HTTPClientOptions) toBytes() []byte {
 	}
 	if opts.Credentials != nil {
 		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(&opts.Credentials))), 10)
-	} else {
-		bytes = strconv.AppendUint(bytes, 0, 10)
-	}
-	if opts.UpToken != nil {
-		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(&opts.UpToken))), 10)
 	} else {
 		bytes = strconv.AppendUint(bytes, 0, 10)
 	}
