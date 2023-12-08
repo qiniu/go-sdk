@@ -80,7 +80,11 @@ func (storage *Storage) ResumableUploadV1MakeFile(ctx context.Context, request *
 	}
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: innerRequest.UpToken, BufferResponse: true, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(innerRequest.Body)}
+	body := innerRequest.Body
+	if body == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Body"}
+	}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: innerRequest.UpToken, BufferResponse: true, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(body)}
 	var queryer region.BucketRegionsQueryer
 	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
 		queryer = storage.client.GetBucketQueryer()
