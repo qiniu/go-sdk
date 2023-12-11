@@ -14,23 +14,41 @@ type (
 	}
 
 	NamedMultipartFormField struct {
-		FieldName     string                 `yaml:"field_name,omitempty"`
-		Key           string                 `yaml:"key,omitempty"`
-		Type          *MultipartFormDataType `yaml:"type,omitempty"`
-		Documentation string                 `yaml:"documentation,omitempty"`
-		ServiceBucket *ServiceBucketType     `yaml:"service_bucket,omitempty"`
-		Optional      *OptionalType          `yaml:"optional,omitempty"`
+		FieldName          string                 `yaml:"field_name,omitempty"`
+		FieldCamelCaseName string                 `yaml:"field_camel_case_name,omitempty"`
+		FieldSnakeCaseName string                 `yaml:"field_snake_case_name,omitempty"`
+		Key                string                 `yaml:"key,omitempty"`
+		Type               *MultipartFormDataType `yaml:"type,omitempty"`
+		Documentation      string                 `yaml:"documentation,omitempty"`
+		ServiceBucket      *ServiceBucketType     `yaml:"service_bucket,omitempty"`
+		Optional           *OptionalType          `yaml:"optional,omitempty"`
 	}
 
 	FreeMultipartFormFields struct {
-		FieldName     string `yaml:"field_name,omitempty"`
-		Documentation string `yaml:"documentation,omitempty"`
+		FieldName          string `yaml:"field_name,omitempty"`
+		FieldCamelCaseName string `yaml:"field_camel_case_name,omitempty"`
+		FieldSnakeCaseName string `yaml:"field_snake_case_name,omitempty"`
+		Documentation      string `yaml:"documentation,omitempty"`
 	}
 )
 
+func (field *NamedMultipartFormField) camelCaseName() string {
+	if field.FieldCamelCaseName != "" {
+		return field.FieldCamelCaseName
+	}
+	return strcase.ToCamel(field.FieldName)
+}
+
+func (field *FreeMultipartFormFields) camelCaseName() string {
+	if field.FieldCamelCaseName != "" {
+		return field.FieldCamelCaseName
+	}
+	return strcase.ToCamel(field.FieldName)
+}
+
 func (mff *MultipartFormFields) addFields(group *jen.Group) error {
 	for _, named := range mff.Named {
-		fieldName := strcase.ToCamel(named.FieldName)
+		fieldName := named.camelCaseName()
 		code, err := named.Type.AddTypeToStatement(jen.Id(fieldName))
 		if err != nil {
 			return err
@@ -41,7 +59,7 @@ func (mff *MultipartFormFields) addFields(group *jen.Group) error {
 		}
 	}
 	if free := mff.Free; free != nil {
-		group.Add(jen.Id(strcase.ToCamel(free.FieldName)).Map(jen.String()).String())
+		group.Add(jen.Id(free.camelCaseName()).Map(jen.String()).String())
 	}
 	return nil
 }
@@ -59,7 +77,7 @@ func (mff *MultipartFormFields) addGetBucketNameFunc(group *jen.Group, structNam
 		Params(jen.Id("ctx").Qual("context", "Context")).
 		Params(jen.String(), jen.Error()).
 		BlockFunc(func(group *jen.Group) {
-			fieldName := strcase.ToCamel(field.FieldName)
+			fieldName := field.camelCaseName()
 			switch field.ServiceBucket.ToServiceBucketType() {
 			case ServiceBucketTypePlainText:
 				group.Add(jen.Return(jen.Id("form").Dot(fieldName), jen.Nil()))
@@ -120,7 +138,7 @@ func (mff *MultipartFormFields) addBuildFunc(group *jen.Group, structName string
 						err = e
 						return
 					}
-					fieldName := strcase.ToCamel(named.FieldName)
+					fieldName := named.camelCaseName()
 					field := jen.Id("form").Dot(fieldName)
 					var cond *jen.Statement
 					if zeroValue == nil {
@@ -191,7 +209,7 @@ func (mff *MultipartFormFields) addBuildFunc(group *jen.Group, structName string
 					group.Add(code)
 				}
 				if free := mff.Free; free != nil {
-					group.Add(jen.For(jen.List(jen.Id("key"), jen.Id("value")).Op(":=").Range().Id("form").Dot(strcase.ToCamel(free.FieldName))).BlockFunc(func(group *jen.Group) {
+					group.Add(jen.For(jen.List(jen.Id("key"), jen.Id("value")).Op(":=").Range().Id("form").Dot(free.camelCaseName())).BlockFunc(func(group *jen.Group) {
 						group.Add(jen.Id("multipartForm").Dot("SetValue").Call(jen.Id("key"), jen.Id("value")))
 					}))
 				}

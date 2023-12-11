@@ -7,17 +7,26 @@ import (
 
 type (
 	HeaderName struct {
-		FieldName     string        `yaml:"field_name,omitempty"`
-		HeaderName    string        `yaml:"header_name,omitempty"`
-		Documentation string        `yaml:"documentation,omitempty"`
-		Optional      *OptionalType `yaml:"optional,omitempty"`
+		FieldName          string        `yaml:"field_name,omitempty"`
+		FieldCamelCaseName string        `yaml:"field_camel_case_name,omitempty"`
+		FieldSnakeCaseName string        `yaml:"field_snake_case_name,omitempty"`
+		HeaderName         string        `yaml:"header_name,omitempty"`
+		Documentation      string        `yaml:"documentation,omitempty"`
+		Optional           *OptionalType `yaml:"optional,omitempty"`
 	}
 	HeaderNames []HeaderName
 )
 
+func (name *HeaderName) camelCaseName() string {
+	if name.FieldCamelCaseName != "" {
+		return name.FieldCamelCaseName
+	}
+	return strcase.ToCamel(name.FieldName)
+}
+
 func (names HeaderNames) addFields(group *jen.Group) error {
 	for _, headerName := range names {
-		code := jen.Id(strcase.ToCamel(headerName.FieldName)).String()
+		code := jen.Id(headerName.camelCaseName()).String()
 		if headerName.Documentation != "" {
 			code = code.Comment(headerName.Documentation)
 		}
@@ -42,7 +51,7 @@ func (names HeaderNames) addBuildFunc(group *jen.Group, structName string) error
 					jen.Id("allHeaders").Op(":=").Make(jen.Qual("net/http", "Header")),
 				)
 				for _, headerName := range names {
-					fieldName := strcase.ToCamel(headerName.FieldName)
+					fieldName := headerName.camelCaseName()
 					cond := jen.Id("headers").Dot(fieldName).Op("!=").Lit("")
 					setHeaderFunc := func(headerName, fieldName string) func(*jen.Group) {
 						return func(group *jen.Group) {

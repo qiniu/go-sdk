@@ -9,6 +9,8 @@ import (
 
 type (
 	ApiDetailedDescription struct {
+		CamelCaseName string                 `yaml:"camel_case_name,omitempty"`
+		SnakeCaseName string                 `yaml:"snake_case_name,omitempty"`
 		Method        MethodName             `yaml:"method,omitempty"`
 		ServiceNames  []ServiceName          `yaml:"service_names,omitempty"`
 		Documentation string                 `yaml:"documentation,omitempty"`
@@ -20,10 +22,18 @@ type (
 	}
 
 	CodeGeneratorOptions struct {
-		Name, Documentation    string
-		apiDetailedDescription *ApiDetailedDescription
+		Name, Documentation          string
+		CamelCaseName, SnakeCaseName string
+		apiDetailedDescription       *ApiDetailedDescription
 	}
 )
+
+func (options *CodeGeneratorOptions) camelCaseName() string {
+	if options.CamelCaseName != "" {
+		return options.CamelCaseName
+	}
+	return strcase.ToCamel(options.Name)
+}
 
 func (description *ApiDetailedDescription) generateSubPackages(group *jen.Group, _ CodeGeneratorOptions) (err error) {
 	if err = description.Request.generate(group, CodeGeneratorOptions{
@@ -45,9 +55,9 @@ func (description *ApiDetailedDescription) generateSubPackages(group *jen.Group,
 
 func (description *ApiDetailedDescription) generatePackage(group *jen.Group, options CodeGeneratorOptions) (err error) {
 	packageName := PackageNameApis + "/" + options.Name
-	innerStructName := "inner" + strcase.ToCamel(options.Name) + "Request"
-	reexportedRequestStructName := strcase.ToCamel(options.Name) + "Request"
-	reexportedResponseStructName := strcase.ToCamel(options.Name) + "Response"
+	innerStructName := "inner" + options.camelCaseName() + "Request"
+	reexportedRequestStructName := options.camelCaseName() + "Request"
+	reexportedResponseStructName := options.camelCaseName() + "Response"
 	group.Add(jen.Type().Id(innerStructName).Qual(packageName, "Request"))
 	var getBucketNameGenerated bool
 	if getBucketNameGenerated, err = description.generateGetBucketNameFunc(group, innerStructName); err != nil {
@@ -67,7 +77,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 	group.Add(
 		jen.Func().
 			Params(jen.Id("storage").Op("*").Id("Storage")).
-			Id(strcase.ToCamel(options.Name)).
+			Id(options.camelCaseName()).
 			Params(
 				jen.Id("ctx").Qual("context", "Context"),
 				jen.Id("request").Op("*").Id(reexportedRequestStructName),

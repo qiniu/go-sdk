@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/dave/jennifer/jen"
-	"github.com/iancoleman/strcase"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,7 +31,7 @@ func (request *ApiRequestDescription) generate(group *jen.Group, opts CodeGenera
 		group.Add(jen.Comment(opts.Documentation))
 	}
 	group.Add(jen.Type().
-		Id(strcase.ToCamel(opts.Name)).
+		Id(opts.camelCaseName()).
 		StructFunc(func(group *jen.Group) {
 			err = request.addFields(group)
 		}))
@@ -142,7 +141,7 @@ func (request *ApiRequestDescription) generateGetAccessKeyFunc(group *jen.Group,
 				if body := request.Body; body != nil {
 					if multipartForm := body.MultipartFormData; multipartForm != nil {
 						if field := multipartForm.getServiceBucketField(); field != nil && field.ServiceBucket.ToServiceBucketType() != ServiceBucketTypeNone {
-							fieldName := strcase.ToCamel(field.FieldName)
+							fieldName := field.camelCaseName()
 							group.Add(
 								jen.If(jen.Id("request").Dot(fieldName).Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
 									group.If(
