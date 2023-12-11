@@ -95,7 +95,7 @@ func (storage *Storage) GetBucketRules(ctx context.Context, request *GetBucketRu
 		}
 	}
 	var respBody GetBucketRulesResponse
-	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
+	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

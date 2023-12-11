@@ -102,7 +102,7 @@ func (storage *Storage) GetBucketQuota(ctx context.Context, request *GetBucketQu
 		}
 	}
 	var respBody GetBucketQuotaResponse
-	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
+	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

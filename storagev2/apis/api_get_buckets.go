@@ -92,7 +92,7 @@ func (storage *Storage) GetBuckets(ctx context.Context, request *GetBucketsReque
 		}
 	}
 	var respBody GetBucketsResponse
-	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
+	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

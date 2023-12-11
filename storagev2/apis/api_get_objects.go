@@ -127,7 +127,7 @@ func (storage *Storage) GetObjects(ctx context.Context, request *GetObjectsReque
 		}
 	}
 	var respBody GetObjectsResponse
-	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
+	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

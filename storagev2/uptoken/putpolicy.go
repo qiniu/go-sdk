@@ -374,6 +374,8 @@ func (putPolicy PutPolicy) getInt64(key string) (int64, bool) {
 }
 
 // Set 设置上传策略的值
+//
+// 如果 value 为 nil，则返回 ErrInvalidPolicyValue 错误。
 func (putPolicy PutPolicy) Set(key string, value interface{}) error {
 	if value == nil {
 		return &FieldError{Err: ErrInvalidPolicyValue}
@@ -390,6 +392,8 @@ func (putPolicy PutPolicy) Delete(key string) (value interface{}, ok bool) {
 }
 
 // GetBucketName 获取上传策略内的空间名称
+//
+// 该方法会从上传策略中解析出空间名称，如果上传策略中没有 scope 字段，则返回 ErrEmptyBucketName 错误，如果上传策略的 scope 字段格式有误，则返回 ErrInvalidPolicyValue 错误。
 func (putPolicy PutPolicy) GetBucketName() (string, error) {
 	if scope, ok := putPolicy.GetScope(); !ok {
 		return "", ErrInvalidPolicyValue

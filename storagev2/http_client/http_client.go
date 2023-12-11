@@ -158,18 +158,12 @@ func (httpClient *HTTPClient) Do(ctx context.Context, request *Request) (*http.R
 }
 
 // DoAndAcceptJSON 发送 HTTP 请求并接收 JSON 响应
-func (httpClient *HTTPClient) DoAndAcceptJSON(ctx context.Context, request *Request, ret interface{}) (*http.Response, error) {
-	resp, err := httpClient.Do(ctx, request)
-	if err != nil {
-		return resp, err
+func (httpClient *HTTPClient) DoAndAcceptJSON(ctx context.Context, request *Request, ret interface{}) error {
+	if resp, err := httpClient.Do(ctx, request); err != nil {
+		return err
+	} else {
+		return clientv1.DecodeJsonFromReader(resp.Body, ret)
 	}
-	if ret == nil || resp.ContentLength == 0 {
-		return resp, nil
-	}
-	if err = clientv1.DecodeJsonFromReader(resp.Body, ret); err != nil {
-		return resp, err
-	}
-	return resp, nil
 }
 
 func (httpClient *HTTPClient) GetBucketQueryer() region.BucketRegionsQueryer {

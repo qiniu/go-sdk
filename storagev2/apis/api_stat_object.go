@@ -125,7 +125,7 @@ func (storage *Storage) StatObject(ctx context.Context, request *StatObjectReque
 		}
 	}
 	var respBody StatObjectResponse
-	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
+	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

@@ -79,7 +79,7 @@ func (storage *Storage) GetRegions(ctx context.Context, request *GetRegionsReque
 		}
 	}
 	var respBody GetRegionsResponse
-	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
+	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil
