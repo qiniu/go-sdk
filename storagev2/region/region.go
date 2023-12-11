@@ -26,15 +26,17 @@ type (
 	// 区域信息
 	//
 	// 可能有多个机房信息，每个机房可能有多个服务地址
+	//
+	// 如果使用公有云，建议使用 GetRegionByID 方法直接获取获取区域实例，不建议手动设置服务地址
 	Region struct {
-		RegionID string    `json:"region_id,omitempty"`
-		Up       Endpoints `json:"up,omitempty"`
-		Io       Endpoints `json:"io,omitempty"`
-		IoSrc    Endpoints `json:"io_src,omitempty"`
-		Rs       Endpoints `json:"rs,omitempty"`
-		Rsf      Endpoints `json:"rsf,omitempty"`
-		Api      Endpoints `json:"api,omitempty"`
-		Bucket   Endpoints `json:"bucket,omitempty"`
+		RegionID string    `json:"region_id,omitempty"` // 区域 ID
+		Up       Endpoints `json:"up,omitempty"`        // Up 服务域名
+		Io       Endpoints `json:"io,omitempty"`        // Io 服务域名
+		IoSrc    Endpoints `json:"io_src,omitempty"`    // IoSrc 服务域名
+		Rs       Endpoints `json:"rs,omitempty"`        // Rs 服务域名
+		Rsf      Endpoints `json:"rsf,omitempty"`       // Rsf 服务域名
+		Api      Endpoints `json:"api,omitempty"`       // Api 服务域名
+		Bucket   Endpoints `json:"bucket,omitempty"`    // Bucket 服务域名
 	}
 
 	// 区域提供者
@@ -89,10 +91,10 @@ var (
 func GetRegionByID(regionID string, useHttps bool) *Region {
 	region := &Region{RegionID: regionID}
 	if regionID == "z0" {
-		region.Up.Preferred = []string{makeHost("upload.qiniup.com", useHttps), makeHost("up.qiniup.com", useHttps)}
-		region.Up.Alternative = []string{makeHost("up.qbox.me", useHttps)}
-		region.Io.Preferred = []string{makeHost("iovip.qiniuio.com", useHttps)}
-		region.Io.Alternative = []string{makeHost("iovip.qbox.me", useHttps)}
+		region.Up.Preferred = []string{makeHost("upload.qiniup.com", useHttps), makeHost("upload-z0.qiniup.com", useHttps), makeHost("up.qiniup.com", useHttps), makeHost("up-z0.qiniup.com", useHttps)}
+		region.Up.Alternative = []string{makeHost("up.qbox.me", useHttps), makeHost("up-z0.qbox.me", useHttps)}
+		region.Io.Preferred = []string{makeHost("iovip.qiniuio.com", useHttps), makeHost("iovip-z0.qiniuio.com", useHttps)}
+		region.Io.Alternative = []string{makeHost("iovip.qbox.me", useHttps), makeHost("iovip-z0.qbox.me", useHttps)}
 	} else {
 		region.Up.Preferred = []string{makeHost(fmt.Sprintf("upload-%s.qiniup.com", regionID), useHttps), makeHost(fmt.Sprintf("up-%s.qiniup.com", regionID), useHttps)}
 		region.Io.Preferred = []string{makeHost(fmt.Sprintf("iovip-%s.qiniuio.com", regionID), useHttps)}
@@ -100,7 +102,8 @@ func GetRegionByID(regionID string, useHttps bool) *Region {
 	region.Rs.Preferred = []string{makeHost(fmt.Sprintf("rs-%s.qiniuapi.com", regionID), useHttps)}
 	region.Rsf.Preferred = []string{makeHost(fmt.Sprintf("rsf-%s.qiniuapi.com", regionID), useHttps)}
 	region.Api.Preferred = []string{makeHost(fmt.Sprintf("api-%s.qiniuapi.com", regionID), useHttps)}
-	region.Bucket.Preferred = []string{makeHost("uc.qbox.me", useHttps)}
+	region.Bucket.Preferred = []string{makeHost("uc.qiniuapi.com", useHttps), makeHost("kodo-config.qiniuapi.com", useHttps)}
+	region.Bucket.Alternative = []string{makeHost("uc.qbox.me", useHttps)}
 	return region
 }
 

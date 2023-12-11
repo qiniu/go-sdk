@@ -22,13 +22,31 @@ func TestRegion(t *testing.T) {
 
 	if ok := iter.Next(&domain); !ok {
 		t.Fatalf("should get next domain")
+	} else if domain != "https://upload-z0.qiniup.com" {
+		t.Fatalf("unexpected domain: %s", domain)
+	}
+
+	if ok := iter.Next(&domain); !ok {
+		t.Fatalf("should get next domain")
 	} else if domain != "https://up.qiniup.com" {
 		t.Fatalf("unexpected domain: %s", domain)
 	}
 
 	if ok := iter.Next(&domain); !ok {
 		t.Fatalf("should get next domain")
+	} else if domain != "https://up-z0.qiniup.com" {
+		t.Fatalf("unexpected domain: %s", domain)
+	}
+
+	if ok := iter.Next(&domain); !ok {
+		t.Fatalf("should get next domain")
 	} else if domain != "https://up.qbox.me" {
+		t.Fatalf("unexpected domain: %s", domain)
+	}
+
+	if ok := iter.Next(&domain); !ok {
+		t.Fatalf("should get next domain")
+	} else if domain != "https://up-z0.qbox.me" {
 		t.Fatalf("unexpected domain: %s", domain)
 	}
 
@@ -52,6 +70,12 @@ func TestRegion(t *testing.T) {
 	if ok := iter.Next(&domain); !ok {
 		t.Fatalf("should get next domain")
 	} else if domain != "https://up.qbox.me" {
+		t.Fatalf("unexpected domain: %s", domain)
+	}
+
+	if ok := iter.Next(&domain); !ok {
+		t.Fatalf("should get next domain")
+	} else if domain != "https://up-z0.qbox.me" {
 		t.Fatalf("unexpected domain: %s", domain)
 	}
 
