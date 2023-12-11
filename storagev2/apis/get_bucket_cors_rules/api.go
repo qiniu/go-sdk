@@ -17,7 +17,7 @@ type Request struct {
 
 // 获取 API 所用的响应
 type Response struct {
-	CorsRules CorsRules // 跨域规则列表
+	CORSRules CORSRules // 跨域规则列表
 }
 
 // 允许的域名列表
@@ -33,14 +33,14 @@ type AllowedHeaders = []string
 type ExposedHeaders = []string
 
 // 跨域规则
-type CorsRule struct {
+type CORSRule struct {
 	AllowedOrigin AllowedOriginHosts // 允许的域名。必填；支持通配符 * ；*表示全部匹配；只有第一个 * 生效；需要设置 "Scheme"；大小写敏感
 	AllowedMethod AllowedMethods     // 允许的方法。必填；不支持通配符；大小写不敏感；
 	AllowedHeader AllowedHeaders
 	ExposedHeader ExposedHeaders // 选填；不支持通配符；X-Log, X-Reqid 是默认会暴露的两个 header；其他的 header 如果没有设置，则不会暴露；大小写不敏感；
 	MaxAge        int64          // 结果可以缓存的时间。选填；空则不缓存
 }
-type jsonCorsRule struct {
+type jsonCORSRule struct {
 	AllowedOrigin AllowedOriginHosts `json:"allowed_origin"` // 允许的域名。必填；支持通配符 * ；*表示全部匹配；只有第一个 * 生效；需要设置 "Scheme"；大小写敏感
 	AllowedMethod AllowedMethods     `json:"allowed_method"` // 允许的方法。必填；不支持通配符；大小写不敏感；
 	AllowedHeader AllowedHeaders     `json:"allowed_header,omitempty"`
@@ -48,14 +48,14 @@ type jsonCorsRule struct {
 	MaxAge        int64              `json:"max_age,omitempty"`        // 结果可以缓存的时间。选填；空则不缓存
 }
 
-func (j *CorsRule) MarshalJSON() ([]byte, error) {
+func (j *CORSRule) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(&jsonCorsRule{AllowedOrigin: j.AllowedOrigin, AllowedMethod: j.AllowedMethod, AllowedHeader: j.AllowedHeader, ExposedHeader: j.ExposedHeader, MaxAge: j.MaxAge})
+	return json.Marshal(&jsonCORSRule{AllowedOrigin: j.AllowedOrigin, AllowedMethod: j.AllowedMethod, AllowedHeader: j.AllowedHeader, ExposedHeader: j.ExposedHeader, MaxAge: j.MaxAge})
 }
-func (j *CorsRule) UnmarshalJSON(data []byte) error {
-	var nj jsonCorsRule
+func (j *CORSRule) UnmarshalJSON(data []byte) error {
+	var nj jsonCORSRule
 	if err := json.Unmarshal(data, &nj); err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (j *CorsRule) UnmarshalJSON(data []byte) error {
 	j.MaxAge = nj.MaxAge
 	return nil
 }
-func (j *CorsRule) validate() error {
+func (j *CORSRule) validate() error {
 	if len(j.AllowedOrigin) == 0 {
 		return errors.MissingRequiredFieldError{Name: "AllowedOrigin"}
 	}
@@ -77,16 +77,16 @@ func (j *CorsRule) validate() error {
 }
 
 // 跨域规则列表
-type CorsRules []CorsRule
+type CORSRules []CORSRule
 
 func (j *Response) MarshalJSON() ([]byte, error) {
-	return json.Marshal(j.CorsRules)
+	return json.Marshal(j.CORSRules)
 }
 func (j *Response) UnmarshalJSON(data []byte) error {
-	var array CorsRules
+	var array CORSRules
 	if err := json.Unmarshal(data, &array); err != nil {
 		return err
 	}
-	j.CorsRules = array
+	j.CORSRules = array
 	return nil
 }

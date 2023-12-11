@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/dave/jennifer/jen"
-	"github.com/iancoleman/strcase"
 	"gopkg.in/yaml.v3"
 )
 
@@ -25,7 +24,7 @@ func (response *ApiResponseDescription) generate(group *jen.Group, opts CodeGene
 		group.Add(jen.Comment(opts.Documentation))
 	}
 	group.Add(jen.Type().
-		Id(strcase.ToCamel(opts.Name)).
+		Id(opts.camelCaseName()).
 		StructFunc(func(group *jen.Group) {
 			err = response.addFields(group)
 		}))

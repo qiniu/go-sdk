@@ -13,15 +13,24 @@ type (
 	}
 
 	FormUrlencodedRequestField struct {
-		FieldName     string             `yaml:"field_name,omitempty"`
-		Key           string             `yaml:"key,omitempty"`
-		Documentation string             `yaml:"documentation,omitempty"`
-		Type          *StringLikeType    `yaml:"type,omitempty"`
-		Multiple      bool               `yaml:"multiple,omitempty"`
-		Optional      *OptionalType      `yaml:"optional,omitempty"`
-		ServiceBucket *ServiceBucketType `yaml:"service_bucket,omitempty"`
+		FieldName          string             `yaml:"field_name,omitempty"`
+		FieldCamelCaseName string             `yaml:"field_camel_case_name,omitempty"`
+		FieldSnakeCaseName string             `yaml:"field_snake_case_name,omitempty"`
+		Key                string             `yaml:"key,omitempty"`
+		Documentation      string             `yaml:"documentation,omitempty"`
+		Type               *StringLikeType    `yaml:"type,omitempty"`
+		Multiple           bool               `yaml:"multiple,omitempty"`
+		Optional           *OptionalType      `yaml:"optional,omitempty"`
+		ServiceBucket      *ServiceBucketType `yaml:"service_bucket,omitempty"`
 	}
 )
+
+func (field *FormUrlencodedRequestField) camelCaseName() string {
+	if field.FieldCamelCaseName != "" {
+		return field.FieldCamelCaseName
+	}
+	return strcase.ToCamel(field.FieldName)
+}
 
 func (form *FormUrlencodedRequestStruct) addFields(group *jen.Group) error {
 	for _, field := range form.Fields {
@@ -47,7 +56,7 @@ func (form *FormUrlencodedRequestStruct) addGetBucketNameFunc(group *jen.Group, 
 		Params(jen.Id("ctx").Qual("context", "Context")).
 		Params(jen.String(), jen.Error()).
 		BlockFunc(func(group *jen.Group) {
-			fieldName := strcase.ToCamel(field.FieldName)
+			fieldName := field.camelCaseName()
 			switch field.ServiceBucket.ToServiceBucketType() {
 			case ServiceBucketTypePlainText:
 				group.Add(jen.Return(jen.Id("form").Dot(fieldName), jen.Nil()))
@@ -125,7 +134,7 @@ func (form *FormUrlencodedRequestStruct) getServiceBucketField() *FormUrlencoded
 }
 
 func (form *FormUrlencodedRequestStruct) generateField(group *jen.Group, field FormUrlencodedRequestField) error {
-	code := jen.Id(strcase.ToCamel(field.FieldName))
+	code := jen.Id(field.camelCaseName())
 	if field.Multiple {
 		code = code.Index()
 	}
@@ -142,7 +151,7 @@ func (form *FormUrlencodedRequestStruct) generateField(group *jen.Group, field F
 
 func (form *FormUrlencodedRequestStruct) addSetCall(group *jen.Group, field FormUrlencodedRequestField, formVarName, formValuesVarName string) error {
 	var code *jen.Statement
-	fieldName := strcase.ToCamel(field.FieldName)
+	fieldName := field.camelCaseName()
 	if field.Multiple {
 		valueConvertCode, err := field.Type.GenerateConvertCodeToString(jen.Id("value"))
 		if err != nil {
@@ -185,7 +194,7 @@ func (form *FormUrlencodedRequestStruct) addSetCall(group *jen.Group, field Form
 				jen.Nil(),
 				jen.Qual(PackageNameErrors, "MissingRequiredFieldError").
 					ValuesFunc(func(group *jen.Group) {
-						group.Add(jen.Id("Name").Op(":").Lit(strcase.ToCamel(field.FieldName)))
+						group.Add(jen.Id("Name").Op(":").Lit(field.camelCaseName()))
 					}),
 			))
 		})

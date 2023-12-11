@@ -24,28 +24,48 @@ type (
 	JsonArray struct {
 		Type          *JsonType `yaml:"type,omitempty"`
 		Name          string    `yaml:"name,omitempty"`
+		CamelCaseName string    `yaml:"camel_case_name,omitempty"`
+		SnakeCaseName string    `yaml:"snake_case_name,omitempty"`
 		Documentation string    `yaml:"documentation,omitempty"`
 	}
 
 	JsonStruct struct {
 		Fields        []JsonField `yaml:"fields,omitempty"`
 		Name          string      `yaml:"name,omitempty"`
+		CamelCaseName string      `yaml:"camel_case_name,omitempty"`
+		SnakeCaseName string      `yaml:"snake_case_name,omitempty"`
 		Documentation string      `yaml:"documentation,omitempty"`
 	}
 
 	JsonField struct {
-		Type          JsonType           `yaml:"type,omitempty"`
-		Key           string             `yaml:"key,omitempty"`
-		FieldName     string             `yaml:"field_name,omitempty"`
-		Documentation string             `yaml:"documentation,omitempty"`
-		Optional      *OptionalType      `yaml:"optional,omitempty"`
-		ServiceBucket *ServiceBucketType `yaml:"service_bucket,omitempty"`
+		Type               JsonType           `yaml:"type,omitempty"`
+		Key                string             `yaml:"key,omitempty"`
+		FieldName          string             `yaml:"field_name,omitempty"`
+		FieldCamelCaseName string             `yaml:"field_camel_case_name,omitempty"`
+		FieldSnakeCaseName string             `yaml:"field_snake_case_name,omitempty"`
+		Documentation      string             `yaml:"documentation,omitempty"`
+		Optional           *OptionalType      `yaml:"optional,omitempty"`
+		ServiceBucket      *ServiceBucketType `yaml:"service_bucket,omitempty"`
 	}
 )
 
+func (jsonField *JsonField) camelCaseName() string {
+	if jsonField.FieldCamelCaseName != "" {
+		return jsonField.FieldCamelCaseName
+	}
+	return strcase.ToCamel(jsonField.FieldName)
+}
+
+func (jsonStruct *JsonStruct) camelCaseName() string {
+	if jsonStruct.CamelCaseName != "" {
+		return jsonStruct.CamelCaseName
+	}
+	return strcase.ToCamel(jsonStruct.Name)
+}
+
 func (jsonStruct *JsonStruct) addFields(group *jen.Group, includesJsonTag bool) error {
 	for _, field := range jsonStruct.Fields {
-		code, err := field.Type.AddTypeToStatement(jen.Id(strcase.ToCamel(field.FieldName)))
+		code, err := field.Type.AddTypeToStatement(jen.Id(field.camelCaseName()))
 		if err != nil {
 			return err
 		}
@@ -79,7 +99,7 @@ func (jsonStruct *JsonStruct) addGetBucketNameFunc(group *jen.Group, structName 
 		Params(jen.Id("ctx").Qual("context", "Context")).
 		Params(jen.String(), jen.Error()).
 		BlockFunc(func(group *jen.Group) {
-			fieldName := strcase.ToCamel(field.FieldName)
+			fieldName := field.camelCaseName()
 			switch field.ServiceBucket.ToServiceBucketType() {
 			case ServiceBucketTypePlainText:
 				group.Add(jen.Return(jen.Id("j").Dot(fieldName), jen.Nil()))
@@ -122,7 +142,7 @@ func (jsonStruct *JsonStruct) addGetBucketNameFunc(group *jen.Group, structName 
 func (jsonType *JsonType) generate(group *jen.Group, options CodeGeneratorOptions) error {
 	return jsonType.generateType(group, options, true, func() error {
 		if jsonType.Any {
-			return jsonType.addAnyJsonMarshalerUnmarshaler(group, options.Name)
+			return jsonType.addAnyJsonMarshalerUnmarshaler(group, options.camelCaseName())
 		}
 		return errors.New("base type could not be top level")
 	})
@@ -157,9 +177,9 @@ func (jsonType *JsonType) AddTypeToStatement(statement *jen.Statement) (*jen.Sta
 	} else if jsonType.StringMap {
 		return statement.Add(jen.Map(jen.String()).String()), nil
 	} else if jsonType.Array != nil {
-		return statement.Add(jen.Id(strcase.ToCamel(jsonType.Array.Name))), nil
+		return statement.Add(jen.Id(jsonType.Array.camelCaseName())), nil
 	} else if jsonType.Struct != nil {
-		return statement.Add(jen.Id(strcase.ToCamel(jsonType.Struct.Name))), nil
+		return statement.Add(jen.Id(jsonType.Struct.camelCaseName())), nil
 	} else {
 		return nil, errors.New("unknown type")
 	}
@@ -216,8 +236,15 @@ func (jsonType *JsonType) addAnyJsonMarshalerUnmarshaler(group *jen.Group, struc
 	return
 }
 
+func (jsonArray *JsonArray) camelCaseName() string {
+	if jsonArray.CamelCaseName != "" {
+		return jsonArray.CamelCaseName
+	}
+	return strcase.ToCamel(jsonArray.Name)
+}
+
 func (jsonArray *JsonArray) addFields(group *jen.Group) error {
-	code := jen.Id(strcase.ToCamel(jsonArray.Name)).Id(jsonArray.Name)
+	code := jen.Id(jsonArray.camelCaseName()).Id(jsonArray.camelCaseName())
 	if jsonArray.Documentation != "" {
 		code = code.Comment(jsonArray.Documentation)
 	}
@@ -235,7 +262,7 @@ func (jsonArray *JsonArray) generate(group *jen.Group, options CodeGeneratorOpti
 	if jsonArray.Documentation != "" {
 		group.Add(jen.Comment(jsonArray.Documentation))
 	}
-	code := jen.Type().Id(strcase.ToCamel(jsonArray.Name))
+	code := jen.Type().Id(jsonArray.camelCaseName())
 	if !topLevel {
 		code = code.Op("=")
 	}
@@ -246,7 +273,7 @@ func (jsonArray *JsonArray) generate(group *jen.Group, options CodeGeneratorOpti
 	}
 	group.Add(code)
 	if topLevel {
-		if err = jsonArray.addJsonMarshalerUnmarshaler(group, options.Name); err != nil {
+		if err = jsonArray.addJsonMarshalerUnmarshaler(group, options.camelCaseName()); err != nil {
 			return
 		}
 	}
@@ -255,7 +282,7 @@ func (jsonArray *JsonArray) generate(group *jen.Group, options CodeGeneratorOpti
 }
 
 func (jsonArray *JsonArray) addJsonMarshalerUnmarshaler(group *jen.Group, structName string) (err error) {
-	fieldName := strcase.ToCamel(jsonArray.Name)
+	fieldName := jsonArray.camelCaseName()
 	group.Add(
 		jen.Func().
 			Params(jen.Id("j").Op("*").Id(structName)).
@@ -294,7 +321,12 @@ func (jsonArray *JsonArray) addJsonMarshalerUnmarshaler(group *jen.Group, struct
 
 func (jsonStruct *JsonStruct) generate(group *jen.Group, options CodeGeneratorOptions, topLevel bool) (err error) {
 	for _, field := range jsonStruct.Fields {
-		if err = field.Type.generateType(group, CodeGeneratorOptions{Name: field.FieldName, Documentation: field.Documentation}, false, func() error {
+		if err = field.Type.generateType(group, CodeGeneratorOptions{
+			Name:          field.FieldName,
+			CamelCaseName: field.FieldCamelCaseName,
+			SnakeCaseName: field.FieldSnakeCaseName,
+			Documentation: field.Documentation,
+		}, false, func() error {
 			return nil
 		}); err != nil {
 			return
@@ -302,11 +334,16 @@ func (jsonStruct *JsonStruct) generate(group *jen.Group, options CodeGeneratorOp
 	}
 
 	opts := make([]CodeGeneratorOptions, 0, 2)
-	if options.Name != "" {
-		opts = append(opts, CodeGeneratorOptions{Name: strcase.ToCamel(options.Name), Documentation: options.Documentation})
+	if options.camelCaseName() != "" {
+		opts = append(opts, options)
 	}
-	if jsonStruct.Name != "" && strcase.ToCamel(options.Name) != strcase.ToCamel(jsonStruct.Name) {
-		opts = append(opts, CodeGeneratorOptions{Name: strcase.ToCamel(jsonStruct.Name), Documentation: jsonStruct.Documentation})
+	if jsonStruct.camelCaseName() != "" && options.camelCaseName() != jsonStruct.camelCaseName() {
+		opts = append(opts, CodeGeneratorOptions{
+			Name:          jsonStruct.Name,
+			CamelCaseName: jsonStruct.CamelCaseName,
+			SnakeCaseName: jsonStruct.SnakeCaseName,
+			Documentation: jsonStruct.Documentation,
+		})
 	}
 	if len(opts) == 0 {
 		return errors.New("unknown struct name")
@@ -316,7 +353,7 @@ func (jsonStruct *JsonStruct) generate(group *jen.Group, options CodeGeneratorOp
 		if opts[0].Documentation != "" {
 			group.Add(jen.Comment(opts[0].Documentation))
 		}
-		group.Add(jen.Type().Id(opts[0].Name).StructFunc(func(group *jen.Group) {
+		group.Add(jen.Type().Id(opts[0].camelCaseName()).StructFunc(func(group *jen.Group) {
 			err = jsonStruct.addFields(group, false)
 		}))
 		if err != nil {
@@ -328,13 +365,13 @@ func (jsonStruct *JsonStruct) generate(group *jen.Group, options CodeGeneratorOp
 		if opts[1].Documentation != "" {
 			group.Add(jen.Comment(opts[1].Documentation))
 		}
-		group.Add(jen.Type().Id(strcase.ToCamel(opts[1].Name)).Op("=").Id(strcase.ToCamel(opts[0].Name)))
+		group.Add(jen.Type().Id(opts[1].camelCaseName()).Op("=").Id(opts[0].camelCaseName()))
 	}
 
-	if err = jsonStruct.addJsonMarshalerUnmarshaler(group, opts[0].Name); err != nil {
+	if err = jsonStruct.addJsonMarshalerUnmarshaler(group, opts[0].camelCaseName()); err != nil {
 		return
 	}
-	if err = jsonStruct.generateValidateFunc(group, opts[0].Name); err != nil {
+	if err = jsonStruct.generateValidateFunc(group, opts[0].camelCaseName()); err != nil {
 		return
 	}
 
@@ -367,7 +404,7 @@ func (jsonStruct *JsonStruct) addJsonMarshalerUnmarshaler(group *jen.Group, stru
 							jen.Op("&").Id("json" + structName).
 								ValuesFunc(func(group *jen.Group) {
 									for _, field := range jsonStruct.Fields {
-										fieldName := strcase.ToCamel(field.FieldName)
+										fieldName := field.camelCaseName()
 										group.Add(jen.Id(fieldName).Op(":").Id("j").Dot(fieldName))
 									}
 								}),
@@ -392,7 +429,7 @@ func (jsonStruct *JsonStruct) addJsonMarshalerUnmarshaler(group *jen.Group, stru
 					}),
 				)
 				for _, field := range jsonStruct.Fields {
-					fieldName := strcase.ToCamel(field.FieldName)
+					fieldName := field.camelCaseName()
 					group.Add(jen.Id("j").Dot(fieldName).Op("=").Id("nj").Dot(fieldName))
 				}
 				group.Add(jen.Return(jen.Nil()))
@@ -411,7 +448,7 @@ func (jsonStruct *JsonStruct) generateValidateFunc(group *jen.Group, structName 
 			for _, field := range jsonStruct.Fields {
 				if field.Optional.ToOptionalType() == OptionalTypeRequired {
 					var cond *jen.Statement
-					fieldName := strcase.ToCamel(field.FieldName)
+					fieldName := field.camelCaseName()
 					if field.Type.String || field.Type.Integer || field.Type.Float {
 						cond = jen.Id("j").Dot(fieldName).Op("==").Lit(field.Type.ZeroValue())
 					} else if field.Type.Boolean {

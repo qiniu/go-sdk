@@ -15,26 +15,44 @@ type (
 	}
 
 	NamedPathParam struct {
-		PathSegment   string             `yaml:"path_segment,omitempty"`
-		FieldName     string             `yaml:"field_name,omitempty"`
-		Type          *StringLikeType    `yaml:"type,omitempty"`
-		Documentation string             `yaml:"documentation,omitempty"`
-		Encode        *EncodeType        `yaml:"encode,omitempty"`
-		ServiceBucket *ServiceBucketType `yaml:"service_bucket,omitempty"`
-		Optional      *OptionalType      `yaml:"optional,omitempty"`
+		PathSegment        string             `yaml:"path_segment,omitempty"`
+		FieldName          string             `yaml:"field_name,omitempty"`
+		FieldCamelCaseName string             `yaml:"field_camel_case_name,omitempty"`
+		FieldSnakeCaseName string             `yaml:"field_snake_case_name,omitempty"`
+		Type               *StringLikeType    `yaml:"type,omitempty"`
+		Documentation      string             `yaml:"documentation,omitempty"`
+		Encode             *EncodeType        `yaml:"encode,omitempty"`
+		ServiceBucket      *ServiceBucketType `yaml:"service_bucket,omitempty"`
+		Optional           *OptionalType      `yaml:"optional,omitempty"`
 	}
 
 	FreePathParams struct {
-		FieldName        string      `yaml:"field_name,omitempty"`
-		Documentation    string      `yaml:"documentation,omitempty"`
-		EncodeParamKey   *EncodeType `yaml:"encode_param_key"`
-		EncodeParamValue *EncodeType `yaml:"encode_param_value"`
+		FieldName          string      `yaml:"field_name,omitempty"`
+		FieldCamelCaseName string      `yaml:"field_camel_case_name,omitempty"`
+		FieldSnakeCaseName string      `yaml:"field_snake_case_name,omitempty"`
+		Documentation      string      `yaml:"documentation,omitempty"`
+		EncodeParamKey     *EncodeType `yaml:"encode_param_key"`
+		EncodeParamValue   *EncodeType `yaml:"encode_param_value"`
 	}
 )
 
+func (pp *NamedPathParam) camelCaseName() string {
+	if pp.FieldCamelCaseName != "" {
+		return pp.FieldCamelCaseName
+	}
+	return strcase.ToCamel(pp.FieldName)
+}
+
+func (fpp *FreePathParams) camelCaseName() string {
+	if fpp.FieldCamelCaseName != "" {
+		return fpp.FieldCamelCaseName
+	}
+	return strcase.ToCamel(fpp.FieldName)
+}
+
 func (pp *PathParams) addFields(group *jen.Group) error {
 	for _, namedPathParam := range pp.Named {
-		code, err := namedPathParam.Type.AddTypeToStatement(jen.Id(strcase.ToCamel(namedPathParam.FieldName)))
+		code, err := namedPathParam.Type.AddTypeToStatement(jen.Id(namedPathParam.camelCaseName()))
 		if err != nil {
 			return err
 		}
@@ -44,7 +62,7 @@ func (pp *PathParams) addFields(group *jen.Group) error {
 		group.Add(code)
 	}
 	if free := pp.Free; free != nil {
-		freeFieldName := strcase.ToCamel(free.FieldName)
+		freeFieldName := free.camelCaseName()
 		code := jen.Id(freeFieldName).Map(jen.String()).String()
 		if free.Documentation != "" {
 			code = code.Comment(free.Documentation)
@@ -67,7 +85,7 @@ func (pp *PathParams) addGetBucketNameFunc(group *jen.Group, structName string) 
 		Params(jen.Id("ctx").Qual("context", "Context")).
 		Params(jen.String(), jen.Error()).
 		BlockFunc(func(group *jen.Group) {
-			fieldName := strcase.ToCamel(field.FieldName)
+			fieldName := field.camelCaseName()
 			switch field.ServiceBucket.ToServiceBucketType() {
 			case ServiceBucketTypePlainText:
 				group.Add(jen.Return(jen.Id("pp").Dot(fieldName), jen.Nil()))
@@ -121,7 +139,7 @@ func (pp *PathParams) addBuildFunc(group *jen.Group, structName string) error {
 					var (
 						code      jen.Code
 						isNone    bool
-						fieldName = strcase.ToCamel(namedPathParam.FieldName)
+						fieldName = namedPathParam.camelCaseName()
 						field     = jen.Id("path").Dot(fieldName)
 					)
 					switch namedPathParam.Type.ToStringLikeType() {
@@ -201,7 +219,7 @@ func (pp *PathParams) addBuildFunc(group *jen.Group, structName string) error {
 					}
 				}
 				if free := pp.Free; free != nil {
-					freeFieldName := strcase.ToCamel(free.FieldName)
+					freeFieldName := free.camelCaseName()
 					group.Add(
 						jen.For(
 							jen.Id("key").

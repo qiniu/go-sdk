@@ -10,19 +10,28 @@ import (
 
 type (
 	QueryName struct {
-		FieldName     string             `yaml:"field_name,omitempty"`
-		QueryName     string             `yaml:"query_name,omitempty"`
-		Documentation string             `yaml:"documentation,omitempty"`
-		QueryType     *StringLikeType    `yaml:"query_type,omitempty"`
-		ServiceBucket *ServiceBucketType `yaml:"service_bucket,omitempty"`
-		Optional      *OptionalType      `yaml:"optional,omitempty"`
+		FieldName          string             `yaml:"field_name,omitempty"`
+		FieldCamelCaseName string             `yaml:"field_camel_case_name,omitempty"`
+		FieldSnakeCaseName string             `yaml:"field_snake_case_name,omitempty"`
+		QueryName          string             `yaml:"query_name,omitempty"`
+		Documentation      string             `yaml:"documentation,omitempty"`
+		QueryType          *StringLikeType    `yaml:"query_type,omitempty"`
+		ServiceBucket      *ServiceBucketType `yaml:"service_bucket,omitempty"`
+		Optional           *OptionalType      `yaml:"optional,omitempty"`
 	}
 	QueryNames []QueryName
 )
 
+func (name *QueryName) camelCaseName() string {
+	if name.FieldCamelCaseName != "" {
+		return name.FieldCamelCaseName
+	}
+	return strcase.ToCamel(name.FieldName)
+}
+
 func (names QueryNames) addFields(group *jen.Group) error {
 	for _, queryName := range names {
-		code, err := queryName.QueryType.AddTypeToStatement(jen.Id(strcase.ToCamel(queryName.FieldName)))
+		code, err := queryName.QueryType.AddTypeToStatement(jen.Id(queryName.camelCaseName()))
 		if err != nil {
 			return err
 		}
@@ -47,7 +56,7 @@ func (names QueryNames) addGetBucketNameFunc(group *jen.Group, structName string
 		Params(jen.Id("ctx").Qual("context", "Context")).
 		Params(jen.String(), jen.Error()).
 		BlockFunc(func(group *jen.Group) {
-			fieldName := strcase.ToCamel(field.FieldName)
+			fieldName := field.camelCaseName()
 			switch field.ServiceBucket.ToServiceBucketType() {
 			case ServiceBucketTypePlainText:
 				group.Add(jen.Return(jen.Id("query").Dot(fieldName), jen.Nil()))
@@ -112,7 +121,7 @@ func (names QueryNames) addBuildFunc(group *jen.Group, structName string) error 
 }
 
 func (names QueryNames) generateSetCall(group *jen.Group, queryName QueryName) error {
-	fieldName := strcase.ToCamel(queryName.FieldName)
+	fieldName := queryName.camelCaseName()
 	field := jen.Id("query").Dot(fieldName)
 	valueConvertCode, err := queryName.QueryType.GenerateConvertCodeToString(field)
 	if err != nil {

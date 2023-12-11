@@ -13,12 +13,12 @@ import (
 	"strings"
 )
 
-type innerSetBucketCorsRulesRequest setbucketcorsrules.Request
+type innerSetBucketCORSRulesRequest setbucketcorsrules.Request
 
-func (pp *innerSetBucketCorsRulesRequest) getBucketName(ctx context.Context) (string, error) {
+func (pp *innerSetBucketCORSRulesRequest) getBucketName(ctx context.Context) (string, error) {
 	return pp.Bucket, nil
 }
-func (path *innerSetBucketCorsRulesRequest) buildPath() ([]string, error) {
+func (path *innerSetBucketCORSRulesRequest) buildPath() ([]string, error) {
 	var allSegments []string
 	if path.Bucket != "" {
 		allSegments = append(allSegments, path.Bucket)
@@ -27,13 +27,13 @@ func (path *innerSetBucketCorsRulesRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
-func (j *innerSetBucketCorsRulesRequest) MarshalJSON() ([]byte, error) {
+func (j *innerSetBucketCORSRulesRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*setbucketcorsrules.Request)(j))
 }
-func (j *innerSetBucketCorsRulesRequest) UnmarshalJSON(data []byte) error {
+func (j *innerSetBucketCORSRulesRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*setbucketcorsrules.Request)(j))
 }
-func (request *innerSetBucketCorsRulesRequest) getAccessKey(ctx context.Context) (string, error) {
+func (request *innerSetBucketCORSRulesRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
 			return "", err
@@ -44,15 +44,15 @@ func (request *innerSetBucketCorsRulesRequest) getAccessKey(ctx context.Context)
 	return "", nil
 }
 
-type SetBucketCorsRulesRequest = setbucketcorsrules.Request
-type SetBucketCorsRulesResponse = setbucketcorsrules.Response
+type SetBucketCORSRulesRequest = setbucketcorsrules.Request
+type SetBucketCORSRulesResponse = setbucketcorsrules.Response
 
 // 设置空间的跨域规则
-func (storage *Storage) SetBucketCorsRules(ctx context.Context, request *SetBucketCorsRulesRequest, options *Options) (response *SetBucketCorsRulesResponse, err error) {
+func (storage *Storage) SetBucketCORSRules(ctx context.Context, request *SetBucketCORSRulesRequest, options *Options) (response *SetBucketCORSRulesResponse, err error) {
 	if options == nil {
 		options = &Options{}
 	}
-	innerRequest := (*innerSetBucketCorsRulesRequest)(request)
+	innerRequest := (*innerSetBucketCORSRulesRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "corsRules", "set")
@@ -109,5 +109,5 @@ func (storage *Storage) SetBucketCorsRules(ctx context.Context, request *SetBuck
 	if err != nil {
 		return nil, err
 	}
-	return &SetBucketCorsRulesResponse{}, resp.Body.Close()
+	return &SetBucketCORSRulesResponse{}, resp.Body.Close()
 }

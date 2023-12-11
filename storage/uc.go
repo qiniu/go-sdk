@@ -522,9 +522,9 @@ type CorsRule struct {
 
 // AddCorsRules 设置指定存储空间的跨域规则
 func (m *BucketManager) AddCorsRules(bucket string, corsRules []CorsRule) error {
-	rules := make(set_bucket_cors_rules.CorsRules, 0, len(corsRules))
+	rules := make(set_bucket_cors_rules.CORSRules, 0, len(corsRules))
 	for _, rule := range corsRules {
-		rules = append(rules, set_bucket_cors_rules.CorsRule{
+		rules = append(rules, set_bucket_cors_rules.CORSRule{
 			AllowedOrigin: rule.AllowedMethod,
 			AllowedMethod: rule.AllowedMethod,
 			AllowedHeader: rule.AllowedHeader,
@@ -532,11 +532,11 @@ func (m *BucketManager) AddCorsRules(bucket string, corsRules []CorsRule) error 
 			MaxAge:        rule.MaxAge,
 		})
 	}
-	_, err := m.apiClient.SetBucketCorsRules(
+	_, err := m.apiClient.SetBucketCORSRules(
 		context.Background(),
-		&apis.SetBucketCorsRulesRequest{
+		&apis.SetBucketCORSRulesRequest{
 			Bucket:    bucket,
-			CorsRules: rules,
+			CORSRules: rules,
 		},
 		m.makeRequestOptions(),
 	)
@@ -545,9 +545,9 @@ func (m *BucketManager) AddCorsRules(bucket string, corsRules []CorsRule) error 
 
 // GetCorsRules 获取指定存储空间的跨域规则
 func (m *BucketManager) GetCorsRules(bucket string) ([]CorsRule, error) {
-	response, err := m.apiClient.GetBucketCorsRules(
+	response, err := m.apiClient.GetBucketCORSRules(
 		context.Background(),
-		&apis.GetBucketCorsRulesRequest{
+		&apis.GetBucketCORSRulesRequest{
 			Bucket: bucket,
 		},
 		m.makeRequestOptions(),
@@ -555,8 +555,8 @@ func (m *BucketManager) GetCorsRules(bucket string) ([]CorsRule, error) {
 	if err != nil {
 		return nil, err
 	}
-	rules := make([]CorsRule, 0, len(response.CorsRules))
-	for _, rule := range response.CorsRules {
+	rules := make([]CorsRule, 0, len(response.CORSRules))
+	for _, rule := range response.CORSRules {
 		rules = append(rules, CorsRule{
 			AllowedOrigin: rule.AllowedOrigin,
 			AllowedMethod: rule.AllowedMethod,
