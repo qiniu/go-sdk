@@ -117,7 +117,7 @@ func (storage *Storage) ResumableUploadV1MakeBlock(ctx context.Context, request 
 		}
 	}
 	var respBody ResumableUploadV1MakeBlockResponse
-	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
+	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

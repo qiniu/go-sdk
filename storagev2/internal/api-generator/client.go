@@ -423,7 +423,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 						)
 						group.Add(
 							jen.If(
-								jen.List(jen.Id("_"), jen.Err()).
+								jen.Err().
 									Op(":=").
 									Id("storage").
 									Dot("client").

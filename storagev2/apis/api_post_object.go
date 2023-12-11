@@ -135,7 +135,7 @@ func (storage *Storage) PostObject(ctx context.Context, request *PostObjectReque
 		}
 	}
 	var respBody PostObjectResponse
-	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
+	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

@@ -118,7 +118,7 @@ func (storage *Storage) ResumableUploadV1Bput(ctx context.Context, request *Resu
 		}
 	}
 	var respBody ResumableUploadV1BputResponse
-	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
+	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

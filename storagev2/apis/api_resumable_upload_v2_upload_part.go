@@ -145,7 +145,7 @@ func (storage *Storage) ResumableUploadV2UploadPart(ctx context.Context, request
 		}
 	}
 	var respBody ResumableUploadV2UploadPartResponse
-	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
+	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

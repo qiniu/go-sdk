@@ -102,7 +102,7 @@ func (storage *Storage) GetBucketCorsRules(ctx context.Context, request *GetBuck
 		}
 	}
 	var respBody GetBucketCorsRulesResponse
-	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
+	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

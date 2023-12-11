@@ -119,7 +119,7 @@ func (storage *Storage) FetchObject(ctx context.Context, request *FetchObjectReq
 		}
 	}
 	var respBody FetchObjectResponse
-	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
+	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

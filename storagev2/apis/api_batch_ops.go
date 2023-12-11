@@ -104,7 +104,7 @@ func (storage *Storage) BatchOps(ctx context.Context, request *BatchOpsRequest, 
 		}
 	}
 	var respBody BatchOpsResponse
-	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
+	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

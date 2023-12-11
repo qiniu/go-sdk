@@ -118,7 +118,7 @@ func TestHttpClientJson(t *testing.T) {
 		Test string `json:"Test"`
 	}
 
-	_, err := httpClient.DoAndAcceptJSON(context.Background(), &Request{
+	err := httpClient.DoAndAcceptJSON(context.Background(), &Request{
 		Method:   http.MethodGet,
 		Path:     "/test",
 		RawQuery: "fakeRawQuery",

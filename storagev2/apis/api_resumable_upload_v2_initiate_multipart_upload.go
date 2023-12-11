@@ -119,7 +119,7 @@ func (storage *Storage) ResumableUploadV2InitiateMultipartUpload(ctx context.Con
 		}
 	}
 	var respBody ResumableUploadV2InitiateMultipartUploadResponse
-	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
+	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil

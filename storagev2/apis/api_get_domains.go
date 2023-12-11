@@ -103,7 +103,7 @@ func (storage *Storage) GetDomains(ctx context.Context, request *GetDomainsReque
 		}
 	}
 	var respBody GetDomainsResponse
-	if _, err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
+	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
 	return &respBody, nil
