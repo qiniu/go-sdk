@@ -7,7 +7,7 @@ import credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 
 // 调用 API 所用的请求
 type Request struct {
-	Entry                  string                          // 指定目标对象空间与目标对象名称
+	Entry                  string                          // 指定目标对象空间与目标对象名称，格式为 <目标对象空间>:<目标对象名称>
 	ToIaAfterDays          int64                           // 指定文件上传后在设置的 ToIAAfterDays 转换到低频存储类型，设置为 -1 表示取消已设置的转低频存储的生命周期规则
 	ToArchiveAfterDays     int64                           // 指定文件上传后在设置的 toArchiveAfterDays 转换到归档存储类型， 设置为 -1 表示取消已设置的转归档存储的生命周期规则
 	ToDeepArchiveAfterDays int64                           // 指定文件上传后在设置的 toDeepArchiveAfterDays 转换到深度归档存储类型， 设置为 -1 表示取消已设置的转深度归档存储的生命周期规则
