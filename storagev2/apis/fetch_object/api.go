@@ -28,10 +28,10 @@ type Response struct {
 // 抓取到的文件元信息
 type FetchedObjectMetadata = Response
 type jsonResponse struct {
-	Hash       string `json:"hash"`     // 抓取的对象内容的 Etag 值
-	ObjectName string `json:"key"`      // 抓取后保存的对象名称
-	Size       int64  `json:"fsize"`    // 对象大小，单位为字节
-	MimeType   string `json:"mimeType"` // 对象 MIME 类型
+	Hash       string `json:"hash"`            // 抓取的对象内容的 Etag 值
+	ObjectName string `json:"key"`             // 抓取后保存的对象名称
+	Size       int64  `json:"fsize,omitempty"` // 对象大小，单位为字节
+	MimeType   string `json:"mimeType"`        // 对象 MIME 类型
 }
 
 func (j *Response) MarshalJSON() ([]byte, error) {
@@ -57,9 +57,6 @@ func (j *Response) validate() error {
 	}
 	if j.ObjectName == "" {
 		return errors.MissingRequiredFieldError{Name: "ObjectName"}
-	}
-	if j.Size == 0 {
-		return errors.MissingRequiredFieldError{Name: "Size"}
 	}
 	if j.MimeType == "" {
 		return errors.MissingRequiredFieldError{Name: "MimeType"}

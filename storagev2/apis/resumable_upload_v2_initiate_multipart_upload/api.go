@@ -12,7 +12,7 @@ import (
 // 调用 API 所用的请求
 type Request struct {
 	BucketName string           // 存储空间名称
-	ObjectName string           // 对象名称
+	ObjectName *string          // 对象名称
 	UpToken    uptoken.Provider // 上传凭证，如果为空，则使用 HTTPClientOptions 中的 UpToken
 }
 

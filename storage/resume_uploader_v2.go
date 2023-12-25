@@ -6,13 +6,16 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/qiniu/go-sdk/v7/client"
-	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"sync"
+
+	"github.com/qiniu/go-sdk/v7/client"
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis"
+	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 )
 
 // ResumeUploaderV2 表示一个分片上传 v2 的对象
@@ -212,6 +215,7 @@ type (
 	resumeUploaderV2Impl struct {
 		client         *client.Client
 		cfg            *Config
+		storage        *apis.Storage
 		bucket         string
 		key            string
 		hasKey         bool
@@ -258,6 +262,10 @@ func newResumeUploaderV2Impl(resumeUploader *ResumeUploaderV2, bucket, key strin
 		recorderKey:    recorderKey,
 		extra:          extra,
 		ret:            ret,
+		storage: apis.NewStorage(&http_client.HTTPClientOptions{
+			Client:              resumeUploader.Client.Client,
+			UseInsecureProtocol: !resumeUploader.Cfg.UseHTTPS,
+		}),
 		bufPool: &sync.Pool{
 			New: func() interface{} {
 				return bytes.NewBuffer(make([]byte, 0, extra.PartSize))
@@ -430,5 +438,5 @@ func (impl *resumeUploaderV2Impl) save(ctx context.Context) {
 }
 
 func (impl *resumeUploaderV2Impl) resumeUploaderAPIs() *resumeUploaderAPIs {
-	return &resumeUploaderAPIs{Client: impl.client, Cfg: impl.cfg}
+	return &resumeUploaderAPIs{Client: impl.client, Cfg: impl.cfg, storage: impl.storage}
 }

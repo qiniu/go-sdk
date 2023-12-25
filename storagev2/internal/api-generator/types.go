@@ -115,16 +115,20 @@ func (t *StringLikeType) ToStringLikeType() StringLikeType {
 	}
 }
 
-func (t *StringLikeType) AddTypeToStatement(statement *jen.Statement) (*jen.Statement, error) {
+func (t *StringLikeType) AddTypeToStatement(statement *jen.Statement, nilable bool) (*jen.Statement, error) {
+	statement = statement.Clone()
+	if nilable {
+		statement = statement.Op("*")
+	}
 	switch t.ToStringLikeType() {
 	case StringLikeTypeString:
-		return statement.Clone().String(), nil
+		return statement.String(), nil
 	case StringLikeTypeInteger:
-		return statement.Clone().Int64(), nil
+		return statement.Int64(), nil
 	case StringLikeTypeFloat:
-		return statement.Clone().Float64(), nil
+		return statement.Float64(), nil
 	case StringLikeTypeBoolean:
-		return statement.Clone().Bool(), nil
+		return statement.Bool(), nil
 	default:
 		return nil, errors.New("unknown type")
 	}

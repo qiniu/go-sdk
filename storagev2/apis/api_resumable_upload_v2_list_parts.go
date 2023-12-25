@@ -34,8 +34,8 @@ func (path *innerResumableUploadV2ListPartsRequest) buildPath() ([]string, error
 	} else {
 		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
 	}
-	if path.ObjectName != "" {
-		allSegments = append(allSegments, "objects", base64.URLEncoding.EncodeToString([]byte(path.ObjectName)))
+	if path.ObjectName != nil {
+		allSegments = append(allSegments, "objects", base64.URLEncoding.EncodeToString([]byte(*path.ObjectName)))
 	} else {
 		allSegments = append(allSegments, "objects", "~")
 	}

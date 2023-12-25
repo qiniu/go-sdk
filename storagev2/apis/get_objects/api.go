@@ -50,7 +50,7 @@ type jsonListedObjectEntry struct {
 	Key             string    `json:"key"`               // 对象名称
 	PutTime         int64     `json:"putTime"`           // 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
 	Hash            string    `json:"hash"`              // 文件的哈希值
-	Size            int64     `json:"fsize"`             // 对象大小，单位为字节
+	Size            int64     `json:"fsize,omitempty"`   // 对象大小，单位为字节
 	MimeType        string    `json:"mimeType"`          // 对象 MIME 类型
 	Type            int64     `json:"type,omitempty"`    // 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
 	EndUser         string    `json:"endUser,omitempty"` // 资源内容的唯一属主标识
@@ -91,9 +91,6 @@ func (j *ListedObjectEntry) validate() error {
 	}
 	if j.Hash == "" {
 		return errors.MissingRequiredFieldError{Name: "Hash"}
-	}
-	if j.Size == 0 {
-		return errors.MissingRequiredFieldError{Name: "Size"}
 	}
 	if j.MimeType == "" {
 		return errors.MissingRequiredFieldError{Name: "MimeType"}

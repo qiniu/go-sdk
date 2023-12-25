@@ -31,7 +31,7 @@ func (name *QueryName) camelCaseName() string {
 
 func (names QueryNames) addFields(group *jen.Group) error {
 	for _, queryName := range names {
-		code, err := queryName.QueryType.AddTypeToStatement(jen.Id(queryName.camelCaseName()))
+		code, err := queryName.QueryType.AddTypeToStatement(jen.Id(queryName.camelCaseName()), false)
 		if err != nil {
 			return err
 		}
