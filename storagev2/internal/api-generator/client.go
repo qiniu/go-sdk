@@ -247,6 +247,8 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							group.Add(jen.Id("ServiceNames").Op(":").Id("serviceNames"))
 							group.Add(jen.Id("Path").Op(":").Id("path"))
 							group.Add(jen.Id("RawQuery").Op(":").Id("rawQuery"))
+							group.Add(jen.Id("Endpoints").Op(":").Id("options").Dot("OverwrittenEndpoints"))
+							group.Add(jen.Id("Region").Op(":").Id("options").Dot("OverwrittenRegion"))
 							if description.Request.HeaderNames != nil {
 								group.Add(jen.Id("Header").Op(":").Id("headers"))
 							}
@@ -293,12 +295,13 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							}
 						}),
 				)
-				group.Add(jen.Var().Id("queryer").Qual(PackageNameRegion, "BucketRegionsQueryer"))
 				group.Add(
 					jen.If(
-						jen.Id("storage").Dot("client").Dot("GetRegions").Call().Op("==").Nil()).
+						jen.Id("options").Dot("OverwrittenEndpoints").Op("==").Nil().Op("&&").
+							Id("options").Dot("OverwrittenRegion").Op("==").Nil().Op("&&").
+							Id("storage").Dot("client").Dot("GetRegions").Call().Op("==").Nil()).
 						BlockFunc(func(group *jen.Group) {
-							group.Add(jen.Id("queryer").Op("=").Id("storage").Dot("client").Dot("GetBucketQueryer").Call())
+							group.Add(jen.Id("queryer").Op(":=").Id("storage").Dot("client").Dot("GetBucketQueryer").Call())
 							group.Add(
 								jen.If(jen.Id("queryer").Op("==").Nil()).BlockFunc(func(group *jen.Group) {
 									group.Add(jen.Id("bucketHosts").Op(":=").Qual(PackageNameHTTPClient, "DefaultBucketHosts").Call())
@@ -364,66 +367,66 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 									}
 								}),
 							)
-						}),
-				)
-				group.Add(
-					jen.If(jen.Id("queryer").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
-						group.Add(jen.Id("bucketName").Op(":=").Id("options").Dot("OverwrittenBucketName"))
-						group.Add(jen.Var().Id("accessKey").String())
-						group.Add(jen.Var().Err().Error())
-						if getBucketNameGenerated {
 							group.Add(
-								jen.If(jen.Id("bucketName").Op("==").Lit("")).BlockFunc(func(group *jen.Group) {
+								jen.If(jen.Id("queryer").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+									group.Add(jen.Id("bucketName").Op(":=").Id("options").Dot("OverwrittenBucketName"))
+									group.Add(jen.Var().Id("accessKey").String())
+									group.Add(jen.Var().Err().Error())
+									if getBucketNameGenerated {
+										group.Add(
+											jen.If(jen.Id("bucketName").Op("==").Lit("")).BlockFunc(func(group *jen.Group) {
+												group.Add(
+													jen.If(
+														jen.List(jen.Id("bucketName"), jen.Err()).Op("=").Id("innerRequest").Dot("getBucketName").Call(jen.Id("ctx")),
+														jen.Err().Op("!=").Nil(),
+													).BlockFunc(func(group *jen.Group) {
+														group.Add(jen.Return(jen.Nil(), jen.Err()))
+													}),
+												)
+											}),
+										)
+									}
 									group.Add(
 										jen.If(
-											jen.List(jen.Id("bucketName"), jen.Err()).Op("=").Id("innerRequest").Dot("getBucketName").Call(jen.Id("ctx")),
-											jen.Err().Op("!=").Nil(),
-										).BlockFunc(func(group *jen.Group) {
-											group.Add(jen.Return(jen.Nil(), jen.Err()))
-										}),
-									)
-								}),
-							)
-						}
-						group.Add(
-							jen.If(
-								jen.List(jen.Id("accessKey"), jen.Err()).Op("=").Id("innerRequest").Dot("getAccessKey").Call(jen.Id("ctx")),
-								jen.Err().Op("!=").Nil(),
-							).BlockFunc(func(group *jen.Group) {
-								group.Return(jen.Nil(), jen.Err())
-							}),
-						)
-						group.Add(
-							jen.If(jen.Id("accessKey").Op("==").Lit("")).
-								BlockFunc(func(group *jen.Group) {
-									group.Add(jen.If(
-										jen.Id("credentialsProvider").Op(":=").Id("storage").Dot("client").Dot("GetCredentials").Call(),
-										jen.Id("credentialsProvider").Op("!=").Nil(),
-									).BlockFunc(func(group *jen.Group) {
-										group.If(
-											jen.List(jen.Id("creds"), jen.Err()).
-												Op(":=").
-												Id("credentialsProvider").
-												Dot("Get").
-												Call(jen.Id("ctx")),
+											jen.List(jen.Id("accessKey"), jen.Err()).Op("=").Id("innerRequest").Dot("getAccessKey").Call(jen.Id("ctx")),
 											jen.Err().Op("!=").Nil(),
 										).BlockFunc(func(group *jen.Group) {
 											group.Return(jen.Nil(), jen.Err())
-										}).Else().
-											If(jen.Id("creds").Op("!=").Nil()).
+										}),
+									)
+									group.Add(
+										jen.If(jen.Id("accessKey").Op("==").Lit("")).
 											BlockFunc(func(group *jen.Group) {
-												group.Id("accessKey").Op("=").Id("creds").Dot("AccessKey")
-											})
-									}))
+												group.Add(jen.If(
+													jen.Id("credentialsProvider").Op(":=").Id("storage").Dot("client").Dot("GetCredentials").Call(),
+													jen.Id("credentialsProvider").Op("!=").Nil(),
+												).BlockFunc(func(group *jen.Group) {
+													group.If(
+														jen.List(jen.Id("creds"), jen.Err()).
+															Op(":=").
+															Id("credentialsProvider").
+															Dot("Get").
+															Call(jen.Id("ctx")),
+														jen.Err().Op("!=").Nil(),
+													).BlockFunc(func(group *jen.Group) {
+														group.Return(jen.Nil(), jen.Err())
+													}).Else().
+														If(jen.Id("creds").Op("!=").Nil()).
+														BlockFunc(func(group *jen.Group) {
+															group.Id("accessKey").Op("=").Id("creds").Dot("AccessKey")
+														})
+												}))
+											}),
+									)
+									group.Add(
+										jen.If(jen.Id("accessKey").Op("!=").Lit("").Op("&&").Id("bucketName").Op("!=").Lit("")).
+											BlockFunc(func(group *jen.Group) {
+												group.Id("req").Dot("Region").Op("=").Id("queryer").Dot("Query").Call(jen.Id("accessKey"), jen.Id("bucketName"))
+											}),
+									)
 								}),
-						)
-						group.Add(
-							jen.If(jen.Id("accessKey").Op("!=").Lit("").Op("&&").Id("bucketName").Op("!=").Lit("")).
-								BlockFunc(func(group *jen.Group) {
-									group.Id("req").Dot("Region").Op("=").Id("queryer").Dot("Query").Call(jen.Id("accessKey"), jen.Id("bucketName"))
-								}),
-						)
-					}),
+							)
+						}),
 				)
 				if body := description.Response.Body; body != nil {
 					if json := body.Json; json != nil {

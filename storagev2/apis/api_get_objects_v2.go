@@ -80,10 +80,9 @@ func (storage *Storage) GetObjectsV2(ctx context.Context, request *GetObjectsV2R
 	} else {
 		rawQuery += query.Encode()
 	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials}
-	var queryer region.BucketRegionsQueryer
-	if storage.client.GetRegions() == nil {
-		queryer = storage.client.GetBucketQueryer()
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials}
+	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
+		queryer := storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
@@ -100,30 +99,30 @@ func (storage *Storage) GetObjectsV2(ctx context.Context, request *GetObjectsV2R
 				return nil, err
 			}
 		}
-	}
-	if queryer != nil {
-		bucketName := options.OverwrittenBucketName
-		var accessKey string
-		var err error
-		if bucketName == "" {
-			if bucketName, err = innerRequest.getBucketName(ctx); err != nil {
-				return nil, err
-			}
-		}
-		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
-			return nil, err
-		}
-		if accessKey == "" {
-			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
+		if queryer != nil {
+			bucketName := options.OverwrittenBucketName
+			var accessKey string
+			var err error
+			if bucketName == "" {
+				if bucketName, err = innerRequest.getBucketName(ctx); err != nil {
 					return nil, err
-				} else if creds != nil {
-					accessKey = creds.AccessKey
 				}
 			}
-		}
-		if accessKey != "" && bucketName != "" {
-			req.Region = queryer.Query(accessKey, bucketName)
+			if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
+				return nil, err
+			}
+			if accessKey == "" {
+				if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
+					if creds, err := credentialsProvider.Get(ctx); err != nil {
+						return nil, err
+					} else if creds != nil {
+						accessKey = creds.AccessKey
+					}
+				}
+			}
+			if accessKey != "" && bucketName != "" {
+				req.Region = queryer.Query(accessKey, bucketName)
+			}
 		}
 	}
 	resp, err := storage.client.Do(ctx, &req)

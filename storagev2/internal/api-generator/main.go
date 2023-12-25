@@ -155,6 +155,8 @@ func generateApiClient(group *jen.Group) {
 		jen.Type().Id("Options").StructFunc(func(group *jen.Group) {
 			group.Add(jen.Id("OverwrittenBucketHosts").Qual(PackageNameRegion, "EndpointsProvider"))
 			group.Add(jen.Id("OverwrittenBucketName").String())
+			group.Add(jen.Id("OverwrittenEndpoints").Qual(PackageNameRegion, "EndpointsProvider"))
+			group.Add(jen.Id("OverwrittenRegion").Qual(PackageNameRegion, "RegionsProvider"))
 		}),
 	)
 }

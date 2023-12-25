@@ -72,10 +72,9 @@ func (storage *Storage) ResumableUploadV2InitiateMultipartUpload(ctx context.Con
 	pathSegments = append(pathSegments, "uploads")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: innerRequest.UpToken, BufferResponse: true}
-	var queryer region.BucketRegionsQueryer
-	if storage.client.GetRegions() == nil {
-		queryer = storage.client.GetBucketQueryer()
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, UpToken: innerRequest.UpToken, BufferResponse: true}
+	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
+		queryer := storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
@@ -92,30 +91,30 @@ func (storage *Storage) ResumableUploadV2InitiateMultipartUpload(ctx context.Con
 				return nil, err
 			}
 		}
-	}
-	if queryer != nil {
-		bucketName := options.OverwrittenBucketName
-		var accessKey string
-		var err error
-		if bucketName == "" {
-			if bucketName, err = innerRequest.getBucketName(ctx); err != nil {
-				return nil, err
-			}
-		}
-		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
-			return nil, err
-		}
-		if accessKey == "" {
-			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
+		if queryer != nil {
+			bucketName := options.OverwrittenBucketName
+			var accessKey string
+			var err error
+			if bucketName == "" {
+				if bucketName, err = innerRequest.getBucketName(ctx); err != nil {
 					return nil, err
-				} else if creds != nil {
-					accessKey = creds.AccessKey
 				}
 			}
-		}
-		if accessKey != "" && bucketName != "" {
-			req.Region = queryer.Query(accessKey, bucketName)
+			if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
+				return nil, err
+			}
+			if accessKey == "" {
+				if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
+					if creds, err := credentialsProvider.Get(ctx); err != nil {
+						return nil, err
+					} else if creds != nil {
+						accessKey = creds.AccessKey
+					}
+				}
+			}
+			if accessKey != "" && bucketName != "" {
+				req.Region = queryer.Query(accessKey, bucketName)
+			}
 		}
 	}
 	var respBody ResumableUploadV2InitiateMultipartUploadResponse
