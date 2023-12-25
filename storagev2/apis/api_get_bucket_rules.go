@@ -61,10 +61,9 @@ func (storage *Storage) GetBucketRules(ctx context.Context, request *GetBucketRu
 	} else {
 		rawQuery += query.Encode()
 	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true}
-	var queryer region.BucketRegionsQueryer
-	if storage.client.GetRegions() == nil {
-		queryer = storage.client.GetBucketQueryer()
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true}
+	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
+		queryer := storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			if options.OverwrittenBucketHosts != nil {
@@ -73,25 +72,25 @@ func (storage *Storage) GetBucketRules(ctx context.Context, request *GetBucketRu
 				req.Endpoints = bucketHosts
 			}
 		}
-	}
-	if queryer != nil {
-		bucketName := options.OverwrittenBucketName
-		var accessKey string
-		var err error
-		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
-			return nil, err
-		}
-		if accessKey == "" {
-			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
-					return nil, err
-				} else if creds != nil {
-					accessKey = creds.AccessKey
+		if queryer != nil {
+			bucketName := options.OverwrittenBucketName
+			var accessKey string
+			var err error
+			if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
+				return nil, err
+			}
+			if accessKey == "" {
+				if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
+					if creds, err := credentialsProvider.Get(ctx); err != nil {
+						return nil, err
+					} else if creds != nil {
+						accessKey = creds.AccessKey
+					}
 				}
 			}
-		}
-		if accessKey != "" && bucketName != "" {
-			req.Region = queryer.Query(accessKey, bucketName)
+			if accessKey != "" && bucketName != "" {
+				req.Region = queryer.Query(accessKey, bucketName)
+			}
 		}
 	}
 	var respBody GetBucketRulesResponse

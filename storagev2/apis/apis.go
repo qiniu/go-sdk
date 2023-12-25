@@ -21,4 +21,6 @@ func NewStorage(options *httpclient.HTTPClientOptions) *Storage {
 type Options struct {
 	OverwrittenBucketHosts region.EndpointsProvider
 	OverwrittenBucketName  string
+	OverwrittenEndpoints   region.EndpointsProvider
+	OverwrittenRegion      region.RegionsProvider
 }

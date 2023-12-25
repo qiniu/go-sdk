@@ -52,10 +52,9 @@ func (storage *Storage) AsyncFetchObject(ctx context.Context, request *AsyncFetc
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, RequestBody: body}
-	var queryer region.BucketRegionsQueryer
-	if storage.client.GetRegions() == nil {
-		queryer = storage.client.GetBucketQueryer()
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, RequestBody: body}
+	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
+		queryer := storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
@@ -72,30 +71,30 @@ func (storage *Storage) AsyncFetchObject(ctx context.Context, request *AsyncFetc
 				return nil, err
 			}
 		}
-	}
-	if queryer != nil {
-		bucketName := options.OverwrittenBucketName
-		var accessKey string
-		var err error
-		if bucketName == "" {
-			if bucketName, err = innerRequest.getBucketName(ctx); err != nil {
-				return nil, err
-			}
-		}
-		if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
-			return nil, err
-		}
-		if accessKey == "" {
-			if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
+		if queryer != nil {
+			bucketName := options.OverwrittenBucketName
+			var accessKey string
+			var err error
+			if bucketName == "" {
+				if bucketName, err = innerRequest.getBucketName(ctx); err != nil {
 					return nil, err
-				} else if creds != nil {
-					accessKey = creds.AccessKey
 				}
 			}
-		}
-		if accessKey != "" && bucketName != "" {
-			req.Region = queryer.Query(accessKey, bucketName)
+			if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
+				return nil, err
+			}
+			if accessKey == "" {
+				if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
+					if creds, err := credentialsProvider.Get(ctx); err != nil {
+						return nil, err
+					} else if creds != nil {
+						accessKey = creds.AccessKey
+					}
+				}
+			}
+			if accessKey != "" && bucketName != "" {
+				req.Region = queryer.Query(accessKey, bucketName)
+			}
 		}
 	}
 	var respBody AsyncFetchObjectResponse
