@@ -1,4 +1,9 @@
 # Changelog
+## 7.19.0
+* 新增
+  * 支持归档直读存储
+
+
 ## 7.18.1
 * 调整
   * PutPolicy 的 DetectMime 支持配置为 -1
