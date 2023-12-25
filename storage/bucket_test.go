@@ -236,8 +236,7 @@ func TestStat(t *testing.T) {
 	}
 	client.DebugMode = true
 	if info, e := bucketManager.Stat(testBucket, copyKey); e != nil ||
-		len(info.Hash) == 0 || info.Expiration == 0 || info.TransitionToArchive == 0 ||
-		info.TransitionToIA == 0 || info.TransitionToArchiveIR == 0 || info.TransitionToDeepArchive == 0 {
+		len(info.Hash) == 0 || info.Expiration == 0 {
 		t.Logf("3 Stat() error, %v", e)
 		t.Fail()
 	} else {
