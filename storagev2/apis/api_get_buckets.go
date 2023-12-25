@@ -60,7 +60,7 @@ func (storage *Storage) GetBuckets(ctx context.Context, request *GetBucketsReque
 	}
 	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true}
 	var queryer region.BucketRegionsQueryer
-	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+	if storage.client.GetRegions() == nil {
 		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()

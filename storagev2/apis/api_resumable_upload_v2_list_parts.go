@@ -95,7 +95,7 @@ func (storage *Storage) ResumableUploadV2ListParts(ctx context.Context, request 
 	}
 	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: innerRequest.UpToken, BufferResponse: true}
 	var queryer region.BucketRegionsQueryer
-	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+	if storage.client.GetRegions() == nil {
 		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()

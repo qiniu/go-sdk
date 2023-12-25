@@ -64,7 +64,7 @@ func (storage *Storage) BatchOps(ctx context.Context, request *BatchOpsRequest, 
 	}
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, RequestBody: httpclient.GetFormRequestBody(body)}
 	var queryer region.BucketRegionsQueryer
-	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+	if storage.client.GetRegions() == nil {
 		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
