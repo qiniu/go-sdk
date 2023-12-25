@@ -12,7 +12,7 @@ import (
 // 调用 API 所用的请求
 type Request struct {
 	BucketName       string           // 存储空间名称
-	ObjectName       string           // 对象名称
+	ObjectName       *string          // 对象名称
 	UploadId         string           // 在服务端申请的 Multipart Upload 任务 id
 	MaxParts         int64            // 响应中的最大分片数目。默认值：1000，最大值：1000
 	PartNumberMarker int64            // 指定列举的起始位置，只有 partNumber 值大于该参数的分片会被列出
@@ -35,10 +35,10 @@ type ListedPartInfo struct {
 	PutTime    int64  // 分片上传时间 UNIX 时间戳
 }
 type jsonListedPartInfo struct {
-	Size       int64  `json:"size"`       // 分片大小
-	Etag       string `json:"etag"`       // 分片内容的 etag
-	PartNumber int64  `json:"partNumber"` // 每一个上传的分片都有一个标识它的号码
-	PutTime    int64  `json:"putTime"`    // 分片上传时间 UNIX 时间戳
+	Size       int64  `json:"size,omitempty"` // 分片大小
+	Etag       string `json:"etag"`           // 分片内容的 etag
+	PartNumber int64  `json:"partNumber"`     // 每一个上传的分片都有一个标识它的号码
+	PutTime    int64  `json:"putTime"`        // 分片上传时间 UNIX 时间戳
 }
 
 func (j *ListedPartInfo) MarshalJSON() ([]byte, error) {
@@ -59,9 +59,6 @@ func (j *ListedPartInfo) UnmarshalJSON(data []byte) error {
 	return nil
 }
 func (j *ListedPartInfo) validate() error {
-	if j.Size == 0 {
-		return errors.MissingRequiredFieldError{Name: "Size"}
-	}
 	if j.Etag == "" {
 		return errors.MissingRequiredFieldError{Name: "Etag"}
 	}

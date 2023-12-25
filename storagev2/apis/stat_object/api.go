@@ -42,7 +42,7 @@ type PartSizes = []int64
 // 文件元信息
 type ObjectMetadata = Response
 type jsonResponse struct {
-	Size                        int64             `json:"fsize"`                             // 对象大小，单位为字节
+	Size                        int64             `json:"fsize,omitempty"`                   // 对象大小，单位为字节
 	Hash                        string            `json:"hash"`                              // 对象哈希值
 	MimeType                    string            `json:"mimeType"`                          // 对象 MIME 类型
 	Type                        int64             `json:"type"`                              // 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
@@ -90,9 +90,6 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	return nil
 }
 func (j *Response) validate() error {
-	if j.Size == 0 {
-		return errors.MissingRequiredFieldError{Name: "Size"}
-	}
 	if j.Hash == "" {
 		return errors.MissingRequiredFieldError{Name: "Hash"}
 	}

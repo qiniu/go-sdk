@@ -13,7 +13,7 @@ import (
 // 调用 API 所用的请求
 type Request struct {
 	BucketName string            // 存储空间名称
-	ObjectName string            // 对象名称
+	ObjectName *string           // 对象名称
 	UploadId   string            // 在服务端申请的 Multipart Upload 任务 id
 	PartNumber int64             // 每一个上传的分片都有一个标识它的号码
 	Md5        string            // 上传块内容的 md5 值，如果指定服务端会进行校验，不指定不校验

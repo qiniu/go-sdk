@@ -138,7 +138,7 @@ func (form *FormUrlencodedRequestStruct) generateField(group *jen.Group, field F
 	if field.Multiple {
 		code = code.Index()
 	}
-	code, err := field.Type.AddTypeToStatement(code)
+	code, err := field.Type.AddTypeToStatement(code, false)
 	if err != nil {
 		return err
 	}

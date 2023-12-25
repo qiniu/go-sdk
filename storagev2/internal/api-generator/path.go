@@ -52,7 +52,11 @@ func (fpp *FreePathParams) camelCaseName() string {
 
 func (pp *PathParams) addFields(group *jen.Group) error {
 	for _, namedPathParam := range pp.Named {
-		code, err := namedPathParam.Type.AddTypeToStatement(jen.Id(namedPathParam.camelCaseName()))
+		nilable := false
+		if namedPathParam.Encode.ToEncodeType() == EncodeTypeUrlsafeBase64OrNone {
+			nilable = true
+		}
+		code, err := namedPathParam.Type.AddTypeToStatement(jen.Id(namedPathParam.camelCaseName()), nilable)
 		if err != nil {
 			return err
 		}
@@ -138,7 +142,7 @@ func (pp *PathParams) addBuildFunc(group *jen.Group, structName string) error {
 				for _, namedPathParam := range pp.Named {
 					var (
 						code      jen.Code
-						isNone    bool
+						nilable   = false
 						fieldName = namedPathParam.camelCaseName()
 						field     = jen.Id("path").Dot(fieldName)
 					)
@@ -147,11 +151,11 @@ func (pp *PathParams) addBuildFunc(group *jen.Group, structName string) error {
 						switch namedPathParam.Encode.ToEncodeType() {
 						case EncodeTypeNone:
 							code = field.Clone()
-						case EncodeTypeUrlsafeBase64, EncodeTypeUrlsafeBase64OrNone:
+						case EncodeTypeUrlsafeBase64:
 							code = jen.Qual("encoding/base64", "URLEncoding").Dot("EncodeToString").Call(jen.Index().Byte().Parens(field.Clone()))
-							if namedPathParam.Encode.ToEncodeType() == EncodeTypeUrlsafeBase64OrNone {
-								isNone = true
-							}
+						case EncodeTypeUrlsafeBase64OrNone:
+							code = jen.Qual("encoding/base64", "URLEncoding").Dot("EncodeToString").Call(jen.Index().Byte().Parens(jen.Op("*").Add(field.Clone())))
+							nilable = true
 						}
 					case StringLikeTypeInteger, StringLikeTypeFloat, StringLikeTypeBoolean:
 						code, _ = namedPathParam.Type.GenerateConvertCodeToString(field)
@@ -165,7 +169,9 @@ func (pp *PathParams) addBuildFunc(group *jen.Group, structName string) error {
 						return
 					}
 					condition := field.Clone()
-					if v, ok := zeroValue.(bool); !ok || v {
+					if nilable {
+						condition = condition.Op("!=").Nil()
+					} else if v, ok := zeroValue.(bool); !ok || v {
 						condition = condition.Op("!=").Lit(zeroValue)
 					}
 					appendPathSegment := func(pathSegment string, value jen.Code) func(group *jen.Group) {
@@ -192,7 +198,7 @@ func (pp *PathParams) addBuildFunc(group *jen.Group, structName string) error {
 						}
 					}
 
-					if isNone {
+					if nilable {
 						group.Add(
 							jen.If(condition).
 								BlockFunc(appendPathSegment(namedPathParam.PathSegment, code)).

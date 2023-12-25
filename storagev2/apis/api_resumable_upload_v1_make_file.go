@@ -28,11 +28,7 @@ func (request *innerResumableUploadV1MakeFileRequest) getBucketName(ctx context.
 }
 func (path *innerResumableUploadV1MakeFileRequest) buildPath() ([]string, error) {
 	var allSegments []string
-	if path.Size != 0 {
-		allSegments = append(allSegments, strconv.FormatInt(path.Size, 10))
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "Size"}
-	}
+	allSegments = append(allSegments, strconv.FormatInt(path.Size, 10))
 	if path.ObjectName != "" {
 		allSegments = append(allSegments, "key", base64.URLEncoding.EncodeToString([]byte(path.ObjectName)))
 	}

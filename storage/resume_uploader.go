@@ -13,12 +13,15 @@ import (
 
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis"
+	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 )
 
 // ResumeUploader 表示一个分片上传的对象
 type ResumeUploader struct {
-	Client *client.Client
-	Cfg    *Config
+	Client  *client.Client
+	Cfg     *Config
+	storage *apis.Storage
 }
 
 // NewResumeUploader 表示构建一个新的分片上传的对象
@@ -39,6 +42,10 @@ func NewResumeUploaderEx(cfg *Config, clt *client.Client) *ResumeUploader {
 	return &ResumeUploader{
 		Client: clt,
 		Cfg:    cfg,
+		storage: apis.NewStorage(&http_client.HTTPClientOptions{
+			Client:              clt.Client,
+			UseInsecureProtocol: !cfg.UseHTTPS,
+		}),
 	}
 }
 
@@ -222,7 +229,7 @@ func (p *ResumeUploader) UpHost(ak, bucket string) (upHost string, err error) {
 }
 
 func (p *ResumeUploader) resumeUploaderAPIs() *resumeUploaderAPIs {
-	return &resumeUploaderAPIs{Client: p.Client, Cfg: p.Cfg}
+	return &resumeUploaderAPIs{Client: p.Client, Cfg: p.Cfg, storage: p.storage}
 }
 
 type (
@@ -230,6 +237,7 @@ type (
 	resumeUploaderImpl struct {
 		client         *client.Client
 		cfg            *Config
+		storage        *apis.Storage
 		key            string
 		hasKey         bool
 		upToken        string
@@ -268,16 +276,20 @@ func newResumeUploaderImpl(resumeUploader *ResumeUploader, key string, hasKey bo
 		hasKey:         hasKey,
 		upToken:        upToken,
 		upHostProvider: upHostProvider,
+		extra:          extra,
+		ret:            ret,
+		fileSize:       0,
+		fileInfo:       fileInfo,
+		recorderKey:    recorderKey,
+		storage: apis.NewStorage(&http_client.HTTPClientOptions{
+			Client:              resumeUploader.Client.Client,
+			UseInsecureProtocol: !resumeUploader.Cfg.UseHTTPS,
+		}),
 		bufPool: &sync.Pool{
 			New: func() interface{} {
 				return bytes.NewBuffer(make([]byte, 0, extra.ChunkSize))
 			},
 		},
-		extra:       extra,
-		ret:         ret,
-		fileSize:    0,
-		fileInfo:    fileInfo,
-		recorderKey: recorderKey,
 	}
 }
 
@@ -472,5 +484,5 @@ func (impl *resumeUploaderImpl) save(ctx context.Context) {
 }
 
 func (impl *resumeUploaderImpl) resumeUploaderAPIs() *resumeUploaderAPIs {
-	return &resumeUploaderAPIs{Client: impl.client, Cfg: impl.cfg}
+	return &resumeUploaderAPIs{Client: impl.client, Cfg: impl.cfg, storage: impl.storage}
 }
