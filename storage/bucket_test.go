@@ -983,7 +983,7 @@ func TestMakeURL(t *testing.T) {
 		"":            "",
 		"abc_def.mp4": "abc_def.mp4",
 		"/ab/cd":      "/ab/cd",
-		"ab/中文/de":    "ab/%E4%B8%AD%E6%96%87/de",
+		"ab/中文/de":  "ab/%E4%B8%AD%E6%96%87/de",
 		// "ab+-*de f":   "ab%2B-%2Ade%20f",
 		"ab:cd": "ab%3Acd",
 		// "ab@cd":            "ab%40cd",
