@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/qiniu/go-sdk/v7/auth"
 	"net/url"
 	"strconv"
+
+	"github.com/qiniu/go-sdk/v7/auth"
 )
 
 // ListItem 为文件列举的返回值
@@ -38,6 +39,7 @@ type ListItem struct {
 	 * 1 表示低频存储
 	 * 2 表示归档存储
 	 * 3 表示深度归档存储
+	 * 4 表示归档存储直读
 	 */
 	Type int `json:"type"`
 

@@ -72,6 +72,10 @@ func TestGet(t *testing.T) {
 		t.Logf("Get test error, %s", err)
 	}
 
+	defer func() {
+		resp.Close()
+	}()
+
 	body, err = io.ReadAll(resp.Body)
 	if err != nil {
 		t.Logf("Get test read body error, %s", err)

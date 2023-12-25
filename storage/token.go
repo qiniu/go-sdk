@@ -108,7 +108,7 @@ type PutPolicy struct {
 	// !application/json;text/plain 表示禁止上传 json 文本和纯文本。注意最前面的感叹号！
 	MimeLimit string `json:"mimeLimit,omitempty"`
 
-	// 资源的存储类型，0表示标准存储，1 表示低频存储，2 表示归档存储，3 表示深度归档存储。
+	// 资源的存储类型，0表示标准存储，1 表示低频存储，2 表示归档存储，3 表示深度归档存储，4 表示归档直读存储。
 	FileType int `json:"fileType,omitempty"`
 
 	CallbackFetchKey uint8 `json:"callbackFetchKey,omitempty"`
