@@ -23,7 +23,7 @@ jobs:
       - name: Run unit cases
         run: |
           set -e
-          GOPATH=$GITHUB_WORKSPACE go get github.com/qiniu/x
+          rm -rf $GITHUB_WORKSPACE/src/github.com/qiniu/x && git clone -b v1.12.21 --depth 1 https://github.com/qiniu/x.git $GITHUB_WORKSPACE/src/github.com/qiniu/x
           GOPATH=$GITHUB_WORKSPACE go get golang.org/x/sync/singleflight
           GOPATH=$GITHUB_WORKSPACE go get github.com/qiniu/dyn
 
