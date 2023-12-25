@@ -60,15 +60,18 @@ func TestHttpClient(t *testing.T) {
 	defer server_3.Close()
 
 	httpClient := NewHTTPClient(&HTTPClientOptions{
-		Endpoints: region.Endpoints{
-			Preferred:   []string{server_1.URL, server_2.URL},
-			Alternative: []string{server_3.URL},
+		Regions: &region.Region{
+			Api: region.Endpoints{
+				Preferred:   []string{server_1.URL, server_2.URL},
+				Alternative: []string{server_3.URL},
+			},
 		},
 	})
 	_, err := httpClient.Do(context.Background(), &Request{
-		Method:   http.MethodGet,
-		Path:     "/test",
-		RawQuery: "fakeRawQuery",
+		ServiceNames: []region.ServiceName{region.ServiceApi},
+		Method:       http.MethodGet,
+		Path:         "/test",
+		RawQuery:     "fakeRawQuery",
 		Query: url.Values{
 			"x-query-1": {"x-value-1"},
 			"x-query-2": {"x-value-2"},
@@ -109,8 +112,10 @@ func TestHttpClientJson(t *testing.T) {
 	defer server_1.Close()
 
 	httpClient := NewHTTPClient(&HTTPClientOptions{
-		Endpoints: region.Endpoints{
-			Preferred: []string{server_1.URL},
+		Regions: &region.Region{
+			Api: region.Endpoints{
+				Preferred: []string{server_1.URL},
+			},
 		},
 	})
 
@@ -119,9 +124,10 @@ func TestHttpClientJson(t *testing.T) {
 	}
 
 	err := httpClient.DoAndAcceptJSON(context.Background(), &Request{
-		Method:   http.MethodGet,
-		Path:     "/test",
-		RawQuery: "fakeRawQuery",
+		ServiceNames: []region.ServiceName{region.ServiceApi},
+		Method:       http.MethodGet,
+		Path:         "/test",
+		RawQuery:     "fakeRawQuery",
 		Query: url.Values{
 			"x-query-1": {"x-value-1"},
 			"x-query-2": {"x-value-2"},

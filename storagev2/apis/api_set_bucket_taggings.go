@@ -70,7 +70,7 @@ func (storage *Storage) SetBucketTaggings(ctx context.Context, request *SetBucke
 	}
 	req := httpclient.Request{Method: "PUT", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: body}
 	var queryer region.BucketRegionsQueryer
-	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+	if storage.client.GetRegions() == nil {
 		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()

@@ -72,7 +72,7 @@ func (storage *Storage) ResumableUploadV1MakeBlock(ctx context.Context, request 
 	}
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, UpToken: innerRequest.UpToken, BufferResponse: true, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(body)}
 	var queryer region.BucketRegionsQueryer
-	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+	if storage.client.GetRegions() == nil {
 		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()

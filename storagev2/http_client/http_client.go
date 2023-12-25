@@ -39,7 +39,6 @@ type (
 		useHttps           bool
 		client             Client
 		bucketQueryer      region.BucketRegionsQueryer
-		endpoints          region.EndpointsProvider
 		regions            region.RegionsProvider
 		credentials        credentials.CredentialsProvider
 		hostRetryConfig    *clientv2.RetryConfig
@@ -52,7 +51,6 @@ type (
 	HTTPClientOptions struct {
 		Client              Client
 		BucketQueryer       region.BucketRegionsQueryer
-		Endpoints           region.EndpointsProvider
 		Regions             region.RegionsProvider
 		Credentials         credentials.CredentialsProvider
 		Interceptors        []Interceptor
@@ -113,7 +111,6 @@ func NewHTTPClient(options *HTTPClientOptions) *HTTPClient {
 			client:             clientv2.NewClient(options.Client, options.Interceptors...),
 			useHttps:           !options.UseInsecureProtocol,
 			bucketQueryer:      options.BucketQueryer,
-			endpoints:          options.Endpoints,
 			regions:            options.Regions,
 			credentials:        options.Credentials,
 			hostRetryConfig:    options.HostRetryConfig,
@@ -174,10 +171,6 @@ func (httpClient *HTTPClient) GetCredentials() credentials.CredentialsProvider {
 	return httpClient.credentials
 }
 
-func (httpClient *HTTPClient) GetEndpoints() region.EndpointsProvider {
-	return httpClient.endpoints
-}
-
 func (httpClient *HTTPClient) GetRegions() region.RegionsProvider {
 	return httpClient.regions
 }
@@ -220,8 +213,6 @@ func (httpClient *HTTPClient) getEndpoints(ctx context.Context, request *Request
 		return getEndpointsFromEndpointsProvider(ctx, request.Endpoints)
 	} else if request.Region != nil && len(request.ServiceNames) > 0 {
 		return getEndpointsFromRegionsProvider(ctx, request.Region, request.ServiceNames)
-	} else if httpClient.endpoints != nil {
-		return getEndpointsFromEndpointsProvider(ctx, httpClient.endpoints)
 	} else if httpClient.regions != nil && len(request.ServiceNames) > 0 {
 		return getEndpointsFromRegionsProvider(ctx, httpClient.regions, request.ServiceNames)
 	}
@@ -360,11 +351,6 @@ func (opts *HTTPClientOptions) toBytes() []byte {
 	}
 	if opts.BucketQueryer != nil {
 		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(&opts.BucketQueryer))), 10)
-	} else {
-		bytes = strconv.AppendUint(bytes, 0, 10)
-	}
-	if opts.Endpoints != nil {
-		bytes = strconv.AppendUint(bytes, uint64(uintptr(unsafe.Pointer(&opts.Endpoints))), 10)
 	} else {
 		bytes = strconv.AppendUint(bytes, 0, 10)
 	}

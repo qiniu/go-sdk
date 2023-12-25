@@ -90,7 +90,7 @@ func (storage *Storage) PostObject(ctx context.Context, request *PostObjectReque
 	}
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, BufferResponse: true, RequestBody: httpclient.GetMultipartFormRequestBody(body)}
 	var queryer region.BucketRegionsQueryer
-	if storage.client.GetRegions() == nil && storage.client.GetEndpoints() == nil {
+	if storage.client.GetRegions() == nil {
 		queryer = storage.client.GetBucketQueryer()
 		if queryer == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()

@@ -296,8 +296,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 				group.Add(jen.Var().Id("queryer").Qual(PackageNameRegion, "BucketRegionsQueryer"))
 				group.Add(
 					jen.If(
-						jen.Id("storage").Dot("client").Dot("GetRegions").Call().Op("==").Nil().Op("&&").
-							Id("storage").Dot("client").Dot("GetEndpoints").Call().Op("==").Nil()).
+						jen.Id("storage").Dot("client").Dot("GetRegions").Call().Op("==").Nil()).
 						BlockFunc(func(group *jen.Group) {
 							group.Add(jen.Id("queryer").Op("=").Id("storage").Dot("client").Dot("GetBucketQueryer").Call())
 							group.Add(
