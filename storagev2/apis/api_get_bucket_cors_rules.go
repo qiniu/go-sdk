@@ -48,7 +48,7 @@ type GetBucketCORSRulesRequest = getbucketcorsrules.Request
 type GetBucketCORSRulesResponse = getbucketcorsrules.Response
 
 // 设置空间的跨域规则
-func (storage *Storage) GetBucketCORSRules(ctx context.Context, request *GetBucketCORSRulesRequest, options *Options) (response *GetBucketCORSRulesResponse, err error) {
+func (storage *Storage) GetBucketCORSRules(ctx context.Context, request *GetBucketCORSRulesRequest, options *Options) (*GetBucketCORSRulesResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

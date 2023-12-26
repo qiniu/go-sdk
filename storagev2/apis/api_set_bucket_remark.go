@@ -48,7 +48,7 @@ type SetBucketRemarkRequest = setbucketremark.Request
 type SetBucketRemarkResponse = setbucketremark.Response
 
 // 设置空间备注
-func (storage *Storage) SetBucketRemark(ctx context.Context, request *SetBucketRemarkRequest, options *Options) (response *SetBucketRemarkResponse, err error) {
+func (storage *Storage) SetBucketRemark(ctx context.Context, request *SetBucketRemarkRequest, options *Options) (*SetBucketRemarkResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

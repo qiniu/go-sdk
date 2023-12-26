@@ -73,7 +73,7 @@ type ResumableUploadV2ListPartsRequest = resumableuploadv2listparts.Request
 type ResumableUploadV2ListPartsResponse = resumableuploadv2listparts.Response
 
 // 列举出指定 UploadId 所属任务所有已经上传成功的分片
-func (storage *Storage) ResumableUploadV2ListParts(ctx context.Context, request *ResumableUploadV2ListPartsRequest, options *Options) (response *ResumableUploadV2ListPartsResponse, err error) {
+func (storage *Storage) ResumableUploadV2ListParts(ctx context.Context, request *ResumableUploadV2ListPartsRequest, options *Options) (*ResumableUploadV2ListPartsResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

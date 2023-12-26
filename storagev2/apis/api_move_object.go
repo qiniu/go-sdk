@@ -58,7 +58,7 @@ type MoveObjectRequest = moveobject.Request
 type MoveObjectResponse = moveobject.Response
 
 // 将源空间的指定对象移动到目标空间，或在同一空间内对对象重命名
-func (storage *Storage) MoveObject(ctx context.Context, request *MoveObjectRequest, options *Options) (response *MoveObjectResponse, err error) {
+func (storage *Storage) MoveObject(ctx context.Context, request *MoveObjectRequest, options *Options) (*MoveObjectResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

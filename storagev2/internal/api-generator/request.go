@@ -10,12 +10,13 @@ import (
 
 type (
 	ApiRequestDescription struct {
-		PathParams    *PathParams    `yaml:"path_params,omitempty"`
-		HeaderNames   HeaderNames    `yaml:"header_names,omitempty"`
-		QueryNames    QueryNames     `yaml:"query_names,omitempty"`
-		Body          *RequestBody   `yaml:"body,omitempty"`
-		Authorization *Authorization `yaml:"authorization,omitempty"`
-		Idempotent    *Idempotent    `yaml:"idempotent,omitempty"`
+		PathParams           *PathParams    `yaml:"path_params,omitempty"`
+		HeaderNames          HeaderNames    `yaml:"header_names,omitempty"`
+		QueryNames           QueryNames     `yaml:"query_names,omitempty"`
+		Body                 *RequestBody   `yaml:"body,omitempty"`
+		Authorization        *Authorization `yaml:"authorization,omitempty"`
+		Idempotent           *Idempotent    `yaml:"idempotent,omitempty"`
+		responseTypeRequired bool
 	}
 
 	RequestBody struct {
@@ -96,6 +97,9 @@ func (request *ApiRequestDescription) addFields(group *jen.Group) (err error) {
 		} else if body.BinaryData {
 			group.Add(jen.Id("Body").Qual(PackageNameInternalIo, "ReadSeekCloser").Comment("请求体"))
 		}
+	}
+	if request.responseTypeRequired {
+		group.Add(jen.Id("ResponseBody").Interface().Comment("响应体，如果为空，则 Response.Body 的类型由 encoding/json 库决定"))
 	}
 	return
 }

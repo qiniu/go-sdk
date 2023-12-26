@@ -74,7 +74,7 @@ type PostObjectRequest = postobject.Request
 type PostObjectResponse = postobject.Response
 
 // 在一次 HTTP 会话中上传单一的一个文件
-func (storage *Storage) PostObject(ctx context.Context, request *PostObjectRequest, options *Options) (response *PostObjectResponse, err error) {
+func (storage *Storage) PostObject(ctx context.Context, request *PostObjectRequest, options *Options) (*PostObjectResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -133,7 +133,7 @@ func (storage *Storage) PostObject(ctx context.Context, request *PostObjectReque
 			}
 		}
 	}
-	var respBody PostObjectResponse
+	respBody := PostObjectResponse{Body: innerRequest.ResponseBody}
 	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}

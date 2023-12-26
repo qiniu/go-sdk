@@ -46,7 +46,7 @@ type GetAsyncFetchTaskRequest = getasyncfetchtask.Request
 type GetAsyncFetchTaskResponse = getasyncfetchtask.Response
 
 // 查询异步抓取任务
-func (storage *Storage) GetAsyncFetchTask(ctx context.Context, request *GetAsyncFetchTaskRequest, options *Options) (response *GetAsyncFetchTaskResponse, err error) {
+func (storage *Storage) GetAsyncFetchTask(ctx context.Context, request *GetAsyncFetchTaskRequest, options *Options) (*GetAsyncFetchTaskResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

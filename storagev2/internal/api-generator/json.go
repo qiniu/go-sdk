@@ -220,17 +220,7 @@ func (jsonType *JsonType) addAnyJsonMarshalerUnmarshaler(group *jen.Group, struc
 			Params(jen.Id("data").Index().Byte()).
 			Params(jen.Error()).
 			BlockFunc(func(group *jen.Group) {
-				group.Add(jen.Var().Id("any").Interface())
-				group.Add(
-					jen.If(
-						jen.Err().Op(":=").Qual("encoding/json", "Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("any")),
-						jen.Err().Op("!=").Nil(),
-					).BlockFunc(func(group *jen.Group) {
-						group.Return(jen.Err())
-					}),
-				)
-				group.Add(jen.Id("j").Dot("Body").Op("=").Id("any"))
-				group.Add(jen.Return(jen.Nil()))
+				group.Return().Qual("encoding/json", "Unmarshal").Call(jen.Id("data"), jen.Op("&").Id("j").Dot("Body"))
 			}),
 	)
 	return

@@ -38,7 +38,7 @@ type AsyncFetchObjectRequest = asyncfetchobject.Request
 type AsyncFetchObjectResponse = asyncfetchobject.Response
 
 // 从指定 URL 抓取资源，并将该资源存储到指定空间中。每次只抓取一个文件，抓取时可以指定保存空间名和最终资源名
-func (storage *Storage) AsyncFetchObject(ctx context.Context, request *AsyncFetchObjectRequest, options *Options) (response *AsyncFetchObjectResponse, err error) {
+func (storage *Storage) AsyncFetchObject(ctx context.Context, request *AsyncFetchObjectRequest, options *Options) (*AsyncFetchObjectResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

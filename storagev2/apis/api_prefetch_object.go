@@ -49,7 +49,7 @@ type PrefetchObjectRequest = prefetchobject.Request
 type PrefetchObjectResponse = prefetchobject.Response
 
 // 对于设置了镜像存储的空间，从镜像源站抓取指定名称的对象并存储到该空间中，如果该空间中已存在该名称的对象，则会将镜像源站的对象覆盖空间中相同名称的对象
-func (storage *Storage) PrefetchObject(ctx context.Context, request *PrefetchObjectRequest, options *Options) (response *PrefetchObjectResponse, err error) {
+func (storage *Storage) PrefetchObject(ctx context.Context, request *PrefetchObjectRequest, options *Options) (*PrefetchObjectResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

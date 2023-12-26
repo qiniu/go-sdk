@@ -53,7 +53,7 @@ type SetBucketMaxAgeRequest = setbucketmaxage.Request
 type SetBucketMaxAgeResponse = setbucketmaxage.Response
 
 // 设置存储空间的 cache-control: max-age 响应头
-func (storage *Storage) SetBucketMaxAge(ctx context.Context, request *SetBucketMaxAgeRequest, options *Options) (response *SetBucketMaxAgeResponse, err error) {
+func (storage *Storage) SetBucketMaxAge(ctx context.Context, request *SetBucketMaxAgeRequest, options *Options) (*SetBucketMaxAgeResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

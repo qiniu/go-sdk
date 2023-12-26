@@ -46,7 +46,7 @@ type GetBucketRulesRequest = getbucketrules.Request
 type GetBucketRulesResponse = getbucketrules.Response
 
 // 获取空间规则
-func (storage *Storage) GetBucketRules(ctx context.Context, request *GetBucketRulesRequest, options *Options) (response *GetBucketRulesResponse, err error) {
+func (storage *Storage) GetBucketRules(ctx context.Context, request *GetBucketRulesRequest, options *Options) (*GetBucketRulesResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

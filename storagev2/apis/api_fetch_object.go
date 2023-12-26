@@ -57,7 +57,7 @@ type FetchObjectRequest = fetchobject.Request
 type FetchObjectResponse = fetchobject.Response
 
 // 从指定 URL 抓取指定名称的对象并存储到该空间中
-func (storage *Storage) FetchObject(ctx context.Context, request *FetchObjectRequest, options *Options) (response *FetchObjectResponse, err error) {
+func (storage *Storage) FetchObject(ctx context.Context, request *FetchObjectRequest, options *Options) (*FetchObjectResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

@@ -49,7 +49,7 @@ type SetBucketTaggingsRequest = setbuckettaggings.Request
 type SetBucketTaggingsResponse = setbuckettaggings.Response
 
 // 设置存储空间的标签列表，包括新增和修改
-func (storage *Storage) SetBucketTaggings(ctx context.Context, request *SetBucketTaggingsRequest, options *Options) (response *SetBucketTaggingsResponse, err error) {
+func (storage *Storage) SetBucketTaggings(ctx context.Context, request *SetBucketTaggingsRequest, options *Options) (*SetBucketTaggingsResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

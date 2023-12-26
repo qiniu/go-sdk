@@ -25,7 +25,7 @@ type Response struct {
 	Crc32     int64  // 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
 	Offset    int64  // 下一个上传块在切割块中的偏移
 	Host      string // 后续上传接收地址
-	ExpiredAt string // `ctx` 过期时间
+	ExpiredAt int64  // `ctx` 过期时间
 }
 
 // 返回下一片数据的上传信息
@@ -36,7 +36,7 @@ type jsonResponse struct {
 	Crc32     int64  `json:"crc32"`      // 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
 	Offset    int64  `json:"offset"`     // 下一个上传块在切割块中的偏移
 	Host      string `json:"host"`       // 后续上传接收地址
-	ExpiredAt string `json:"expired_at"` // `ctx` 过期时间
+	ExpiredAt int64  `json:"expired_at"` // `ctx` 过期时间
 }
 
 func (j *Response) MarshalJSON() ([]byte, error) {
@@ -74,7 +74,7 @@ func (j *Response) validate() error {
 	if j.Host == "" {
 		return errors.MissingRequiredFieldError{Name: "Host"}
 	}
-	if j.ExpiredAt == "" {
+	if j.ExpiredAt == 0 {
 		return errors.MissingRequiredFieldError{Name: "ExpiredAt"}
 	}
 	return nil

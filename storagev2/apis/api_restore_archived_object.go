@@ -55,7 +55,7 @@ type RestoreArchivedObjectRequest = restorearchivedobject.Request
 type RestoreArchivedObjectResponse = restorearchivedobject.Response
 
 // 解冻归档存储类型的文件，可设置解冻有效期1～7天，完成解冻任务通常需要1～5分钟
-func (storage *Storage) RestoreArchivedObject(ctx context.Context, request *RestoreArchivedObjectRequest, options *Options) (response *RestoreArchivedObjectResponse, err error) {
+func (storage *Storage) RestoreArchivedObject(ctx context.Context, request *RestoreArchivedObjectRequest, options *Options) (*RestoreArchivedObjectResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

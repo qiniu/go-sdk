@@ -61,7 +61,7 @@ type ResumableUploadV2AbortMultipartUploadRequest = resumableuploadv2abortmultip
 type ResumableUploadV2AbortMultipartUploadResponse = resumableuploadv2abortmultipartupload.Response
 
 // 根据 UploadId 终止 Multipart Upload
-func (storage *Storage) ResumableUploadV2AbortMultipartUpload(ctx context.Context, request *ResumableUploadV2AbortMultipartUploadRequest, options *Options) (response *ResumableUploadV2AbortMultipartUploadResponse, err error) {
+func (storage *Storage) ResumableUploadV2AbortMultipartUpload(ctx context.Context, request *ResumableUploadV2AbortMultipartUploadRequest, options *Options) (*ResumableUploadV2AbortMultipartUploadResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

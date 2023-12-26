@@ -73,7 +73,7 @@ type UpdateBucketRulesRequest = updatebucketrules.Request
 type UpdateBucketRulesResponse = updatebucketrules.Response
 
 // 更新空间规则
-func (storage *Storage) UpdateBucketRules(ctx context.Context, request *UpdateBucketRulesRequest, options *Options) (response *UpdateBucketRulesResponse, err error) {
+func (storage *Storage) UpdateBucketRules(ctx context.Context, request *UpdateBucketRulesRequest, options *Options) (*UpdateBucketRulesResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

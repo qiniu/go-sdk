@@ -53,7 +53,7 @@ type DeleteObjectAfterDaysRequest = deleteobjectafterdays.Request
 type DeleteObjectAfterDaysResponse = deleteobjectafterdays.Response
 
 // 更新文件生命周期
-func (storage *Storage) DeleteObjectAfterDays(ctx context.Context, request *DeleteObjectAfterDaysRequest, options *Options) (response *DeleteObjectAfterDaysResponse, err error) {
+func (storage *Storage) DeleteObjectAfterDays(ctx context.Context, request *DeleteObjectAfterDaysRequest, options *Options) (*DeleteObjectAfterDaysResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

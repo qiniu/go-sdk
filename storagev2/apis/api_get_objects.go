@@ -65,7 +65,7 @@ type GetObjectsRequest = getobjects.Request
 type GetObjectsResponse = getobjects.Response
 
 // 列举指定存储空间里的所有对象条目
-func (storage *Storage) GetObjects(ctx context.Context, request *GetObjectsRequest, options *Options) (response *GetObjectsResponse, err error) {
+func (storage *Storage) GetObjects(ctx context.Context, request *GetObjectsRequest, options *Options) (*GetObjectsResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

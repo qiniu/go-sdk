@@ -54,7 +54,7 @@ type DeleteBucketRulesRequest = deletebucketrules.Request
 type DeleteBucketRulesResponse = deletebucketrules.Response
 
 // 删除空间规则
-func (storage *Storage) DeleteBucketRules(ctx context.Context, request *DeleteBucketRulesRequest, options *Options) (response *DeleteBucketRulesResponse, err error) {
+func (storage *Storage) DeleteBucketRules(ctx context.Context, request *DeleteBucketRulesRequest, options *Options) (*DeleteBucketRulesResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

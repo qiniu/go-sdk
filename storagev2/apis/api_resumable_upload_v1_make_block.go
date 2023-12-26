@@ -51,7 +51,7 @@ type ResumableUploadV1MakeBlockRequest = resumableuploadv1makeblock.Request
 type ResumableUploadV1MakeBlockResponse = resumableuploadv1makeblock.Response
 
 // 为后续分片上传创建一个新的块，同时上传第一片数据
-func (storage *Storage) ResumableUploadV1MakeBlock(ctx context.Context, request *ResumableUploadV1MakeBlockRequest, options *Options) (response *ResumableUploadV1MakeBlockResponse, err error) {
+func (storage *Storage) ResumableUploadV1MakeBlock(ctx context.Context, request *ResumableUploadV1MakeBlockRequest, options *Options) (*ResumableUploadV1MakeBlockResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

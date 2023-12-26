@@ -65,7 +65,7 @@ type ResumableUploadV1MakeFileRequest = resumableuploadv1makefile.Request
 type ResumableUploadV1MakeFileResponse = resumableuploadv1makefile.Response
 
 // 将上传好的所有数据块按指定顺序合并成一个资源文件
-func (storage *Storage) ResumableUploadV1MakeFile(ctx context.Context, request *ResumableUploadV1MakeFileRequest, options *Options) (response *ResumableUploadV1MakeFileResponse, err error) {
+func (storage *Storage) ResumableUploadV1MakeFile(ctx context.Context, request *ResumableUploadV1MakeFileRequest, options *Options) (*ResumableUploadV1MakeFileResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -129,7 +129,7 @@ func (storage *Storage) ResumableUploadV1MakeFile(ctx context.Context, request *
 			}
 		}
 	}
-	var respBody ResumableUploadV1MakeFileResponse
+	respBody := ResumableUploadV1MakeFileResponse{Body: innerRequest.ResponseBody}
 	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}

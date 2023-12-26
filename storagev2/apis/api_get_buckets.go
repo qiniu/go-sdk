@@ -43,7 +43,7 @@ type GetBucketsRequest = getbuckets.Request
 type GetBucketsResponse = getbuckets.Response
 
 // 获取拥有的所有存储空间列表
-func (storage *Storage) GetBuckets(ctx context.Context, request *GetBucketsRequest, options *Options) (response *GetBucketsResponse, err error) {
+func (storage *Storage) GetBuckets(ctx context.Context, request *GetBucketsRequest, options *Options) (*GetBucketsResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

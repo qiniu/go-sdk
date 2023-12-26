@@ -59,7 +59,7 @@ type ModifyObjectMetadataRequest = modifyobjectmetadata.Request
 type ModifyObjectMetadataResponse = modifyobjectmetadata.Response
 
 // 修改文件元信息
-func (storage *Storage) ModifyObjectMetadata(ctx context.Context, request *ModifyObjectMetadataRequest, options *Options) (response *ModifyObjectMetadataResponse, err error) {
+func (storage *Storage) ModifyObjectMetadata(ctx context.Context, request *ModifyObjectMetadataRequest, options *Options) (*ModifyObjectMetadataResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

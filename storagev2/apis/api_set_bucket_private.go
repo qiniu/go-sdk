@@ -51,7 +51,7 @@ type SetBucketPrivateRequest = setbucketprivate.Request
 type SetBucketPrivateResponse = setbucketprivate.Response
 
 // 设置存储空间的访问权限
-func (storage *Storage) SetBucketPrivate(ctx context.Context, request *SetBucketPrivateRequest, options *Options) (response *SetBucketPrivateResponse, err error) {
+func (storage *Storage) SetBucketPrivate(ctx context.Context, request *SetBucketPrivateRequest, options *Options) (*SetBucketPrivateResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

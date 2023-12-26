@@ -71,7 +71,7 @@ type AddBucketRulesRequest = addbucketrules.Request
 type AddBucketRulesResponse = addbucketrules.Response
 
 // 增加空间规则
-func (storage *Storage) AddBucketRules(ctx context.Context, request *AddBucketRulesRequest, options *Options) (response *AddBucketRulesResponse, err error) {
+func (storage *Storage) AddBucketRules(ctx context.Context, request *AddBucketRulesRequest, options *Options) (*AddBucketRulesResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

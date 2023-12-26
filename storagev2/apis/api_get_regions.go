@@ -35,7 +35,7 @@ type GetRegionsRequest = getregions.Request
 type GetRegionsResponse = getregions.Response
 
 // 获取所有区域信息
-func (storage *Storage) GetRegions(ctx context.Context, request *GetRegionsRequest, options *Options) (response *GetRegionsResponse, err error) {
+func (storage *Storage) GetRegions(ctx context.Context, request *GetRegionsRequest, options *Options) (*GetRegionsResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

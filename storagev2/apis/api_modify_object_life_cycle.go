@@ -65,7 +65,7 @@ type ModifyObjectLifeCycleRequest = modifyobjectlifecycle.Request
 type ModifyObjectLifeCycleResponse = modifyobjectlifecycle.Response
 
 // 修改已上传对象的生命周期
-func (storage *Storage) ModifyObjectLifeCycle(ctx context.Context, request *ModifyObjectLifeCycleRequest, options *Options) (response *ModifyObjectLifeCycleResponse, err error) {
+func (storage *Storage) ModifyObjectLifeCycle(ctx context.Context, request *ModifyObjectLifeCycleRequest, options *Options) (*ModifyObjectLifeCycleResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

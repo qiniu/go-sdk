@@ -17,6 +17,7 @@ type Request struct {
 	File          io.ReadSeekCloser
 	File_FileName string
 	CustomData    map[string]string
+	ResponseBody  interface{} // 响应体，如果为空，则 Response.Body 的类型由 encoding/json 库决定
 }
 
 // 获取 API 所用的响应
@@ -28,10 +29,5 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	return json.Marshal(j.Body)
 }
 func (j *Response) UnmarshalJSON(data []byte) error {
-	var any interface{}
-	if err := json.Unmarshal(data, &any); err != nil {
-		return err
-	}
-	j.Body = any
-	return nil
+	return json.Unmarshal(data, &j.Body)
 }

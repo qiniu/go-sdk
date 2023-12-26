@@ -75,7 +75,7 @@ type ResumableUploadV2UploadPartRequest = resumableuploadv2uploadpart.Request
 type ResumableUploadV2UploadPartResponse = resumableuploadv2uploadpart.Response
 
 // 初始化一个 Multipart Upload 任务之后，可以根据指定的对象名称和 UploadId 来分片上传数据
-func (storage *Storage) ResumableUploadV2UploadPart(ctx context.Context, request *ResumableUploadV2UploadPartRequest, options *Options) (response *ResumableUploadV2UploadPartResponse, err error) {
+func (storage *Storage) ResumableUploadV2UploadPart(ctx context.Context, request *ResumableUploadV2UploadPartRequest, options *Options) (*ResumableUploadV2UploadPartResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}
