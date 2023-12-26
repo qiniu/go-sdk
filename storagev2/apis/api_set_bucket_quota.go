@@ -55,7 +55,7 @@ type SetBucketQuotaRequest = setbucketquota.Request
 type SetBucketQuotaResponse = setbucketquota.Response
 
 // 设置用户存储空间配额限制
-func (storage *Storage) SetBucketQuota(ctx context.Context, request *SetBucketQuotaRequest, options *Options) (response *SetBucketQuotaResponse, err error) {
+func (storage *Storage) SetBucketQuota(ctx context.Context, request *SetBucketQuotaRequest, options *Options) (*SetBucketQuotaResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

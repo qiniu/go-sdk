@@ -49,7 +49,7 @@ type DeleteBucketTaggingsRequest = deletebuckettaggings.Request
 type DeleteBucketTaggingsResponse = deletebuckettaggings.Response
 
 // 一键删除指定存储空间的所有标签
-func (storage *Storage) DeleteBucketTaggings(ctx context.Context, request *DeleteBucketTaggingsRequest, options *Options) (response *DeleteBucketTaggingsResponse, err error) {
+func (storage *Storage) DeleteBucketTaggings(ctx context.Context, request *DeleteBucketTaggingsRequest, options *Options) (*DeleteBucketTaggingsResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

@@ -36,6 +36,11 @@ func (options *CodeGeneratorOptions) camelCaseName() string {
 }
 
 func (description *ApiDetailedDescription) generateSubPackages(group *jen.Group, _ CodeGeneratorOptions) (err error) {
+	if body := description.Response.Body; body != nil {
+		if bodyJson := body.Json; bodyJson != nil && bodyJson.Any {
+			description.Request.responseTypeRequired = true
+		}
+	}
 	if err = description.Request.generate(group, CodeGeneratorOptions{
 		Name:                   "Request",
 		Documentation:          "调用 API 所用的请求",
@@ -84,8 +89,8 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 				jen.Id("options").Op("*").Id("Options"),
 			).
 			Params(
-				jen.Id("response").Op("*").Id(reexportedResponseStructName),
-				jen.Id("err").Error(),
+				jen.Op("*").Id(reexportedResponseStructName),
+				jen.Error(),
 			).
 			BlockFunc(func(group *jen.Group) {
 				group.Add(jen.If(jen.Id("options").Op("==").Nil()).BlockFunc(func(group *jen.Group) {
@@ -430,9 +435,11 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 				)
 				if body := description.Response.Body; body != nil {
 					if json := body.Json; json != nil {
-						group.Add(
-							jen.Var().Id("respBody").Id(reexportedResponseStructName),
-						)
+						if description.Request.responseTypeRequired {
+							group.Add(jen.Id("respBody").Op(":=").Id(reexportedResponseStructName).Values(jen.Id("Body").Op(":").Id("innerRequest").Dot("ResponseBody")))
+						} else {
+							group.Add(jen.Var().Id("respBody").Id(reexportedResponseStructName))
+						}
 						group.Add(
 							jen.If(
 								jen.Err().

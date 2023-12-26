@@ -49,7 +49,7 @@ type DeleteObjectRequest = deleteobject.Request
 type DeleteObjectResponse = deleteobject.Response
 
 // 删除指定对象
-func (storage *Storage) DeleteObject(ctx context.Context, request *DeleteObjectRequest, options *Options) (response *DeleteObjectResponse, err error) {
+func (storage *Storage) DeleteObject(ctx context.Context, request *DeleteObjectRequest, options *Options) (*DeleteObjectResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

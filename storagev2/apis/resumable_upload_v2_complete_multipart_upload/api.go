@@ -11,15 +11,16 @@ import (
 
 // 调用 API 所用的请求
 type Request struct {
-	BucketName string            // 存储空间名称
-	ObjectName string            // 对象名称
-	UploadId   string            // 在服务端申请的 Multipart Upload 任务 id
-	UpToken    uptoken.Provider  // 上传凭证，如果为空，则使用 HTTPClientOptions 中的 UpToken
-	Parts      Parts             // 已经上传的分片列表
-	FileName   string            // 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
-	MimeType   string            // 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
-	Metadata   map[string]string // 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
-	CustomVars map[string]string // 用户自定义变量
+	BucketName   string            // 存储空间名称
+	ObjectName   string            // 对象名称
+	UploadId     string            // 在服务端申请的 Multipart Upload 任务 id
+	UpToken      uptoken.Provider  // 上传凭证，如果为空，则使用 HTTPClientOptions 中的 UpToken
+	Parts        Parts             // 已经上传的分片列表
+	FileName     string            // 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
+	MimeType     string            // 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
+	Metadata     map[string]string // 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
+	CustomVars   map[string]string // 用户自定义变量
+	ResponseBody interface{}       // 响应体，如果为空，则 Response.Body 的类型由 encoding/json 库决定
 }
 
 // 单个分片信息
@@ -109,10 +110,5 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	return json.Marshal(j.Body)
 }
 func (j *Response) UnmarshalJSON(data []byte) error {
-	var any interface{}
-	if err := json.Unmarshal(data, &any); err != nil {
-		return err
-	}
-	j.Body = any
-	return nil
+	return json.Unmarshal(data, &j.Body)
 }

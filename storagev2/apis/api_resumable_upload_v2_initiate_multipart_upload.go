@@ -56,7 +56,7 @@ type ResumableUploadV2InitiateMultipartUploadRequest = resumableuploadv2initiate
 type ResumableUploadV2InitiateMultipartUploadResponse = resumableuploadv2initiatemultipartupload.Response
 
 // 使用 Multipart Upload 方式上传数据前，必须先调用 API 来获取一个全局唯一的 UploadId，后续的块数据通过 uploadPart API 上传，整个文件完成 completeMultipartUpload API，已经上传块的删除 abortMultipartUpload API 都依赖该 UploadId
-func (storage *Storage) ResumableUploadV2InitiateMultipartUpload(ctx context.Context, request *ResumableUploadV2InitiateMultipartUploadRequest, options *Options) (response *ResumableUploadV2InitiateMultipartUploadResponse, err error) {
+func (storage *Storage) ResumableUploadV2InitiateMultipartUpload(ctx context.Context, request *ResumableUploadV2InitiateMultipartUploadRequest, options *Options) (*ResumableUploadV2InitiateMultipartUploadResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

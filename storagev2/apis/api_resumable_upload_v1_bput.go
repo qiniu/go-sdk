@@ -52,7 +52,7 @@ type ResumableUploadV1BputRequest = resumableuploadv1bput.Request
 type ResumableUploadV1BputResponse = resumableuploadv1bput.Response
 
 // 上传指定块的一片数据，具体数据量可根据现场环境调整，同一块的每片数据必须串行上传
-func (storage *Storage) ResumableUploadV1Bput(ctx context.Context, request *ResumableUploadV1BputRequest, options *Options) (response *ResumableUploadV1BputResponse, err error) {
+func (storage *Storage) ResumableUploadV1Bput(ctx context.Context, request *ResumableUploadV1BputRequest, options *Options) (*ResumableUploadV1BputResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

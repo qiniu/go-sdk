@@ -59,7 +59,7 @@ type SetBucketsMirrorRequest = setbucketsmirror.Request
 type SetBucketsMirrorResponse = setbucketsmirror.Response
 
 // 设置存储空间的镜像源
-func (storage *Storage) SetBucketsMirror(ctx context.Context, request *SetBucketsMirrorRequest, options *Options) (response *SetBucketsMirrorResponse, err error) {
+func (storage *Storage) SetBucketsMirror(ctx context.Context, request *SetBucketsMirrorRequest, options *Options) (*SetBucketsMirrorResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

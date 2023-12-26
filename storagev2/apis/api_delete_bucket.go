@@ -48,7 +48,7 @@ type DeleteBucketRequest = deletebucket.Request
 type DeleteBucketResponse = deletebucket.Response
 
 // 删除指定的存储空间
-func (storage *Storage) DeleteBucket(ctx context.Context, request *DeleteBucketRequest, options *Options) (response *DeleteBucketResponse, err error) {
+func (storage *Storage) DeleteBucket(ctx context.Context, request *DeleteBucketRequest, options *Options) (*DeleteBucketResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

@@ -49,7 +49,7 @@ type GetDomainsRequest = getdomains.Request
 type GetDomainsResponse = getdomains.Response
 
 // 获取存储空间的域名列表
-func (storage *Storage) GetDomains(ctx context.Context, request *GetDomainsRequest, options *Options) (response *GetDomainsResponse, err error) {
+func (storage *Storage) GetDomains(ctx context.Context, request *GetDomainsRequest, options *Options) (*GetDomainsResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

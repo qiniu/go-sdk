@@ -61,7 +61,7 @@ type ResumableUploadV2CompleteMultipartUploadRequest = resumableuploadv2complete
 type ResumableUploadV2CompleteMultipartUploadResponse = resumableuploadv2completemultipartupload.Response
 
 // 在将所有数据分片都上传完成后，必须调用 completeMultipartUpload API 来完成整个文件的 Multipart Upload。用户需要提供有效数据的分片列表（包括 PartNumber 和调用 uploadPart API 服务端返回的 Etag）。服务端收到用户提交的分片列表后，会逐一验证每个数据分片的有效性。当所有的数据分片验证通过后，会把这些数据分片组合成一个完整的对象
-func (storage *Storage) ResumableUploadV2CompleteMultipartUpload(ctx context.Context, request *ResumableUploadV2CompleteMultipartUploadRequest, options *Options) (response *ResumableUploadV2CompleteMultipartUploadResponse, err error) {
+func (storage *Storage) ResumableUploadV2CompleteMultipartUpload(ctx context.Context, request *ResumableUploadV2CompleteMultipartUploadRequest, options *Options) (*ResumableUploadV2CompleteMultipartUploadResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}
@@ -125,7 +125,7 @@ func (storage *Storage) ResumableUploadV2CompleteMultipartUpload(ctx context.Con
 			}
 		}
 	}
-	var respBody ResumableUploadV2CompleteMultipartUploadResponse
+	respBody := ResumableUploadV2CompleteMultipartUploadResponse{Body: innerRequest.ResponseBody}
 	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}

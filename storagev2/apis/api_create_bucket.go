@@ -48,7 +48,7 @@ type CreateBucketRequest = createbucket.Request
 type CreateBucketResponse = createbucket.Response
 
 // 创建一个新的存储空间
-func (storage *Storage) CreateBucket(ctx context.Context, request *CreateBucketRequest, options *Options) (response *CreateBucketResponse, err error) {
+func (storage *Storage) CreateBucket(ctx context.Context, request *CreateBucketRequest, options *Options) (*CreateBucketResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

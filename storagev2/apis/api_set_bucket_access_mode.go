@@ -50,7 +50,7 @@ type SetBucketAccessModeRequest = setbucketaccessmode.Request
 type SetBucketAccessModeResponse = setbucketaccessmode.Response
 
 // 设置存储空间的原图保护
-func (storage *Storage) SetBucketAccessMode(ctx context.Context, request *SetBucketAccessModeRequest, options *Options) (response *SetBucketAccessModeResponse, err error) {
+func (storage *Storage) SetBucketAccessMode(ctx context.Context, request *SetBucketAccessModeRequest, options *Options) (*SetBucketAccessModeResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

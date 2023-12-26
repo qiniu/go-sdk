@@ -58,7 +58,7 @@ type CopyObjectRequest = copyobject.Request
 type CopyObjectResponse = copyobject.Response
 
 // 将源空间的指定对象复制到目标空间
-func (storage *Storage) CopyObject(ctx context.Context, request *CopyObjectRequest, options *Options) (response *CopyObjectResponse, err error) {
+func (storage *Storage) CopyObject(ctx context.Context, request *CopyObjectRequest, options *Options) (*CopyObjectResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

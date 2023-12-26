@@ -48,7 +48,7 @@ type BatchOpsRequest = batchops.Request
 type BatchOpsResponse = batchops.Response
 
 // 批量操作意指在单一请求中执行多次（最大限制1000次） 查询元信息、修改元信息、移动、复制、删除、修改状态、修改存储类型、修改生命周期和解冻操作，极大提高对象管理效率。其中，解冻操作仅针对归档存储文件有效
-func (storage *Storage) BatchOps(ctx context.Context, request *BatchOpsRequest, options *Options) (response *BatchOpsResponse, err error) {
+func (storage *Storage) BatchOps(ctx context.Context, request *BatchOpsRequest, options *Options) (*BatchOpsResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

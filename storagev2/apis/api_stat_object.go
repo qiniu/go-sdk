@@ -58,7 +58,7 @@ type StatObjectRequest = statobject.Request
 type StatObjectResponse = statobject.Response
 
 // 仅获取对象的元信息，不返回对象的内容
-func (storage *Storage) StatObject(ctx context.Context, request *StatObjectRequest, options *Options) (response *StatObjectResponse, err error) {
+func (storage *Storage) StatObject(ctx context.Context, request *StatObjectRequest, options *Options) (*StatObjectResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

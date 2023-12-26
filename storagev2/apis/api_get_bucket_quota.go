@@ -48,7 +48,7 @@ type GetBucketQuotaRequest = getbucketquota.Request
 type GetBucketQuotaResponse = getbucketquota.Response
 
 // 获取用户存储空间配额限制
-func (storage *Storage) GetBucketQuota(ctx context.Context, request *GetBucketQuotaRequest, options *Options) (response *GetBucketQuotaResponse, err error) {
+func (storage *Storage) GetBucketQuota(ctx context.Context, request *GetBucketQuotaRequest, options *Options) (*GetBucketQuotaResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

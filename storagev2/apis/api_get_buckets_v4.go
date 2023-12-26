@@ -50,7 +50,7 @@ type GetBucketsV4Request = getbucketsv4.Request
 type GetBucketsV4Response = getbucketsv4.Response
 
 // 获取拥有的所有存储空间列表
-func (storage *Storage) GetBucketsV4(ctx context.Context, request *GetBucketsV4Request, options *Options) (response *GetBucketsV4Response, err error) {
+func (storage *Storage) GetBucketsV4(ctx context.Context, request *GetBucketsV4Request, options *Options) (*GetBucketsV4Response, error) {
 	if options == nil {
 		options = &Options{}
 	}

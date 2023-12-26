@@ -51,7 +51,7 @@ type ModifyObjectStatusRequest = modifyobjectstatus.Request
 type ModifyObjectStatusResponse = modifyobjectstatus.Response
 
 // 修改文件的存储状态，即禁用状态和启用状态间的的互相转换
-func (storage *Storage) ModifyObjectStatus(ctx context.Context, request *ModifyObjectStatusRequest, options *Options) (response *ModifyObjectStatusResponse, err error) {
+func (storage *Storage) ModifyObjectStatus(ctx context.Context, request *ModifyObjectStatusRequest, options *Options) (*ModifyObjectStatusResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

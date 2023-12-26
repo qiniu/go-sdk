@@ -49,7 +49,7 @@ type GetBucketTaggingsRequest = getbuckettaggings.Request
 type GetBucketTaggingsResponse = getbuckettaggings.Response
 
 // 查询指定的存储空间已设置的标签信息
-func (storage *Storage) GetBucketTaggings(ctx context.Context, request *GetBucketTaggingsRequest, options *Options) (response *GetBucketTaggingsResponse, err error) {
+func (storage *Storage) GetBucketTaggings(ctx context.Context, request *GetBucketTaggingsRequest, options *Options) (*GetBucketTaggingsResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}

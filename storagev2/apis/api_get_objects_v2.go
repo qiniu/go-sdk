@@ -65,7 +65,7 @@ type GetObjectsV2Request = getobjectsv2.Request
 type GetObjectsV2Response = getobjectsv2.Response
 
 // 列举指定存储空间里的所有对象条目
-func (storage *Storage) GetObjectsV2(ctx context.Context, request *GetObjectsV2Request, options *Options) (response *GetObjectsV2Response, err error) {
+func (storage *Storage) GetObjectsV2(ctx context.Context, request *GetObjectsV2Request, options *Options) (*GetObjectsV2Response, error) {
 	if options == nil {
 		options = &Options{}
 	}
