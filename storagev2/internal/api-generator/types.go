@@ -45,6 +45,7 @@ const (
 	OptionalTypeRequired  OptionalType = ""
 	OptionalTypeOmitEmpty OptionalType = "omitempty"
 	OptionalTypeKeepEmpty OptionalType = "keepempty"
+	OptionalTypeNullable  OptionalType = "nullable"
 
 	AuthorizationNone    Authorization = ""
 	AuthorizationQbox    Authorization = "Qbox"
@@ -193,16 +194,23 @@ func (t *MultipartFormDataType) ZeroValue() (interface{}, error) {
 	}
 }
 
-func (t *MultipartFormDataType) AddTypeToStatement(statement *jen.Statement) (*jen.Statement, error) {
+func (t *MultipartFormDataType) AddTypeToStatement(statement *jen.Statement, nilable bool) (*jen.Statement, error) {
+	statement = statement.Clone()
 	switch t.ToMultipartFormDataType() {
 	case MultipartFormDataTypeString:
-		return statement.Clone().String(), nil
+		if nilable {
+			statement = statement.Op("*")
+		}
+		return statement.String(), nil
 	case MultipartFormDataTypeInteger:
-		return statement.Clone().Int64(), nil
+		if nilable {
+			statement = statement.Op("*")
+		}
+		return statement.Int64(), nil
 	case MultipartFormDataTypeUploadToken:
-		return statement.Clone().Qual(PackageNameUpToken, "Provider"), nil
+		return statement.Qual(PackageNameUpToken, "Provider"), nil
 	case MultipartFormDataTypeBinaryData:
-		return statement.Clone().Qual(PackageNameInternalIo, "ReadSeekCloser"), nil
+		return statement.Qual(PackageNameInternalIo, "ReadSeekCloser"), nil
 	default:
 		return nil, errors.New("unknown type")
 	}
@@ -213,7 +221,7 @@ func (t *OptionalType) ToOptionalType() OptionalType {
 		return OptionalTypeRequired
 	}
 	switch *t {
-	case OptionalTypeRequired, OptionalTypeOmitEmpty, OptionalTypeKeepEmpty:
+	case OptionalTypeRequired, OptionalTypeOmitEmpty, OptionalTypeKeepEmpty, OptionalTypeNullable:
 		return *t
 	default:
 		panic(fmt.Sprintf("unknown OptionalType: %s", *t))

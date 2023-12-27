@@ -12,7 +12,7 @@ import (
 // 调用 API 所用的请求
 type Request struct {
 	Size         int64             // 对象大小
-	ObjectName   string            // 对象名称
+	ObjectName   *string           // 对象名称
 	FileName     string            // 文件名称，若未指定，则魔法变量中无法使用fname，ext，fprefix
 	MimeType     string            // 文件 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
 	CustomData   map[string]string // 自定义元数据（需要以 `x-qn-meta-` 作为前缀）或自定义变量（需要以 `x:` 作为前缀）

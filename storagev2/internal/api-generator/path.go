@@ -52,10 +52,7 @@ func (fpp *FreePathParams) camelCaseName() string {
 
 func (pp *PathParams) addFields(group *jen.Group) error {
 	for _, namedPathParam := range pp.Named {
-		nilable := false
-		if namedPathParam.Encode.ToEncodeType() == EncodeTypeUrlsafeBase64OrNone {
-			nilable = true
-		}
+		nilable := namedPathParam.Encode.ToEncodeType() == EncodeTypeUrlsafeBase64OrNone || namedPathParam.Optional.ToOptionalType() == OptionalTypeNullable
 		code, err := namedPathParam.Type.AddTypeToStatement(jen.Id(namedPathParam.camelCaseName()), nilable)
 		if err != nil {
 			return err
@@ -141,24 +138,26 @@ func (pp *PathParams) addBuildFunc(group *jen.Group, structName string) error {
 				group.Add(jen.Var().Id("allSegments").Index().Add(jen.String()))
 				for _, namedPathParam := range pp.Named {
 					var (
-						code      jen.Code
-						nilable   = false
-						fieldName = namedPathParam.camelCaseName()
-						field     = jen.Id("path").Dot(fieldName)
+						code                jen.Code
+						urlSafeBase64IsNone = namedPathParam.Encode.ToEncodeType() == EncodeTypeUrlsafeBase64OrNone
+						nilable             = urlSafeBase64IsNone || namedPathParam.Optional.ToOptionalType() == OptionalTypeNullable
+						fieldName           = namedPathParam.camelCaseName()
+						field               = jen.Id("path").Dot(fieldName)
+						unreferencedField   = field.Clone()
 					)
+					if nilable {
+						unreferencedField = jen.Op("*").Add(unreferencedField)
+					}
 					switch namedPathParam.Type.ToStringLikeType() {
 					case StringLikeTypeString:
 						switch namedPathParam.Encode.ToEncodeType() {
 						case EncodeTypeNone:
-							code = field.Clone()
-						case EncodeTypeUrlsafeBase64:
-							code = jen.Qual("encoding/base64", "URLEncoding").Dot("EncodeToString").Call(jen.Index().Byte().Parens(field.Clone()))
-						case EncodeTypeUrlsafeBase64OrNone:
-							code = jen.Qual("encoding/base64", "URLEncoding").Dot("EncodeToString").Call(jen.Index().Byte().Parens(jen.Op("*").Add(field.Clone())))
-							nilable = true
+							code = unreferencedField.Clone()
+						case EncodeTypeUrlsafeBase64, EncodeTypeUrlsafeBase64OrNone:
+							code = jen.Qual("encoding/base64", "URLEncoding").Dot("EncodeToString").Call(jen.Index().Byte().Parens(unreferencedField.Clone()))
 						}
 					case StringLikeTypeInteger, StringLikeTypeFloat, StringLikeTypeBoolean:
-						code, _ = namedPathParam.Type.GenerateConvertCodeToString(field)
+						code, _ = namedPathParam.Type.GenerateConvertCodeToString(unreferencedField.Clone())
 					default:
 						err = errors.New("unknown type")
 						return
@@ -198,7 +197,7 @@ func (pp *PathParams) addBuildFunc(group *jen.Group, structName string) error {
 						}
 					}
 
-					if nilable {
+					if urlSafeBase64IsNone {
 						group.Add(
 							jen.If(condition).
 								BlockFunc(appendPathSegment(namedPathParam.PathSegment, code)).
@@ -214,7 +213,7 @@ func (pp *PathParams) addBuildFunc(group *jen.Group, structName string) error {
 									Else().
 									BlockFunc(appendMissingRequiredFieldErrorFunc(fieldName)),
 							)
-						case OptionalTypeOmitEmpty:
+						case OptionalTypeOmitEmpty, OptionalTypeNullable:
 							group.Add(
 								jen.If(condition).
 									BlockFunc(appendPathSegment(namedPathParam.PathSegment, code)),

@@ -141,7 +141,7 @@ func (p *resumeUploaderAPIs) mkfile(ctx context.Context, upToken, upHost string,
 		ctx,
 		&apis.ResumableUploadV1MakeFileRequest{
 			Size:         fsize,
-			ObjectName:   key,
+			ObjectName:   makeKeyForUploading(key, hasKey),
 			MimeType:     extra.MimeType,
 			CustomData:   customData,
 			UpToken:      uptoken.NewParser(upToken),
@@ -164,7 +164,7 @@ func (p *resumeUploaderAPIs) initParts(ctx context.Context, upToken, upHost, buc
 		ctx,
 		&apis.ResumableUploadV2InitiateMultipartUploadRequest{
 			BucketName: bucket,
-			ObjectName: makeKeyForResumeUploadV2(key, hasKey),
+			ObjectName: makeKeyForUploading(key, hasKey),
 			UpToken:    uptoken.NewParser(upToken),
 		},
 		makeApiOptionsFromUpHost(upHost),
@@ -190,7 +190,7 @@ func (p *resumeUploaderAPIs) uploadParts(ctx context.Context, upToken, upHost, b
 		ctx,
 		&apis.ResumableUploadV2UploadPartRequest{
 			BucketName: bucket,
-			ObjectName: makeKeyForResumeUploadV2(key, hasKey),
+			ObjectName: makeKeyForUploading(key, hasKey),
 			UploadId:   uploadId,
 			PartNumber: partNumber,
 			Md5:        partMD5,
@@ -281,7 +281,7 @@ func (p *resumeUploaderAPIs) completeParts(ctx context.Context, upToken, upHost 
 		ctx,
 		&apis.ResumableUploadV2CompleteMultipartUploadRequest{
 			BucketName:   bucket,
-			ObjectName:   makeKeyForResumeUploadV2(key, hasKey),
+			ObjectName:   makeKeyForUploading(key, hasKey),
 			UploadId:     uploadId,
 			UpToken:      uptoken.NewParser(upToken),
 			Parts:        parts,
@@ -309,7 +309,7 @@ func makeApiOptionsFromUpHost(upHost string) *apis.Options {
 	}
 }
 
-func makeKeyForResumeUploadV2(key string, hasKey bool) *string {
+func makeKeyForUploading(key string, hasKey bool) *string {
 	if hasKey {
 		return &key
 	} else {

@@ -26,7 +26,11 @@ func (name *HeaderName) camelCaseName() string {
 
 func (names HeaderNames) addFields(group *jen.Group) error {
 	for _, headerName := range names {
-		code := jen.Id(headerName.camelCaseName()).String()
+		code := jen.Id(headerName.camelCaseName())
+		if headerName.Optional.ToOptionalType() == OptionalTypeNullable {
+			code = code.Op("*")
+		}
+		code = code.String()
 		if headerName.Documentation != "" {
 			code = code.Comment(headerName.Documentation)
 		}
@@ -52,7 +56,12 @@ func (names HeaderNames) addBuildFunc(group *jen.Group, structName string) error
 				)
 				for _, headerName := range names {
 					fieldName := headerName.camelCaseName()
-					cond := jen.Id("headers").Dot(fieldName).Op("!=").Lit("")
+					cond := jen.Id("headers").Dot(fieldName)
+					if headerName.Optional.ToOptionalType() == OptionalTypeNullable {
+						cond = cond.Op("!=").Nil()
+					} else {
+						cond = cond.Op("!=").Lit("")
+					}
 					setHeaderFunc := func(headerName, fieldName string) func(*jen.Group) {
 						return func(group *jen.Group) {
 							group.Add(jen.Id("allHeaders").Dot("Set").Call(jen.Lit(headerName), jen.Id("headers").Dot(fieldName)))
@@ -77,7 +86,7 @@ func (names HeaderNames) addBuildFunc(group *jen.Group, structName string) error
 								Else().
 								BlockFunc(appendMissingRequiredFieldErrorFunc(fieldName)),
 						)
-					case OptionalTypeOmitEmpty:
+					case OptionalTypeOmitEmpty, OptionalTypeNullable:
 						group.Add(
 							jen.If(cond).
 								BlockFunc(setHeaderFunc(headerName.HeaderName, fieldName)),
