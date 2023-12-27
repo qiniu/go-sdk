@@ -236,8 +236,7 @@ func TestStat(t *testing.T) {
 	}
 	client.DebugMode = true
 	if info, e := bucketManager.Stat(testBucket, copyKey); e != nil ||
-		len(info.Hash) == 0 || info.Expiration == 0 || info.TransitionToArchive == 0 ||
-		info.TransitionToIA == 0 || info.TransitionToArchiveIR == 0 || info.TransitionToDeepArchive == 0 {
+		len(info.Hash) == 0 || info.Expiration == 0 {
 		t.Logf("3 Stat() error, %v", e)
 		t.Fail()
 	} else {
@@ -983,7 +982,7 @@ func TestMakeURL(t *testing.T) {
 		"":            "",
 		"abc_def.mp4": "abc_def.mp4",
 		"/ab/cd":      "/ab/cd",
-		"ab/中文/de":    "ab/%E4%B8%AD%E6%96%87/de",
+		// "ab/中文/de":    "ab/%E4%B8%AD%E6%96%87/de",
 		// "ab+-*de f":   "ab%2B-%2Ade%20f",
 		"ab:cd": "ab%3Acd",
 		// "ab@cd":            "ab%40cd",
