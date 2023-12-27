@@ -65,13 +65,14 @@ func (jsonStruct *JsonStruct) camelCaseName() string {
 
 func (jsonStruct *JsonStruct) addFields(group *jen.Group, includesJsonTag bool) error {
 	for _, field := range jsonStruct.Fields {
-		code, err := field.Type.AddTypeToStatement(jen.Id(field.camelCaseName()))
+		code, err := field.Type.AddTypeToStatement(jen.Id(field.camelCaseName()), field.Optional.ToOptionalType() == OptionalTypeNullable)
 		if err != nil {
 			return err
 		}
 		if includesJsonTag {
 			jsonTag := field.Key
-			if field.Optional.ToOptionalType() == OptionalTypeOmitEmpty {
+			switch field.Optional.ToOptionalType() {
+			case OptionalTypeOmitEmpty, OptionalTypeNullable:
 				jsonTag += ",omitempty"
 			}
 			code = code.Tag(map[string]string{"json": jsonTag})
@@ -163,23 +164,26 @@ func (jsonType *JsonType) generateType(group *jen.Group, options CodeGeneratorOp
 	return otherWise()
 }
 
-func (jsonType *JsonType) AddTypeToStatement(statement *jen.Statement) (*jen.Statement, error) {
+func (jsonType *JsonType) AddTypeToStatement(statement *jen.Statement, nilable bool) (*jen.Statement, error) {
+	if nilable {
+		statement = statement.Op("*")
+	}
 	if jsonType.String {
-		return statement.Add(jen.String()), nil
+		return statement.String(), nil
 	} else if jsonType.Integer {
-		return statement.Add(jen.Int64()), nil
+		return statement.Int64(), nil
 	} else if jsonType.Float {
-		return statement.Add(jen.Float64()), nil
+		return statement.Float64(), nil
 	} else if jsonType.Boolean {
-		return statement.Add(jen.Bool()), nil
+		return statement.Bool(), nil
 	} else if jsonType.Any {
-		return statement.Add(jen.Interface()), nil
+		return statement.Interface(), nil
 	} else if jsonType.StringMap {
-		return statement.Add(jen.Map(jen.String()).String()), nil
+		return statement.Map(jen.String()).String(), nil
 	} else if jsonType.Array != nil {
-		return statement.Add(jen.Id(jsonType.Array.camelCaseName())), nil
+		return statement.Id(jsonType.Array.camelCaseName()), nil
 	} else if jsonType.Struct != nil {
-		return statement.Add(jen.Id(jsonType.Struct.camelCaseName())), nil
+		return statement.Id(jsonType.Struct.camelCaseName()), nil
 	} else {
 		return nil, errors.New("unknown type")
 	}
@@ -257,7 +261,7 @@ func (jsonArray *JsonArray) generate(group *jen.Group, options CodeGeneratorOpti
 		code = code.Op("=")
 	}
 	code = code.Index()
-	code, err = jsonArray.Type.AddTypeToStatement(code)
+	code, err = jsonArray.Type.AddTypeToStatement(code, false)
 	if err != nil {
 		return
 	}

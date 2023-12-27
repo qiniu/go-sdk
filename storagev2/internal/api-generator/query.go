@@ -121,9 +121,17 @@ func (names QueryNames) addBuildFunc(group *jen.Group, structName string) error 
 }
 
 func (names QueryNames) generateSetCall(group *jen.Group, queryName QueryName) error {
+	var (
+		valueConvertCode *jen.Statement
+		err              error
+	)
 	fieldName := queryName.camelCaseName()
 	field := jen.Id("query").Dot(fieldName)
-	valueConvertCode, err := queryName.QueryType.GenerateConvertCodeToString(field)
+	if queryName.Optional.ToOptionalType() == OptionalTypeNullable {
+		valueConvertCode, err = queryName.QueryType.GenerateConvertCodeToString(jen.Op("*").Add(field))
+	} else {
+		valueConvertCode, err = queryName.QueryType.GenerateConvertCodeToString(field)
+	}
 	if err != nil {
 		return err
 	}
@@ -133,7 +141,9 @@ func (names QueryNames) generateSetCall(group *jen.Group, queryName QueryName) e
 	}
 
 	condition := field.Clone()
-	if v, ok := zeroValue.(bool); !ok || v {
+	if queryName.Optional.ToOptionalType() == OptionalTypeNullable {
+		condition = condition.Op("!=").Nil()
+	} else if v, ok := zeroValue.(bool); !ok || v {
 		condition = condition.Op("!=").Lit(zeroValue)
 	}
 	setQueryFunc := func(queryName string, value jen.Code) func(group *jen.Group) {
@@ -158,7 +168,7 @@ func (names QueryNames) generateSetCall(group *jen.Group, queryName QueryName) e
 			BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)).
 			Else().
 			BlockFunc(appendMissingRequiredFieldErrorFunc(fieldName)))
-	case OptionalTypeOmitEmpty:
+	case OptionalTypeOmitEmpty, OptionalTypeNullable:
 		group.Add(jen.If(condition).
 			BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)))
 	case OptionalTypeKeepEmpty:

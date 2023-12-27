@@ -49,7 +49,7 @@ func (field *FreeMultipartFormFields) camelCaseName() string {
 func (mff *MultipartFormFields) addFields(group *jen.Group) error {
 	for _, named := range mff.Named {
 		fieldName := named.camelCaseName()
-		code, err := named.Type.AddTypeToStatement(jen.Id(fieldName))
+		code, err := named.Type.AddTypeToStatement(jen.Id(fieldName), named.Optional.ToOptionalType() == OptionalTypeNullable)
 		if err != nil {
 			return err
 		}
@@ -133,9 +133,11 @@ func (mff *MultipartFormFields) addBuildFunc(group *jen.Group, structName string
 						New(jen.Qual(PackageNameHTTPClient, "MultipartForm")),
 				)
 				for _, named := range mff.Named {
-					zeroValue, e := named.Type.ZeroValue()
-					if e != nil {
-						err = e
+					var zeroValue interface{}
+					if named.Optional.ToOptionalType() != OptionalTypeNullable {
+						zeroValue, err = named.Type.ZeroValue()
+					}
+					if err != nil {
 						return
 					}
 					fieldName := named.camelCaseName()
@@ -145,6 +147,9 @@ func (mff *MultipartFormFields) addBuildFunc(group *jen.Group, structName string
 						cond = field.Clone().Op("!=").Nil()
 					} else {
 						cond = field.Clone().Op("!=").Lit(zeroValue)
+					}
+					if named.Optional.ToOptionalType() == OptionalTypeNullable {
+						field = jen.Op("*").Add(field)
 					}
 					code := jen.If(cond).BlockFunc(func(group *jen.Group) {
 						switch named.Type.ToMultipartFormDataType() {

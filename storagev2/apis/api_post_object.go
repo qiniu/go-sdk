@@ -25,8 +25,8 @@ func (form *innerPostObjectRequest) getBucketName(ctx context.Context) (string, 
 }
 func (form *innerPostObjectRequest) build(ctx context.Context) (*httpclient.MultipartForm, error) {
 	multipartForm := new(httpclient.MultipartForm)
-	if form.ObjectName != "" {
-		multipartForm.SetValue("key", form.ObjectName)
+	if form.ObjectName != nil {
+		multipartForm.SetValue("key", *form.ObjectName)
 	}
 	if form.UploadToken != nil {
 		upToken, err := form.UploadToken.GetUpToken(ctx)

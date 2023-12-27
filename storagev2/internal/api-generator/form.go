@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/dave/jennifer/jen"
@@ -138,7 +139,7 @@ func (form *FormUrlencodedRequestStruct) generateField(group *jen.Group, field F
 	if field.Multiple {
 		code = code.Index()
 	}
-	code, err := field.Type.AddTypeToStatement(code, false)
+	code, err := field.Type.AddTypeToStatement(code, field.Optional.ToOptionalType() == OptionalTypeNullable)
 	if err != nil {
 		return err
 	}
@@ -150,10 +151,16 @@ func (form *FormUrlencodedRequestStruct) generateField(group *jen.Group, field F
 }
 
 func (form *FormUrlencodedRequestStruct) addSetCall(group *jen.Group, field FormUrlencodedRequestField, formVarName, formValuesVarName string) error {
-	var code *jen.Statement
+	var (
+		code, valueConvertCode *jen.Statement
+		err                    error
+	)
 	fieldName := field.camelCaseName()
 	if field.Multiple {
-		valueConvertCode, err := field.Type.GenerateConvertCodeToString(jen.Id("value"))
+		if field.Optional.ToOptionalType() != OptionalTypeRequired {
+			return errors.New("multiple field must be required")
+		}
+		valueConvertCode, err = field.Type.GenerateConvertCodeToString(jen.Id("value"))
 		if err != nil {
 			return err
 		}
@@ -167,7 +174,11 @@ func (form *FormUrlencodedRequestStruct) addSetCall(group *jen.Group, field Form
 			})
 	} else {
 		formField := jen.Id(formVarName).Dot(fieldName)
-		valueConvertCode, err := field.Type.GenerateConvertCodeToString(formField)
+		if field.Optional.ToOptionalType() == OptionalTypeNullable {
+			valueConvertCode, err = field.Type.GenerateConvertCodeToString(jen.Op("*").Add(formField))
+		} else {
+			valueConvertCode, err = field.Type.GenerateConvertCodeToString(formField)
+		}
 		if err != nil {
 			return err
 		}
@@ -176,11 +187,13 @@ func (form *FormUrlencodedRequestStruct) addSetCall(group *jen.Group, field Form
 			return err
 		}
 		condition := formField.Clone()
-		if v, ok := zeroValue.(bool); !ok || v {
+		if field.Optional.ToOptionalType() == OptionalTypeNullable {
+			condition = condition.Op("!=").Nil()
+		} else if v, ok := zeroValue.(bool); !ok || v {
 			condition = condition.Op("!=").Lit(zeroValue)
 		}
 		switch field.Optional.ToOptionalType() {
-		case OptionalTypeOmitEmpty, OptionalTypeRequired:
+		case OptionalTypeOmitEmpty, OptionalTypeRequired, OptionalTypeNullable:
 			code = jen.If(condition).BlockFunc(func(group *jen.Group) {
 				group.Add(jen.Id(formValuesVarName).Dot("Set").Call(jen.Lit(field.Key), valueConvertCode))
 			})

@@ -11,7 +11,7 @@ import (
 
 // 调用 API 所用的请求
 type Request struct {
-	ObjectName    string
+	ObjectName    *string
 	UploadToken   uptoken.Provider
 	Crc32         int64
 	File          io.ReadSeekCloser
