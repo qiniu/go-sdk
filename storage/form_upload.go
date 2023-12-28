@@ -78,14 +78,18 @@ func NewFormUploaderEx(cfg *Config, clt *client.Client) *FormUploader {
 	if clt == nil {
 		clt = &client.DefaultClient
 	}
+	opts := http_client.HTTPClientOptions{
+		Client:              clt.Client,
+		UseInsecureProtocol: !cfg.UseHTTPS,
+	}
+	if region := cfg.GetRegion(); region != nil {
+		opts.Regions = region
+	}
 
 	return &FormUploader{
-		Client: clt,
-		Cfg:    cfg,
-		storage: apis.NewStorage(&http_client.HTTPClientOptions{
-			Client:              clt.Client,
-			UseInsecureProtocol: !cfg.UseHTTPS,
-		}),
+		Client:  clt,
+		Cfg:     cfg,
+		storage: apis.NewStorage(&opts),
 	}
 }
 

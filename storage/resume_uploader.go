@@ -39,13 +39,18 @@ func NewResumeUploaderEx(cfg *Config, clt *client.Client) *ResumeUploader {
 		clt = &client.DefaultClient
 	}
 
+	opts := http_client.HTTPClientOptions{
+		Client:              clt.Client,
+		UseInsecureProtocol: !cfg.UseHTTPS,
+	}
+	if region := cfg.GetRegion(); region != nil {
+		opts.Regions = region
+	}
+
 	return &ResumeUploader{
-		Client: clt,
-		Cfg:    cfg,
-		storage: apis.NewStorage(&http_client.HTTPClientOptions{
-			Client:              clt.Client,
-			UseInsecureProtocol: !cfg.UseHTTPS,
-		}),
+		Client:  clt,
+		Cfg:     cfg,
+		storage: apis.NewStorage(&opts),
 	}
 }
 
@@ -269,6 +274,13 @@ type (
 )
 
 func newResumeUploaderImpl(resumeUploader *ResumeUploader, key string, hasKey bool, upToken string, upHostProvider hostprovider.HostProvider, fileInfo os.FileInfo, extra *RputExtra, ret interface{}, recorderKey string) *resumeUploaderImpl {
+	opts := http_client.HTTPClientOptions{
+		Client:              resumeUploader.Client.Client,
+		UseInsecureProtocol: !resumeUploader.Cfg.UseHTTPS,
+	}
+	if region := resumeUploader.Cfg.GetRegion(); region != nil {
+		opts.Regions = region
+	}
 	return &resumeUploaderImpl{
 		client:         resumeUploader.Client,
 		cfg:            resumeUploader.Cfg,
@@ -281,10 +293,7 @@ func newResumeUploaderImpl(resumeUploader *ResumeUploader, key string, hasKey bo
 		fileSize:       0,
 		fileInfo:       fileInfo,
 		recorderKey:    recorderKey,
-		storage: apis.NewStorage(&http_client.HTTPClientOptions{
-			Client:              resumeUploader.Client.Client,
-			UseInsecureProtocol: !resumeUploader.Cfg.UseHTTPS,
-		}),
+		storage:        apis.NewStorage(&opts),
 		bufPool: &sync.Pool{
 			New: func() interface{} {
 				return bytes.NewBuffer(make([]byte, 0, extra.ChunkSize))

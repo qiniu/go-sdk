@@ -250,6 +250,13 @@ type (
 )
 
 func newResumeUploaderV2Impl(resumeUploader *ResumeUploaderV2, bucket, key string, hasKey bool, upToken string, upHostProvider hostprovider.HostProvider, fileInfo os.FileInfo, extra *RputV2Extra, ret interface{}, recorderKey string) *resumeUploaderV2Impl {
+	opts := http_client.HTTPClientOptions{
+		Client:              resumeUploader.Client.Client,
+		UseInsecureProtocol: !resumeUploader.Cfg.UseHTTPS,
+	}
+	if region := resumeUploader.Cfg.GetRegion(); region != nil {
+		opts.Regions = region
+	}
 	return &resumeUploaderV2Impl{
 		client:         resumeUploader.Client,
 		cfg:            resumeUploader.Cfg,
@@ -262,10 +269,7 @@ func newResumeUploaderV2Impl(resumeUploader *ResumeUploaderV2, bucket, key strin
 		recorderKey:    recorderKey,
 		extra:          extra,
 		ret:            ret,
-		storage: apis.NewStorage(&http_client.HTTPClientOptions{
-			Client:              resumeUploader.Client.Client,
-			UseInsecureProtocol: !resumeUploader.Cfg.UseHTTPS,
-		}),
+		storage:        apis.NewStorage(&opts),
 		bufPool: &sync.Pool{
 			New: func() interface{} {
 				return bytes.NewBuffer(make([]byte, 0, extra.PartSize))
