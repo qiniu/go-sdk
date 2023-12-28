@@ -3,14 +3,9 @@ package storage
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"hash"
+	"errors"
 	"hash/crc32"
 	"io"
-	"io/ioutil"
-	"mime/multipart"
-	"net/http"
-	"net/textproto"
 	"os"
 	"path"
 	"path/filepath"
@@ -18,8 +13,10 @@ import (
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/client"
-	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis"
+	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	"github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
 
 // PutExtra 为表单上传的额外可选项
@@ -52,10 +49,6 @@ func (extra *PutExtra) init() {
 	}
 }
 
-func (extra *PutExtra) getUpHost(useHttps bool) string {
-	return hostAddSchemeIfNeeded(useHttps, extra.UpHost)
-}
-
 // PutRet 为七牛标准的上传回复内容。
 // 如果使用了上传回调或者自定义了returnBody，那么需要根据实际情况，自己自定义一个返回值结构体
 type PutRet struct {
@@ -66,20 +59,14 @@ type PutRet struct {
 
 // FormUploader 表示一个表单上传的对象
 type FormUploader struct {
-	Client *client.Client
-	Cfg    *Config
+	Client  *client.Client
+	Cfg     *Config
+	storage *apis.Storage
 }
 
 // NewFormUploader 用来构建一个表单上传的对象
 func NewFormUploader(cfg *Config) *FormUploader {
-	if cfg == nil {
-		cfg = &Config{}
-	}
-
-	return &FormUploader{
-		Client: &client.DefaultClient,
-		Cfg:    cfg,
-	}
+	return NewFormUploaderEx(cfg, nil)
 }
 
 // NewFormUploaderEx 用来构建一个表单上传的对象
@@ -95,6 +82,10 @@ func NewFormUploaderEx(cfg *Config, clt *client.Client) *FormUploader {
 	return &FormUploader{
 		Client: clt,
 		Cfg:    cfg,
+		storage: apis.NewStorage(&http_client.HTTPClientOptions{
+			Client:              clt.Client,
+			UseInsecureProtocol: !cfg.UseHTTPS,
+		}),
 	}
 }
 
@@ -170,7 +161,7 @@ func (p *FormUploader) Put(
 // extra   是上传的一些可选项。详细见 PutExtra 结构的描述。
 func (p *FormUploader) PutWithoutKey(
 	ctx context.Context, ret interface{}, uptoken string, data io.Reader, size int64, extra *PutExtra) (err error) {
-	err = p.put(ctx, ret, uptoken, "", false, data, size, extra, "filename")
+	err = p.put(ctx, ret, uptoken, "", false, data, size, extra, "")
 	return err
 }
 
@@ -200,147 +191,29 @@ func (p *FormUploader) put(
 
 func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upToken string,
 	key string, hasKey bool, data io.ReadSeeker, dataSize int64, extra *PutExtra, fileName string) error {
-
-	formFieldBuff := new(bytes.Buffer)
-	formWriter := multipart.NewWriter(formFieldBuff)
-	// 写入表单头、token、key、fileName 等信息
-	if wErr := writeMultipart(formWriter, upToken, key, hasKey, extra, fileName); wErr != nil {
-		return wErr
+	if fileName == "" {
+		fileName = "Untitled"
 	}
-
-	// 计算文件 crc32
-	crc32Hash := crc32.NewIEEE()
-	if _, cErr := io.Copy(crc32Hash, data); cErr != nil {
-		return cErr
-	}
-	crcReader := newCrc32Reader(formWriter.Boundary(), crc32Hash)
-	crcBytes, rErr := internal_io.ReadAll(crcReader)
-	if rErr != nil {
-		return rErr
-	}
-	crcReader = nil
-
-	// 表单写入文件 crc32
-	if _, wErr := formFieldBuff.Write(crcBytes); wErr != nil {
-		return wErr
-	}
-	crcBytes = nil
-
-	formHead := make(textproto.MIMEHeader)
-	formHead.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`,
-		escapeQuotes(fileName)))
-	if extra.MimeType != "" {
-		formHead.Set("Content-Type", extra.MimeType)
-	}
-	if _, cErr := formWriter.CreatePart(formHead); cErr != nil {
-		return cErr
-	}
-	formHead = nil
-
-	// 表单 Fields
-	formFieldData := formFieldBuff.Bytes()
-	formFieldBuff = nil
-
-	// 表单最后一行
-	formEndLine := []byte(fmt.Sprintf("\r\n--%s--\r\n", formWriter.Boundary()))
-
-	// 不再重新构造 formBody ，避免内存峰值问题
-	var formBodyLen int64 = -1
-	if dataSize >= 0 {
-		formBodyLen = int64(len(formFieldData)) + dataSize + int64(len(formEndLine))
-	}
-
-	progress := newUploadProgress(extra.OnProgress)
-	getBodyReader := func() (io.Reader, error) {
-		if _, err := data.Seek(0, io.SeekStart); err != nil {
-			return nil, err
-		}
-
-		var formReader = io.MultiReader(bytes.NewReader(formFieldData), data, bytes.NewReader(formEndLine))
-		if extra.OnProgress != nil {
-			formReader = &readerWithProgress{reader: formReader, fsize: formBodyLen, onProgress: progress.onProgress}
-		}
-		return formReader, nil
-	}
-	getBodyReadCloser := func() (io.ReadCloser, error) {
-		reader, err := getBodyReader()
-		if err != nil {
-			return nil, err
-		}
-		return ioutil.NopCloser(reader), nil
-	}
-
-	var err error
-	var hostProvider hostprovider.HostProvider = nil
-	if extra.UpHost != "" {
-		hostProvider = hostprovider.NewWithHosts([]string{extra.getUpHost(p.Cfg.UseHTTPS)})
-	} else {
-		hostProvider, err = p.getUpHostProviderFromUploadToken(upToken, extra)
-		if err != nil {
-			return err
-		}
-	}
-
-	// 上传
-	contentType := formWriter.FormDataContentType()
-	headers := http.Header{}
-	headers.Add("Content-Type", contentType)
-	err = doUploadAction(hostProvider, extra.TryTimes, extra.HostFreezeDuration, func(host string) error {
-		reader, gErr := getBodyReader()
-		if gErr != nil {
-			return gErr
-		}
-
-		return p.Client.CallWithBodyGetter(ctx, ret, "POST", host, headers, reader, getBodyReadCloser, formBodyLen)
-	})
-	if err != nil {
-		return err
-	}
+	var fileReader io.Reader = data
 	if extra.OnProgress != nil {
-		extra.OnProgress(formBodyLen, formBodyLen)
+		fileReader = &readerWithProgress{reader: data, fsize: dataSize, onProgress: extra.OnProgress}
 	}
 
-	return nil
-}
-
-func (p *FormUploader) getUpHostProviderFromUploadToken(upToken string, extra *PutExtra) (hostprovider.HostProvider, error) {
-	ak, bucket, err := getAkBucketFromUploadToken(upToken)
-	if err != nil {
-		return nil, err
+	request := apis.PostObjectRequest{
+		ObjectName:    makeKeyForUploading(key, hasKey),
+		UploadToken:   uptoken.NewParser(upToken),
+		File:          internal_io.MakeReadSeekCloserFromLimitedReader(fileReader, dataSize),
+		File_FileName: fileName,
+		CustomData:    makeCustomData(extra.Params),
+		ResponseBody:  ret,
 	}
-	return getUpHostProvider(p.Cfg, extra.TryTimes, extra.HostFreezeDuration, ak, bucket)
-}
-
-type crc32Reader struct {
-	h                hash.Hash32
-	boundary         string
-	r                io.Reader
-	inited           bool
-	nlDashBoundaryNl string
-	header           string
-	crc32PadLen      int64
-}
-
-func newCrc32Reader(boundary string, h hash.Hash32) *crc32Reader {
-	nlDashBoundaryNl := fmt.Sprintf("\r\n--%s\r\n", boundary)
-	header := `Content-Disposition: form-data; name="crc32"` + "\r\n\r\n"
-	return &crc32Reader{
-		h:                h,
-		boundary:         boundary,
-		nlDashBoundaryNl: nlDashBoundaryNl,
-		header:           header,
-		crc32PadLen:      10,
+	if crc32, ok, err := crc32FromReader(data); err != nil {
+		return err
+	} else if ok {
+		request.Crc32 = int64(crc32)
 	}
-}
-
-func (r *crc32Reader) Read(p []byte) (int, error) {
-	if !r.inited {
-		crc32Sum := r.h.Sum32()
-		crc32Line := r.nlDashBoundaryNl + r.header + fmt.Sprintf("%010d", crc32Sum) //padding crc32 results to 10 digits
-		r.r = strings.NewReader(crc32Line)
-		r.inited = true
-	}
-	return r.r.Read(p)
+	_, err := p.storage.PostObject(ctx, &request, makeApiOptionsFromUpHost(extra.UpHost))
+	return err
 }
 
 func (p *FormUploader) UpHost(ak, bucket string) (upHost string, err error) {
@@ -367,38 +240,43 @@ func (p *readerWithProgress) Read(b []byte) (n int, err error) {
 	return
 }
 
-func writeMultipart(writer *multipart.Writer, uptoken, key string, hasKey bool,
-	extra *PutExtra, fileName string) (err error) {
-
-	//token
-	if err = writer.WriteField("token", uptoken); err != nil {
-		return
-	}
-
-	//key
-	if hasKey {
-		if err = writer.WriteField("key", key); err != nil {
-			return
+func (p *readerWithProgress) Seek(offset int64, whence int) (int64, error) {
+	if seeker, ok := p.reader.(io.Seeker); ok {
+		pos, err := seeker.Seek(offset, whence)
+		if err != nil {
+			return pos, err
 		}
+		p.uploaded = pos
+		p.onProgress(p.fsize, p.uploaded)
+		return pos, nil
 	}
-
-	//extra.Params
-	if extra.Params != nil {
-		for k, v := range extra.Params {
-			if (strings.HasPrefix(k, "x:") || strings.HasPrefix(k, "x-qn-meta-")) && v != "" {
-				err = writer.WriteField(k, v)
-				if err != nil {
-					return
-				}
-			}
-		}
-	}
-
-	return err
+	return 0, errors.New("resource not support seek")
 }
 
-var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
+func makeCustomData(params map[string]string) map[string]string {
+	customData := make(map[string]string, len(params))
+	for k, v := range params {
+		if (strings.HasPrefix(k, "x:") || strings.HasPrefix(k, "x-qn-meta-")) && v != "" {
+			customData[k] = v
+		}
+	}
+	return customData
+}
 
-func escapeQuotes(s string) string {
-	return quoteEscaper.Replace(s)
+func crc32FromReader(r io.Reader) (uint32, bool, error) {
+	if readSeeker, ok := r.(io.ReadSeeker); ok {
+		_, err := readSeeker.Seek(0, io.SeekStart)
+		if err != nil {
+			return 0, false, err
+		}
+		hasher := crc32.NewIEEE()
+		if _, err = io.Copy(hasher, readSeeker); err != nil {
+			return 0, false, err
+		}
+		if _, err = readSeeker.Seek(0, io.SeekStart); err != nil {
+			return 0, false, err
+		}
+		return hasher.Sum32(), true, nil
+	}
+	return 0, false, nil
 }
