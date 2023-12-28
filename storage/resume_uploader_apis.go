@@ -127,12 +127,6 @@ func (p *resumeUploaderAPIs) mkfile(ctx context.Context, upToken, upHost string,
 	if extra == nil {
 		extra = &RputExtra{}
 	}
-	customData := make(map[string]string, len(extra.Params))
-	for k, v := range extra.Params {
-		if (strings.HasPrefix(k, "x:") || strings.HasPrefix(k, "x-qn-meta-")) && v != "" {
-			customData[k] = v
-		}
-	}
 	ctxs := make([]string, len(extra.Progresses))
 	for i, progress := range extra.Progresses {
 		ctxs[i] = progress.Ctx
@@ -143,7 +137,7 @@ func (p *resumeUploaderAPIs) mkfile(ctx context.Context, upToken, upHost string,
 			Size:         fsize,
 			ObjectName:   makeKeyForUploading(key, hasKey),
 			MimeType:     extra.MimeType,
-			CustomData:   customData,
+			CustomData:   makeCustomData(extra.Params),
 			UpToken:      uptoken.NewParser(upToken),
 			Body:         internal_io.MakeReadSeekCloserFromReader(strings.NewReader(strings.Join(ctxs, ","))),
 			ResponseBody: ret,
@@ -304,9 +298,12 @@ func (p *resumeUploaderAPIs) upHostProvider(ak, bucket string, retryMax int, hos
 }
 
 func makeApiOptionsFromUpHost(upHost string) *apis.Options {
-	return &apis.Options{
-		OverwrittenEndpoints: &region.Endpoints{Preferred: []string{upHost}},
+	if upHost != "" {
+		return &apis.Options{
+			OverwrittenEndpoints: &region.Endpoints{Preferred: []string{upHost}},
+		}
 	}
+	return nil
 }
 
 func makeKeyForUploading(key string, hasKey bool) *string {
