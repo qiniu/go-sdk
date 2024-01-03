@@ -12,7 +12,7 @@ import (
 )
 
 // ErrInvalidUpToken 非法的上传凭证
-var ErrInvalidUpToken = errors.New("invalid UpToken")
+var ErrInvalidUpToken = errors.New("invalid upToken")
 
 type (
 	// PutPolicyProvider 获取上传策略接口
@@ -106,8 +106,8 @@ func (parser *parser) GetPutPolicy(context.Context) (PutPolicy, error) {
 	if parser.putPolicy != nil {
 		return parser.putPolicy, nil
 	}
-	splits := parser.onceGetSplits()
-	if len(splits) != 3 {
+	splits, ok := parser.onceGetSplits()
+	if !ok {
 		return nil, ErrInvalidUpToken
 	}
 	putPolicyJson, err := base64.URLEncoding.DecodeString(splits[2])
@@ -122,20 +122,27 @@ func (parser *parser) GetAccessKey(context.Context) (string, error) {
 	if parser.accessKey != "" {
 		return parser.accessKey, nil
 	}
-	splits := parser.onceGetSplits()
-	if len(splits) != 3 {
+	splits, ok := parser.onceGetSplits()
+	if !ok {
 		return "", ErrInvalidUpToken
 	}
 	parser.accessKey = splits[0]
 	return parser.accessKey, nil
 }
 
-func (parser *parser) onceGetSplits() []string {
+func (parser *parser) onceGetSplits() ([]string, bool) {
 	if len(parser.splits) > 0 {
-		return parser.splits
+		return parser.splits, true
 	}
-	parser.splits = strings.SplitN(parser.upToken, ":", 3)
-	return parser.splits
+	splits := strings.Split(parser.upToken, ":")
+	if len(splits) == 5 && splits[0] == "" {
+		splits = splits[2:]
+	}
+	if len(splits) != 3 {
+		return nil, false
+	}
+	parser.splits = splits
+	return parser.splits, true
 }
 
 func (parser *parser) GetUpToken(context.Context) (string, error) {

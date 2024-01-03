@@ -25,9 +25,6 @@ func (r *readSeekCloserFromReader) Seek(offset int64, whence int) (int64, error)
 }
 
 func (r *readSeekCloserFromReader) Close() error {
-	if closer, ok := r.r.(io.Closer); ok {
-		return closer.Close()
-	}
 	return nil
 }
 
@@ -57,8 +54,5 @@ func (r *sizedReadSeekCloserFromReader) Seek(offset int64, whence int) (int64, e
 }
 
 func (r *sizedReadSeekCloserFromReader) Close() error {
-	if closer, ok := r.r.R.(io.Closer); ok {
-		return closer.Close()
-	}
 	return nil
 }
