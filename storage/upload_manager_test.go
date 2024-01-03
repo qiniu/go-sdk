@@ -112,14 +112,8 @@ func TestUploadManagerFormUpload(t *testing.T) {
 		Recorder:            nil,
 		PartSize:            0,
 	})
-	if err != nil {
-		t.Fatalf("form upload file error:%v", err)
-	}
-	if len(ret.Key) == 0 || len(ret.Hash) == 0 {
-		t.Fatal("form upload file error, key or hash is empty")
-	}
-	if len(ret.Foo) == 0 {
-		t.Fatal("form upload file error, foo is empty")
+	if err == nil {
+		t.Fatal("form upload: reader source should not support region backup")
 	}
 
 	// 上传 readerAt
