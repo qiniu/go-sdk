@@ -23,20 +23,20 @@ import (
 )
 
 type (
-	// BucketRegionsQueryer 空间区域查询器
-	BucketRegionsQueryer interface {
+	// BucketRegionsQuery 空间区域查询器
+	BucketRegionsQuery interface {
 		Query(accessKey, bucketName string) RegionsProvider
 	}
 
-	bucketRegionsQueryer struct {
+	bucketRegionsQuery struct {
 		bucketHosts Endpoints
 		cache       *cache.Cache
 		client      clientv2.Client
 		useHttps    bool
 	}
 
-	// BucketRegionsQueryer 空间区域查询器选项
-	BucketRegionsQueryerOptions struct {
+	// BucketRegionsQuery 空间区域查询器选项
+	BucketRegionsQueryOptions struct {
 		// 使用 HTTP 协议
 		UseInsecureProtocol bool
 
@@ -63,7 +63,7 @@ type (
 		accessKey  string
 		bucketName string
 		cacheKey   string
-		queryer    *bucketRegionsQueryer
+		query      *bucketRegionsQuery
 	}
 
 	v4QueryCacheValue struct {
@@ -96,14 +96,14 @@ type (
 const cacheFileName = "query_v4_01.cache.json"
 
 var (
-	queryerCaches     map[uint64]BucketRegionsQueryer
-	queryerCachesLock sync.Mutex
+	queryCaches     map[uint64]BucketRegionsQuery
+	queryCachesLock sync.Mutex
 )
 
-// NewBucketRegionsQueryer 创建空间区域查询器
-func NewBucketRegionsQueryer(bucketHosts Endpoints, opts *BucketRegionsQueryerOptions) (BucketRegionsQueryer, error) {
+// NewBucketRegionsQuery 创建空间区域查询器
+func NewBucketRegionsQuery(bucketHosts Endpoints, opts *BucketRegionsQueryOptions) (BucketRegionsQuery, error) {
 	if opts == nil {
-		opts = &BucketRegionsQueryerOptions{}
+		opts = &BucketRegionsQueryOptions{}
 	}
 	if opts.RetryMax <= 0 {
 		opts.RetryMax = 2
@@ -118,50 +118,50 @@ func NewBucketRegionsQueryer(bucketHosts Endpoints, opts *BucketRegionsQueryerOp
 		opts.PersistentDuration = time.Minute
 	}
 
-	crc64Value := calcBucketRegionsQueryerCrc64(bucketHosts, opts)
-	queryerCachesLock.Lock()
-	defer queryerCachesLock.Unlock()
+	crc64Value := calcBucketRegionsQueryCrc64(bucketHosts, opts)
+	queryCachesLock.Lock()
+	defer queryCachesLock.Unlock()
 
-	if queryerCaches == nil {
-		queryerCaches = make(map[uint64]BucketRegionsQueryer)
+	if queryCaches == nil {
+		queryCaches = make(map[uint64]BucketRegionsQuery)
 	}
 
-	if queryer, ok := queryerCaches[crc64Value]; ok {
-		return queryer, nil
+	if query, ok := queryCaches[crc64Value]; ok {
+		return query, nil
 	} else {
 		persistentCache, err := cache.NewPersistentCache(reflect.TypeOf(&v4QueryCacheValue{}), opts.PersistentFilePath, opts.CompactInterval, opts.PersistentDuration, func(err error) {
-			log.Warn(fmt.Sprintf("BucketRegionsQueryer persist error: %s", err))
+			log.Warn(fmt.Sprintf("BucketRegionsQuery persist error: %s", err))
 		})
 		if err != nil {
 			return nil, err
 		}
-		queryer = &bucketRegionsQueryer{
+		query = &bucketRegionsQuery{
 			bucketHosts: bucketHosts,
 			cache:       persistentCache,
 			client:      makeBucketQueryClient(opts.Client, bucketHosts, !opts.UseInsecureProtocol, opts.RetryMax, opts.HostFreezeDuration),
 			useHttps:    !opts.UseInsecureProtocol,
 		}
-		queryerCaches[crc64Value] = queryer
-		return queryer, nil
+		queryCaches[crc64Value] = query
+		return query, nil
 	}
 }
 
 // Query 查询空间区域，返回 region.RegionsProvider
-func (queryer *bucketRegionsQueryer) Query(accessKey, bucketName string) RegionsProvider {
+func (query *bucketRegionsQuery) Query(accessKey, bucketName string) RegionsProvider {
 	return &bucketRegionsProvider{
 		accessKey:  accessKey,
 		bucketName: bucketName,
-		queryer:    queryer,
-		cacheKey:   makeRegionCacheKey(accessKey, bucketName, queryer.bucketHosts),
+		query:      query,
+		cacheKey:   makeRegionCacheKey(accessKey, bucketName, query.bucketHosts),
 	}
 }
 
 func (provider *bucketRegionsProvider) GetRegions(ctx context.Context) ([]*Region, error) {
 	var err error
-	cacheValue, status := provider.queryer.cache.Get(provider.cacheKey, func() (cache.CacheValue, error) {
+	cacheValue, status := provider.query.cache.Get(provider.cacheKey, func() (cache.CacheValue, error) {
 		var ret v4QueryResponse
-		url := fmt.Sprintf("%s/v4/query?ak=%s&bucket=%s", provider.queryer.bucketHosts.firstUrl(provider.queryer.useHttps), provider.accessKey, provider.bucketName)
-		if err = clientv2.DoAndDecodeJsonResponse(provider.queryer.client, clientv2.RequestParams{
+		url := fmt.Sprintf("%s/v4/query?ak=%s&bucket=%s", provider.query.bucketHosts.firstUrl(provider.query.useHttps), provider.accessKey, provider.bucketName)
+		if err = clientv2.DoAndDecodeJsonResponse(provider.query.client, clientv2.RequestParams{
 			Context: ctx,
 			Method:  clientv2.RequestMethodGet,
 			Url:     url,
@@ -267,7 +267,7 @@ func makeBucketQueryClient(client clientv2.Client, bucketHosts Endpoints, useHtt
 	return clientv2.NewClient(client, is...)
 }
 
-func (opts *BucketRegionsQueryerOptions) toBytes() []byte {
+func (opts *BucketRegionsQueryOptions) toBytes() []byte {
 	bytes := make([]byte, 0, 1024)
 	bytes = strconv.AppendBool(bytes, opts.UseInsecureProtocol)
 	bytes = strconv.AppendInt(bytes, int64(opts.CompactInterval), 36)
@@ -284,7 +284,7 @@ func (opts *BucketRegionsQueryerOptions) toBytes() []byte {
 	return bytes
 }
 
-func calcBucketRegionsQueryerCrc64(bucketHosts Endpoints, opts *BucketRegionsQueryerOptions) uint64 {
+func calcBucketRegionsQueryCrc64(bucketHosts Endpoints, opts *BucketRegionsQueryOptions) uint64 {
 	hasher := crc64.New(crc64.MakeTable(crc64.ISO))
 	hasher.Write(bucketHosts.toBytes())
 	hasher.Write(opts.toBytes())

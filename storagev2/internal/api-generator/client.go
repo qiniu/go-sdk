@@ -306,9 +306,9 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							Id("options").Dot("OverwrittenRegion").Op("==").Nil().Op("&&").
 							Id("storage").Dot("client").Dot("GetRegions").Call().Op("==").Nil()).
 						BlockFunc(func(group *jen.Group) {
-							group.Add(jen.Id("queryer").Op(":=").Id("storage").Dot("client").Dot("GetBucketQueryer").Call())
+							group.Add(jen.Id("query").Op(":=").Id("storage").Dot("client").Dot("GetBucketQuery").Call())
 							group.Add(
-								jen.If(jen.Id("queryer").Op("==").Nil()).BlockFunc(func(group *jen.Group) {
+								jen.If(jen.Id("query").Op("==").Nil()).BlockFunc(func(group *jen.Group) {
 									group.Add(jen.Id("bucketHosts").Op(":=").Qual(PackageNameHTTPClient, "DefaultBucketHosts").Call())
 									if description.isBucketService() {
 										group.Add(
@@ -341,9 +341,9 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 											}),
 										)
 										group.Add(
-											jen.Id("queryerOptions").
+											jen.Id("queryOptions").
 												Op(":=").
-												Qual(PackageNameRegion, "BucketRegionsQueryerOptions").
+												Qual(PackageNameRegion, "BucketRegionsQueryOptions").
 												ValuesFunc(func(group *jen.Group) {
 													group.Add(jen.Id("UseInsecureProtocol").Op(":").Id("storage").Dot("client").Dot("UseInsecureProtocol").Call())
 													group.Add(jen.Id("HostFreezeDuration").Op(":").Id("storage").Dot("client").Dot("GetHostFreezeDuration").Call())
@@ -355,15 +355,15 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 												jen.Id("hostRetryConfig").Op(":=").Id("storage").Dot("client").Dot("GetHostRetryConfig").Call(),
 												jen.Id("hostRetryConfig").Op("!=").Nil(),
 											).BlockFunc(func(group *jen.Group) {
-												group.Id("queryerOptions").Dot("RetryMax").Op("=").Id("hostRetryConfig").Dot("RetryMax")
+												group.Id("queryOptions").Dot("RetryMax").Op("=").Id("hostRetryConfig").Dot("RetryMax")
 											}),
 										)
 										group.Add(
 											jen.If(
-												jen.List(jen.Id("queryer"), jen.Err()).
+												jen.List(jen.Id("query"), jen.Err()).
 													Op("=").
-													Qual(PackageNameRegion, "NewBucketRegionsQueryer").
-													Call(jen.Id("bucketHosts"), jen.Op("&").Id("queryerOptions")),
+													Qual(PackageNameRegion, "NewBucketRegionsQuery").
+													Call(jen.Id("bucketHosts"), jen.Op("&").Id("queryOptions")),
 												jen.Err().Op("!=").Nil(),
 											).BlockFunc(func(group *jen.Group) {
 												group.Add(jen.Return(jen.Nil(), jen.Err()))
@@ -373,7 +373,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 								}),
 							)
 							group.Add(
-								jen.If(jen.Id("queryer").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+								jen.If(jen.Id("query").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
 									group.Add(jen.Id("bucketName").Op(":=").Id("options").Dot("OverwrittenBucketName"))
 									group.Add(jen.Var().Id("accessKey").String())
 									group.Add(jen.Var().Err().Error())
@@ -426,7 +426,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 									group.Add(
 										jen.If(jen.Id("accessKey").Op("!=").Lit("").Op("&&").Id("bucketName").Op("!=").Lit("")).
 											BlockFunc(func(group *jen.Group) {
-												group.Id("req").Dot("Region").Op("=").Id("queryer").Dot("Query").Call(jen.Id("accessKey"), jen.Id("bucketName"))
+												group.Id("req").Dot("Region").Op("=").Id("query").Dot("Query").Call(jen.Id("accessKey"), jen.Id("bucketName"))
 											}),
 									)
 								}),

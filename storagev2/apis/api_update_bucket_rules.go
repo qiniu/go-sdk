@@ -89,8 +89,8 @@ func (storage *Storage) UpdateBucketRules(ctx context.Context, request *UpdateBu
 	}
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: httpclient.GetFormRequestBody(body)}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
-		queryer := storage.client.GetBucketQueryer()
-		if queryer == nil {
+		query := storage.client.GetBucketQuery()
+		if query == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			if options.OverwrittenBucketHosts != nil {
 				req.Endpoints = options.OverwrittenBucketHosts
@@ -98,7 +98,7 @@ func (storage *Storage) UpdateBucketRules(ctx context.Context, request *UpdateBu
 				req.Endpoints = bucketHosts
 			}
 		}
-		if queryer != nil {
+		if query != nil {
 			bucketName := options.OverwrittenBucketName
 			var accessKey string
 			var err error
@@ -120,7 +120,7 @@ func (storage *Storage) UpdateBucketRules(ctx context.Context, request *UpdateBu
 				}
 			}
 			if accessKey != "" && bucketName != "" {
-				req.Region = queryer.Query(accessKey, bucketName)
+				req.Region = query.Query(accessKey, bucketName)
 			}
 		}
 	}

@@ -34,7 +34,7 @@ type (
 	HTTPClient struct {
 		useHttps           bool
 		client             Client
-		bucketQueryer      region.BucketRegionsQueryer
+		bucketQuery        region.BucketRegionsQuery
 		regions            region.RegionsProvider
 		credentials        credentials.CredentialsProvider
 		hostRetryConfig    *clientv2.RetryConfig
@@ -46,7 +46,7 @@ type (
 	// HTTPClientOptions 为构建 HTTPClient 提供了可选参数
 	HTTPClientOptions struct {
 		Client              Client
-		BucketQueryer       region.BucketRegionsQueryer
+		BucketQuery         region.BucketRegionsQuery
 		Regions             region.RegionsProvider
 		Credentials         credentials.CredentialsProvider
 		Interceptors        []Interceptor
@@ -90,7 +90,7 @@ func NewHTTPClient(options *HTTPClientOptions) *HTTPClient {
 	return &HTTPClient{
 		client:             clientv2.NewClient(options.Client, options.Interceptors...),
 		useHttps:           !options.UseInsecureProtocol,
-		bucketQueryer:      options.BucketQueryer,
+		bucketQuery:        options.BucketQuery,
 		regions:            options.Regions,
 		credentials:        options.Credentials,
 		hostRetryConfig:    options.HostRetryConfig,
@@ -140,8 +140,8 @@ func (httpClient *HTTPClient) DoAndAcceptJSON(ctx context.Context, request *Requ
 	}
 }
 
-func (httpClient *HTTPClient) GetBucketQueryer() region.BucketRegionsQueryer {
-	return httpClient.bucketQueryer
+func (httpClient *HTTPClient) GetBucketQuery() region.BucketRegionsQuery {
+	return httpClient.bucketQuery
 }
 
 func (httpClient *HTTPClient) GetCredentials() credentials.CredentialsProvider {
@@ -275,7 +275,7 @@ func (httpClient *HTTPClient) generateUrl(request *Request, hostProvider hostpro
 }
 
 func (options *HTTPClientOptions) SetBucketHosts(bucketHosts region.Endpoints) (err error) {
-	options.BucketQueryer, err = region.NewBucketRegionsQueryer(bucketHosts, nil)
+	options.BucketQuery, err = region.NewBucketRegionsQuery(bucketHosts, nil)
 	return
 }
 
