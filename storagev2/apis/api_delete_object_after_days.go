@@ -27,9 +27,7 @@ func (path *innerDeleteObjectAfterDaysRequest) buildPath() ([]string, error) {
 	} else {
 		return nil, errors.MissingRequiredFieldError{Name: "Entry"}
 	}
-	if path.DeleteAfterDays != 0 {
-		allSegments = append(allSegments, strconv.FormatInt(path.DeleteAfterDays, 10))
-	}
+	allSegments = append(allSegments, strconv.FormatInt(path.DeleteAfterDays, 10))
 	return allSegments, nil
 }
 func (j *innerDeleteObjectAfterDaysRequest) MarshalJSON() ([]byte, error) {
