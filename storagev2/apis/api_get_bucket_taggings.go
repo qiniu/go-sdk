@@ -66,8 +66,8 @@ func (storage *Storage) GetBucketTaggings(ctx context.Context, request *GetBucke
 	}
 	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
-		queryer := storage.client.GetBucketQueryer()
-		if queryer == nil {
+		query := storage.client.GetBucketQuery()
+		if query == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			if options.OverwrittenBucketHosts != nil {
 				req.Endpoints = options.OverwrittenBucketHosts
@@ -75,7 +75,7 @@ func (storage *Storage) GetBucketTaggings(ctx context.Context, request *GetBucke
 				req.Endpoints = bucketHosts
 			}
 		}
-		if queryer != nil {
+		if query != nil {
 			bucketName := options.OverwrittenBucketName
 			var accessKey string
 			var err error
@@ -97,7 +97,7 @@ func (storage *Storage) GetBucketTaggings(ctx context.Context, request *GetBucke
 				}
 			}
 			if accessKey != "" && bucketName != "" {
-				req.Region = queryer.Query(accessKey, bucketName)
+				req.Region = query.Query(accessKey, bucketName)
 			}
 		}
 	}

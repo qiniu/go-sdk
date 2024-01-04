@@ -15,7 +15,7 @@ import (
 	"testing"
 )
 
-func TestBucketRegionsQueryer(t *testing.T) {
+func TestBucketRegionsQuery(t *testing.T) {
 	const accessKey = "fakeaccesskey"
 	const bucketName = "fakeBucketName"
 	var callCount uint64
@@ -42,14 +42,14 @@ func TestBucketRegionsQueryer(t *testing.T) {
 	defer os.Remove(cacheFile.Name())
 	defer cacheFile.Close()
 
-	queryer, err := NewBucketRegionsQueryer(Endpoints{Preferred: []string{server.URL}}, &BucketRegionsQueryerOptions{
+	query, err := NewBucketRegionsQuery(Endpoints{Preferred: []string{server.URL}}, &BucketRegionsQueryOptions{
 		PersistentFilePath: cacheFile.Name(),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 2; i++ {
-		regions, err := queryer.Query(accessKey, bucketName).GetRegions(context.Background())
+		regions, err := query.Query(accessKey, bucketName).GetRegions(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}

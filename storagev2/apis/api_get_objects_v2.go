@@ -82,8 +82,8 @@ func (storage *Storage) GetObjectsV2(ctx context.Context, request *GetObjectsV2R
 	}
 	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
-		queryer := storage.client.GetBucketQueryer()
-		if queryer == nil {
+		query := storage.client.GetBucketQuery()
+		if query == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
 			var err error
 			if options.OverwrittenBucketHosts != nil {
@@ -91,15 +91,15 @@ func (storage *Storage) GetObjectsV2(ctx context.Context, request *GetObjectsV2R
 					return nil, err
 				}
 			}
-			queryerOptions := region.BucketRegionsQueryerOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Client: storage.client.GetClient()}
+			queryOptions := region.BucketRegionsQueryOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Client: storage.client.GetClient()}
 			if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
-				queryerOptions.RetryMax = hostRetryConfig.RetryMax
+				queryOptions.RetryMax = hostRetryConfig.RetryMax
 			}
-			if queryer, err = region.NewBucketRegionsQueryer(bucketHosts, &queryerOptions); err != nil {
+			if query, err = region.NewBucketRegionsQuery(bucketHosts, &queryOptions); err != nil {
 				return nil, err
 			}
 		}
-		if queryer != nil {
+		if query != nil {
 			bucketName := options.OverwrittenBucketName
 			var accessKey string
 			var err error
@@ -121,7 +121,7 @@ func (storage *Storage) GetObjectsV2(ctx context.Context, request *GetObjectsV2R
 				}
 			}
 			if accessKey != "" && bucketName != "" {
-				req.Region = queryer.Query(accessKey, bucketName)
+				req.Region = query.Query(accessKey, bucketName)
 			}
 		}
 	}
