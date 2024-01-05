@@ -134,18 +134,18 @@ func generateApiClient(group *jen.Group) {
 	group.Add(jen.Comment("API 客户端"))
 	group.Add(
 		jen.Type().Id("Storage").StructFunc(func(group *jen.Group) {
-			group.Add(jen.Id("client").Op("*").Qual(PackageNameHTTPClient, "HTTPClient"))
+			group.Add(jen.Id("client").Op("*").Qual(PackageNameHTTPClient, "Client"))
 		}),
 	)
 	group.Add(jen.Comment("创建 API 客户端"))
 	group.Add(
 		jen.Func().
 			Id("NewStorage").
-			Params(jen.Id("options").Op("*").Qual(PackageNameHTTPClient, "HTTPClientOptions")).
+			Params(jen.Id("options").Op("*").Qual(PackageNameHTTPClient, "Options")).
 			Params(jen.Op("*").Id("Storage")).
 			BlockFunc(func(group *jen.Group) {
 				group.Return(jen.Op("&").Id("Storage").ValuesFunc(func(group *jen.Group) {
-					group.Add(jen.Id("client").Op(":").Qual(PackageNameHTTPClient, "NewHTTPClient").Call(jen.Id("options")))
+					group.Add(jen.Id("client").Op(":").Qual(PackageNameHTTPClient, "NewClient").Call(jen.Id("options")))
 				}))
 			}),
 	)

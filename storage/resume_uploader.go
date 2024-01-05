@@ -40,8 +40,8 @@ func NewResumeUploaderEx(cfg *Config, clt *client.Client) *ResumeUploader {
 		clt = &client.DefaultClient
 	}
 
-	opts := http_client.HTTPClientOptions{
-		Client:              clt.Client,
+	opts := http_client.Options{
+		BasicHTTPClient:     clt.Client,
 		UseInsecureProtocol: !cfg.UseHTTPS,
 	}
 	if region := cfg.GetRegion(); region != nil {
@@ -242,8 +242,8 @@ type (
 )
 
 func newResumeUploaderImpl(resumeUploader *ResumeUploader, key string, hasKey bool, upToken string, upEndpoints region.EndpointsProvider, fileInfo os.FileInfo, extra *RputExtra, ret interface{}, recorderKey string) *resumeUploaderImpl {
-	opts := http_client.HTTPClientOptions{
-		Client:              resumeUploader.Client.Client,
+	opts := http_client.Options{
+		BasicHTTPClient:     resumeUploader.Client.Client,
 		UseInsecureProtocol: !resumeUploader.Cfg.UseHTTPS,
 	}
 	if region := resumeUploader.Cfg.GetRegion(); region != nil {

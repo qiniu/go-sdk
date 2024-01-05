@@ -9,12 +9,12 @@ import (
 
 // API 客户端
 type Storage struct {
-	client *httpclient.HTTPClient
+	client *httpclient.Client
 }
 
 // 创建 API 客户端
-func NewStorage(options *httpclient.HTTPClientOptions) *Storage {
-	return &Storage{client: httpclient.NewHTTPClient(options)}
+func NewStorage(options *httpclient.Options) *Storage {
+	return &Storage{client: httpclient.NewClient(options)}
 }
 
 // API 客户端选项

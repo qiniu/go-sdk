@@ -347,7 +347,7 @@ func GetRegionsInfo(mac *auth.Credentials) ([]RegionInfo, error) {
 }
 
 func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]RegionInfo, error) {
-	response, err := apis.NewStorage(&http_client.HTTPClientOptions{
+	response, err := apis.NewStorage(&http_client.Options{
 		HostFreezeDuration: options.HostFreezeDuration,
 		HostRetryConfig: &clientv2.RetryConfig{
 			RetryMax: options.RetryMax,
