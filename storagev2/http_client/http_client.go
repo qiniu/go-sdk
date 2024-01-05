@@ -29,6 +29,8 @@ type (
 	Interceptor         = clientv2.Interceptor
 	Client              = clientv2.Client
 	GetRequestBody      = clientv2.GetRequestBody
+	RetryConfig         = clientv2.RetryConfig
+	Handler             = clientv2.Handler
 
 	// HTTPClient 提供了对七牛 HTTP 客户端
 	HTTPClient struct {
@@ -37,8 +39,8 @@ type (
 		bucketQuery        region.BucketRegionsQuery
 		regions            region.RegionsProvider
 		credentials        credentials.CredentialsProvider
-		hostRetryConfig    *clientv2.RetryConfig
-		hostsRetryConfig   *clientv2.RetryConfig
+		hostRetryConfig    *RetryConfig
+		hostsRetryConfig   *RetryConfig
 		hostFreezeDuration time.Duration
 		shouldFreezeHost   func(req *http.Request, resp *http.Response, err error) bool
 	}
@@ -51,8 +53,8 @@ type (
 		Credentials         credentials.CredentialsProvider
 		Interceptors        []Interceptor
 		UseInsecureProtocol bool
-		HostRetryConfig     *clientv2.RetryConfig
-		HostsRetryConfig    *clientv2.RetryConfig
+		HostRetryConfig     *RetryConfig
+		HostsRetryConfig    *RetryConfig
 		HostFreezeDuration  time.Duration
 		ShouldFreezeHost    func(req *http.Request, resp *http.Response, err error) bool
 	}
@@ -164,11 +166,11 @@ func (httpClient *HTTPClient) GetHostFreezeDuration() time.Duration {
 	return httpClient.hostFreezeDuration
 }
 
-func (httpClient *HTTPClient) GetHostRetryConfig() *clientv2.RetryConfig {
+func (httpClient *HTTPClient) GetHostRetryConfig() *RetryConfig {
 	return httpClient.hostRetryConfig
 }
 
-func (httpClient *HTTPClient) GetHostsRetryConfig() *clientv2.RetryConfig {
+func (httpClient *HTTPClient) GetHostsRetryConfig() *RetryConfig {
 	return httpClient.hostsRetryConfig
 }
 
@@ -210,7 +212,7 @@ func (httpClient *HTTPClient) makeReq(ctx context.Context, request *Request) (*h
 	interceptors := make([]Interceptor, 0, 2)
 	hostsRetryConfig := httpClient.hostsRetryConfig
 	if hostsRetryConfig == nil {
-		hostsRetryConfig = &clientv2.RetryConfig{
+		hostsRetryConfig = &RetryConfig{
 			RetryMax: len(endpoints.Preferred) + len(endpoints.Alternative),
 		}
 	}
