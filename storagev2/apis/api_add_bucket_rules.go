@@ -32,21 +32,11 @@ func (form *innerAddBucketRulesRequest) build() (url.Values, error) {
 		return nil, errors.MissingRequiredFieldError{Name: "Name"}
 	}
 	formValues.Set("prefix", form.Prefix)
-	if form.DeleteAfterDays != 0 {
-		formValues.Set("delete_after_days", strconv.FormatInt(form.DeleteAfterDays, 10))
-	}
-	if form.ToIaAfterDays != 0 {
-		formValues.Set("to_line_after_days", strconv.FormatInt(form.ToIaAfterDays, 10))
-	}
-	if form.ToArchiveAfterDays != 0 {
-		formValues.Set("to_archive_after_days", strconv.FormatInt(form.ToArchiveAfterDays, 10))
-	}
-	if form.ToDeepArchiveAfterDays != 0 {
-		formValues.Set("to_deep_archive_after_days", strconv.FormatInt(form.ToDeepArchiveAfterDays, 10))
-	}
-	if form.ToArchiveIrAfterDays != 0 {
-		formValues.Set("to_archive_ir_after_days", strconv.FormatInt(form.ToArchiveIrAfterDays, 10))
-	}
+	formValues.Set("delete_after_days", strconv.FormatInt(form.DeleteAfterDays, 10))
+	formValues.Set("to_line_after_days", strconv.FormatInt(form.ToIaAfterDays, 10))
+	formValues.Set("to_archive_after_days", strconv.FormatInt(form.ToArchiveAfterDays, 10))
+	formValues.Set("to_deep_archive_after_days", strconv.FormatInt(form.ToDeepArchiveAfterDays, 10))
+	formValues.Set("to_archive_ir_after_days", strconv.FormatInt(form.ToArchiveIrAfterDays, 10))
 	return formValues, nil
 }
 func (request *innerAddBucketRulesRequest) getAccessKey(ctx context.Context) (string, error) {
