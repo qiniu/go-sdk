@@ -59,7 +59,7 @@ func TestHttpClient(t *testing.T) {
 	server_3 := httptest.NewServer(mux_3)
 	defer server_3.Close()
 
-	httpClient := NewHTTPClient(&HTTPClientOptions{
+	httpClient := NewClient(&Options{
 		Regions: &region.Region{
 			Api: region.Endpoints{
 				Preferred:   []string{server_1.URL, server_2.URL},
@@ -111,7 +111,7 @@ func TestHttpClientJson(t *testing.T) {
 	server_1 := httptest.NewServer(mux_1)
 	defer server_1.Close()
 
-	httpClient := NewHTTPClient(&HTTPClientOptions{
+	httpClient := NewClient(&Options{
 		Regions: &region.Region{
 			Api: region.Endpoints{
 				Preferred: []string{server_1.URL},

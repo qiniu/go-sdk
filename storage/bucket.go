@@ -320,13 +320,13 @@ func NewBucketManagerExWithOptions(mac *auth.Credentials, cfg *Config, clt *clie
 		cfg.CentralRsHost = DefaultRsHost
 	}
 
-	opts := http_client.HTTPClientOptions{
+	opts := http_client.Options{
 		HostFreezeDuration: options.HostFreezeDuration,
 		HostRetryConfig: &clientv2.RetryConfig{
 			RetryMax: options.RetryMax,
 		},
 		Credentials:         mac,
-		Client:              clt.Client,
+		BasicHTTPClient:     clt.Client,
 		UseInsecureProtocol: !cfg.UseHTTPS,
 	}
 	if region := cfg.GetRegion(); region != nil {

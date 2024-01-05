@@ -27,15 +27,15 @@ var (
 type (
 	InterceptorPriority = clientv2.InterceptorPriority
 	Interceptor         = clientv2.Interceptor
-	Client              = clientv2.Client
+	BasicHTTPClient     = clientv2.Client
 	GetRequestBody      = clientv2.GetRequestBody
 	RetryConfig         = clientv2.RetryConfig
 	Handler             = clientv2.Handler
 
-	// HTTPClient 提供了对七牛 HTTP 客户端
-	HTTPClient struct {
+	// Client 提供了对七牛 HTTP 客户端
+	Client struct {
 		useHttps           bool
-		client             Client
+		basicHTTPClient    BasicHTTPClient
 		bucketQuery        region.BucketRegionsQuery
 		regions            region.RegionsProvider
 		credentials        credentials.CredentialsProvider
@@ -45,9 +45,9 @@ type (
 		shouldFreezeHost   func(req *http.Request, resp *http.Response, err error) bool
 	}
 
-	// HTTPClientOptions 为构建 HTTPClient 提供了可选参数
-	HTTPClientOptions struct {
-		Client              Client
+	// Options 为构建 Client 提供了可选参数
+	Options struct {
+		BasicHTTPClient     BasicHTTPClient
 		BucketQuery         region.BucketRegionsQuery
 		Regions             region.RegionsProvider
 		Credentials         credentials.CredentialsProvider
@@ -77,10 +77,10 @@ type (
 	}
 )
 
-// NewHTTPClient 用来构建一个新的七牛 HTTP 客户端
-func NewHTTPClient(options *HTTPClientOptions) *HTTPClient {
+// NewClient 用来构建一个新的七牛 HTTP 客户端
+func NewClient(options *Options) *Client {
 	if options == nil {
-		options = &HTTPClientOptions{}
+		options = &Options{}
 	}
 	if options.HostFreezeDuration < time.Millisecond {
 		options.HostFreezeDuration = 600 * time.Second
@@ -89,8 +89,8 @@ func NewHTTPClient(options *HTTPClientOptions) *HTTPClient {
 		options.ShouldFreezeHost = defaultShouldFreezeHost
 	}
 
-	return &HTTPClient{
-		client:             clientv2.NewClient(options.Client, options.Interceptors...),
+	return &Client{
+		basicHTTPClient:    clientv2.NewClient(options.BasicHTTPClient, options.Interceptors...),
 		useHttps:           !options.UseInsecureProtocol,
 		bucketQuery:        options.BucketQuery,
 		regions:            options.Regions,
@@ -103,7 +103,7 @@ func NewHTTPClient(options *HTTPClientOptions) *HTTPClient {
 }
 
 // Do 发送 HTTP 请求
-func (httpClient *HTTPClient) Do(ctx context.Context, request *Request) (*http.Response, error) {
+func (httpClient *Client) Do(ctx context.Context, request *Request) (*http.Response, error) {
 	req, err := httpClient.makeReq(ctx, request)
 	if err != nil {
 		return nil, err
@@ -130,11 +130,11 @@ func (httpClient *HTTPClient) Do(ctx context.Context, request *Request) (*http.R
 			req.Header.Set("Authorization", "UpToken "+upToken)
 		}
 	}
-	return httpClient.client.Do(req)
+	return httpClient.basicHTTPClient.Do(req)
 }
 
 // DoAndAcceptJSON 发送 HTTP 请求并接收 JSON 响应
-func (httpClient *HTTPClient) DoAndAcceptJSON(ctx context.Context, request *Request, ret interface{}) error {
+func (httpClient *Client) DoAndAcceptJSON(ctx context.Context, request *Request, ret interface{}) error {
 	if resp, err := httpClient.Do(ctx, request); err != nil {
 		return err
 	} else {
@@ -142,39 +142,39 @@ func (httpClient *HTTPClient) DoAndAcceptJSON(ctx context.Context, request *Requ
 	}
 }
 
-func (httpClient *HTTPClient) GetBucketQuery() region.BucketRegionsQuery {
+func (httpClient *Client) GetBucketQuery() region.BucketRegionsQuery {
 	return httpClient.bucketQuery
 }
 
-func (httpClient *HTTPClient) GetCredentials() credentials.CredentialsProvider {
+func (httpClient *Client) GetCredentials() credentials.CredentialsProvider {
 	return httpClient.credentials
 }
 
-func (httpClient *HTTPClient) GetRegions() region.RegionsProvider {
+func (httpClient *Client) GetRegions() region.RegionsProvider {
 	return httpClient.regions
 }
 
-func (httpClient *HTTPClient) GetClient() Client {
-	return httpClient.client
+func (httpClient *Client) GetClient() BasicHTTPClient {
+	return httpClient.basicHTTPClient
 }
 
-func (httpClient *HTTPClient) UseInsecureProtocol() bool {
+func (httpClient *Client) UseInsecureProtocol() bool {
 	return !httpClient.useHttps
 }
 
-func (httpClient *HTTPClient) GetHostFreezeDuration() time.Duration {
+func (httpClient *Client) GetHostFreezeDuration() time.Duration {
 	return httpClient.hostFreezeDuration
 }
 
-func (httpClient *HTTPClient) GetHostRetryConfig() *RetryConfig {
+func (httpClient *Client) GetHostRetryConfig() *RetryConfig {
 	return httpClient.hostRetryConfig
 }
 
-func (httpClient *HTTPClient) GetHostsRetryConfig() *RetryConfig {
+func (httpClient *Client) GetHostsRetryConfig() *RetryConfig {
 	return httpClient.hostsRetryConfig
 }
 
-func (httpClient *HTTPClient) getEndpoints(ctx context.Context, request *Request) (region.Endpoints, error) {
+func (httpClient *Client) getEndpoints(ctx context.Context, request *Request) (region.Endpoints, error) {
 	getEndpointsFromEndpointsProvider := func(ctx context.Context, endpoints region.EndpointsProvider) (region.Endpoints, error) {
 		return endpoints.GetEndpoints(ctx)
 	}
@@ -198,7 +198,7 @@ func (httpClient *HTTPClient) getEndpoints(ctx context.Context, request *Request
 	return region.Endpoints{}, ErrNoEndpointsConfigured
 }
 
-func (httpClient *HTTPClient) makeReq(ctx context.Context, request *Request) (*http.Request, error) {
+func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.Request, error) {
 	endpoints, err := httpClient.getEndpoints(ctx, request)
 	if err != nil {
 		return nil, err
@@ -239,7 +239,7 @@ func (httpClient *HTTPClient) makeReq(ctx context.Context, request *Request) (*h
 	return clientv2.WithInterceptors(req, interceptors...), nil
 }
 
-func (httpClient *HTTPClient) generateUrl(request *Request, hostProvider hostprovider.HostProvider) (string, error) {
+func (httpClient *Client) generateUrl(request *Request, hostProvider hostprovider.HostProvider) (string, error) {
 	var url string
 	host, err := hostProvider.Provider()
 	if err != nil {
@@ -276,7 +276,7 @@ func (httpClient *HTTPClient) generateUrl(request *Request, hostProvider hostpro
 	return url, nil
 }
 
-func (options *HTTPClientOptions) SetBucketHosts(bucketHosts region.Endpoints) (err error) {
+func (options *Options) SetBucketHosts(bucketHosts region.Endpoints) (err error) {
 	options.BucketQuery, err = region.NewBucketRegionsQuery(bucketHosts, nil)
 	return
 }
