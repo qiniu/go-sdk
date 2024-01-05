@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getregions "github.com/qiniu/go-sdk/v7/storagev2/apis/get_regions"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
@@ -14,12 +13,6 @@ import (
 
 type innerGetRegionsRequest getregions.Request
 
-func (j *innerGetRegionsRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*getregions.Request)(j))
-}
-func (j *innerGetRegionsRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*getregions.Request)(j))
-}
 func (request *innerGetRegionsRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {

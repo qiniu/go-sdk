@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	modifyobjectlifecycle "github.com/qiniu/go-sdk/v7/storagev2/apis/modify_object_life_cycle"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -43,12 +42,6 @@ func (path *innerModifyObjectLifeCycleRequest) buildPath() ([]string, error) {
 		allSegments = append(allSegments, "deleteAfterDays", strconv.FormatInt(path.DeleteAfterDays, 10))
 	}
 	return allSegments, nil
-}
-func (j *innerModifyObjectLifeCycleRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*modifyobjectlifecycle.Request)(j))
-}
-func (j *innerModifyObjectLifeCycleRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*modifyobjectlifecycle.Request)(j))
 }
 func (request *innerModifyObjectLifeCycleRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	deletebuckettaggings "github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket_taggings"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -27,12 +26,6 @@ func (query *innerDeleteBucketTaggingsRequest) buildQuery() (url.Values, error) 
 		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
 	}
 	return allQuery, nil
-}
-func (j *innerDeleteBucketTaggingsRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*deletebuckettaggings.Request)(j))
-}
-func (j *innerDeleteBucketTaggingsRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*deletebuckettaggings.Request)(j))
 }
 func (request *innerDeleteBucketTaggingsRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

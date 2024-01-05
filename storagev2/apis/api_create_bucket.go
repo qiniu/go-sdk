@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	createbucket "github.com/qiniu/go-sdk/v7/storagev2/apis/create_bucket"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -26,12 +25,6 @@ func (path *innerCreateBucketRequest) buildPath() ([]string, error) {
 		allSegments = append(allSegments, "region", path.Region)
 	}
 	return allSegments, nil
-}
-func (j *innerCreateBucketRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*createbucket.Request)(j))
-}
-func (j *innerCreateBucketRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*createbucket.Request)(j))
 }
 func (request *innerCreateBucketRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

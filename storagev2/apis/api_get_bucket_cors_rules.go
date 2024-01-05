@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getbucketcorsrules "github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_cors_rules"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -26,12 +25,6 @@ func (path *innerGetBucketCORSRulesRequest) buildPath() ([]string, error) {
 		return nil, errors.MissingRequiredFieldError{Name: "Bucket"}
 	}
 	return allSegments, nil
-}
-func (j *innerGetBucketCORSRulesRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*getbucketcorsrules.Request)(j))
-}
-func (j *innerGetBucketCORSRulesRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*getbucketcorsrules.Request)(j))
 }
 func (request *innerGetBucketCORSRulesRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

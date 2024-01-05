@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	setobjectfiletype "github.com/qiniu/go-sdk/v7/storagev2/apis/set_object_file_type"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -29,12 +28,6 @@ func (path *innerSetObjectFileTypeRequest) buildPath() ([]string, error) {
 	}
 	allSegments = append(allSegments, "type", strconv.FormatInt(path.Type, 10))
 	return allSegments, nil
-}
-func (j *innerSetObjectFileTypeRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*setobjectfiletype.Request)(j))
-}
-func (j *innerSetObjectFileTypeRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*setobjectfiletype.Request)(j))
 }
 func (request *innerSetObjectFileTypeRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

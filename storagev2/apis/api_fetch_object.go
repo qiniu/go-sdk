@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	fetchobject "github.com/qiniu/go-sdk/v7/storagev2/apis/fetch_object"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -35,12 +34,6 @@ func (path *innerFetchObjectRequest) buildPath() ([]string, error) {
 		allSegments = append(allSegments, "host", base64.URLEncoding.EncodeToString([]byte(path.Host)))
 	}
 	return allSegments, nil
-}
-func (j *innerFetchObjectRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*fetchobject.Request)(j))
-}
-func (j *innerFetchObjectRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*fetchobject.Request)(j))
 }
 func (request *innerFetchObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

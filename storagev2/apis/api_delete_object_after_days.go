@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	deleteobjectafterdays "github.com/qiniu/go-sdk/v7/storagev2/apis/delete_object_after_days"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -29,12 +28,6 @@ func (path *innerDeleteObjectAfterDaysRequest) buildPath() ([]string, error) {
 	}
 	allSegments = append(allSegments, strconv.FormatInt(path.DeleteAfterDays, 10))
 	return allSegments, nil
-}
-func (j *innerDeleteObjectAfterDaysRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*deleteobjectafterdays.Request)(j))
-}
-func (j *innerDeleteObjectAfterDaysRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*deleteobjectafterdays.Request)(j))
 }
 func (request *innerDeleteObjectAfterDaysRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

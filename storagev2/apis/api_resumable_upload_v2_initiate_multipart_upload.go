@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	resumableuploadv2initiatemultipartupload "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v2_initiate_multipart_upload"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
@@ -38,12 +37,6 @@ func (path *innerResumableUploadV2InitiateMultipartUploadRequest) buildPath() ([
 		allSegments = append(allSegments, "objects", "~")
 	}
 	return allSegments, nil
-}
-func (j *innerResumableUploadV2InitiateMultipartUploadRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*resumableuploadv2initiatemultipartupload.Request)(j))
-}
-func (j *innerResumableUploadV2InitiateMultipartUploadRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*resumableuploadv2initiatemultipartupload.Request)(j))
 }
 func (request *innerResumableUploadV2InitiateMultipartUploadRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {

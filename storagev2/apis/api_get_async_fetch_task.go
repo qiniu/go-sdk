@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getasyncfetchtask "github.com/qiniu/go-sdk/v7/storagev2/apis/get_async_fetch_task"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -24,12 +23,6 @@ func (query *innerGetAsyncFetchTaskRequest) buildQuery() (url.Values, error) {
 		return nil, errors.MissingRequiredFieldError{Name: "Id"}
 	}
 	return allQuery, nil
-}
-func (j *innerGetAsyncFetchTaskRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*getasyncfetchtask.Request)(j))
-}
-func (j *innerGetAsyncFetchTaskRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*getasyncfetchtask.Request)(j))
 }
 func (request *innerGetAsyncFetchTaskRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

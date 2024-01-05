@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	restorearchivedobject "github.com/qiniu/go-sdk/v7/storagev2/apis/restore_archived_object"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -33,12 +32,6 @@ func (path *innerRestoreArchivedObjectRequest) buildPath() ([]string, error) {
 		return nil, errors.MissingRequiredFieldError{Name: "FreezeAfterDays"}
 	}
 	return allSegments, nil
-}
-func (j *innerRestoreArchivedObjectRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*restorearchivedobject.Request)(j))
-}
-func (j *innerRestoreArchivedObjectRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*restorearchivedobject.Request)(j))
 }
 func (request *innerRestoreArchivedObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

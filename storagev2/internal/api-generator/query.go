@@ -172,7 +172,7 @@ func (names QueryNames) generateSetCall(group *jen.Group, queryName QueryName) e
 		group.Add(jen.If(condition).
 			BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)))
 	case OptionalTypeKeepEmpty:
-		group.Add(jen.BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)))
+		setQueryFunc(queryName.QueryName, valueConvertCode)(group)
 	default:
 		return errors.New("unknown OptionalType")
 	}

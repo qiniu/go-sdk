@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	batchops "github.com/qiniu/go-sdk/v7/storagev2/apis/batch_ops"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -26,12 +25,6 @@ func (form *innerBatchOpsRequest) build() (url.Values, error) {
 		return nil, errors.MissingRequiredFieldError{Name: "Operations"}
 	}
 	return formValues, nil
-}
-func (j *innerBatchOpsRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*batchops.Request)(j))
-}
-func (j *innerBatchOpsRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*batchops.Request)(j))
 }
 func (request *innerBatchOpsRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

@@ -210,7 +210,10 @@ func (t *MultipartFormDataType) AddTypeToStatement(statement *jen.Statement, nil
 	case MultipartFormDataTypeUploadToken:
 		return statement.Qual(PackageNameUpToken, "Provider"), nil
 	case MultipartFormDataTypeBinaryData:
-		return statement.Qual(PackageNameInternalIo, "ReadSeekCloser"), nil
+		if nilable {
+			statement = statement.Op("*")
+		}
+		return statement.Qual(PackageNameHTTPClient, "MultipartFormBinaryData"), nil
 	default:
 		return nil, errors.New("unknown type")
 	}

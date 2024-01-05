@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getbucketrules "github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_rules"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -24,12 +23,6 @@ func (query *innerGetBucketRulesRequest) buildQuery() (url.Values, error) {
 		return nil, errors.MissingRequiredFieldError{Name: "Bucket"}
 	}
 	return allQuery, nil
-}
-func (j *innerGetBucketRulesRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*getbucketrules.Request)(j))
-}
-func (j *innerGetBucketRulesRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*getbucketrules.Request)(j))
 }
 func (request *innerGetBucketRulesRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

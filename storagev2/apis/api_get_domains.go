@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getdomains "github.com/qiniu/go-sdk/v7/storagev2/apis/get_domains"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -27,12 +26,6 @@ func (query *innerGetDomainsRequest) buildQuery() (url.Values, error) {
 		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
 	}
 	return allQuery, nil
-}
-func (j *innerGetDomainsRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*getdomains.Request)(j))
-}
-func (j *innerGetDomainsRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*getdomains.Request)(j))
 }
 func (request *innerGetDomainsRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	setbucketmaxage "github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_max_age"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -27,16 +26,8 @@ func (query *innerSetBucketMaxAgeRequest) buildQuery() (url.Values, error) {
 	} else {
 		return nil, errors.MissingRequiredFieldError{Name: "Bucket"}
 	}
-	{
-		allQuery.Set("maxAge", strconv.FormatInt(query.MaxAge, 10))
-	}
+	allQuery.Set("maxAge", strconv.FormatInt(query.MaxAge, 10))
 	return allQuery, nil
-}
-func (j *innerSetBucketMaxAgeRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*setbucketmaxage.Request)(j))
-}
-func (j *innerSetBucketMaxAgeRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*setbucketmaxage.Request)(j))
 }
 func (request *innerSetBucketMaxAgeRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

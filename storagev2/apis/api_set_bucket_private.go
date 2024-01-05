@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	setbucketprivate "github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_private"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -29,12 +28,6 @@ func (form *innerSetBucketPrivateRequest) build() (url.Values, error) {
 	}
 	formValues.Set("private", strconv.FormatInt(form.IsPrivate, 10))
 	return formValues, nil
-}
-func (j *innerSetBucketPrivateRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*setbucketprivate.Request)(j))
-}
-func (j *innerSetBucketPrivateRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*setbucketprivate.Request)(j))
 }
 func (request *innerSetBucketPrivateRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
