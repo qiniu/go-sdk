@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	deletebucketrules "github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket_rules"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -32,12 +31,6 @@ func (form *innerDeleteBucketRulesRequest) build() (url.Values, error) {
 		return nil, errors.MissingRequiredFieldError{Name: "Name"}
 	}
 	return formValues, nil
-}
-func (j *innerDeleteBucketRulesRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*deletebucketrules.Request)(j))
-}
-func (j *innerDeleteBucketRulesRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*deletebucketrules.Request)(j))
 }
 func (request *innerDeleteBucketRulesRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

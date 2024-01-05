@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getbucketsv4 "github.com/qiniu/go-sdk/v7/storagev2/apis/get_buckets_v4"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
@@ -28,12 +27,6 @@ func (query *innerGetBucketsV4Request) buildQuery() (url.Values, error) {
 		allQuery.Set("marker", query.Marker)
 	}
 	return allQuery, nil
-}
-func (j *innerGetBucketsV4Request) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*getbucketsv4.Request)(j))
-}
-func (j *innerGetBucketsV4Request) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*getbucketsv4.Request)(j))
 }
 func (request *innerGetBucketsV4Request) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

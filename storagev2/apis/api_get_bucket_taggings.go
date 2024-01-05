@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getbuckettaggings "github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_taggings"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -27,12 +26,6 @@ func (query *innerGetBucketTaggingsRequest) buildQuery() (url.Values, error) {
 		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
 	}
 	return allQuery, nil
-}
-func (j *innerGetBucketTaggingsRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*getbuckettaggings.Request)(j))
-}
-func (j *innerGetBucketTaggingsRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*getbuckettaggings.Request)(j))
 }
 func (request *innerGetBucketTaggingsRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

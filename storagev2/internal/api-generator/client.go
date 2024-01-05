@@ -67,11 +67,16 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 	var getBucketNameGenerated bool
 	if getBucketNameGenerated, err = description.generateGetBucketNameFunc(group, innerStructName); err != nil {
 		return
-	} else if err = description.generateBuildFunc(group, innerStructName); err != nil {
+	}
+	if err = description.generateBuildFunc(group, innerStructName); err != nil {
 		return
-	} else if err = description.addJsonMarshalerUnmarshaler(group, innerStructName, packageName, "Request"); err != nil {
-		return
-	} else if err = description.Request.generateGetAccessKeyFunc(group, innerStructName); err != nil {
+	}
+	if body := description.Request.Body; body != nil && body.Json != nil {
+		if err = description.addJsonMarshalerUnmarshaler(group, innerStructName, packageName, "Request"); err != nil {
+			return
+		}
+	}
+	if err = description.Request.generateGetAccessKeyFunc(group, innerStructName); err != nil {
 		return
 	}
 	group.Add(jen.Type().Id(reexportedRequestStructName).Op("=").Qual(packageName, "Request"))

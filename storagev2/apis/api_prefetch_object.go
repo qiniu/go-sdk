@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	prefetchobject "github.com/qiniu/go-sdk/v7/storagev2/apis/prefetch_object"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -27,12 +26,6 @@ func (path *innerPrefetchObjectRequest) buildPath() ([]string, error) {
 		return nil, errors.MissingRequiredFieldError{Name: "Entry"}
 	}
 	return allSegments, nil
-}
-func (j *innerPrefetchObjectRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*prefetchobject.Request)(j))
-}
-func (j *innerPrefetchObjectRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*prefetchobject.Request)(j))
 }
 func (request *innerPrefetchObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

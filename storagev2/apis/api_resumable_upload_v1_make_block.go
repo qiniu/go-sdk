@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	resumableuploadv1makeblock "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v1_make_block"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
@@ -33,12 +32,6 @@ func (path *innerResumableUploadV1MakeBlockRequest) buildPath() ([]string, error
 		return nil, errors.MissingRequiredFieldError{Name: "BlockSize"}
 	}
 	return allSegments, nil
-}
-func (j *innerResumableUploadV1MakeBlockRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*resumableuploadv1makeblock.Request)(j))
-}
-func (j *innerResumableUploadV1MakeBlockRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*resumableuploadv1makeblock.Request)(j))
 }
 func (request *innerResumableUploadV1MakeBlockRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {

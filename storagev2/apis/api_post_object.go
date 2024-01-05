@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	postobject "github.com/qiniu/go-sdk/v7/storagev2/apis/post_object"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
@@ -40,11 +39,11 @@ func (form *innerPostObjectRequest) build(ctx context.Context) (*httpclient.Mult
 	if form.Crc32 != 0 {
 		multipartForm.SetValue("crc32", strconv.FormatInt(form.Crc32, 10))
 	}
-	if form.File != nil {
-		if form.File_FileName == "" {
-			return nil, errors.MissingRequiredFieldError{Name: "File_FileName"}
+	if form.File.Data != nil {
+		if form.File.Name == "" {
+			return nil, errors.MissingRequiredFieldError{Name: "File.Name"}
 		}
-		multipartForm.SetFile("file", form.File_FileName, form.File)
+		multipartForm.SetFile("file", form.File.Name, form.File.Data)
 	} else {
 		return nil, errors.MissingRequiredFieldError{Name: "File"}
 	}
@@ -52,12 +51,6 @@ func (form *innerPostObjectRequest) build(ctx context.Context) (*httpclient.Mult
 		multipartForm.SetValue(key, value)
 	}
 	return multipartForm, nil
-}
-func (j *innerPostObjectRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*postobject.Request)(j))
-}
-func (j *innerPostObjectRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*postobject.Request)(j))
 }
 func (request *innerPostObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UploadToken != nil {

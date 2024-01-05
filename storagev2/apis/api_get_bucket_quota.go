@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getbucketquota "github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_quota"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -26,12 +25,6 @@ func (path *innerGetBucketQuotaRequest) buildPath() ([]string, error) {
 		return nil, errors.MissingRequiredFieldError{Name: "Bucket"}
 	}
 	return allSegments, nil
-}
-func (j *innerGetBucketQuotaRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*getbucketquota.Request)(j))
-}
-func (j *innerGetBucketQuotaRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*getbucketquota.Request)(j))
 }
 func (request *innerGetBucketQuotaRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

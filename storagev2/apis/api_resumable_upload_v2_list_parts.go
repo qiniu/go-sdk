@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	resumableuploadv2listparts "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v2_list_parts"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
@@ -55,12 +54,6 @@ func (query *innerResumableUploadV2ListPartsRequest) buildQuery() (url.Values, e
 		allQuery.Set("part-number_marker", strconv.FormatInt(query.PartNumberMarker, 10))
 	}
 	return allQuery, nil
-}
-func (j *innerResumableUploadV2ListPartsRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*resumableuploadv2listparts.Request)(j))
-}
-func (j *innerResumableUploadV2ListPartsRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*resumableuploadv2listparts.Request)(j))
 }
 func (request *innerResumableUploadV2ListPartsRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {

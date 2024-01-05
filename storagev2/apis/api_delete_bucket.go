@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	deletebucket "github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -26,12 +25,6 @@ func (path *innerDeleteBucketRequest) buildPath() ([]string, error) {
 		return nil, errors.MissingRequiredFieldError{Name: "Bucket"}
 	}
 	return allSegments, nil
-}
-func (j *innerDeleteBucketRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*deletebucket.Request)(j))
-}
-func (j *innerDeleteBucketRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*deletebucket.Request)(j))
 }
 func (request *innerDeleteBucketRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

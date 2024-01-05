@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	setbucketsmirror "github.com/qiniu/go-sdk/v7/storagev2/apis/set_buckets_mirror"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -37,12 +36,6 @@ func (path *innerSetBucketsMirrorRequest) buildPath() ([]string, error) {
 		return nil, errors.MissingRequiredFieldError{Name: "Host"}
 	}
 	return allSegments, nil
-}
-func (j *innerSetBucketsMirrorRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*setbucketsmirror.Request)(j))
-}
-func (j *innerSetBucketsMirrorRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*setbucketsmirror.Request)(j))
 }
 func (request *innerSetBucketsMirrorRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

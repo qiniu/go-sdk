@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getobjects "github.com/qiniu/go-sdk/v7/storagev2/apis/get_objects"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -43,12 +42,6 @@ func (query *innerGetObjectsRequest) buildQuery() (url.Values, error) {
 		allQuery.Set("needparts", strconv.FormatBool(query.NeedParts))
 	}
 	return allQuery, nil
-}
-func (j *innerGetObjectsRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*getobjects.Request)(j))
-}
-func (j *innerGetObjectsRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*getobjects.Request)(j))
 }
 func (request *innerGetObjectsRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

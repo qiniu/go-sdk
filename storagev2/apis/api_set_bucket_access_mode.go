@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	setbucketaccessmode "github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_access_mode"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -28,12 +27,6 @@ func (path *innerSetBucketAccessModeRequest) buildPath() ([]string, error) {
 	}
 	allSegments = append(allSegments, "mode", strconv.FormatInt(path.Mode, 10))
 	return allSegments, nil
-}
-func (j *innerSetBucketAccessModeRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*setbucketaccessmode.Request)(j))
-}
-func (j *innerSetBucketAccessModeRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*setbucketaccessmode.Request)(j))
 }
 func (request *innerSetBucketAccessModeRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

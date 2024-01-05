@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	modifyobjectstatus "github.com/qiniu/go-sdk/v7/storagev2/apis/modify_object_status"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -29,12 +28,6 @@ func (path *innerModifyObjectStatusRequest) buildPath() ([]string, error) {
 	}
 	allSegments = append(allSegments, "status", strconv.FormatInt(path.Status, 10))
 	return allSegments, nil
-}
-func (j *innerModifyObjectStatusRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*modifyobjectstatus.Request)(j))
-}
-func (j *innerModifyObjectStatusRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*modifyobjectstatus.Request)(j))
 }
 func (request *innerModifyObjectStatusRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

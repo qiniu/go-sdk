@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	addbucketrules "github.com/qiniu/go-sdk/v7/storagev2/apis/add_bucket_rules"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -49,12 +48,6 @@ func (form *innerAddBucketRulesRequest) build() (url.Values, error) {
 		formValues.Set("to_archive_ir_after_days", strconv.FormatInt(form.ToArchiveIrAfterDays, 10))
 	}
 	return formValues, nil
-}
-func (j *innerAddBucketRulesRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*addbucketrules.Request)(j))
-}
-func (j *innerAddBucketRulesRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*addbucketrules.Request)(j))
 }
 func (request *innerAddBucketRulesRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

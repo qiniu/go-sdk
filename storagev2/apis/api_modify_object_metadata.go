@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	modifyobjectmetadata "github.com/qiniu/go-sdk/v7/storagev2/apis/modify_object_metadata"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -37,12 +36,6 @@ func (path *innerModifyObjectMetadataRequest) buildPath() ([]string, error) {
 		allSegments = append(allSegments, base64.URLEncoding.EncodeToString([]byte(value)))
 	}
 	return allSegments, nil
-}
-func (j *innerModifyObjectMetadataRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*modifyobjectmetadata.Request)(j))
-}
-func (j *innerModifyObjectMetadataRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*modifyobjectmetadata.Request)(j))
 }
 func (request *innerModifyObjectMetadataRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

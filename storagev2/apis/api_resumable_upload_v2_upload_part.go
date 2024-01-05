@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	resumableuploadv2uploadpart "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v2_upload_part"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
@@ -57,12 +56,6 @@ func (headers *innerResumableUploadV2UploadPartRequest) buildHeaders() (http.Hea
 		allHeaders.Set("Content-MD5", headers.Md5)
 	}
 	return allHeaders, nil
-}
-func (j *innerResumableUploadV2UploadPartRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*resumableuploadv2uploadpart.Request)(j))
-}
-func (j *innerResumableUploadV2UploadPartRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*resumableuploadv2uploadpart.Request)(j))
 }
 func (request *innerResumableUploadV2UploadPartRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {

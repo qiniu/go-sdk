@@ -54,9 +54,6 @@ func (mff *MultipartFormFields) addFields(group *jen.Group) error {
 			return err
 		}
 		group.Add(code)
-		if named.Type.ToMultipartFormDataType() == MultipartFormDataTypeBinaryData {
-			group.Add(jen.Id(fieldName + "_FileName").String())
-		}
 	}
 	if free := mff.Free; free != nil {
 		group.Add(jen.Id(free.camelCaseName()).Map(jen.String()).String())
@@ -143,7 +140,9 @@ func (mff *MultipartFormFields) addBuildFunc(group *jen.Group, structName string
 					fieldName := named.camelCaseName()
 					field := jen.Id("form").Dot(fieldName)
 					var cond *jen.Statement
-					if zeroValue == nil {
+					if named.Type.ToMultipartFormDataType() == MultipartFormDataTypeBinaryData {
+						cond = field.Clone().Dot("Data").Op("!=").Nil()
+					} else if zeroValue == nil {
 						cond = field.Clone().Op("!=").Nil()
 					} else {
 						cond = field.Clone().Op("!=").Lit(zeroValue)
@@ -184,19 +183,19 @@ func (mff *MultipartFormFields) addBuildFunc(group *jen.Group, structName string
 								jen.Id("upToken"),
 							))
 						case MultipartFormDataTypeBinaryData:
-							group.Add(jen.If(jen.Id("form").Dot(fieldName + "_FileName").Op("==").Lit("").BlockFunc(func(group *jen.Group) {
+							group.Add(jen.If(jen.Id("form").Dot(fieldName).Dot("Name").Op("==").Lit("").BlockFunc(func(group *jen.Group) {
 								group.Add(jen.Return(
 									jen.Nil(),
 									jen.Qual(PackageNameErrors, "MissingRequiredFieldError").
 										ValuesFunc(func(group *jen.Group) {
-											group.Add(jen.Id("Name").Op(":").Lit(fieldName + "_FileName"))
+											group.Add(jen.Id("Name").Op(":").Lit(fieldName + ".Name"))
 										}),
 								))
 							})))
 							group.Add(jen.Id("multipartForm").Dot("SetFile").Call(
 								jen.Lit(named.Key),
-								jen.Id("form").Dot(fieldName+"_FileName"),
-								field,
+								jen.Id("form").Dot(fieldName).Dot("Name"),
+								jen.Id("form").Dot(fieldName).Dot("Data"),
 							))
 						}
 					})

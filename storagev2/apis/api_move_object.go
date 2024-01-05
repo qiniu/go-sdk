@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	moveobject "github.com/qiniu/go-sdk/v7/storagev2/apis/move_object"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -36,12 +35,6 @@ func (path *innerMoveObjectRequest) buildPath() ([]string, error) {
 		allSegments = append(allSegments, "force", strconv.FormatBool(path.IsForce))
 	}
 	return allSegments, nil
-}
-func (j *innerMoveObjectRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*moveobject.Request)(j))
-}
-func (j *innerMoveObjectRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*moveobject.Request)(j))
 }
 func (request *innerMoveObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

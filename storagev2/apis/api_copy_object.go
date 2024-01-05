@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	copyobject "github.com/qiniu/go-sdk/v7/storagev2/apis/copy_object"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -36,12 +35,6 @@ func (path *innerCopyObjectRequest) buildPath() ([]string, error) {
 		allSegments = append(allSegments, "force", strconv.FormatBool(path.IsForce))
 	}
 	return allSegments, nil
-}
-func (j *innerCopyObjectRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*copyobject.Request)(j))
-}
-func (j *innerCopyObjectRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*copyobject.Request)(j))
 }
 func (request *innerCopyObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {

@@ -204,12 +204,14 @@ func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upT
 	}
 
 	request := apis.PostObjectRequest{
-		ObjectName:    makeKeyForUploading(key, hasKey),
-		UploadToken:   uptoken.NewParser(upToken),
-		File:          internal_io.MakeReadSeekCloserFromLimitedReader(fileReader, dataSize),
-		File_FileName: fileName,
-		CustomData:    makeCustomData(extra.Params),
-		ResponseBody:  ret,
+		ObjectName:  makeKeyForUploading(key, hasKey),
+		UploadToken: uptoken.NewParser(upToken),
+		File: http_client.MultipartFormBinaryData{
+			Data: internal_io.MakeReadSeekCloserFromLimitedReader(fileReader, dataSize),
+			Name: fileName,
+		},
+		CustomData:   makeCustomData(extra.Params),
+		ResponseBody: ret,
 	}
 	if crc32, ok, err := crc32FromReader(data); err != nil {
 		return err

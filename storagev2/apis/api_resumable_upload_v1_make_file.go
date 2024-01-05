@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	resumableuploadv1makefile "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v1_make_file"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
@@ -43,12 +42,6 @@ func (path *innerResumableUploadV1MakeFileRequest) buildPath() ([]string, error)
 		allSegments = append(allSegments, base64.URLEncoding.EncodeToString([]byte(value)))
 	}
 	return allSegments, nil
-}
-func (j *innerResumableUploadV1MakeFileRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*resumableuploadv1makefile.Request)(j))
-}
-func (j *innerResumableUploadV1MakeFileRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*resumableuploadv1makefile.Request)(j))
 }
 func (request *innerResumableUploadV1MakeFileRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {

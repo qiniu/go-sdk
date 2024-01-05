@@ -5,7 +5,6 @@ package apis
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	resumableuploadv2abortmultipartupload "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v2_abort_multipart_upload"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
@@ -43,12 +42,6 @@ func (path *innerResumableUploadV2AbortMultipartUploadRequest) buildPath() ([]st
 		return nil, errors.MissingRequiredFieldError{Name: "UploadId"}
 	}
 	return allSegments, nil
-}
-func (j *innerResumableUploadV2AbortMultipartUploadRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*resumableuploadv2abortmultipartupload.Request)(j))
-}
-func (j *innerResumableUploadV2AbortMultipartUploadRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*resumableuploadv2abortmultipartupload.Request)(j))
 }
 func (request *innerResumableUploadV2AbortMultipartUploadRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
