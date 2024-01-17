@@ -17,6 +17,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	"github.com/qiniu/go-sdk/v7/storagev2/defaults"
 	"github.com/qiniu/go-sdk/v7/storagev2/region"
+	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 	"github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
 
@@ -40,6 +41,7 @@ type (
 		bucketQuery        region.BucketRegionsQuery
 		regions            region.RegionsProvider
 		credentials        credentials.CredentialsProvider
+		resolver           resolver.Resolver
 		hostRetryConfig    *RetryConfig
 		hostsRetryConfig   *RetryConfig
 		hostFreezeDuration time.Duration
@@ -54,6 +56,7 @@ type (
 		Credentials         credentials.CredentialsProvider
 		Interceptors        []Interceptor
 		UseInsecureProtocol bool
+		Resolver            resolver.Resolver
 		HostRetryConfig     *RetryConfig
 		HostsRetryConfig    *RetryConfig
 		HostFreezeDuration  time.Duration
@@ -102,6 +105,7 @@ func NewClient(options *Options) *Client {
 		bucketQuery:        options.BucketQuery,
 		regions:            options.Regions,
 		credentials:        options.Credentials,
+		resolver:           options.Resolver,
 		hostRetryConfig:    options.HostRetryConfig,
 		hostsRetryConfig:   options.HostsRetryConfig,
 		hostFreezeDuration: options.HostFreezeDuration,
@@ -223,7 +227,14 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 			RetryMax: len(endpoints.Preferred) + len(endpoints.Alternative),
 		}
 	}
+	r := httpClient.resolver
+	if r == nil {
+		if r, err = resolver.NewCacheResolver(nil, nil); err != nil {
+			return nil, err
+		}
+	}
 	interceptors = append(interceptors, clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
+		Resolver:           r,
 		RetryConfig:        *hostsRetryConfig,
 		HostProvider:       hostProvider,
 		HostFreezeDuration: httpClient.hostFreezeDuration,

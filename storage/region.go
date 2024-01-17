@@ -14,6 +14,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/defaults"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region_v2 "github.com/qiniu/go-sdk/v7/storagev2/region"
+	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 )
 
 // 存储所在的地区，例如华东，华南，华北
@@ -404,6 +405,8 @@ type ucClientConfig struct {
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
 
+	Resolver resolver.Resolver
+
 	Client *client.Client
 }
 
@@ -435,6 +438,7 @@ func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
 			ShouldFreezeHost:   nil,
 			HostFreezeDuration: config.HostFreezeDuration,
 			HostProvider:       hostprovider.NewWithHosts(hosts),
+			Resolver:           config.Resolver,
 		}),
 		clientv2.NewSimpleRetryInterceptor(clientv2.RetryConfig{
 			RetryMax:      config.RetryMax,

@@ -228,7 +228,11 @@ func (b *BucketInfo) TokenAntiLeechModeOn() bool {
 // GetBucketInfo 返回BucketInfo结构
 func (m *BucketManager) GetBucketInfo(bucketName string) (bucketInfo BucketInfo, err error) {
 	reqURL := fmt.Sprintf("%s/v2/bucketInfo?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucketName)
-	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	c, err := m.getUCClient()
+	if err != nil {
+		return
+	}
+	err = clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context: nil,
 		Method:  clientv2.RequestMethodPost,
 		Url:     reqURL,
@@ -254,7 +258,11 @@ func (m *BucketManager) SetRemark(bucketName, remark string) error {
 // BucketInfosForRegion 获取指定区域的该用户的所有bucketInfo信息
 func (m *BucketManager) BucketInfosInRegion(region RegionID, statistics bool) (bucketInfos []BucketSummary, err error) {
 	reqURL := fmt.Sprintf("%s/v2/bucketInfos?region=%s&fs=%t", getUcHost(m.Cfg.UseHTTPS), string(region), statistics)
-	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	c, err := m.getUCClient()
+	if err != nil {
+		return
+	}
+	err = clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context: nil,
 		Method:  clientv2.RequestMethodPost,
 		Url:     reqURL,
@@ -440,7 +448,11 @@ func (r *BucketEventRule) Params(bucket string) map[string][]string {
 func (m *BucketManager) AddBucketEvent(bucket string, rule *BucketEventRule) (err error) {
 	params := rule.Params(bucket)
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/add"
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	c, err := m.getUCClient()
+	if err != nil {
+		return
+	}
+	return clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context: nil,
 		Method:  clientv2.RequestMethodPost,
 		Url:     reqURL,
@@ -456,7 +468,11 @@ func (m *BucketManager) DelBucketEvent(bucket, ruleName string) (err error) {
 	params["name"] = []string{ruleName}
 
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/delete"
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	c, err := m.getUCClient()
+	if err != nil {
+		return
+	}
+	return clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context: nil,
 		Method:  clientv2.RequestMethodPost,
 		Url:     reqURL,
@@ -469,7 +485,11 @@ func (m *BucketManager) DelBucketEvent(bucket, ruleName string) (err error) {
 func (m *BucketManager) UpdateBucketEnvent(bucket string, rule *BucketEventRule) (err error) {
 	params := rule.Params(bucket)
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/update"
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	c, err := m.getUCClient()
+	if err != nil {
+		return
+	}
+	return clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context: nil,
 		Method:  clientv2.RequestMethodPost,
 		Url:     reqURL,
@@ -481,7 +501,11 @@ func (m *BucketManager) UpdateBucketEnvent(bucket string, rule *BucketEventRule)
 // GetBucketEvent 获取指定存储空间的事件通知规则
 func (m *BucketManager) GetBucketEvent(bucket string) (rule []BucketEventRule, err error) {
 	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/get?bucket=" + bucket
-	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	c, err := m.getUCClient()
+	if err != nil {
+		return
+	}
+	err = clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context: nil,
 		Method:  clientv2.RequestMethodGet,
 		Url:     reqURL,
@@ -691,7 +715,11 @@ func (m *BucketManager) TurnOffIndexPage(bucket string) error {
 
 func (m *BucketManager) setIndexPage(bucket string, noIndexPage int) error {
 	reqURL := fmt.Sprintf("%s/noIndexPage?bucket=%s&noIndexPage=%d", getUcHost(m.Cfg.UseHTTPS), bucket, noIndexPage)
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	c, err := m.getUCClient()
+	if err != nil {
+		return err
+	}
+	return clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context: nil,
 		Method:  clientv2.RequestMethodPost,
 		Url:     reqURL,
@@ -761,11 +789,16 @@ func (m *BucketManager) GetTagging(bucket string) (map[string]string, error) {
 	return tags, nil
 }
 
-func (m *BucketManager) getUCClient() clientv2.Client {
+func (m *BucketManager) getUCClient() (clientv2.Client, error) {
+	resolver, err := m.resolver()
+	if err != nil {
+		return nil, err
+	}
 	return getUCClient(ucClientConfig{
 		IsUcQueryApi:       false,
 		RetryMax:           m.options.RetryMax,
 		HostFreezeDuration: m.options.HostFreezeDuration,
 		Client:             m.Client,
-	}, m.Mac)
+		Resolver:           resolver,
+	}, m.Mac), nil
 }

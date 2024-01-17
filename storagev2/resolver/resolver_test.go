@@ -1,16 +1,18 @@
 //go:build unit
 // +build unit
 
-package http_client
+package resolver_test
 
 import (
 	"context"
 	"net"
 	"testing"
+
+	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 )
 
 func TestDefaultResolver(t *testing.T) {
-	ips, err := new(DefaultResolver).Resolve(context.Background(), "upload.qiniup.com")
+	ips, err := new(resolver.DefaultResolver).Resolve(context.Background(), "upload.qiniup.com")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	} else if len(ips) == 0 {
@@ -30,7 +32,7 @@ func (mr *mockResolver) Resolve(ctx context.Context, host string) ([]net.IP, err
 
 func TestCacheResolver(t *testing.T) {
 	mr := &mockResolver{m: map[string][]net.IP{"upload.qiniup.com": {net.IPv4(1, 1, 1, 1)}}, c: make(map[string]int)}
-	resolver, err := NewCacheResolver(mr, nil)
+	resolver, err := resolver.NewCacheResolver(mr, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

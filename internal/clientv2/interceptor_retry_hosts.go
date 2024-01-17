@@ -6,11 +6,14 @@ import (
 	"strings"
 	"time"
 
+	clientV1 "github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
+	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 )
 
 type HostsRetryConfig struct {
+	Resolver           resolver.Resolver         // 主备域名解析器
 	RetryConfig        RetryConfig               // 主备域名重试参数
 	HostFreezeDuration time.Duration             // 主备域名冻结时间（默认：600s），当一个域名请求失败被冻结的时间，最小 time.Millisecond
 	HostProvider       hostprovider.HostProvider // 备用域名获取方法
@@ -69,6 +72,13 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 	for i := 0; ; i++ {
 		// Clone 防止后面 Handler 处理对 req 有污染
 		reqBefore := cloneReq(req)
+
+		if resolver := interceptor.options.Resolver; resolver != nil {
+			if ips, err := resolver.Resolve(req.Context(), req.URL.Hostname()); err == nil && len(ips) > 0 {
+				req = req.WithContext(clientV1.WithResolvedIPs(req.Context(), req.URL.Hostname(), ips))
+			}
+		}
+
 		resp, err = handler(req)
 
 		if !interceptor.options.RetryConfig.ShouldRetry(reqBefore, resp, err) {

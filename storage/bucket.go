@@ -18,6 +18,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/apis"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/batch_ops"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
@@ -287,6 +288,7 @@ type BucketManagerOptions struct {
 	RetryMax int // 单域名重试次数，当前只有 uc 相关的服务有多域名
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
+	Resolver           resolver.Resolver
 }
 
 // BucketManager 提供了对资源进行管理的操作
@@ -855,7 +857,11 @@ type DomainInfo struct {
 // ListBucketDomains 返回绑定在存储空间中的域名信息
 func (m *BucketManager) ListBucketDomains(bucket string) (info []DomainInfo, err error) {
 	reqURL := fmt.Sprintf("%s/v3/domains?tbl=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
-	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	c, err := m.getUCClient()
+	if err != nil {
+		return
+	}
+	err = clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context: context.Background(),
 		Method:  clientv2.RequestMethodGet,
 		Url:     reqURL,
@@ -880,7 +886,11 @@ func (m *BucketManager) Prefetch(bucket, key string) error {
 // SetImage 用来设置空间镜像源
 func (m *BucketManager) SetImage(siteURL, bucket string) (err error) {
 	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriSetImage(siteURL, bucket))
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	c, err := m.getUCClient()
+	if err != nil {
+		return
+	}
+	return clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context: context.Background(),
 		Method:  clientv2.RequestMethodPost,
 		Url:     reqURL,
@@ -893,7 +903,11 @@ func (m *BucketManager) SetImage(siteURL, bucket string) (err error) {
 func (m *BucketManager) SetImageWithHost(siteURL, bucket, host string) (err error) {
 	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS),
 		uriSetImageWithHost(siteURL, bucket, host))
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	c, err := m.getUCClient()
+	if err != nil {
+		return
+	}
+	return clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context: context.Background(),
 		Method:  clientv2.RequestMethodPost,
 		Url:     reqURL,
@@ -905,7 +919,11 @@ func (m *BucketManager) SetImageWithHost(siteURL, bucket, host string) (err erro
 // UnsetImage 用来取消空间镜像源设置
 func (m *BucketManager) UnsetImage(bucket string) (err error) {
 	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriUnsetImage(bucket))
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
+	c, err := m.getUCClient()
+	if err != nil {
+		return
+	}
+	return clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context: context.Background(),
 		Method:  clientv2.RequestMethodPost,
 		Url:     reqURL,
@@ -1027,6 +1045,18 @@ func (m *BucketManager) Zone(bucket string) (z *Zone, err error) {
 
 func (m *BucketManager) makeRequestOptions() *apis.Options {
 	return &apis.Options{OverwrittenBucketHosts: getUcEndpoint(m.Cfg.UseHTTPS, nil)}
+}
+
+func (m *BucketManager) resolver() (resolver.Resolver, error) {
+	if m.options.Resolver != nil {
+		return m.options.Resolver, nil
+	}
+	if resolver, err := resolver.NewCacheResolver(nil, nil); err != nil {
+		return nil, err
+	} else {
+		m.options.Resolver = resolver
+		return resolver, nil
+	}
 }
 
 // 构建op的方法，导出的方法支持在Batch操作中使用

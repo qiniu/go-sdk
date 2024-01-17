@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
+	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 )
 
 type ucQueryV4Ret struct {
@@ -149,7 +150,15 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 	}
 
 	newRegion, err, _ := ucQueryV4Group.Do(regionCacheKey, func() (interface{}, error) {
+		var err error
+
 		reqURL := fmt.Sprintf("%s/v4/query?ak=%s&bucket=%s", endpoint(options.UseHttps, options.firstHost()), ak, bucket)
+
+		if options.Resolver == nil {
+			if options.Resolver, err = resolver.NewCacheResolver(nil, nil); err != nil {
+				return nil, err
+			}
+		}
 
 		var ret ucQueryV4Ret
 		c := getUCClient(ucClientConfig{
@@ -158,8 +167,9 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 			Hosts:              options.Hosts,
 			HostFreezeDuration: options.HostFreezeDuration,
 			Client:             options.Client,
+			Resolver:           options.Resolver,
 		}, nil)
-		err := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
+		err = clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 			Context: context.Background(),
 			Method:  clientv2.RequestMethodGet,
 			Url:     reqURL,

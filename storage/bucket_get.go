@@ -69,11 +69,16 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 		// 使用用户配置域名
 		domain = options.DownloadDomains[0]
 	} else {
+		resolver, e := m.resolver()
+		if e != nil {
+			return nil, e
+		}
 		// 查源站域名
 		if rg, e := getRegionByV4(m.Mac.AccessKey, bucket, UCApiOptions{
 			UseHttps:           m.Cfg.UseHTTPS,
 			RetryMax:           m.options.RetryMax,
 			HostFreezeDuration: m.options.HostFreezeDuration,
+			Resolver:           resolver,
 		}); e != nil {
 			return nil, e
 		} else if len(rg.regions) == 0 {

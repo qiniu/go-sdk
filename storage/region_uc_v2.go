@@ -14,6 +14,7 @@ import (
 
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
+	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 )
 
 // 此处废弃，但为了兼容老版本，单独放置一个文件
@@ -218,7 +219,8 @@ type UCApiOptions struct {
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
 
-	Client *client.Client // api 请求使用的 client
+	Client   *client.Client    // api 请求使用的 client
+	Resolver resolver.Resolver // api 使用的域名解析器
 }
 
 func (o *UCApiOptions) init() {
@@ -268,7 +270,15 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 	}
 
 	newRegion, err, _ := ucQueryV2Group.Do(regionCacheKey, func() (interface{}, error) {
+		var err error
+
 		reqURL := fmt.Sprintf("%s/v2/query?ak=%s&bucket=%s", endpoint(options.UseHttps, options.firstHost()), ak, bucket)
+
+		if options.Resolver == nil {
+			if options.Resolver, err = resolver.NewCacheResolver(nil, nil); err != nil {
+				return nil, err
+			}
+		}
 
 		var ret UcQueryRet
 		c := getUCClient(ucClientConfig{
@@ -277,8 +287,9 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 			Hosts:              options.Hosts,
 			HostFreezeDuration: options.HostFreezeDuration,
 			Client:             options.Client,
+			Resolver:           options.Resolver,
 		}, nil)
-		err := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
+		err = clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 			Context: context.Background(),
 			Method:  clientv2.RequestMethodGet,
 			Url:     reqURL,

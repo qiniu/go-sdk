@@ -53,7 +53,8 @@ func init() {
 	}
 	clt = client.Client{
 		Client: &http.Client{
-			Timeout: time.Minute * 10,
+			Timeout:   time.Minute * 10,
+			Transport: client.DefaultTransport,
 		},
 	}
 	mac = auth.New(testAK, testSK)
