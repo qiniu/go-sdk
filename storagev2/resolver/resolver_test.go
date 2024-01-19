@@ -12,7 +12,7 @@ import (
 )
 
 func TestDefaultResolver(t *testing.T) {
-	ips, err := new(resolver.DefaultResolver).Resolve(context.Background(), "upload.qiniup.com")
+	ips, err := resolver.NewDefaultResolver().Resolve(context.Background(), "upload.qiniup.com")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	} else if len(ips) == 0 {

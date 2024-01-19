@@ -12,8 +12,10 @@ import (
 
 	"golang.org/x/sync/singleflight"
 
+	"github.com/alex-ant/gomath/rational"
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
+	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 )
 
@@ -221,6 +223,7 @@ type UCApiOptions struct {
 
 	Client   *client.Client    // api 请求使用的 client
 	Resolver resolver.Resolver // api 使用的域名解析器
+	Chooser  chooser.Chooser   // api 使用的 IP 选择器
 }
 
 func (o *UCApiOptions) init() {
@@ -279,6 +282,9 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 				return nil, err
 			}
 		}
+		if options.Chooser == nil {
+			options.Chooser = chooser.NewNeverEmptyHandedChooser(chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil)), rational.New(1, 2))
+		}
 
 		var ret UcQueryRet
 		c := getUCClient(ucClientConfig{
@@ -288,6 +294,7 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 			HostFreezeDuration: options.HostFreezeDuration,
 			Client:             options.Client,
 			Resolver:           options.Resolver,
+			Chooser:            options.Chooser,
 		}, nil)
 		err = clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 			Context: context.Background(),

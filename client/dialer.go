@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"time"
 )
@@ -38,14 +37,10 @@ func defaultDialFunc(ctx context.Context, network string, address string) (net.C
 			if port != "" {
 				newAddr = net.JoinHostPort(newAddr, port)
 			}
-			fmt.Printf("***** defaultDialFunc 1: network: %s, newAddr: %s\n", network, newAddr)
 			if conn, err := dialer.DialContext(ctx, network, newAddr); err == nil {
 				return conn, nil
 			}
 		}
-		fmt.Printf("***** defaultDialFunc 2: network: %s, host: %s\n", network, host)
-	} else {
-		fmt.Printf("***** defaultDialFunc 3: network: %s, host: %s\n", network, host)
 	}
 	return (&net.Dialer{Timeout: dialTimeout, KeepAlive: keepAliveInterval}).DialContext(ctx, network, address)
 }

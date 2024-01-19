@@ -37,7 +37,7 @@ func TestHostsAlwaysRetryInterceptor(t *testing.T) {
 	})
 
 	retryMax := 1
-	sRetryInterceptor := NewSimpleRetryInterceptor(RetryConfig{
+	sRetryInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
 		RetryInterval: func() time.Duration {
 			return time.Second
@@ -119,7 +119,7 @@ func TestHostsNotRetryInterceptor(t *testing.T) {
 	})
 
 	retryMax := 1
-	sRetryInterceptor := NewSimpleRetryInterceptor(RetryConfig{
+	sRetryInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
 		RetryInterval: func() time.Duration {
 			return time.Second
@@ -198,7 +198,7 @@ func TestHostsRetryInterceptorByRequest(t *testing.T) {
 	})
 
 	retryMax := 1
-	sRetryInterceptor := NewSimpleRetryInterceptor(RetryConfig{
+	sRetryInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
 		RetryInterval: func() time.Duration {
 			return time.Second

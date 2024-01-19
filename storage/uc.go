@@ -800,5 +800,6 @@ func (m *BucketManager) getUCClient() (clientv2.Client, error) {
 		HostFreezeDuration: m.options.HostFreezeDuration,
 		Client:             m.Client,
 		Resolver:           resolver,
+		Chooser:            m.chooser(),
 	}, m.Mac), nil
 }

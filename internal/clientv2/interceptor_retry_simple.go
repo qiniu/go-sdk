@@ -13,6 +13,8 @@ import (
 
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
 	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
+	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
+	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 )
 
 type contextKeyBufferResponse struct{}
@@ -43,14 +45,42 @@ func (c *RetryConfig) init() {
 	}
 }
 
-type simpleRetryInterceptor struct {
-	config RetryConfig
+type (
+	SimpleRetryConfig struct {
+		RetryMax      int                  // 最大重试次数
+		RetryInterval func() time.Duration // 重试时间间隔
+		ShouldRetry   func(req *http.Request, resp *http.Response, err error) bool
+		Resolver      resolver.Resolver // 主备域名解析器
+		Chooser       chooser.Chooser   // 主备域名选择器
+	}
+
+	simpleRetryInterceptor struct {
+		config SimpleRetryConfig
+	}
+)
+
+func (c *SimpleRetryConfig) init() {
+	if c == nil {
+		return
+	}
+
+	if c.RetryMax < 0 {
+		c.RetryMax = 0
+	}
+
+	if c.RetryInterval == nil {
+		c.RetryInterval = func() time.Duration {
+			return time.Duration(50+rand.Int()%50) * time.Millisecond
+		}
+	}
+
+	if c.ShouldRetry == nil {
+		c.ShouldRetry = isSimpleRetryable
+	}
 }
 
-func NewSimpleRetryInterceptor(config RetryConfig) Interceptor {
-	return &simpleRetryInterceptor{
-		config: config,
-	}
+func NewSimpleRetryInterceptor(config SimpleRetryConfig) Interceptor {
+	return &simpleRetryInterceptor{config: config}
 }
 
 func (interceptor *simpleRetryInterceptor) Priority() InterceptorPriority {
@@ -65,9 +95,18 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 
 	interceptor.config.init()
 
-	// 不重试
-	if interceptor.config.RetryMax <= 0 {
-		return handler(req)
+	var ips []net.IP
+	hostname := req.URL.Hostname()
+
+	if resolver := interceptor.config.Resolver; resolver != nil {
+		if ips, err = resolver.Resolve(req.Context(), hostname); err == nil && len(ips) > 0 {
+			if cs := interceptor.config.Chooser; cs != nil {
+				ips = cs.Choose(req.Context(), &chooser.ChooseOptions{IPs: ips, Domain: hostname})
+			}
+			if len(ips) > 0 {
+				req = req.WithContext(clientv1.WithResolvedIPs(req.Context(), hostname, ips))
+			}
+		}
 	}
 
 	// 可能会被重试多次
@@ -83,8 +122,19 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 		}
 
 		if !interceptor.config.ShouldRetry(reqBefore, resp, err) {
+			if len(ips) > 0 {
+				if cs := interceptor.config.Chooser; cs != nil {
+					cs.FeedbackGood(req.Context(), &chooser.FeedbackOptions{IPs: ips, Domain: hostname})
+				}
+			}
 			return resp, err
 		}
+		if len(ips) > 0 {
+			if cs := interceptor.config.Chooser; cs != nil {
+				cs.FeedbackBad(req.Context(), &chooser.FeedbackOptions{IPs: ips, Domain: hostname})
+			}
+		}
+
 		req = reqBefore
 
 		if i >= interceptor.config.RetryMax {

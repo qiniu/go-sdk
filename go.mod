@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/BurntSushi/toml v1.3.2
+	github.com/alex-ant/gomath v0.0.0-20160516115720-89013a210a82
 	github.com/dave/jennifer v1.6.1
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect

@@ -79,6 +79,7 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 			RetryMax:           m.options.RetryMax,
 			HostFreezeDuration: m.options.HostFreezeDuration,
 			Resolver:           resolver,
+			Chooser:            m.chooser(),
 		}); e != nil {
 			return nil, e
 		} else if len(rg.regions) == 0 {

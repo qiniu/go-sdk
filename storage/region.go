@@ -11,6 +11,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis"
+	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
 	"github.com/qiniu/go-sdk/v7/storagev2/defaults"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region_v2 "github.com/qiniu/go-sdk/v7/storagev2/region"
@@ -407,6 +408,8 @@ type ucClientConfig struct {
 
 	Resolver resolver.Resolver
 
+	Chooser chooser.Chooser
+
 	Client *client.Client
 }
 
@@ -438,12 +441,13 @@ func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
 			ShouldFreezeHost:   nil,
 			HostFreezeDuration: config.HostFreezeDuration,
 			HostProvider:       hostprovider.NewWithHosts(hosts),
-			Resolver:           config.Resolver,
 		}),
-		clientv2.NewSimpleRetryInterceptor(clientv2.RetryConfig{
+		clientv2.NewSimpleRetryInterceptor(clientv2.SimpleRetryConfig{
 			RetryMax:      config.RetryMax,
 			RetryInterval: nil,
 			ShouldRetry:   nil,
+			Resolver:      config.Resolver,
+			Chooser:       config.Chooser,
 		}),
 	}
 

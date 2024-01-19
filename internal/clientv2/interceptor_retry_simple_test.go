@@ -12,7 +12,7 @@ import (
 func TestSimpleAlwaysRetryInterceptor(t *testing.T) {
 
 	retryMax := 1
-	rInterceptor := NewSimpleRetryInterceptor(RetryConfig{
+	rInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
 		RetryInterval: func() time.Duration {
 			return time.Second
@@ -67,7 +67,7 @@ func TestSimpleAlwaysRetryInterceptor(t *testing.T) {
 func TestSimpleNotRetryInterceptor(t *testing.T) {
 
 	retryMax := 1
-	rInterceptor := NewSimpleRetryInterceptor(RetryConfig{
+	rInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
 		RetryInterval: func() time.Duration {
 			return time.Second

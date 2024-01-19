@@ -9,11 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alex-ant/gomath/rational"
 	"github.com/qiniu/go-sdk/v7/auth"
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	compatible_io "github.com/qiniu/go-sdk/v7/internal/io"
+	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
 	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	"github.com/qiniu/go-sdk/v7/storagev2/defaults"
 	"github.com/qiniu/go-sdk/v7/storagev2/region"
@@ -42,6 +44,7 @@ type (
 		regions            region.RegionsProvider
 		credentials        credentials.CredentialsProvider
 		resolver           resolver.Resolver
+		chooser            chooser.Chooser
 		hostRetryConfig    *RetryConfig
 		hostsRetryConfig   *RetryConfig
 		hostFreezeDuration time.Duration
@@ -57,6 +60,7 @@ type (
 		Interceptors        []Interceptor
 		UseInsecureProtocol bool
 		Resolver            resolver.Resolver
+		Chooser             chooser.Chooser
 		HostRetryConfig     *RetryConfig
 		HostsRetryConfig    *RetryConfig
 		HostFreezeDuration  time.Duration
@@ -106,6 +110,7 @@ func NewClient(options *Options) *Client {
 		regions:            options.Regions,
 		credentials:        options.Credentials,
 		resolver:           options.Resolver,
+		chooser:            options.Chooser,
 		hostRetryConfig:    options.HostRetryConfig,
 		hostsRetryConfig:   options.HostsRetryConfig,
 		hostFreezeDuration: options.HostFreezeDuration,
@@ -233,15 +238,26 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 			return nil, err
 		}
 	}
+	cs := httpClient.chooser
+	if cs == nil {
+		cs = chooser.NewNeverEmptyHandedChooser(chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil)), rational.New(1, 2))
+	}
 	interceptors = append(interceptors, clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
-		Resolver:           r,
 		RetryConfig:        *hostsRetryConfig,
 		HostProvider:       hostProvider,
 		HostFreezeDuration: httpClient.hostFreezeDuration,
 		ShouldFreezeHost:   httpClient.shouldFreezeHost,
 	}))
 	if httpClient.hostRetryConfig != nil {
-		interceptors = append(interceptors, clientv2.NewSimpleRetryInterceptor(*httpClient.hostRetryConfig))
+		interceptors = append(interceptors, clientv2.NewSimpleRetryInterceptor(
+			clientv2.SimpleRetryConfig{
+				RetryMax:      httpClient.hostRetryConfig.RetryMax,
+				RetryInterval: httpClient.hostRetryConfig.RetryInterval,
+				ShouldRetry:   httpClient.hostRetryConfig.ShouldRetry,
+				Resolver:      r,
+				Chooser:       cs,
+			},
+		))
 	}
 	req, err := clientv2.NewRequest(clientv2.RequestParams{
 		Context:        ctx,

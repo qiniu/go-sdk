@@ -12,7 +12,9 @@ import (
 
 	"golang.org/x/sync/singleflight"
 
+	"github.com/alex-ant/gomath/rational"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
+	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 )
 
@@ -159,6 +161,9 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 				return nil, err
 			}
 		}
+		if options.Chooser == nil {
+			options.Chooser = chooser.NewNeverEmptyHandedChooser(chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil)), rational.New(1, 2))
+		}
 
 		var ret ucQueryV4Ret
 		c := getUCClient(ucClientConfig{
@@ -168,6 +173,7 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 			HostFreezeDuration: options.HostFreezeDuration,
 			Client:             options.Client,
 			Resolver:           options.Resolver,
+			Chooser:            options.Chooser,
 		}, nil)
 		err = clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 			Context: context.Background(),

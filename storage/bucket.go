@@ -14,9 +14,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alex-ant/gomath/rational"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/batch_ops"
+	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 
@@ -285,10 +287,14 @@ type BatchOpRet struct {
 }
 
 type BucketManagerOptions struct {
-	RetryMax int // 单域名重试次数，当前只有 uc 相关的服务有多域名
+	// 单域名重试次数，当前只有 uc 相关的服务有多域名
+	RetryMax int
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
-	Resolver           resolver.Resolver
+	// 域名解析器
+	Resolver resolver.Resolver
+	// 域名选择器
+	Chooser chooser.Chooser
 }
 
 // BucketManager 提供了对资源进行管理的操作
@@ -1057,6 +1063,13 @@ func (m *BucketManager) resolver() (resolver.Resolver, error) {
 		m.options.Resolver = resolver
 		return resolver, nil
 	}
+}
+
+func (m *BucketManager) chooser() chooser.Chooser {
+	if m.options.Chooser != nil {
+		return m.options.Chooser
+	}
+	return chooser.NewNeverEmptyHandedChooser(chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil)), rational.New(1, 2))
 }
 
 // 构建op的方法，导出的方法支持在Batch操作中使用

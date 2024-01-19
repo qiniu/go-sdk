@@ -16,21 +16,22 @@ import (
 	"github.com/qiniu/go-sdk/v7/internal/log"
 )
 
-// Resolver 域名解析器的接口
-type Resolver interface {
-	// Resolve 解析域名的 IP 地址
-	Resolve(context.Context, string) ([]net.IP, error)
-}
+type (
+	// Resolver 域名解析器的接口
+	Resolver interface {
+		// Resolve 解析域名的 IP 地址
+		Resolve(context.Context, string) ([]net.IP, error)
+	}
 
-// DefaultResolver 默认的域名解析器
-type DefaultResolver struct {
-}
+	defaultResolver struct{}
+)
 
+// NewDefaultResolver 创建默认的域名解析器
 func NewDefaultResolver() Resolver {
-	return &DefaultResolver{}
+	return &defaultResolver{}
 }
 
-func (resolver *DefaultResolver) Resolve(ctx context.Context, host string) ([]net.IP, error) {
+func (resolver *defaultResolver) Resolve(ctx context.Context, host string) ([]net.IP, error) {
 	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
 	if err != nil {
 		return nil, err
@@ -44,8 +45,9 @@ func (resolver *DefaultResolver) Resolve(ctx context.Context, host string) ([]ne
 
 type (
 	cacheResolver struct {
-		resolver Resolver
-		cache    *cache.Cache
+		resolver      Resolver
+		cache         *cache.Cache
+		cacheLifetime time.Duration
 	}
 
 	// CacheResolverOptions 缓存域名解析器选项
@@ -61,6 +63,9 @@ type (
 
 		// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 RetryMax 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 		HostFreezeDuration time.Duration
+
+		// 缓存有效期（默认：300s）
+		CacheLifetime time.Duration
 	}
 
 	resolverCacheValue struct {
@@ -72,9 +77,9 @@ type (
 const cacheFileName = "resolver_01.cache.json"
 
 var (
-	persistentCaches     map[uint64]*cache.Cache
-	persistentCachesLock sync.Mutex
-	defaultResolver      Resolver = &DefaultResolver{}
+	persistentCaches      map[uint64]*cache.Cache
+	persistentCachesLock  sync.Mutex
+	staticDefaultResolver Resolver = &defaultResolver{}
 )
 
 // NewCacheResolver 创建带缓存功能的域名解析器
@@ -91,8 +96,11 @@ func NewCacheResolver(resolver Resolver, opts *CacheResolverOptions) (Resolver, 
 	if opts.PersistentDuration == time.Duration(0) {
 		opts.PersistentDuration = time.Minute
 	}
+	if opts.CacheLifetime == time.Duration(0) {
+		opts.CacheLifetime = 300 * time.Second
+	}
 	if resolver == nil {
-		resolver = defaultResolver
+		resolver = staticDefaultResolver
 	}
 
 	persistentCache, err := getPersistentCache(opts)
@@ -100,8 +108,9 @@ func NewCacheResolver(resolver Resolver, opts *CacheResolverOptions) (Resolver, 
 		return nil, err
 	}
 	return &cacheResolver{
-		cache:    persistentCache,
-		resolver: resolver,
+		cache:         persistentCache,
+		resolver:      resolver,
+		cacheLifetime: opts.CacheLifetime,
 	}, nil
 }
 
@@ -146,7 +155,7 @@ func (resolver *cacheResolver) Resolve(ctx context.Context, host string) ([]net.
 		if ips, err = resolver.resolver.Resolve(ctx, host); err != nil {
 			return nil, err
 		} else {
-			return &resolverCacheValue{IPs: ips, ExpiredAt: time.Now().Add(5 * time.Minute)}, nil
+			return &resolverCacheValue{IPs: ips, ExpiredAt: time.Now().Add(resolver.cacheLifetime)}, nil
 		}
 	})
 	if status == cache.NoResultGot {
@@ -188,6 +197,7 @@ func (opts *CacheResolverOptions) toBytes() []byte {
 	bytes := make([]byte, 0, 1024)
 	bytes = strconv.AppendInt(bytes, int64(opts.CompactInterval), 36)
 	bytes = strconv.AppendInt(bytes, int64(opts.PersistentDuration), 36)
+	bytes = strconv.AppendInt(bytes, int64(opts.CacheLifetime), 36)
 	bytes = append(bytes, []byte(opts.PersistentFilePath)...)
 	bytes = append(bytes, byte(0))
 	return bytes

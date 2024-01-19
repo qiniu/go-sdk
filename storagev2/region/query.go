@@ -15,10 +15,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alex-ant/gomath/rational"
 	"github.com/qiniu/go-sdk/v7/internal/cache"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"github.com/qiniu/go-sdk/v7/internal/log"
+	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
+	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 )
 
 type (
@@ -56,6 +59,12 @@ type (
 
 		// HTTP 客户端，如果不配置则使用默认的 HTTP 客户端
 		Client clientv2.Client
+
+		// 域名解析器，如果不配置则使用默认的域名解析器
+		Resolver resolver.Resolver
+
+		// 域名选择器，如果不配置则使用默认的域名选择器
+		Chooser chooser.Chooser
 	}
 
 	bucketRegionsProvider struct {
@@ -121,10 +130,19 @@ func NewBucketRegionsQuery(bucketHosts Endpoints, opts *BucketRegionsQueryOption
 	if err != nil {
 		return nil, err
 	}
+
+	var r resolver.Resolver = opts.Resolver
+	var cs chooser.Chooser = opts.Chooser
+	if r == nil {
+		r = resolver.NewDefaultResolver()
+	}
+	if cs == nil {
+		cs = chooser.NewNeverEmptyHandedChooser(chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil)), rational.New(1, 2))
+	}
 	return &bucketRegionsQuery{
 		bucketHosts: bucketHosts,
 		cache:       persistentCache,
-		client:      makeBucketQueryClient(opts.Client, bucketHosts, !opts.UseInsecureProtocol, opts.RetryMax, opts.HostFreezeDuration),
+		client:      makeBucketQueryClient(opts.Client, bucketHosts, !opts.UseInsecureProtocol, opts.RetryMax, opts.HostFreezeDuration, r, cs),
 		useHttps:    !opts.UseInsecureProtocol,
 	}, nil
 }
@@ -260,7 +278,15 @@ func makeHostsCacheKey(hosts []string) string {
 	return fmt.Sprintf("%x", md5.Sum([]byte(strings.Join(sortedHosts, ","))))
 }
 
-func makeBucketQueryClient(client clientv2.Client, bucketHosts Endpoints, useHttps bool, retryMax int, hostFreezeDuration time.Duration) clientv2.Client {
+func makeBucketQueryClient(
+	client clientv2.Client,
+	bucketHosts Endpoints,
+	useHttps bool,
+	retryMax int,
+	hostFreezeDuration time.Duration,
+	r resolver.Resolver,
+	cs chooser.Chooser,
+) clientv2.Client {
 	is := []clientv2.Interceptor{
 		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
 			RetryConfig: clientv2.RetryConfig{
@@ -272,10 +298,12 @@ func makeBucketQueryClient(client clientv2.Client, bucketHosts Endpoints, useHtt
 			HostFreezeDuration: hostFreezeDuration,
 			HostProvider:       hostprovider.NewWithHosts(bucketHosts.allUrls(useHttps)),
 		}),
-		clientv2.NewSimpleRetryInterceptor(clientv2.RetryConfig{
+		clientv2.NewSimpleRetryInterceptor(clientv2.SimpleRetryConfig{
 			RetryMax:      retryMax,
 			RetryInterval: nil,
 			ShouldRetry:   nil,
+			Resolver:      r,
+			Chooser:       cs,
 		}),
 	}
 	return clientv2.NewClient(client, is...)
