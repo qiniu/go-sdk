@@ -54,6 +54,7 @@ jobs:
           GOPATH=$GITHUB_WORKSPACE go get github.com/davecgh/go-spew/spew
           GOPATH=$GITHUB_WORKSPACE go get github.com/pmezard/go-difflib/difflib
           GOPATH=$GITHUB_WORKSPACE go get gopkg.in/yaml.v3
+          rm -rf $GITHUB_WORKSPACE/src/github.com/BurntSushi/toml && git clone -b v0.3.1 --depth 1 https://github.com/BurntSushi/toml.git $GITHUB_WORKSPACE/src/github.com/BurntSushi/toml
 
           GOPATH=$GITHUB_WORKSPACE make unittest
         working-directory: src/github.com/qiniu/go-sdk

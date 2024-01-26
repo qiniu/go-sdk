@@ -14,6 +14,7 @@ import (
 	api "github.com/qiniu/go-sdk/v7"
 	"github.com/qiniu/go-sdk/v7/conf"
 	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
+	"github.com/qiniu/go-sdk/v7/storagev2/defaults"
 )
 
 const (
@@ -32,18 +33,39 @@ type Credentials struct {
 	SecretKey []byte
 }
 
-// 构建一个Credentials对象
+// New 构建一个Credentials对象
 func New(accessKey, secretKey string) *Credentials {
 	return &Credentials{accessKey, []byte(secretKey)}
 }
 
+// Default 构建默认的 Credentials 对象
+func Default() *Credentials {
+	accessKey, secretKey, err := defaults.Credentials()
+	if err == nil && accessKey != "" && secretKey != "" {
+		return New(accessKey, secretKey)
+	}
+	return nil
+}
+
 // Sign 对数据进行签名，一般用于私有空间下载用途
 func (ath *Credentials) Sign(data []byte) (token string) {
-	h := hmac.New(sha1.New, ath.SecretKey)
+	var (
+		accessKey string
+		secretKey []byte
+	)
+	if ath == nil {
+		if cred := Default(); cred != nil {
+			accessKey = cred.AccessKey
+			secretKey = cred.SecretKey
+		}
+	} else {
+		accessKey, secretKey = ath.AccessKey, ath.SecretKey
+	}
+	h := hmac.New(sha1.New, secretKey)
 	h.Write(data)
 
 	sign := base64.URLEncoding.EncodeToString(h.Sum(nil))
-	return fmt.Sprintf("%s:%s", ath.AccessKey, sign)
+	return fmt.Sprintf("%s:%s", accessKey, sign)
 }
 
 // SignToken 根据t的类型对请求进行签名，并把token加入req中
@@ -74,8 +96,16 @@ func (ath *Credentials) SignWithData(b []byte) (token string) {
 
 // IsIAMKey 判断AccessKey是否为IAM的Key
 func (ath *Credentials) IsIAMKey() bool {
-	return len(ath.AccessKey) == IAMKeyLen*4/3 &&
-		strings.HasPrefix(ath.AccessKey, IAMKeyPrefix)
+	var accessKey string
+	if ath == nil {
+		if cred := Default(); cred != nil {
+			accessKey = cred.AccessKey
+		}
+	} else {
+		accessKey = ath.AccessKey
+	}
+	return len(accessKey) == IAMKeyLen*4/3 &&
+		strings.HasPrefix(accessKey, IAMKeyPrefix)
 }
 
 func collectData(req *http.Request) (data []byte, err error) {

@@ -26,20 +26,13 @@ type Base64Uploader struct {
 
 // NewBase64Uploader 用来构建一个Base64上传的对象
 func NewBase64Uploader(cfg *Config) *Base64Uploader {
-	if cfg == nil {
-		cfg = &Config{}
-	}
-
-	return &Base64Uploader{
-		client: &client.DefaultClient,
-		cfg:    cfg,
-	}
+	return NewBase64UploaderEx(cfg, nil)
 }
 
 // NewBase64UploaderEx 用来构建一个Base64上传的对象
 func NewBase64UploaderEx(cfg *Config, clt *client.Client) *Base64Uploader {
 	if cfg == nil {
-		cfg = &Config{}
+		cfg = NewConfig()
 	}
 
 	if clt == nil {

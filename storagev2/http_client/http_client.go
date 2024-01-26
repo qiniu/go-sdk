@@ -15,6 +15,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	compatible_io "github.com/qiniu/go-sdk/v7/internal/io"
 	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
+	"github.com/qiniu/go-sdk/v7/storagev2/defaults"
 	"github.com/qiniu/go-sdk/v7/storagev2/region"
 	"github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
@@ -81,12 +82,18 @@ type (
 func NewClient(options *Options) *Client {
 	if options == nil {
 		options = &Options{}
+		if isDisabled, err := defaults.DisableSecureProtocol(); err == nil {
+			options.UseInsecureProtocol = isDisabled
+		}
 	}
 	if options.HostFreezeDuration < time.Millisecond {
 		options.HostFreezeDuration = 600 * time.Second
 	}
 	if options.ShouldFreezeHost == nil {
 		options.ShouldFreezeHost = defaultShouldFreezeHost
+	}
+	if options.Credentials == nil {
+		options.Credentials = auth.Default()
 	}
 
 	return &Client{
@@ -310,6 +317,12 @@ func GetRequestBodyFromReadSeekCloser(r compatible_io.ReadSeekCloser) GetRequest
 var defaultBucketHosts = region.Endpoints{
 	Preferred:   []string{"uc.qiniuapi.com", "kodo-config.qiniuapi.com"},
 	Alternative: []string{"uc.qbox.me"},
+}
+
+func init() {
+	if bucketUrls, err := defaults.BucketURLs(); err == nil && len(bucketUrls) > 0 {
+		defaultBucketHosts = region.Endpoints{Preferred: bucketUrls}
+	}
 }
 
 // DefaultBucketHosts 默认的 Bucket 域名列表

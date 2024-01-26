@@ -5,6 +5,7 @@ package uptoken_test
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -48,5 +49,28 @@ func TestSignPutPolicy(t *testing.T) {
 		t.Fatalf("failed to retrieve putPolicy: %s", err)
 	} else if actualScope, _ := actualPutPolicy.GetScope(); actualScope != expectedBucketName {
 		t.Fatalf("unexpected scope: %s", actualScope)
+	}
+}
+
+func TestSignPutPolicyByDefaultCredentials(t *testing.T) {
+	const expectedBucketName = "testbucket"
+	const expectedAccessKey = "testaccesskey"
+	const expectedSecretKey = "testsecretkey"
+	const expectedExpires = int64(1675937798)
+
+	os.Setenv("QINIU_ACCESS_KEY", expectedAccessKey)
+	os.Setenv("QINIU_SECRET_KEY", expectedSecretKey)
+	defer func() {
+		os.Unsetenv("QINIU_ACCESS_KEY")
+		os.Unsetenv("QINIU_SECRET_KEY")
+	}()
+
+	putPolicy, err := uptoken.NewPutPolicy(expectedBucketName, time.Unix(expectedExpires, 0))
+	if err != nil {
+		t.Fatalf("failed to create put policy: %s", err)
+	}
+	signer := uptoken.NewSigner(putPolicy, nil)
+	if accessKey, _ := signer.GetAccessKey(context.Background()); accessKey != "testaccesskey" {
+		t.Fatalf("failed to retrieve accessKey: %s", err)
 	}
 }

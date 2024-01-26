@@ -1,5 +1,7 @@
 package storage
 
+import "github.com/qiniu/go-sdk/v7/storagev2/defaults"
+
 // Config 为文件上传，资源管理等配置
 type Config struct {
 	//兼容保留
@@ -19,6 +21,15 @@ type Config struct {
 	UpHost  string
 	ApiHost string
 	IoHost  string
+}
+
+// NewConfig 创建默认的 Config 对象
+func NewConfig() *Config {
+	var config Config
+	if isDisabled, err := defaults.DisableSecureProtocol(); err == nil {
+		config.UseHTTPS = !isDisabled
+	}
+	return &config
 }
 
 // reqHost 返回一个Host链接

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/client"
+	"github.com/qiniu/go-sdk/v7/storagev2/defaults"
 )
 
 type UploadResumeVersion = int
@@ -23,10 +24,20 @@ const (
 	uploadMethodResumeV2 = 2
 )
 
+// UploadConfig 为 UploadManager 提供配置信息
 type UploadConfig struct {
 	UseHTTPS      bool
 	UseCdnDomains bool
 	Regions       *RegionGroup
+}
+
+// NewUploadConfig 创建默认的 UploadConfig 对象
+func NewUploadConfig() *UploadConfig {
+	var config UploadConfig
+	if isDisabled, err := defaults.DisableSecureProtocol(); err == nil {
+		config.UseHTTPS = !isDisabled
+	}
+	return &config
 }
 
 func (config *UploadConfig) init() {
@@ -154,7 +165,7 @@ func NewUploadManager(cfg *UploadConfig) *UploadManager {
 
 func NewUploadManagerEx(cfg *UploadConfig, c *client.Client) *UploadManager {
 	if cfg == nil {
-		cfg = &UploadConfig{}
+		cfg = NewUploadConfig()
 	}
 
 	if c == nil {

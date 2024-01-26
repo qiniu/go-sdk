@@ -20,21 +20,16 @@ type OperationManager struct {
 
 // NewOperationManager 用来构建一个新的数据处理对象
 func NewOperationManager(mac *auth.Credentials, cfg *Config) *OperationManager {
-	if cfg == nil {
-		cfg = &Config{}
-	}
-
-	return &OperationManager{
-		Client: &client.DefaultClient,
-		Mac:    mac,
-		Cfg:    cfg,
-	}
+	return NewOperationManagerEx(mac, cfg, nil)
 }
 
 // NewOperationManager 用来构建一个新的数据处理对象
 func NewOperationManagerEx(mac *auth.Credentials, cfg *Config, clt *client.Client) *OperationManager {
 	if cfg == nil {
-		cfg = &Config{}
+		cfg = NewConfig()
+	}
+	if mac == nil {
+		mac = auth.Default()
 	}
 
 	if clt == nil {

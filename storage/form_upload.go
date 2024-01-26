@@ -72,7 +72,7 @@ func NewFormUploader(cfg *Config) *FormUploader {
 // NewFormUploaderEx 用来构建一个表单上传的对象
 func NewFormUploaderEx(cfg *Config, clt *client.Client) *FormUploader {
 	if cfg == nil {
-		cfg = &Config{}
+		cfg = NewConfig()
 	}
 
 	if clt == nil {

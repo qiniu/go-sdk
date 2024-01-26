@@ -11,6 +11,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis"
+	"github.com/qiniu/go-sdk/v7/storagev2/defaults"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region_v2 "github.com/qiniu/go-sdk/v7/storagev2/region"
 )
@@ -241,6 +242,12 @@ var UcHost = ""
 // 用户配置时，不能配置 api 域名
 var ucHosts = []string{defaultUcHost0, defaultUcHost1, defaultApiHost}
 
+func init() {
+	if defaultUcHosts, err := defaults.BucketURLs(); err == nil && len(defaultUcHosts) > 0 {
+		ucHosts = defaultUcHosts
+	}
+}
+
 // SetUcHost
 // Deprecated 使用 SetUcHosts 替换
 func SetUcHost(host string, useHttps bool) {
@@ -354,6 +361,11 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]R
 	if options.Client != nil {
 		httpClient = options.Client.Client
 	}
+
+	if mac == nil {
+		mac = auth.Default()
+	}
+
 	response, err := apis.NewStorage(&http_client.Options{
 		BasicHTTPClient:    httpClient,
 		HostFreezeDuration: options.HostFreezeDuration,

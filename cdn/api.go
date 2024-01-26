@@ -24,6 +24,9 @@ type CdnManager struct {
 
 // NewCdnManager 用来构建一个新的 CdnManager
 func NewCdnManager(mac *auth.Credentials) *CdnManager {
+	if mac == nil {
+		mac = auth.Default()
+	}
 	return &CdnManager{mac: mac}
 }
 

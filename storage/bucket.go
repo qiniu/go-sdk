@@ -310,7 +310,10 @@ func NewBucketManagerEx(mac *auth.Credentials, cfg *Config, clt *clientv1.Client
 
 func NewBucketManagerExWithOptions(mac *auth.Credentials, cfg *Config, clt *clientv1.Client, options BucketManagerOptions) *BucketManager {
 	if cfg == nil {
-		cfg = &Config{}
+		cfg = NewConfig()
+	}
+	if mac == nil {
+		mac = auth.Default()
 	}
 
 	if clt == nil {

@@ -3,6 +3,7 @@ module github.com/qiniu/go-sdk/v7
 go 1.14
 
 require (
+	github.com/BurntSushi/toml v1.3.2
 	github.com/dave/jennifer v1.6.1
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect

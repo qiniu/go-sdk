@@ -75,7 +75,11 @@ func (signer *signer) GetUpToken(ctx context.Context) (string, error) {
 func (signer *signer) onceGetCredentials(ctx context.Context) (*credentials.Credentials, error) {
 	var err error
 	signer.onceCredentials.Do(func() {
-		signer.credentials, err = signer.credentialsProvider.Get(ctx)
+		if signer.credentialsProvider != nil {
+			signer.credentials, err = signer.credentialsProvider.Get(ctx)
+		} else {
+			signer.credentials = credentials.Default()
+		}
 	})
 	return signer.credentials, err
 }

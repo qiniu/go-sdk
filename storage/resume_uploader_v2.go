@@ -34,7 +34,7 @@ func NewResumeUploaderV2(cfg *Config) *ResumeUploaderV2 {
 // NewResumeUploaderV2Ex 表示构建一个新的分片上传 v2 的对象
 func NewResumeUploaderV2Ex(cfg *Config, clt *client.Client) *ResumeUploaderV2 {
 	if cfg == nil {
-		cfg = &Config{}
+		cfg = NewConfig()
 	}
 
 	if clt == nil {

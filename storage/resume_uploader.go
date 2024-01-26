@@ -33,7 +33,7 @@ func NewResumeUploader(cfg *Config) *ResumeUploader {
 // NewResumeUploaderEx 表示构建一个新的分片上传的对象
 func NewResumeUploaderEx(cfg *Config, clt *client.Client) *ResumeUploader {
 	if cfg == nil {
-		cfg = &Config{}
+		cfg = NewConfig()
 	}
 
 	if clt == nil {
