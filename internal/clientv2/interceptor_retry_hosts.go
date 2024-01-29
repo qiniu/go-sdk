@@ -122,7 +122,7 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 			resp.Body.Close()
 		}
 
-		retryInterval := interceptor.options.RetryConfig.RetryInterval()
+		retryInterval := interceptor.options.RetryConfig.RetryInterval(&RetryInfo{Retried: i})
 		if retryInterval < time.Microsecond {
 			continue
 		}

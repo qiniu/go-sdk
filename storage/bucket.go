@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alex-ant/gomath/rational"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/batch_ops"
@@ -1069,7 +1068,7 @@ func (m *BucketManager) chooser() chooser.Chooser {
 	if m.options.Chooser != nil {
 		return m.options.Chooser
 	}
-	return chooser.NewNeverEmptyHandedChooser(chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil)), rational.New(1, 2))
+	return chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil))
 }
 
 // 构建op的方法，导出的方法支持在Batch操作中使用

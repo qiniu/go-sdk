@@ -1,6 +1,8 @@
 package chooser
 
 import (
+	"bytes"
+	"container/heap"
 	"context"
 	"fmt"
 	"net"
@@ -8,19 +10,31 @@ import (
 	"time"
 )
 
-type ipChooser struct {
-	blacklist      map[string]blacklistItem
-	blacklistMutex sync.Mutex
-	freezeDuration time.Duration
-	shrinkInterval time.Duration
-	shrunkAt       time.Time
-}
+type (
+	blackItem struct {
+		index     int
+		domain    string
+		ip        net.IP
+		expiredAt time.Time
+	}
 
-// IPChooserOptions IP 选择器的选项
-type IPChooserOptions struct {
-	FreezeDuration time.Duration
-	ShrinkInterval time.Duration
-}
+	blackheap struct {
+		m     map[string]*blackItem
+		items []*blackItem
+	}
+
+	ipChooser struct {
+		blackheap      blackheap
+		blackheapMutex sync.Mutex
+		freezeDuration time.Duration
+	}
+
+	// IPChooserOptions IP 选择器的选项
+	IPChooserOptions struct {
+		// FreezeDuration IP 冻结时长（默认：600s）
+		FreezeDuration time.Duration
+	}
+)
 
 // NewIPChooser 创建 IP 选择器
 func NewIPChooser(options *IPChooserOptions) Chooser {
@@ -30,94 +44,191 @@ func NewIPChooser(options *IPChooserOptions) Chooser {
 	if options.FreezeDuration == 0 {
 		options.FreezeDuration = 10 * time.Minute
 	}
-	if options.ShrinkInterval == 0 {
-		options.ShrinkInterval = 10 * time.Minute
-	}
 	return &ipChooser{
-		blacklist:      make(map[string]blacklistItem),
+		blackheap: blackheap{
+			m:     make(map[string]*blackItem, 1024),
+			items: make([]*blackItem, 0, 1024),
+		},
 		freezeDuration: options.FreezeDuration,
-		shrinkInterval: options.ShrinkInterval,
-		shrunkAt:       time.Now(),
 	}
 }
 
 func (chooser *ipChooser) Choose(_ context.Context, options *ChooseOptions) []net.IP {
-	return chooser.isInBlacklist(options.Domain, options.IPs)
+	if len(options.IPs) == 0 {
+		return nil
+	}
+
+	chooser.blackheapMutex.Lock()
+	defer chooser.blackheapMutex.Unlock()
+
+	chosenIPs := make([]net.IP, 0, chooser.blackheap.Len())
+	for _, ip := range options.IPs {
+		if item := chooser.blackheap.FindByDomainAndIp(options.Domain, ip); item == nil {
+			chosenIPs = append(chosenIPs, ip)
+		}
+	}
+	if len(chosenIPs) > 0 {
+		return chosenIPs
+	}
+
+	var chosenExpiredAt time.Time
+	toFind := options.makeSet(makeMapKey)
+	backups := make([]*blackItem, 0, chooser.blackheap.Len())
+	for chooser.blackheap.Len() > 0 {
+		firstChosen := heap.Pop(&chooser.blackheap).(*blackItem)
+		backups = append(backups, firstChosen)
+		key := makeMapKey(firstChosen.domain, firstChosen.ip)
+		if _, ok := toFind[key]; ok {
+			chosenExpiredAt = firstChosen.expiredAt
+			chosenIPs = append(chosenIPs, firstChosen.ip)
+			delete(toFind, key)
+			break
+		}
+	}
+	if chosenExpiredAt.IsZero() {
+		panic("chosenExpiredAt should not be empty")
+	}
+	for chooser.blackheap.Len() > 0 {
+		item := heap.Pop(&chooser.blackheap).(*blackItem)
+		backups = append(backups, item)
+		if chosenExpiredAt.Equal(item.expiredAt) {
+			key := makeMapKey(item.domain, item.ip)
+			if _, ok := toFind[key]; ok {
+				chosenIPs = append(chosenIPs, item.ip)
+				delete(toFind, key)
+			}
+		} else {
+			break
+		}
+	}
+	for _, backup := range backups {
+		if backup.expiredAt.After(time.Now()) {
+			heap.Push(&chooser.blackheap, backup)
+		}
+	}
+	return chosenIPs
 }
 
 func (chooser *ipChooser) FeedbackGood(_ context.Context, options *FeedbackOptions) {
-	chooser.deleteFromBlacklist(options.Domain, options.IPs)
+	if len(options.IPs) == 0 {
+		return
+	}
+
+	chooser.blackheapMutex.Lock()
+	defer chooser.blackheapMutex.Unlock()
+
+	for _, ip := range options.IPs {
+		if item := chooser.blackheap.FindByDomainAndIp(options.Domain, ip); item != nil {
+			heap.Remove(&chooser.blackheap, item.index)
+		}
+	}
 }
 
 func (chooser *ipChooser) FeedbackBad(_ context.Context, options *FeedbackOptions) {
-	chooser.putIntoBlacklist(options.Domain, options.IPs)
-}
+	if len(options.IPs) == 0 {
+		return
+	}
 
-func (chooser *ipChooser) isInBlacklist(domain string, ips []net.IP) []net.IP {
-	chooser.blacklistMutex.Lock()
-	defer chooser.blacklistMutex.Unlock()
+	chooser.blackheapMutex.Lock()
+	defer chooser.blackheapMutex.Unlock()
 
-	filtered := make([]net.IP, 0, len(ips))
-
-	for _, ip := range ips {
-		blocklistKey := chooser.makeBlocklistKey(domain, ip)
-		if blacklistItem, ok := chooser.blacklist[blocklistKey]; ok {
-			if time.Now().After(blacklistItem.expiredAt) {
-				delete(chooser.blacklist, blocklistKey)
-				filtered = append(filtered, ip)
-			}
+	newExpiredAt := time.Now().Add(chooser.freezeDuration)
+	for _, ip := range options.IPs {
+		if item := chooser.blackheap.FindByDomainAndIp(options.Domain, ip); item != nil {
+			chooser.blackheap.items[item.index].expiredAt = newExpiredAt
+			heap.Fix(&chooser.blackheap, item.index)
 		} else {
-			filtered = append(filtered, ip)
+			heap.Push(&chooser.blackheap, &blackItem{
+				domain:    options.Domain,
+				ip:        ip,
+				expiredAt: newExpiredAt,
+			})
 		}
 	}
-
-	go chooser.shrink()
-
-	return filtered
 }
 
-func (chooser *ipChooser) putIntoBlacklist(domain string, ips []net.IP) {
-	chooser.blacklistMutex.Lock()
-	defer chooser.blacklistMutex.Unlock()
+func (h *blackheap) Len() int {
+	return len(h.items)
+}
 
-	for _, ip := range ips {
-		blocklistKey := chooser.makeBlocklistKey(domain, ip)
-		chooser.blacklist[blocklistKey] = blacklistItem{expiredAt: time.Now().Add(chooser.freezeDuration)}
+func (h *blackheap) Less(i, j int) bool {
+	return h.items[i].expiredAt.Before(h.items[j].expiredAt)
+}
+
+func (h *blackheap) Swap(i, j int) {
+	if i == j {
+		return
 	}
-
-	go chooser.shrink()
+	h.items[i].domain, h.items[j].domain = h.items[j].domain, h.items[i].domain
+	h.items[i].ip, h.items[j].ip = h.items[j].ip, h.items[i].ip
+	h.items[i].expiredAt, h.items[j].expiredAt = h.items[j].expiredAt, h.items[i].expiredAt
+	h.m[makeMapKey(h.items[i].domain, h.items[i].ip)] = h.items[i]
+	h.m[makeMapKey(h.items[j].domain, h.items[j].ip)] = h.items[j]
 }
 
-func (chooser *ipChooser) deleteFromBlacklist(domain string, ips []net.IP) {
-	chooser.blacklistMutex.Lock()
-	defer chooser.blacklistMutex.Unlock()
-
-	for _, ip := range ips {
-		blocklistKey := chooser.makeBlocklistKey(domain, ip)
-		delete(chooser.blacklist, blocklistKey)
-	}
-
-	go chooser.shrink()
+func (h *blackheap) Push(x interface{}) {
+	item := x.(*blackItem)
+	item.index = len(h.items)
+	h.items = append(h.items, item)
+	h.m[makeMapKey(item.domain, item.ip)] = item
 }
 
-func (chooser *ipChooser) makeBlocklistKey(domain string, ip net.IP) string {
-	return fmt.Sprintf("%s_%s", ip, domain)
+func (h *blackheap) Pop() interface{} {
+	n := len(h.items)
+	last := h.items[n-1]
+	h.items = h.items[0 : n-1]
+	delete(h.m, makeMapKey(last.domain, last.ip))
+	return last
 }
 
-func (chooser *ipChooser) shrink() {
-	chooser.blacklistMutex.Lock()
-	defer chooser.blacklistMutex.Unlock()
-
-	if time.Now().After(chooser.shrunkAt.Add(chooser.shrinkInterval)) {
-		shrinkKeys := make([]string, 0, len(chooser.blacklist))
-		for key, blacklistItem := range chooser.blacklist {
-			if time.Now().After(blacklistItem.expiredAt) {
-				shrinkKeys = append(shrinkKeys, key)
-			}
+func (h *blackheap) FindByDomainAndIp(domain string, ip net.IP) *blackItem {
+	key := makeMapKey(domain, ip)
+	if item, ok := h.m[key]; ok {
+		if item.expiredAt.Before(time.Now()) {
+			heap.Remove(h, item.index)
+			return nil
 		}
-		for _, key := range shrinkKeys {
-			delete(chooser.blacklist, key)
-		}
-		chooser.shrunkAt = time.Now()
+		return item
 	}
+	return nil
+}
+
+func (h *blackheap) String() string {
+	var buf bytes.Buffer
+
+	buf.WriteString("&blackheap{ items: [")
+	for _, item := range h.items {
+		buf.WriteString(item.String())
+		buf.WriteString(", ")
+	}
+	buf.WriteString("], m: {")
+	for k, v := range h.m {
+		buf.WriteString(k)
+		buf.WriteString(": ")
+		buf.WriteString(v.String())
+		buf.WriteString(", ")
+	}
+	buf.WriteString("}")
+
+	return buf.String()
+}
+
+func (item *blackItem) String() string {
+	var buf bytes.Buffer
+
+	buf.WriteString("&blackItem{ index: ")
+	buf.WriteString(fmt.Sprintf("%d", item.index))
+	buf.WriteString(", domain: ")
+	buf.WriteString(item.domain)
+	buf.WriteString(", ip: ")
+	buf.WriteString(item.ip.String())
+	buf.WriteString(", expiredAt: ")
+	buf.WriteString(item.expiredAt.String())
+	buf.WriteString("}")
+
+	return buf.String()
+}
+
+func makeMapKey(domain string, ip net.IP) string {
+	return ip.String() + "|" + domain
 }

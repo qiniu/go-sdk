@@ -14,7 +14,7 @@ func TestSimpleAlwaysRetryInterceptor(t *testing.T) {
 	retryMax := 1
 	rInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
-		RetryInterval: func() time.Duration {
+		RetryInterval: func(_ *RetryInfo) time.Duration {
 			return time.Second
 		},
 		ShouldRetry: func(req *http.Request, resp *http.Response, err error) bool {
@@ -69,7 +69,7 @@ func TestSimpleNotRetryInterceptor(t *testing.T) {
 	retryMax := 1
 	rInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
-		RetryInterval: func() time.Duration {
+		RetryInterval: func(_ *RetryInfo) time.Duration {
 			return time.Second
 		},
 		// 默认状态码是 400，400 不重试

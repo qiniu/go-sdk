@@ -3,7 +3,6 @@ package chooser
 import (
 	"context"
 	"net"
-	"time"
 )
 
 type (
@@ -34,10 +33,6 @@ type (
 		// FeedbackBad 反馈一批 IP 地址请求失败
 		FeedbackBad(context.Context, *FeedbackOptions)
 	}
-
-	blacklistItem struct {
-		expiredAt time.Time
-	}
 )
 
 type directChooser struct {
@@ -57,4 +52,12 @@ func (chooser *directChooser) FeedbackGood(_ context.Context, _ *FeedbackOptions
 
 func (chooser *directChooser) FeedbackBad(_ context.Context, _ *FeedbackOptions) {
 	// do nothing
+}
+
+func (options *ChooseOptions) makeSet(makeKey func(string, net.IP) string) map[string]struct{} {
+	m := make(map[string]struct{}, len(options.IPs))
+	for _, ip := range options.IPs {
+		m[makeKey(options.Domain, ip)] = struct{}{}
+	}
+	return m
 }

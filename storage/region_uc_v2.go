@@ -12,7 +12,6 @@ import (
 
 	"golang.org/x/sync/singleflight"
 
-	"github.com/alex-ant/gomath/rational"
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
@@ -283,7 +282,7 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 			}
 		}
 		if options.Chooser == nil {
-			options.Chooser = chooser.NewNeverEmptyHandedChooser(chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil)), rational.New(1, 2))
+			options.Chooser = chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil))
 		}
 
 		var ret UcQueryRet

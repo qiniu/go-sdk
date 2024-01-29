@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alex-ant/gomath/rational"
 	"github.com/qiniu/go-sdk/v7/auth"
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
@@ -240,7 +239,7 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 	}
 	cs := httpClient.chooser
 	if cs == nil {
-		cs = chooser.NewNeverEmptyHandedChooser(chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil)), rational.New(1, 2))
+		cs = chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil))
 	}
 	interceptors = append(interceptors, clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
 		RetryConfig:        *hostsRetryConfig,

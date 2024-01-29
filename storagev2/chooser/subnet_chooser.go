@@ -1,23 +1,23 @@
 package chooser
 
 import (
+	"container/heap"
 	"context"
-	"fmt"
 	"net"
 	"sync"
 	"time"
 )
 
-type subnetChooser struct {
-	blacklist      map[string]blacklistItem
-	blacklistMutex sync.Mutex
-	freezeDuration time.Duration
-	shrinkInterval time.Duration
-	shrunkAt       time.Time
-}
+type (
+	subnetChooser struct {
+		blackheap      blackheap
+		blackheapMutex sync.Mutex
+		freezeDuration time.Duration
+	}
 
-// SubnetChooserOptions 子网选择器的选项
-type SubnetChooserOptions IPChooserOptions
+	// SubnetChooserOptions 子网选择器的选项
+	SubnetChooserOptions IPChooserOptions
+)
 
 // NewSubnetChooser 创建子网选择器
 func NewSubnetChooser(options *SubnetChooserOptions) Chooser {
@@ -27,101 +27,125 @@ func NewSubnetChooser(options *SubnetChooserOptions) Chooser {
 	if options.FreezeDuration == 0 {
 		options.FreezeDuration = 10 * time.Minute
 	}
-	if options.ShrinkInterval == 0 {
-		options.ShrinkInterval = 10 * time.Minute
-	}
 	return &subnetChooser{
-		blacklist:      make(map[string]blacklistItem),
+		blackheap: blackheap{
+			m:     make(map[string]*blackItem, 1024),
+			items: make([]*blackItem, 0, 1024),
+		},
 		freezeDuration: options.FreezeDuration,
-		shrinkInterval: options.ShrinkInterval,
-		shrunkAt:       time.Now(),
 	}
 }
+
 func (chooser *subnetChooser) Choose(_ context.Context, options *ChooseOptions) []net.IP {
-	return chooser.isInBlacklistAndOneSubnet(options.Domain, options.IPs)
+	if len(options.IPs) == 0 {
+		return nil
+	}
+
+	chooser.blackheapMutex.Lock()
+	defer chooser.blackheapMutex.Unlock()
+
+	var chosenSubnet net.IP
+	chosenIPs := make([]net.IP, 0, chooser.blackheap.Len())
+	for _, ip := range options.IPs {
+		subnetIP := makeSubnet(ip)
+		if len(chosenIPs) == 0 {
+			if item := chooser.blackheap.FindByDomainAndIp(options.Domain, subnetIP); item == nil {
+				chosenIPs = append(chosenIPs, ip)
+				chosenSubnet = subnetIP
+			}
+		} else if chosenSubnet.Equal(subnetIP) {
+			chosenIPs = append(chosenIPs, ip)
+		}
+	}
+	if len(chosenIPs) > 0 {
+		return chosenIPs
+	}
+
+	var chosenExpiredAt time.Time
+	toFind := options.makeSet(func(domain string, ip net.IP) string {
+		return makeMapKey(domain, makeSubnet(ip))
+	})
+	backups := make([]*blackItem, 0, chooser.blackheap.Len())
+	for chooser.blackheap.Len() > 0 {
+		firstChosen := heap.Pop(&chooser.blackheap).(*blackItem)
+		backups = append(backups, firstChosen)
+		firstChosenSubnetIP := makeSubnet(firstChosen.ip)
+		if _, ok := toFind[makeMapKey(firstChosen.domain, firstChosenSubnetIP)]; ok {
+			chosenExpiredAt = firstChosen.expiredAt
+			chosenSubnet = firstChosenSubnetIP
+			break
+		}
+	}
+	if chosenExpiredAt.IsZero() {
+		panic("chosenExpiredAt should not be empty")
+	}
+	for _, ip := range options.IPs {
+		if chosenSubnet.Equal(makeSubnet(ip)) {
+			chosenIPs = append(chosenIPs, ip)
+		}
+	}
+	for _, backup := range backups {
+		if backup.expiredAt.After(time.Now()) {
+			heap.Push(&chooser.blackheap, backup)
+		}
+	}
+	return chosenIPs
 }
 
 func (chooser *subnetChooser) FeedbackGood(_ context.Context, options *FeedbackOptions) {
-	chooser.deleteFromBlacklist(options.Domain, options.IPs)
+	if len(options.IPs) == 0 {
+		return
+	}
+
+	chooser.blackheapMutex.Lock()
+	defer chooser.blackheapMutex.Unlock()
+
+	haveFeedback := make(map[string]struct{})
+	for _, ip := range options.IPs {
+		subnetIP := makeSubnet(ip)
+		subnetIPString := subnetIP.String()
+		if _, ok := haveFeedback[subnetIPString]; ok {
+			continue
+		} else {
+			haveFeedback[subnetIPString] = struct{}{}
+		}
+		if item := chooser.blackheap.FindByDomainAndIp(options.Domain, subnetIP); item != nil {
+			heap.Remove(&chooser.blackheap, item.index)
+		}
+	}
 }
 
 func (chooser *subnetChooser) FeedbackBad(_ context.Context, options *FeedbackOptions) {
-	chooser.putIntoBlacklist(options.Domain, options.IPs)
-}
+	if len(options.IPs) == 0 {
+		return
+	}
 
-func (chooser *subnetChooser) isInBlacklistAndOneSubnet(domain string, ips []net.IP) []net.IP {
-	chooser.blacklistMutex.Lock()
-	defer chooser.blacklistMutex.Unlock()
+	chooser.blackheapMutex.Lock()
+	defer chooser.blackheapMutex.Unlock()
 
-	var (
-		chosenSubnet net.IP
-		filtered     = make([]net.IP, 0, len(ips))
-	)
-	for _, ip := range ips {
-		blocklistKey := chooser.makeBlocklistKey(domain, ip)
-		if blacklistItem, ok := chooser.blacklist[blocklistKey]; ok {
-			if time.Now().After(blacklistItem.expiredAt) {
-				delete(chooser.blacklist, blocklistKey)
-			} else {
+	haveFeedback := make(map[string]struct{})
+	newExpiredAt := time.Now().Add(chooser.freezeDuration)
+	for _, ip := range options.IPs {
+		subnetIP := makeSubnet(ip)
+		subnetIPString := subnetIP.String()
+		if _, ok := haveFeedback[subnetIPString]; ok {
+			continue
+		} else {
+			haveFeedback[subnetIPString] = struct{}{}
+		}
+		if item := chooser.blackheap.FindByDomainAndIp(options.Domain, subnetIP); item != nil {
+			if chooser.blackheap.items[item.index].expiredAt.Equal(newExpiredAt) {
 				continue
 			}
+			chooser.blackheap.items[item.index].expiredAt = newExpiredAt
+			heap.Fix(&chooser.blackheap, item.index)
+		} else {
+			heap.Push(&chooser.blackheap, &blackItem{
+				domain:    options.Domain,
+				ip:        subnetIP,
+				expiredAt: newExpiredAt,
+			})
 		}
-		if len(filtered) == 0 {
-			chosenSubnet = makeSubnet(ip)
-		} else if !chosenSubnet.Equal(makeSubnet(ip)) {
-			continue
-		}
-		filtered = append(filtered, ip)
-	}
-
-	go chooser.shrink()
-
-	return filtered
-}
-
-func (chooser *subnetChooser) putIntoBlacklist(domain string, ips []net.IP) {
-	chooser.blacklistMutex.Lock()
-	defer chooser.blacklistMutex.Unlock()
-
-	for _, ip := range ips {
-		blocklistKey := chooser.makeBlocklistKey(domain, ip)
-		chooser.blacklist[blocklistKey] = blacklistItem{expiredAt: time.Now().Add(chooser.freezeDuration)}
-	}
-
-	go chooser.shrink()
-}
-
-func (chooser *subnetChooser) deleteFromBlacklist(domain string, ips []net.IP) {
-	chooser.blacklistMutex.Lock()
-	defer chooser.blacklistMutex.Unlock()
-
-	for _, ip := range ips {
-		blocklistKey := chooser.makeBlocklistKey(domain, ip)
-		delete(chooser.blacklist, blocklistKey)
-	}
-
-	go chooser.shrink()
-}
-
-func (chooser *subnetChooser) makeBlocklistKey(domain string, ip net.IP) string {
-	return fmt.Sprintf("%s_%s", makeSubnet(ip), domain)
-}
-
-func (chooser *subnetChooser) shrink() {
-	chooser.blacklistMutex.Lock()
-	defer chooser.blacklistMutex.Unlock()
-
-	if time.Now().After(chooser.shrunkAt.Add(chooser.shrinkInterval)) {
-		shrinkKeys := make([]string, 0, len(chooser.blacklist))
-		for key, blacklistItem := range chooser.blacklist {
-			if time.Now().After(blacklistItem.expiredAt) {
-				shrinkKeys = append(shrinkKeys, key)
-			}
-		}
-		for _, key := range shrinkKeys {
-			delete(chooser.blacklist, key)
-		}
-		chooser.shrunkAt = time.Now()
 	}
 }
 

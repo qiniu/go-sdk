@@ -24,7 +24,7 @@ func TestHostsAlwaysRetryInterceptor(t *testing.T) {
 	hRetryInterceptor := NewHostsRetryInterceptor(HostsRetryConfig{
 		RetryConfig: RetryConfig{
 			RetryMax: hRetryMax,
-			RetryInterval: func() time.Duration {
+			RetryInterval: func(_ *RetryInfo) time.Duration {
 				return time.Second
 			},
 			ShouldRetry: func(req *http.Request, resp *http.Response, err error) bool {
@@ -39,7 +39,7 @@ func TestHostsAlwaysRetryInterceptor(t *testing.T) {
 	retryMax := 1
 	sRetryInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
-		RetryInterval: func() time.Duration {
+		RetryInterval: func(_ *RetryInfo) time.Duration {
 			return time.Second
 		},
 		ShouldRetry: func(req *http.Request, resp *http.Response, err error) bool {
@@ -106,7 +106,7 @@ func TestHostsNotRetryInterceptor(t *testing.T) {
 	hRetryInterceptor := NewHostsRetryInterceptor(HostsRetryConfig{
 		RetryConfig: RetryConfig{
 			RetryMax: hRetryMax,
-			RetryInterval: func() time.Duration {
+			RetryInterval: func(_ *RetryInfo) time.Duration {
 				return time.Second
 			},
 			//ShouldRetry: func(req *http.Request, resp *http.Response, err error) bool {
@@ -121,7 +121,7 @@ func TestHostsNotRetryInterceptor(t *testing.T) {
 	retryMax := 1
 	sRetryInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
-		RetryInterval: func() time.Duration {
+		RetryInterval: func(_ *RetryInfo) time.Duration {
 			return time.Second
 		},
 		//ShouldRetry: func(req *http.Request, resp *http.Response, err error) bool {
@@ -188,7 +188,7 @@ func TestHostsRetryInterceptorByRequest(t *testing.T) {
 	hRetryInterceptor := NewHostsRetryInterceptor(HostsRetryConfig{
 		RetryConfig: RetryConfig{
 			RetryMax: hRetryMax,
-			RetryInterval: func() time.Duration {
+			RetryInterval: func(_ *RetryInfo) time.Duration {
 				return time.Second
 			},
 		},
@@ -200,7 +200,7 @@ func TestHostsRetryInterceptorByRequest(t *testing.T) {
 	retryMax := 1
 	sRetryInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
-		RetryInterval: func() time.Duration {
+		RetryInterval: func(_ *RetryInfo) time.Duration {
 			return time.Second
 		},
 	})
