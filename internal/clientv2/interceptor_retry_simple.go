@@ -1,6 +1,7 @@
 package clientv2
 
 import (
+	"context"
 	"io"
 	"math/rand"
 	"net"
@@ -13,6 +14,7 @@ import (
 
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
 	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
+	"github.com/qiniu/go-sdk/v7/storagev2/backoff"
 	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 )
@@ -20,13 +22,10 @@ import (
 type (
 	contextKeyBufferResponse struct{}
 
-	RetryInfo struct {
-		Retried int
-	}
-
 	SimpleRetryConfig struct {
-		RetryMax      int                            // 最大重试次数
-		RetryInterval func(*RetryInfo) time.Duration // 重试时间间隔
+		RetryMax      int                  // 最大重试次数
+		RetryInterval func() time.Duration // 重试时间间隔 v1
+		Backoff       backoff.Backoff      // 重试时间间隔 v2，优先级高于 RetryInterval
 		ShouldRetry   func(req *http.Request, resp *http.Response, err error) bool
 		Resolver      resolver.Resolver // 主备域名解析器
 		Chooser       chooser.Chooser   // 主备域名选择器
@@ -37,8 +36,9 @@ type (
 	}
 
 	RetryConfig struct {
-		RetryMax      int                            // 最大重试次数
-		RetryInterval func(*RetryInfo) time.Duration // 重试时间间隔
+		RetryMax      int                  // 最大重试次数
+		RetryInterval func() time.Duration // 重试时间间隔 v1
+		Backoff       backoff.Backoff      // 重试时间间隔 v2，优先级高于 RetryInterval
 		ShouldRetry   func(req *http.Request, resp *http.Response, err error) bool
 	}
 )
@@ -50,10 +50,6 @@ func (c *RetryConfig) init() {
 
 	if c.RetryMax < 0 {
 		c.RetryMax = 0
-	}
-
-	if c.RetryInterval == nil {
-		c.RetryInterval = defaultRetryInterval
 	}
 
 	if c.ShouldRetry == nil {
@@ -70,13 +66,19 @@ func (c *SimpleRetryConfig) init() {
 		c.RetryMax = 0
 	}
 
-	if c.RetryInterval == nil {
-		c.RetryInterval = defaultRetryInterval
-	}
-
 	if c.ShouldRetry == nil {
 		c.ShouldRetry = isSimpleRetryable
 	}
+}
+
+func (c *SimpleRetryConfig) getRetryInterval(ctx context.Context, attempts int) time.Duration {
+	if bf := c.Backoff; bf != nil {
+		return bf.Time(ctx, &backoff.BackoffOptions{Attempts: attempts})
+	}
+	if ri := c.RetryInterval; ri != nil {
+		return ri()
+	}
+	return defaultRetryInterval()
 }
 
 func NewSimpleRetryInterceptor(config SimpleRetryConfig) Interceptor {
@@ -146,11 +148,9 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 			resp.Body.Close()
 		}
 
-		retryInterval := interceptor.config.RetryInterval(&RetryInfo{Retried: i})
-		if retryInterval < time.Microsecond {
-			continue
+		if retryInterval := interceptor.config.getRetryInterval(req.Context(), i); retryInterval >= time.Microsecond {
+			time.Sleep(retryInterval)
 		}
-		time.Sleep(retryInterval)
 	}
 	return resp, err
 }
@@ -268,6 +268,6 @@ func isNetworkErrorWithOpError(err *net.OpError) bool {
 	return false
 }
 
-func defaultRetryInterval(_ *RetryInfo) time.Duration {
+func defaultRetryInterval() time.Duration {
 	return time.Duration(50+rand.Int()%50) * time.Millisecond
 }

@@ -801,5 +801,6 @@ func (m *BucketManager) getUCClient() (clientv2.Client, error) {
 		Client:             m.Client,
 		Resolver:           resolver,
 		Chooser:            m.chooser(),
+		Backoff:            m.backoff(),
 	}, m.Mac), nil
 }

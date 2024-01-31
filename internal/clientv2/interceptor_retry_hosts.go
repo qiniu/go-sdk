@@ -11,23 +11,22 @@ import (
 )
 
 type HostsRetryConfig struct {
-	RetryConfig        RetryConfig               // 主备域名重试参数
+	RetryMax           int // 最大重试次数
+	ShouldRetry        func(req *http.Request, resp *http.Response, err error) bool
 	HostFreezeDuration time.Duration             // 主备域名冻结时间（默认：600s），当一个域名请求失败被冻结的时间，最小 time.Millisecond
 	HostProvider       hostprovider.HostProvider // 备用域名获取方法
 	ShouldFreezeHost   func(req *http.Request, resp *http.Response, err error) bool
 }
 
 func (c *HostsRetryConfig) init() {
-	if c.RetryConfig.ShouldRetry == nil {
-		c.RetryConfig.ShouldRetry = func(req *http.Request, resp *http.Response, err error) bool {
+	if c.ShouldRetry == nil {
+		c.ShouldRetry = func(req *http.Request, resp *http.Response, err error) bool {
 			return isHostRetryable(req, resp, err)
 		}
 	}
-	if c.RetryConfig.RetryMax < 0 {
-		c.RetryConfig.RetryMax = 1
+	if c.RetryMax < 0 {
+		c.RetryMax = 1
 	}
-
-	c.RetryConfig.init()
 
 	if c.HostFreezeDuration < time.Millisecond {
 		c.HostFreezeDuration = 600 * time.Second
@@ -62,7 +61,7 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 	interceptor.options.init()
 
 	// 不重试
-	if interceptor.options.RetryConfig.RetryMax <= 0 {
+	if interceptor.options.RetryMax <= 0 {
 		return handler(req)
 	}
 
@@ -72,7 +71,7 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 
 		resp, err = handler(req)
 
-		if !interceptor.options.RetryConfig.ShouldRetry(reqBefore, resp, err) {
+		if !interceptor.options.ShouldRetry(reqBefore, resp, err) {
 			return resp, err
 		}
 
@@ -84,7 +83,7 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 			}
 		}
 
-		if i >= interceptor.options.RetryConfig.RetryMax {
+		if i >= interceptor.options.RetryMax {
 			break
 		}
 
@@ -121,12 +120,6 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 			_ = internal_io.SinkAll(resp.Body)
 			resp.Body.Close()
 		}
-
-		retryInterval := interceptor.options.RetryConfig.RetryInterval(&RetryInfo{Retried: i})
-		if retryInterval < time.Microsecond {
-			continue
-		}
-		time.Sleep(retryInterval)
 	}
 	return resp, err
 }

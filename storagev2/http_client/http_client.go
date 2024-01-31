@@ -242,9 +242,10 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 		cs = chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil))
 	}
 	interceptors = append(interceptors, clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
-		RetryConfig:        *hostsRetryConfig,
-		HostProvider:       hostProvider,
+		RetryMax:           hostsRetryConfig.RetryMax,
+		ShouldRetry:        hostsRetryConfig.ShouldRetry,
 		HostFreezeDuration: httpClient.hostFreezeDuration,
+		HostProvider:       hostProvider,
 		ShouldFreezeHost:   httpClient.shouldFreezeHost,
 	}))
 	if httpClient.hostRetryConfig != nil {
@@ -252,6 +253,7 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 			clientv2.SimpleRetryConfig{
 				RetryMax:      httpClient.hostRetryConfig.RetryMax,
 				RetryInterval: httpClient.hostRetryConfig.RetryInterval,
+				Backoff:       httpClient.hostRetryConfig.Backoff,
 				ShouldRetry:   httpClient.hostRetryConfig.ShouldRetry,
 				Resolver:      r,
 				Chooser:       cs,

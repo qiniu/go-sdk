@@ -173,6 +173,7 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 			Client:             options.Client,
 			Resolver:           options.Resolver,
 			Chooser:            options.Chooser,
+			Backoff:            options.Backoff,
 		}, nil)
 		err = clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 			Context: context.Background(),

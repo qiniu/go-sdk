@@ -80,6 +80,7 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 			HostFreezeDuration: m.options.HostFreezeDuration,
 			Resolver:           resolver,
 			Chooser:            m.chooser(),
+			Backoff:            m.backoff(),
 		}); e != nil {
 			return nil, e
 		} else if len(rg.regions) == 0 {
