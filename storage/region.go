@@ -17,6 +17,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region_v2 "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
+	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 )
 
 // 存储所在的地区，例如华东，华南，华北
@@ -413,6 +414,8 @@ type ucClientConfig struct {
 
 	Backoff backoff.Backoff
 
+	Retrier retrier.Retrier
+
 	Client *client.Client
 }
 
@@ -437,18 +440,16 @@ func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
 	is := []clientv2.Interceptor{
 		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
 			RetryMax:           len(hosts),
-			ShouldRetry:        nil,
-			ShouldFreezeHost:   nil,
 			HostFreezeDuration: config.HostFreezeDuration,
 			HostProvider:       hostprovider.NewWithHosts(hosts),
+			Retrier:            config.Retrier,
 		}),
 		clientv2.NewSimpleRetryInterceptor(clientv2.SimpleRetryConfig{
-			RetryMax:      config.RetryMax,
-			RetryInterval: nil,
-			ShouldRetry:   nil,
-			Resolver:      config.Resolver,
-			Chooser:       config.Chooser,
-			Backoff:       config.Backoff,
+			RetryMax: config.RetryMax,
+			Resolver: config.Resolver,
+			Chooser:  config.Chooser,
+			Backoff:  config.Backoff,
+			Retrier:  config.Retrier,
 		}),
 	}
 

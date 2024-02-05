@@ -6,8 +6,8 @@ import (
 	"time"
 
 	api "github.com/qiniu/go-sdk/v7"
-	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
+	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 )
 
 func parseEtag(etag string) string {
@@ -74,7 +74,7 @@ func isContextExpiredError(err error) bool {
 }
 
 func shouldUploadRetryWithOtherHost(err error) bool {
-	return clientv2.IsErrorRetryable(err)
+	return retrier.IsErrorRetryable(err)
 }
 
 func doUploadAction(hostProvider hostprovider.HostProvider, retryMax int, freezeDuration time.Duration, action func(host string) error) error {

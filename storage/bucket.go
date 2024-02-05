@@ -22,6 +22,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
+	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
@@ -298,6 +299,8 @@ type BucketManagerOptions struct {
 	Chooser chooser.Chooser
 	// 退避器
 	Backoff backoff.Backoff
+	// 重试器
+	Retrier retrier.Retrier
 }
 
 // BucketManager 提供了对资源进行管理的操作
@@ -335,13 +338,15 @@ func NewBucketManagerExWithOptions(mac *auth.Credentials, cfg *Config, clt *clie
 	}
 
 	opts := http_client.Options{
-		HostFreezeDuration: options.HostFreezeDuration,
-		HostRetryConfig: &clientv2.RetryConfig{
-			RetryMax: options.RetryMax,
-		},
-		Credentials:         mac,
 		BasicHTTPClient:     clt.Client,
+		Credentials:         mac,
+		Interceptors:        []clientv2.Interceptor{},
 		UseInsecureProtocol: !cfg.UseHTTPS,
+		Resolver:            options.Resolver,
+		Chooser:             options.Chooser,
+		HostRetryConfig:     &clientv2.RetryConfig{RetryMax: options.RetryMax, Retrier: options.Retrier},
+		HostsRetryConfig:    &clientv2.RetryConfig{Retrier: options.Retrier},
+		HostFreezeDuration:  options.HostFreezeDuration,
 	}
 	if region := cfg.GetRegion(); region != nil {
 		opts.Regions = region
@@ -1102,6 +1107,10 @@ func (m *BucketManager) chooser() chooser.Chooser {
 
 func (m *BucketManager) backoff() backoff.Backoff {
 	return m.options.Backoff
+}
+
+func (m *BucketManager) retrier() retrier.Retrier {
+	return m.options.Retrier
 }
 
 // 构建op的方法，导出的方法支持在Batch操作中使用

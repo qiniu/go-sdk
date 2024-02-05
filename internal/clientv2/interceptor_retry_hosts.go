@@ -8,22 +8,19 @@ import (
 
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
+	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 )
 
 type HostsRetryConfig struct {
 	RetryMax           int // 最大重试次数
 	ShouldRetry        func(req *http.Request, resp *http.Response, err error) bool
+	Retrier            retrier.Retrier           // 重试器
 	HostFreezeDuration time.Duration             // 主备域名冻结时间（默认：600s），当一个域名请求失败被冻结的时间，最小 time.Millisecond
 	HostProvider       hostprovider.HostProvider // 备用域名获取方法
 	ShouldFreezeHost   func(req *http.Request, resp *http.Response, err error) bool
 }
 
 func (c *HostsRetryConfig) init() {
-	if c.ShouldRetry == nil {
-		c.ShouldRetry = func(req *http.Request, resp *http.Response, err error) bool {
-			return isHostRetryable(req, resp, err)
-		}
-	}
 	if c.RetryMax < 0 {
 		c.RetryMax = 1
 	}
@@ -36,6 +33,20 @@ func (c *HostsRetryConfig) init() {
 		c.ShouldFreezeHost = func(req *http.Request, resp *http.Response, err error) bool {
 			return true
 		}
+	}
+}
+
+func (c *HostsRetryConfig) getRetryDecision(req *http.Request, resp *http.Response, err error, attempts int) retrier.RetryDecision {
+	if c.ShouldRetry != nil {
+		if c.ShouldRetry(req, resp, err) {
+			return retrier.RetryRequest
+		} else {
+			return retrier.DontRetry
+		}
+	} else if c.Retrier != nil {
+		return c.Retrier.Retry(req, resp, err, &retrier.RetrierOptions{Attempts: attempts})
+	} else {
+		return errorRetrier.Retry(req, resp, err, &retrier.RetrierOptions{Attempts: attempts})
 	}
 }
 
@@ -71,7 +82,7 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 
 		resp, err = handler(req)
 
-		if !interceptor.options.ShouldRetry(reqBefore, resp, err) {
+		if interceptor.options.getRetryDecision(reqBefore, resp, err, i) == retrier.DontRetry {
 			return resp, err
 		}
 
@@ -122,8 +133,4 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 		}
 	}
 	return resp, err
-}
-
-func isHostRetryable(req *http.Request, resp *http.Response, err error) bool {
-	return isRequestRetryable(req) && (isResponseRetryable(resp) || IsErrorRetryable(err))
 }

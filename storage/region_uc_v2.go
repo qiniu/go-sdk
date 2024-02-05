@@ -17,6 +17,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/backoff"
 	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
+	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 )
 
 // 此处废弃，但为了兼容老版本，单独放置一个文件
@@ -225,6 +226,7 @@ type UCApiOptions struct {
 	Resolver resolver.Resolver // api 使用的域名解析器
 	Chooser  chooser.Chooser   // api 使用的 IP 选择器
 	Backoff  backoff.Backoff   // api 使用的退避器
+	Retrier  retrier.Retrier   // api 使用的重试器
 }
 
 func (o *UCApiOptions) init() {
@@ -297,6 +299,7 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 			Resolver:           options.Resolver,
 			Chooser:            options.Chooser,
 			Backoff:            options.Backoff,
+			Retrier:            options.Retrier,
 		}, nil)
 		err = clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 			Context: context.Background(),

@@ -2,14 +2,9 @@ package clientv2
 
 import (
 	"context"
-	"io"
 	"math/rand"
 	"net"
 	"net/http"
-	"net/url"
-	"os"
-	"strings"
-	"syscall"
 	"time"
 
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
@@ -17,6 +12,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/backoff"
 	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
+	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 )
 
 type (
@@ -28,7 +24,8 @@ type (
 		Backoff       backoff.Backoff      // 重试时间间隔 v2，优先级高于 RetryInterval
 		ShouldRetry   func(req *http.Request, resp *http.Response, err error) bool
 		Resolver      resolver.Resolver // 主备域名解析器
-		Chooser       chooser.Chooser   // 主备域名选择器
+		Chooser       chooser.Chooser   // IP 选择器
+		Retrier       retrier.Retrier   // 重试器
 	}
 
 	simpleRetryInterceptor struct {
@@ -40,8 +37,11 @@ type (
 		RetryInterval func() time.Duration // 重试时间间隔 v1
 		Backoff       backoff.Backoff      // 重试时间间隔 v2，优先级高于 RetryInterval
 		ShouldRetry   func(req *http.Request, resp *http.Response, err error) bool
+		Retrier       retrier.Retrier // 重试器
 	}
 )
+
+var errorRetrier = retrier.NewErrorRetrier()
 
 func (c *RetryConfig) init() {
 	if c == nil {
@@ -50,10 +50,6 @@ func (c *RetryConfig) init() {
 
 	if c.RetryMax < 0 {
 		c.RetryMax = 0
-	}
-
-	if c.ShouldRetry == nil {
-		c.ShouldRetry = isSimpleRetryable
 	}
 }
 
@@ -65,10 +61,6 @@ func (c *SimpleRetryConfig) init() {
 	if c.RetryMax < 0 {
 		c.RetryMax = 0
 	}
-
-	if c.ShouldRetry == nil {
-		c.ShouldRetry = isSimpleRetryable
-	}
 }
 
 func (c *SimpleRetryConfig) getRetryInterval(ctx context.Context, attempts int) time.Duration {
@@ -79,6 +71,20 @@ func (c *SimpleRetryConfig) getRetryInterval(ctx context.Context, attempts int) 
 		return ri()
 	}
 	return defaultRetryInterval()
+}
+
+func (c *SimpleRetryConfig) getRetryDecision(req *http.Request, resp *http.Response, err error, attempts int) retrier.RetryDecision {
+	if c.ShouldRetry != nil {
+		if c.ShouldRetry(req, resp, err) {
+			return retrier.RetryRequest
+		} else {
+			return retrier.DontRetry
+		}
+	} else if c.Retrier != nil {
+		return c.Retrier.Retry(req, resp, err, &retrier.RetrierOptions{Attempts: attempts})
+	} else {
+		return errorRetrier.Retry(req, resp, err, &retrier.RetrierOptions{Attempts: attempts})
+	}
 }
 
 func NewSimpleRetryInterceptor(config SimpleRetryConfig) Interceptor {
@@ -123,7 +129,8 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 			}
 		}
 
-		if !interceptor.config.ShouldRetry(reqBefore, resp, err) {
+		retryDecision := interceptor.config.getRetryDecision(reqBefore, resp, err, i)
+		if retryDecision == retrier.DontRetry {
 			if len(ips) > 0 {
 				if cs := interceptor.config.Chooser; cs != nil {
 					cs.FeedbackGood(req.Context(), &chooser.FeedbackOptions{IPs: ips, Domain: hostname})
@@ -139,7 +146,7 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 
 		req = reqBefore
 
-		if i >= interceptor.config.RetryMax {
+		if retryDecision == retrier.TryNextHost || i >= interceptor.config.RetryMax {
 			break
 		}
 
@@ -162,110 +169,6 @@ func bufferResponse(resp *http.Response) error {
 	}
 	resp.Body = internal_io.NewBytesNopCloser(buffer)
 	return nil
-}
-
-func isSimpleRetryable(req *http.Request, resp *http.Response, err error) bool {
-	return isRequestRetryable(req) && (isResponseRetryable(resp) || IsErrorRetryable(err))
-}
-
-func isRequestRetryable(req *http.Request) bool {
-	if req == nil {
-		return false
-	}
-
-	if req.Body == nil {
-		return true
-	}
-
-	if req.GetBody != nil {
-		b, err := req.GetBody()
-		if err != nil || b == nil {
-			return false
-		}
-		req.Body = b
-		return true
-	}
-
-	seeker, ok := req.Body.(io.Seeker)
-	if !ok {
-		return false
-	}
-
-	_, err := seeker.Seek(0, io.SeekStart)
-	return err == nil
-}
-
-func isResponseRetryable(resp *http.Response) bool {
-	if resp == nil {
-		return false
-	}
-	return isStatusCodeRetryable(resp.StatusCode)
-}
-
-func isStatusCodeRetryable(statusCode int) bool {
-	if statusCode < 500 {
-		return false
-	}
-
-	if statusCode == 501 || statusCode == 509 || statusCode == 573 || statusCode == 579 ||
-		statusCode == 608 || statusCode == 612 || statusCode == 614 || statusCode == 616 || statusCode == 618 ||
-		statusCode == 630 || statusCode == 631 || statusCode == 632 || statusCode == 640 || statusCode == 701 {
-		return false
-	}
-
-	return true
-}
-
-func IsErrorRetryable(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	switch t := err.(type) {
-	case *net.OpError:
-		return isNetworkErrorWithOpError(t)
-	case *url.Error:
-		return IsErrorRetryable(t.Err)
-	case net.Error:
-		return t.Timeout()
-	case *clientv1.ErrorInfo:
-		return isStatusCodeRetryable(t.Code)
-	default:
-		if err == io.EOF {
-			return true
-		}
-		return false
-	}
-}
-
-func isNetworkErrorWithOpError(err *net.OpError) bool {
-	if err == nil || err.Err == nil {
-		return false
-	}
-
-	switch t := err.Err.(type) {
-	case *net.DNSError:
-		return true
-	case *os.SyscallError:
-		if errno, ok := t.Err.(syscall.Errno); ok {
-			return errno == syscall.ECONNABORTED ||
-				errno == syscall.ECONNRESET ||
-				errno == syscall.ECONNREFUSED ||
-				errno == syscall.ETIMEDOUT
-		}
-	case *net.OpError:
-		return isNetworkErrorWithOpError(t)
-	default:
-		desc := err.Err.Error()
-		if strings.Contains(desc, "use of closed network connection") ||
-			strings.Contains(desc, "unexpected EOF reading trailer") ||
-			strings.Contains(desc, "transport connection broken") ||
-			strings.Contains(desc, "server closed idle connection") {
-			return true
-		}
-	}
-
-	return false
 }
 
 func defaultRetryInterval() time.Duration {

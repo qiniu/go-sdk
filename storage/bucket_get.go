@@ -81,6 +81,7 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 			Resolver:           resolver,
 			Chooser:            m.chooser(),
 			Backoff:            m.backoff(),
+			Retrier:            m.retrier(),
 		}); e != nil {
 			return nil, e
 		} else if len(rg.regions) == 0 {
