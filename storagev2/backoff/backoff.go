@@ -24,10 +24,24 @@ type (
 	}
 )
 
+type customizedBackoff struct {
+	backoffFn func(context.Context, *BackoffOptions) time.Duration
+}
+
+// NewBackoff 创建自定义时长的退避器
+func NewBackoff(fn func(context.Context, *BackoffOptions) time.Duration) Backoff {
+	return customizedBackoff{backoffFn: fn}
+}
+
+func (s customizedBackoff) Time(ctx context.Context, options *BackoffOptions) time.Duration {
+	return s.backoffFn(ctx, options)
+}
+
 type fixedBackoff struct {
 	wait time.Duration
 }
 
+// NewFixedBackoff 创建固定时长的退避器
 func NewFixedBackoff(wait time.Duration) Backoff {
 	return fixedBackoff{wait: wait}
 }
@@ -43,6 +57,7 @@ type randomizedBackoff struct {
 	mutex                       sync.Mutex
 }
 
+// NewRandomizedBackoff 创建随机时长的退避器
 func NewRandomizedBackoff(base Backoff, minification, magnification rational.Rational) Backoff {
 	if minification.LessThanNum(0) {
 		panic("minification must be greater than or equal to 0")
@@ -74,6 +89,7 @@ type limitedBackoff struct {
 	min, max time.Duration
 }
 
+// NewLimitedBackoff 创建限制时长的退避器
 func NewLimitedBackoff(base Backoff, min, max time.Duration) Backoff {
 	return &limitedBackoff{
 		base: base,
@@ -97,6 +113,7 @@ type exponentialBackoff struct {
 	baseNumber int64
 }
 
+// NewExponentialBackoff 创建时长指数级增长的退避器
 func NewExponentialBackoff(wait time.Duration, baseNumber int64) Backoff {
 	return exponentialBackoff{wait: wait, baseNumber: baseNumber}
 }

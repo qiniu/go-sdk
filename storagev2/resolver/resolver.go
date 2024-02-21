@@ -23,8 +23,20 @@ type (
 		Resolve(context.Context, string) ([]net.IP, error)
 	}
 
-	defaultResolver struct{}
+	defaultResolver    struct{}
+	customizedResolver struct {
+		resolveFn func(context.Context, string) ([]net.IP, error)
+	}
 )
+
+// NewResolver 创建自定义的域名解析器
+func NewResolver(fn func(context.Context, string) ([]net.IP, error)) Resolver {
+	return customizedResolver{resolveFn: fn}
+}
+
+func (resolver customizedResolver) Resolve(ctx context.Context, host string) ([]net.IP, error) {
+	return resolver.resolveFn(ctx, host)
+}
 
 // NewDefaultResolver 创建默认的域名解析器
 func NewDefaultResolver() Resolver {

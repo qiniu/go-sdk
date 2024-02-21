@@ -24,6 +24,12 @@ type (
 		// Retry 判断是否重试，如何重试
 		Retry(*http.Request, *http.Response, error, *RetrierOptions) RetryDecision
 	}
+
+	neverRetrier      struct{}
+	errorRetrier      struct{}
+	customizedRetrier struct {
+		retryFn func(*http.Request, *http.Response, error, *RetrierOptions) RetryDecision
+	}
 )
 
 const (
@@ -37,8 +43,16 @@ const (
 	RetryRequest
 )
 
-type neverRetrier struct{}
+// NewRetrier 创建自定义重试器
+func NewRetrier(fn func(*http.Request, *http.Response, error, *RetrierOptions) RetryDecision) Retrier {
+	return customizedRetrier{retryFn: fn}
+}
 
+func (retrier customizedRetrier) Retry(request *http.Request, response *http.Response, err error, options *RetrierOptions) RetryDecision {
+	return retrier.retryFn(request, response, err, options)
+}
+
+// NewNeverRetrier 创建从不重试的重试器
 func NewNeverRetrier() Retrier {
 	return neverRetrier{}
 }
@@ -46,8 +60,6 @@ func NewNeverRetrier() Retrier {
 func (neverRetrier) Retry(*http.Request, *http.Response, error, *RetrierOptions) RetryDecision {
 	return DontRetry
 }
-
-type errorRetrier struct{}
 
 // NewErrorRetrier 创建错误重试器，为七牛默认的错误重试器
 func NewErrorRetrier() Retrier {

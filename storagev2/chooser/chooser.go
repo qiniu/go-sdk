@@ -33,11 +33,11 @@ type (
 		// FeedbackBad 反馈一批 IP 地址请求失败
 		FeedbackBad(context.Context, *FeedbackOptions)
 	}
+
+	directChooser struct{}
 )
 
-type directChooser struct {
-}
-
+// NewDirectChooser 创建直接选择器
 func NewDirectChooser() Chooser {
 	return &directChooser{}
 }
