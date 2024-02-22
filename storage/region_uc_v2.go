@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -213,20 +214,41 @@ func storeRegionV2Cache() {
 }
 
 type UCApiOptions struct {
-	UseHttps bool //
+	// 是否使用 HTTPS 协议
+	UseHttps bool
 
-	RetryMax int // 单域名重试次数
+	// 单域名重试次数
+	RetryMax int
 
-	Hosts []string // api 请求的域名
+	// api 请求的域名
+	Hosts []string
 
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
 
-	Client   *client.Client    // api 请求使用的 client
-	Resolver resolver.Resolver // api 使用的域名解析器
-	Chooser  chooser.Chooser   // api 使用的 IP 选择器
-	Backoff  backoff.Backoff   // api 使用的退避器
-	Retrier  retrier.Retrier   // api 使用的重试器
+	// api 请求使用的 client
+	Client *client.Client
+
+	// api 使用的域名解析器
+	Resolver resolver.Resolver
+
+	// api 使用的 IP 选择器
+	Chooser chooser.Chooser
+
+	// api 使用的退避器
+	Backoff backoff.Backoff
+
+	// api 使用的重试器
+	Retrier retrier.Retrier
+
+	// 签名前回调函数
+	BeforeSign func(*http.Request)
+
+	// 签名后回调函数
+	AfterSign func(*http.Request)
+
+	// 签名失败回调函数
+	SignError func(*http.Request, error)
 }
 
 func (o *UCApiOptions) init() {
@@ -244,9 +266,7 @@ func (o *UCApiOptions) firstHost() string {
 
 func DefaultUCApiOptions() UCApiOptions {
 	return UCApiOptions{
-		UseHttps:           true,
-		RetryMax:           0,
-		HostFreezeDuration: 0,
+		UseHttps: true,
 	}
 }
 
@@ -300,6 +320,9 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 			Chooser:            options.Chooser,
 			Backoff:            options.Backoff,
 			Retrier:            options.Retrier,
+			BeforeSign:         options.BeforeSign,
+			AfterSign:          options.AfterSign,
+			SignError:          options.SignError,
 		}, nil)
 		err = clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 			Context: context.Background(),

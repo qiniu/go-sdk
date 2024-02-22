@@ -798,10 +798,13 @@ func (m *BucketManager) getUCClient() (clientv2.Client, error) {
 		IsUcQueryApi:       false,
 		RetryMax:           m.options.RetryMax,
 		HostFreezeDuration: m.options.HostFreezeDuration,
-		Client:             m.Client,
 		Resolver:           resolver,
 		Chooser:            m.chooser(),
 		Backoff:            m.backoff(),
 		Retrier:            m.retrier(),
+		BeforeSign:         m.options.BeforeSign,
+		AfterSign:          m.options.AfterSign,
+		SignError:          m.options.SignError,
+		Client:             m.Client,
 	}, m.Mac), nil
 }

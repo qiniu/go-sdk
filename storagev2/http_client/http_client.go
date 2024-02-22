@@ -48,6 +48,9 @@ type (
 		hostsRetryConfig   *RetryConfig
 		hostFreezeDuration time.Duration
 		shouldFreezeHost   func(req *http.Request, resp *http.Response, err error) bool
+		beforeSign         func(req *http.Request)
+		afterSign          func(req *http.Request)
+		signError          func(req *http.Request, err error)
 	}
 
 	// Options 为构建 Client 提供了可选参数
@@ -63,7 +66,10 @@ type (
 		HostRetryConfig     *RetryConfig
 		HostsRetryConfig    *RetryConfig
 		HostFreezeDuration  time.Duration
-		ShouldFreezeHost    func(req *http.Request, resp *http.Response, err error) bool
+		ShouldFreezeHost    func(*http.Request, *http.Response, error) bool
+		BeforeSign          func(*http.Request)
+		AfterSign           func(*http.Request)
+		SignError           func(*http.Request, error)
 	}
 
 	// Request 包含一个具体的 HTTP 请求的参数
@@ -114,6 +120,9 @@ func NewClient(options *Options) *Client {
 		hostsRetryConfig:   options.HostsRetryConfig,
 		hostFreezeDuration: options.HostFreezeDuration,
 		shouldFreezeHost:   options.ShouldFreezeHost,
+		beforeSign:         options.BeforeSign,
+		afterSign:          options.AfterSign,
+		signError:          options.SignError,
 	}
 }
 
@@ -141,6 +150,9 @@ func (httpClient *Client) Do(ctx context.Context, request *Request) (*http.Respo
 				req = clientv2.WithInterceptors(req, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
 					Credentials: credentials,
 					TokenType:   request.AuthType,
+					BeforeSign:  httpClient.beforeSign,
+					AfterSign:   httpClient.afterSign,
+					SignError:   httpClient.signError,
 				}))
 			}
 		}

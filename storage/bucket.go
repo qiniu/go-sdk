@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 	"sync"
@@ -291,16 +292,30 @@ type BatchOpRet struct {
 type BucketManagerOptions struct {
 	// 单域名重试次数，当前只有 uc 相关的服务有多域名
 	RetryMax int
+
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
+
 	// 域名解析器
 	Resolver resolver.Resolver
+
 	// 域名选择器
 	Chooser chooser.Chooser
+
 	// 退避器
 	Backoff backoff.Backoff
+
 	// 重试器
 	Retrier retrier.Retrier
+
+	// 签名前回调函数
+	BeforeSign func(*http.Request)
+
+	// 签名后回调函数
+	AfterSign func(*http.Request)
+
+	// 签名失败回调函数
+	SignError func(*http.Request, error)
 }
 
 // BucketManager 提供了对资源进行管理的操作
@@ -347,6 +362,9 @@ func NewBucketManagerExWithOptions(mac *auth.Credentials, cfg *Config, clt *clie
 		HostRetryConfig:     &clientv2.RetryConfig{RetryMax: options.RetryMax, Retrier: options.Retrier},
 		HostsRetryConfig:    &clientv2.RetryConfig{Retrier: options.Retrier},
 		HostFreezeDuration:  options.HostFreezeDuration,
+		BeforeSign:          options.BeforeSign,
+		AfterSign:           options.AfterSign,
+		SignError:           options.SignError,
 	}
 	if region := cfg.GetRegion(); region != nil {
 		opts.Regions = region
