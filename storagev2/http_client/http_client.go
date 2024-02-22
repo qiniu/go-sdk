@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/defaults"
 	"github.com/qiniu/go-sdk/v7/storagev2/region"
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
+	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 	"github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
 
@@ -51,41 +53,123 @@ type (
 		beforeSign         func(req *http.Request)
 		afterSign          func(req *http.Request)
 		signError          func(req *http.Request, err error)
+		beforeResolve      func(*http.Request)
+		afterResolve       func(*http.Request, []net.IP)
+		resolveError       func(*http.Request, error)
+		beforeBackoff      func(*http.Request, *retrier.RetrierOptions, time.Duration)
+		afterBackoff       func(*http.Request, *retrier.RetrierOptions, time.Duration)
+		beforeRequest      func(*http.Request, *retrier.RetrierOptions)
+		afterResponse      func(*http.Request, *http.Response, *retrier.RetrierOptions, error)
 	}
 
 	// Options 为构建 Client 提供了可选参数
 	Options struct {
-		BasicHTTPClient     BasicHTTPClient
-		BucketQuery         region.BucketRegionsQuery
-		Regions             region.RegionsProvider
-		Credentials         credentials.CredentialsProvider
-		Interceptors        []Interceptor
+		// 基础 HTTP 客户端
+		BasicHTTPClient BasicHTTPClient
+
+		// 空间区域查询器
+		BucketQuery region.BucketRegionsQuery
+
+		// 区域提供者
+		Regions region.RegionsProvider
+
+		// 凭证信息提供者
+		Credentials credentials.CredentialsProvider
+
+		// 拦截器
+		Interceptors []Interceptor
+
+		// 是否使用 HTTP 协议
 		UseInsecureProtocol bool
-		Resolver            resolver.Resolver
-		Chooser             chooser.Chooser
-		HostRetryConfig     *RetryConfig
-		HostsRetryConfig    *RetryConfig
-		HostFreezeDuration  time.Duration
-		ShouldFreezeHost    func(*http.Request, *http.Response, error) bool
-		BeforeSign          func(*http.Request)
-		AfterSign           func(*http.Request)
-		SignError           func(*http.Request, error)
+
+		// 域名解析器
+		Resolver resolver.Resolver
+
+		// 域名选择器
+		Chooser chooser.Chooser
+
+		// 单域名重试配置
+		HostRetryConfig *RetryConfig
+
+		// 主备域名重试配置
+		HostsRetryConfig *RetryConfig
+
+		// 主备域名冻结时间
+		HostFreezeDuration time.Duration
+
+		// 主备域名冻结判断函数
+		ShouldFreezeHost func(*http.Request, *http.Response, error) bool
+
+		// 签名前回调函数
+		BeforeSign func(*http.Request)
+
+		// 签名后回调函数
+		AfterSign func(*http.Request)
+
+		// 签名错误回调函数
+		SignError func(*http.Request, error)
+
+		// 域名解析前回调函数
+		BeforeResolve func(*http.Request)
+
+		// 域名解析后回调函数
+		AfterResolve func(*http.Request, []net.IP)
+
+		// 域名解析错误回调函数
+		ResolveError func(*http.Request, error)
+
+		// 退避前回调函数
+		BeforeBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
+
+		// 退避后回调函数
+		AfterBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
+
+		// 请求前回调函数
+		BeforeRequest func(*http.Request, *retrier.RetrierOptions)
+
+		// 请求后回调函数
+		AfterResponse func(*http.Request, *http.Response, *retrier.RetrierOptions, error)
 	}
 
 	// Request 包含一个具体的 HTTP 请求的参数
 	Request struct {
-		Method         string
-		ServiceNames   []region.ServiceName
-		Endpoints      region.EndpointsProvider
-		Region         region.RegionsProvider
-		Path           string
-		RawQuery       string
-		Query          url.Values
-		Header         http.Header
-		RequestBody    GetRequestBody
-		Credentials    credentials.CredentialsProvider
-		AuthType       auth.TokenType
-		UpToken        uptoken.UpTokenProvider
+		// 请求方法
+		Method string
+
+		// 请求服务名
+		ServiceNames []region.ServiceName
+
+		// 服务地址提供者
+		Endpoints region.EndpointsProvider
+
+		// 区域提供者
+		Region region.RegionsProvider
+
+		// 请求路径
+		Path string
+
+		// 原始请求查询参数
+		RawQuery string
+
+		// 请求查询参数
+		Query url.Values
+
+		// 请求头
+		Header http.Header
+
+		// 请求 Body 获取函数
+		RequestBody GetRequestBody
+
+		// 凭证信息提供者
+		Credentials credentials.CredentialsProvider
+
+		// 授权类型
+		AuthType auth.TokenType
+
+		// 上传凭证提供者
+		UpToken uptoken.UpTokenProvider
+
+		// 是否缓存响应
 		BufferResponse bool
 	}
 )
@@ -109,8 +193,8 @@ func NewClient(options *Options) *Client {
 	}
 
 	return &Client{
-		basicHTTPClient:    clientv2.NewClient(options.BasicHTTPClient, options.Interceptors...),
 		useHttps:           !options.UseInsecureProtocol,
+		basicHTTPClient:    clientv2.NewClient(options.BasicHTTPClient, options.Interceptors...),
 		bucketQuery:        options.BucketQuery,
 		regions:            options.Regions,
 		credentials:        options.Credentials,
@@ -123,6 +207,13 @@ func NewClient(options *Options) *Client {
 		beforeSign:         options.BeforeSign,
 		afterSign:          options.AfterSign,
 		signError:          options.SignError,
+		beforeResolve:      options.BeforeResolve,
+		afterResolve:       options.AfterResolve,
+		resolveError:       options.ResolveError,
+		beforeBackoff:      options.BeforeBackoff,
+		afterBackoff:       options.AfterBackoff,
+		beforeRequest:      options.BeforeRequest,
+		afterResponse:      options.AfterResponse,
 	}
 }
 
@@ -256,6 +347,7 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 	interceptors = append(interceptors, clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
 		RetryMax:           hostsRetryConfig.RetryMax,
 		ShouldRetry:        hostsRetryConfig.ShouldRetry,
+		Retrier:            hostsRetryConfig.Retrier,
 		HostFreezeDuration: httpClient.hostFreezeDuration,
 		HostProvider:       hostProvider,
 		ShouldFreezeHost:   httpClient.shouldFreezeHost,
@@ -269,6 +361,14 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 				ShouldRetry:   httpClient.hostRetryConfig.ShouldRetry,
 				Resolver:      r,
 				Chooser:       cs,
+				Retrier:       httpClient.hostRetryConfig.Retrier,
+				BeforeResolve: httpClient.beforeResolve,
+				AfterResolve:  httpClient.afterResolve,
+				ResolveError:  httpClient.resolveError,
+				BeforeBackoff: httpClient.beforeBackoff,
+				AfterBackoff:  httpClient.afterBackoff,
+				BeforeRequest: httpClient.beforeRequest,
+				AfterResponse: httpClient.afterResponse,
 			},
 		))
 	}

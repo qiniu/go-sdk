@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -316,6 +317,27 @@ type BucketManagerOptions struct {
 
 	// 签名失败回调函数
 	SignError func(*http.Request, error)
+
+	// 域名解析前回调函数
+	BeforeResolve func(*http.Request)
+
+	// 域名解析后回调函数
+	AfterResolve func(*http.Request, []net.IP)
+
+	// 域名解析错误回调函数
+	ResolveError func(*http.Request, error)
+
+	// 退避前回调函数
+	BeforeBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
+
+	// 退避后回调函数
+	AfterBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
+
+	// 请求前回调函数
+	BeforeRequest func(*http.Request, *retrier.RetrierOptions)
+
+	// 请求后回调函数
+	AfterResponse func(*http.Request, *http.Response, *retrier.RetrierOptions, error)
 }
 
 // BucketManager 提供了对资源进行管理的操作
@@ -365,6 +387,13 @@ func NewBucketManagerExWithOptions(mac *auth.Credentials, cfg *Config, clt *clie
 		BeforeSign:          options.BeforeSign,
 		AfterSign:           options.AfterSign,
 		SignError:           options.SignError,
+		BeforeResolve:       options.BeforeResolve,
+		AfterResolve:        options.AfterResolve,
+		ResolveError:        options.ResolveError,
+		BeforeBackoff:       options.BeforeBackoff,
+		AfterBackoff:        options.AfterBackoff,
+		BeforeRequest:       options.BeforeRequest,
+		AfterResponse:       options.AfterResponse,
 	}
 	if region := cfg.GetRegion(); region != nil {
 		opts.Regions = region

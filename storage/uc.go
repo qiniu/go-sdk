@@ -805,6 +805,13 @@ func (m *BucketManager) getUCClient() (clientv2.Client, error) {
 		BeforeSign:         m.options.BeforeSign,
 		AfterSign:          m.options.AfterSign,
 		SignError:          m.options.SignError,
+		BeforeResolve:      m.options.BeforeResolve,
+		AfterResolve:       m.options.AfterResolve,
+		ResolveError:       m.options.ResolveError,
+		BeforeBackoff:      m.options.BeforeBackoff,
+		AfterBackoff:       m.options.AfterBackoff,
+		BeforeRequest:      m.options.BeforeRequest,
+		AfterResponse:      m.options.AfterResponse,
 		Client:             m.Client,
 	}, m.Mac), nil
 }

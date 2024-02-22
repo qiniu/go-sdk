@@ -4,16 +4,23 @@
 package clientv2
 
 import (
+	"math"
+	"net"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/storagev2/backoff"
+	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
+	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
+	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 )
 
 func TestSimpleAlwaysRetryInterceptor(t *testing.T) {
 
 	retryMax := 1
+	doCount := 0
+	callbackedCount := 0
 	rInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
 		RetryInterval: func() time.Duration {
@@ -22,9 +29,55 @@ func TestSimpleAlwaysRetryInterceptor(t *testing.T) {
 		ShouldRetry: func(req *http.Request, resp *http.Response, err error) bool {
 			return true
 		},
+		Resolver: resolver.NewDefaultResolver(),
+		BeforeResolve: func(req *http.Request) {
+			callbackedCount += 1
+		},
+		AfterResolve: func(req *http.Request, ips []net.IP) {
+			callbackedCount += 1
+			if len(ips) == 0 {
+				t.Fatal("unexpected ips", ips)
+			}
+		},
+		ResolveError: func(req *http.Request, err error) {
+			t.Fatal("unexpected error", err)
+		},
+		Chooser: chooser.NewDirectChooser(),
+		BeforeBackoff: func(req *http.Request, options *retrier.RetrierOptions, duration time.Duration) {
+			callbackedCount += 1
+			if options.Attempts != 0 {
+				t.Fatalf("unexpected attempts:%d", options.Attempts)
+			}
+			if duration != time.Second {
+				t.Fatalf("unexpected duration:%v", duration)
+			}
+		},
+		AfterBackoff: func(req *http.Request, options *retrier.RetrierOptions, duration time.Duration) {
+			callbackedCount += 1
+			if options.Attempts != 0 {
+				t.Fatalf("unexpected attempts:%d", options.Attempts)
+			}
+			if duration != time.Second {
+				t.Fatalf("unexpected duration:%v", duration)
+			}
+		},
+		BeforeRequest: func(req *http.Request, options *retrier.RetrierOptions) {
+			callbackedCount += 1
+			if options.Attempts != doCount {
+				t.Fatal("unexpected attempts", options.Attempts)
+			}
+		},
+		AfterResponse: func(req *http.Request, resp *http.Response, options *retrier.RetrierOptions, err error) {
+			callbackedCount += 1
+			if options.Attempts != (doCount - 1) {
+				t.Fatal("unexpected attempts", options.Attempts)
+			}
+			if err != nil {
+				t.Fatal("unexpected error", err)
+			}
+		},
 	})
 
-	doCount := 0
 	interceptor := NewSimpleInterceptor(func(req *http.Request, handler Handler) (*http.Response, error) {
 		doCount += 1
 
@@ -64,11 +117,16 @@ func TestSimpleAlwaysRetryInterceptor(t *testing.T) {
 	if value != " -> request -> Do -> response" {
 		t.Fatalf("retry flow error")
 	}
+	if callbackedCount != 8 {
+		t.Fatalf("unexpected callbackedCount: %d", callbackedCount)
+	}
 }
 
 func TestSimpleNotRetryInterceptor(t *testing.T) {
 
 	retryMax := 1
+	doCount := 0
+	callbackedCount := 0
 	rInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
 		RetryInterval: func() time.Duration {
@@ -78,9 +136,55 @@ func TestSimpleNotRetryInterceptor(t *testing.T) {
 		//ShouldRetry: func(req *http.Request, resp *http.Response, err error) bool {
 		//	return true
 		//},
+		Resolver: resolver.NewDefaultResolver(),
+		BeforeResolve: func(req *http.Request) {
+			callbackedCount += 1
+		},
+		AfterResolve: func(req *http.Request, ips []net.IP) {
+			callbackedCount += 1
+			if len(ips) == 0 {
+				t.Fatal("unexpected ips", ips)
+			}
+		},
+		ResolveError: func(req *http.Request, err error) {
+			t.Fatal("unexpected error", err)
+		},
+		Chooser: chooser.NewDirectChooser(),
+		BeforeBackoff: func(req *http.Request, options *retrier.RetrierOptions, duration time.Duration) {
+			callbackedCount += 1
+			if options.Attempts != 0 {
+				t.Fatalf("unexpected attempts:%d", options.Attempts)
+			}
+			if duration != time.Second {
+				t.Fatalf("unexpected duration:%v", duration)
+			}
+		},
+		AfterBackoff: func(req *http.Request, options *retrier.RetrierOptions, duration time.Duration) {
+			callbackedCount += 1
+			if options.Attempts != 0 {
+				t.Fatalf("unexpected attempts:%d", options.Attempts)
+			}
+			if duration != time.Second {
+				t.Fatalf("unexpected duration:%v", duration)
+			}
+		},
+		BeforeRequest: func(req *http.Request, options *retrier.RetrierOptions) {
+			callbackedCount += 1
+			if options.Attempts != doCount {
+				t.Fatal("unexpected attempts", options.Attempts)
+			}
+		},
+		AfterResponse: func(req *http.Request, resp *http.Response, options *retrier.RetrierOptions, err error) {
+			callbackedCount += 1
+			if options.Attempts != (doCount - 1) {
+				t.Fatal("unexpected attempts", options.Attempts)
+			}
+			if err != nil {
+				t.Fatal("unexpected error", err)
+			}
+		},
 	})
 
-	doCount := 0
 	interceptor := NewSimpleInterceptor(func(req *http.Request, handler Handler) (*http.Response, error) {
 		doCount += 1
 
@@ -121,19 +225,70 @@ func TestSimpleNotRetryInterceptor(t *testing.T) {
 	if value != " -> request -> Do -> response" {
 		t.Fatalf("retry flow error")
 	}
+	if callbackedCount != 4 {
+		t.Fatalf("unexpected callbackedCount: %d", callbackedCount)
+	}
 }
 
 func TestRetryInterceptorWithBackoff(t *testing.T) {
 	retryMax := 5
+	doCount := 0
+	callbackedCount := 0
 	rInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
 		Backoff:  backoff.NewExponentialBackoff(100*time.Millisecond, 2),
 		ShouldRetry: func(req *http.Request, resp *http.Response, err error) bool {
 			return true
 		},
+		Resolver: resolver.NewDefaultResolver(),
+		BeforeResolve: func(req *http.Request) {
+			callbackedCount += 1
+		},
+		AfterResolve: func(req *http.Request, ips []net.IP) {
+			callbackedCount += 1
+			if len(ips) == 0 {
+				t.Fatal("unexpected ips", ips)
+			}
+		},
+		ResolveError: func(req *http.Request, err error) {
+			t.Fatal("unexpected error", err)
+		},
+		Chooser: chooser.NewDirectChooser(),
+		BeforeBackoff: func(req *http.Request, options *retrier.RetrierOptions, duration time.Duration) {
+			callbackedCount += 1
+			if options.Attempts != (doCount - 1) {
+				t.Fatalf("unexpected attempts:%d", options.Attempts)
+			}
+			if duration != 100*time.Millisecond*time.Duration(math.Pow(2, float64(options.Attempts))) {
+				t.Fatalf("unexpected duration:%v", duration)
+			}
+		},
+		AfterBackoff: func(req *http.Request, options *retrier.RetrierOptions, duration time.Duration) {
+			callbackedCount += 1
+			if options.Attempts != (doCount - 1) {
+				t.Fatalf("unexpected attempts:%d", options.Attempts)
+			}
+			if duration != 100*time.Millisecond*time.Duration(math.Pow(2, float64(options.Attempts))) {
+				t.Fatalf("unexpected duration:%v", duration)
+			}
+		},
+		BeforeRequest: func(req *http.Request, options *retrier.RetrierOptions) {
+			callbackedCount += 1
+			if options.Attempts != doCount {
+				t.Fatal("unexpected attempts", options.Attempts)
+			}
+		},
+		AfterResponse: func(req *http.Request, resp *http.Response, options *retrier.RetrierOptions, err error) {
+			callbackedCount += 1
+			if options.Attempts != (doCount - 1) {
+				t.Fatal("unexpected attempts", options.Attempts)
+			}
+			if err != nil {
+				t.Fatal("unexpected error", err)
+			}
+		},
 	})
 
-	doCount := 0
 	interceptor := NewSimpleInterceptor(func(req *http.Request, handler Handler) (*http.Response, error) {
 		doCount += 1
 
@@ -172,5 +327,8 @@ func TestRetryInterceptorWithBackoff(t *testing.T) {
 	value := resp.Header.Get(headerKey)
 	if value != " -> request -> Do -> response" {
 		t.Fatalf("retry flow error")
+	}
+	if callbackedCount != 24 {
+		t.Fatalf("unexpected callbackedCount: %d", callbackedCount)
 	}
 }

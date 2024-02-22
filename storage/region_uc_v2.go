@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -249,6 +250,27 @@ type UCApiOptions struct {
 
 	// 签名失败回调函数
 	SignError func(*http.Request, error)
+
+	// 域名解析前回调函数
+	BeforeResolve func(*http.Request)
+
+	// 域名解析后回调函数
+	AfterResolve func(*http.Request, []net.IP)
+
+	// 域名解析错误回调函数
+	ResolveError func(*http.Request, error)
+
+	// 退避前回调函数
+	BeforeBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
+
+	// 退避后回调函数
+	AfterBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
+
+	// 请求前回调函数
+	BeforeRequest func(*http.Request, *retrier.RetrierOptions)
+
+	// 请求后回调函数
+	AfterResponse func(*http.Request, *http.Response, *retrier.RetrierOptions, error)
 }
 
 func (o *UCApiOptions) init() {
@@ -323,6 +345,13 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 			BeforeSign:         options.BeforeSign,
 			AfterSign:          options.AfterSign,
 			SignError:          options.SignError,
+			BeforeResolve:      options.BeforeResolve,
+			AfterResolve:       options.AfterResolve,
+			ResolveError:       options.ResolveError,
+			BeforeBackoff:      options.BeforeBackoff,
+			AfterBackoff:       options.AfterBackoff,
+			BeforeRequest:      options.BeforeRequest,
+			AfterResponse:      options.AfterResponse,
 		}, nil)
 		err = clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 			Context: context.Background(),

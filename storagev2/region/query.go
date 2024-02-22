@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"hash/crc64"
 	"math"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -22,6 +24,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/backoff"
 	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
+	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 )
 
 type (
@@ -68,6 +71,27 @@ type (
 
 		// 退避器，如果不配置则使用默认的退避器
 		Backoff backoff.Backoff
+
+		// 域名解析前回调函数
+		BeforeResolve func(*http.Request)
+
+		// 域名解析后回调函数
+		AfterResolve func(*http.Request, []net.IP)
+
+		// 域名解析错误回调函数
+		ResolveError func(*http.Request, error)
+
+		// 退避前回调函数
+		BeforeBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
+
+		// 退避后回调函数
+		AfterBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
+
+		// 请求前回调函数
+		BeforeRequest func(*http.Request, *retrier.RetrierOptions)
+
+		// 请求后回调函数
+		AfterResponse func(*http.Request, *http.Response, *retrier.RetrierOptions, error)
 	}
 
 	bucketRegionsProvider struct {
@@ -148,8 +172,24 @@ func NewBucketRegionsQuery(bucketHosts Endpoints, opts *BucketRegionsQueryOption
 	return &bucketRegionsQuery{
 		bucketHosts: bucketHosts,
 		cache:       persistentCache,
-		client:      makeBucketQueryClient(opts.Client, bucketHosts, !opts.UseInsecureProtocol, opts.RetryMax, opts.HostFreezeDuration, r, cs, bf),
-		useHttps:    !opts.UseInsecureProtocol,
+		client: makeBucketQueryClient(
+			opts.Client,
+			bucketHosts,
+			!opts.UseInsecureProtocol,
+			opts.RetryMax,
+			opts.HostFreezeDuration,
+			r,
+			cs,
+			bf,
+			opts.BeforeResolve,
+			opts.AfterResolve,
+			opts.ResolveError,
+			opts.BeforeBackoff,
+			opts.AfterBackoff,
+			opts.BeforeRequest,
+			opts.AfterResponse,
+		),
+		useHttps: !opts.UseInsecureProtocol,
 	}, nil
 }
 
@@ -293,22 +333,32 @@ func makeBucketQueryClient(
 	r resolver.Resolver,
 	cs chooser.Chooser,
 	bf backoff.Backoff,
+	beforeResolve func(*http.Request),
+	afterResolve func(*http.Request, []net.IP),
+	resolveError func(*http.Request, error),
+	beforeBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration),
+	afterBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration),
+	beforeRequest func(*http.Request, *retrier.RetrierOptions),
+	afterResponse func(*http.Request, *http.Response, *retrier.RetrierOptions, error),
 ) clientv2.Client {
 	is := []clientv2.Interceptor{
 		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
 			RetryMax:           len(bucketHosts.Preferred) + len(bucketHosts.Alternative),
-			ShouldRetry:        nil,
-			ShouldFreezeHost:   nil,
 			HostFreezeDuration: hostFreezeDuration,
 			HostProvider:       hostprovider.NewWithHosts(bucketHosts.allUrls(useHttps)),
 		}),
 		clientv2.NewSimpleRetryInterceptor(clientv2.SimpleRetryConfig{
 			RetryMax:      retryMax,
-			RetryInterval: nil,
 			Backoff:       bf,
-			ShouldRetry:   nil,
 			Resolver:      r,
 			Chooser:       cs,
+			BeforeResolve: beforeResolve,
+			AfterResolve:  afterResolve,
+			ResolveError:  resolveError,
+			BeforeBackoff: beforeBackoff,
+			AfterBackoff:  afterBackoff,
+			BeforeRequest: beforeRequest,
+			AfterResponse: afterResponse,
 		}),
 	}
 	return clientv2.NewClient(client, is...)

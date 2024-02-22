@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -430,6 +431,27 @@ type ucClientConfig struct {
 	// 签名失败回调函数
 	SignError func(*http.Request, error)
 
+	// 域名解析前回调函数
+	BeforeResolve func(*http.Request)
+
+	// 域名解析后回调函数
+	AfterResolve func(*http.Request, []net.IP)
+
+	// 域名解析错误回调函数
+	ResolveError func(*http.Request, error)
+
+	// 退避前回调函数
+	BeforeBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
+
+	// 退避后回调函数
+	AfterBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
+
+	// 请求前回调函数
+	BeforeRequest func(*http.Request, *retrier.RetrierOptions)
+
+	// 请求后回调函数
+	AfterResponse func(*http.Request, *http.Response, *retrier.RetrierOptions, error)
+
 	// 自定义客户端
 	Client *client.Client
 }
@@ -460,11 +482,18 @@ func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
 			Retrier:            config.Retrier,
 		}),
 		clientv2.NewSimpleRetryInterceptor(clientv2.SimpleRetryConfig{
-			RetryMax: config.RetryMax,
-			Resolver: config.Resolver,
-			Chooser:  config.Chooser,
-			Backoff:  config.Backoff,
-			Retrier:  config.Retrier,
+			RetryMax:      config.RetryMax,
+			Backoff:       config.Backoff,
+			Resolver:      config.Resolver,
+			Chooser:       config.Chooser,
+			Retrier:       config.Retrier,
+			BeforeResolve: config.BeforeResolve,
+			AfterResolve:  config.AfterResolve,
+			ResolveError:  config.ResolveError,
+			BeforeBackoff: config.BeforeBackoff,
+			AfterBackoff:  config.AfterBackoff,
+			BeforeRequest: config.BeforeRequest,
+			AfterResponse: config.AfterResponse,
 		}),
 	}
 
