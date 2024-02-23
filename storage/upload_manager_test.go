@@ -450,15 +450,17 @@ func TestUploadManagerResumeV2UploadRecord(t *testing.T) {
 	uploadedSizeWhileCancel := int64(1024 * 1024 * 4)
 	// 上传 file
 	source, err := NewUploadSourceFile(tempFile.Name())
+	uploadedSet := make(map[int64]struct{})
 	err = uploadManager.Put(ctx, &ret, getUploadToken(), nil, source, &UploadExtra{
 		Params:             params,
 		TryTimes:           1,
 		HostFreezeDuration: 0,
 		MimeType:           "",
 		OnProgress: func(fileSize, uploaded int64) {
-			fmt.Printf("resume v2 record 01: upload file progress: %d-%d \n", uploaded, fileSize)
 			if uploaded >= uploadedSizeWhileCancel {
 				cancel()
+			} else {
+				uploadedSet[uploaded] = struct{}{}
 			}
 		},
 		UploadResumeVersion: UploadResumeV2,
@@ -477,9 +479,8 @@ func TestUploadManagerResumeV2UploadRecord(t *testing.T) {
 		HostFreezeDuration: 0,
 		MimeType:           "",
 		OnProgress: func(fileSize, uploaded int64) {
-			fmt.Printf("resume v2 record 02: upload file progress: %d-%d \n", uploaded, fileSize)
-			if uploaded < uploadedSizeWhileCancel {
-				t.Fatalf("resume v2 upload file with record error: uploaded size should bigger than %d", uploadedSizeWhileCancel)
+			if _, ok := uploadedSet[uploaded]; ok {
+				t.Fatal("resume v2 upload file with record error: uploaded chunk should be resumed from record")
 			}
 		},
 		UploadResumeVersion: UploadResumeV2,

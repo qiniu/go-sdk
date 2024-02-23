@@ -342,7 +342,7 @@ func (impl *resumeUploaderV2Impl) uploadChunk(ctx context.Context, c chunk) erro
 			impl.extra.Progresses = append(impl.extra.Progresses, UploadPartInfo{
 				Etag: ret.Etag, PartNumber: partNumber, partSize: int(chunkSize), fileOffset: c.offset,
 			})
-			impl.save(ctx)
+			_ = impl.save(ctx)
 		}()
 	}
 	return err
@@ -394,7 +394,7 @@ func (impl *resumeUploaderV2Impl) recover(ctx context.Context, recoverData []byt
 	return
 }
 
-func (impl *resumeUploaderV2Impl) save(ctx context.Context) {
+func (impl *resumeUploaderV2Impl) save(ctx context.Context) error {
 	var (
 		recoveryInfo  resumeUploaderV2RecoveryInfo
 		recoveredData []byte
@@ -402,7 +402,7 @@ func (impl *resumeUploaderV2Impl) save(ctx context.Context) {
 	)
 
 	if impl.fileInfo == nil || impl.extra.Recorder == nil || len(impl.recorderKey) == 0 {
-		return
+		return nil
 	}
 
 	recoveryInfo.RecorderVersion = uploadRecordVersion
@@ -420,10 +420,10 @@ func (impl *resumeUploaderV2Impl) save(ctx context.Context) {
 	}
 
 	if recoveredData, err = json.Marshal(recoveryInfo); err != nil {
-		return
+		return err
 	}
 
-	impl.extra.Recorder.Set(impl.recorderKey, recoveredData)
+	return impl.extra.Recorder.Set(impl.recorderKey, recoveredData)
 }
 
 func (impl *resumeUploaderV2Impl) resumeUploaderAPIs() *resumeUploaderAPIs {
