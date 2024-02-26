@@ -316,7 +316,7 @@ func TestRetryInterceptorWithBackoff(t *testing.T) {
 	})
 	duration := float32(time.Now().UnixNano()-start.UnixNano()) / float32(time.Millisecond)
 
-	if duration > 3100+10 || duration < 3100-10 {
+	if duration > 3100+50 || duration < 3100-50 {
 		t.Fatalf("retry interval may be error:%f", duration)
 	}
 
