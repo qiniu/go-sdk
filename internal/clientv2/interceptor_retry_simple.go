@@ -86,6 +86,8 @@ func (interceptor *simpleRetryInterceptor) Priority() InterceptorPriority {
 }
 
 func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler Handler) (resp *http.Response, err error) {
+	var chosenIPs []net.IP
+
 	if interceptor == nil || req == nil {
 		return interceptor.callHandler(req, &retrier.RetrierOptions{Attempts: 0}, handler)
 	}
@@ -93,12 +95,12 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 
 	interceptor.config.init()
 
-	var ips []net.IP
 	hostname := req.URL.Hostname()
-	req, ips = interceptor.resolveAndChoose(req, hostname)
+	resolvedIPs := interceptor.resolve(req, hostname)
 
 	// 可能会被重试多次
 	for i := 0; ; i++ {
+		req, chosenIPs = interceptor.choose(req, resolvedIPs, hostname)
 		// Clone 防止后面 Handler 处理对 req 有污染
 		reqBefore := cloneReq(req)
 		resp, err = interceptor.callHandler(req, &retrier.RetrierOptions{Attempts: i}, handler)
@@ -109,14 +111,10 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 
 		retryDecision := interceptor.config.getRetryDecision(reqBefore, resp, err, i)
 		if retryDecision == retrier.DontRetry {
-			if len(ips) > 0 {
-				interceptor.feedbackGood(req, hostname, ips)
-			}
+			interceptor.feedbackGood(req, hostname, chosenIPs)
 			return resp, err
 		}
-		if len(ips) > 0 {
-			interceptor.feedbackBad(req, hostname, ips)
-		}
+		interceptor.feedbackBad(req, hostname, chosenIPs)
 
 		req = reqBefore
 
@@ -145,7 +143,7 @@ func (interceptor *simpleRetryInterceptor) callHandler(req *http.Request, option
 	return
 }
 
-func (interceptor *simpleRetryInterceptor) resolveAndChoose(req *http.Request, hostname string) (*http.Request, []net.IP) {
+func (interceptor *simpleRetryInterceptor) resolve(req *http.Request, hostname string) []net.IP {
 	var (
 		ips []net.IP
 		err error
@@ -158,28 +156,36 @@ func (interceptor *simpleRetryInterceptor) resolveAndChoose(req *http.Request, h
 			if interceptor.config.AfterResolve != nil {
 				interceptor.config.AfterResolve(req, ips)
 			}
-			if len(ips) > 0 {
-				if cs := interceptor.config.Chooser; cs != nil {
-					ips = cs.Choose(req.Context(), &chooser.ChooseOptions{IPs: ips, Domain: hostname})
-				}
-				req = req.WithContext(clientv1.WithResolvedIPs(req.Context(), hostname, ips))
-			}
 		} else if err != nil && interceptor.config.ResolveError != nil {
 			interceptor.config.ResolveError(req, err)
 		}
+	}
+	return ips
+}
+
+func (interceptor *simpleRetryInterceptor) choose(req *http.Request, ips []net.IP, hostname string) (*http.Request, []net.IP) {
+	if len(ips) > 0 {
+		if cs := interceptor.config.Chooser; cs != nil {
+			ips = cs.Choose(req.Context(), &chooser.ChooseOptions{IPs: ips, Domain: hostname})
+		}
+		req = req.WithContext(clientv1.WithResolvedIPs(req.Context(), hostname, ips))
 	}
 	return req, ips
 }
 
 func (interceptor *simpleRetryInterceptor) feedbackGood(req *http.Request, hostname string, ips []net.IP) {
-	if cs := interceptor.config.Chooser; cs != nil {
-		cs.FeedbackGood(req.Context(), &chooser.FeedbackOptions{IPs: ips, Domain: hostname})
+	if len(ips) > 0 {
+		if cs := interceptor.config.Chooser; cs != nil {
+			cs.FeedbackGood(req.Context(), &chooser.FeedbackOptions{IPs: ips, Domain: hostname})
+		}
 	}
 }
 
 func (interceptor *simpleRetryInterceptor) feedbackBad(req *http.Request, hostname string, ips []net.IP) {
-	if cs := interceptor.config.Chooser; cs != nil {
-		cs.FeedbackBad(req.Context(), &chooser.FeedbackOptions{IPs: ips, Domain: hostname})
+	if len(ips) > 0 {
+		if cs := interceptor.config.Chooser; cs != nil {
+			cs.FeedbackBad(req.Context(), &chooser.FeedbackOptions{IPs: ips, Domain: hostname})
+		}
 	}
 }
 
