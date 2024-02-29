@@ -26,6 +26,7 @@ const (
 type UploadConfig struct {
 	UseHTTPS      bool
 	UseCdnDomains bool
+	UCHosts       []string
 	Regions       *RegionGroup
 }
 
@@ -442,6 +443,7 @@ func (manager *UploadManager) getRegionGroupWithUploadToken(upToken string, extr
 	return getRegionGroupWithOptions(ak, bucket, UCApiOptions{
 		UseHttps:           manager.cfg.UseHTTPS,
 		RetryMax:           extra.TryTimes,
+		Hosts:              manager.cfg.UCHosts,
 		HostFreezeDuration: extra.HostFreezeDuration,
 	})
 }
