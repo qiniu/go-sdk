@@ -1023,7 +1023,7 @@ func (m *BucketManager) Zone(bucket string) (z *Zone, err error) {
 }
 
 func (m *BucketManager) makeRequestOptions() *apis.Options {
-	return &apis.Options{OverwrittenBucketHosts: getUcEndpoint(m.Cfg.UseHTTPS)}
+	return &apis.Options{OverwrittenBucketHosts: getUcEndpoint(m.Cfg.UseHTTPS, nil)}
 }
 
 // 构建op的方法，导出的方法支持在Batch操作中使用

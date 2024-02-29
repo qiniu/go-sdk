@@ -123,6 +123,8 @@ func storeRegionV4Cache() {
 }
 
 func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error) {
+	options.init()
+
 	regionV4CacheLock.RLock()
 	if regionV4CacheLoaded {
 		regionV4CacheLock.RUnlock()
@@ -139,7 +141,7 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 		}()
 	}
 
-	regionCacheKey := makeRegionCacheKey(ak, bucket)
+	regionCacheKey := makeRegionCacheKey(ak, bucket, options.Hosts)
 	//check from cache
 	if v, ok := regionV4Cache.Load(regionCacheKey); ok && time.Now().Before(v.(regionV4CacheValue).Deadline) {
 		cacheValue, _ := v.(regionV4CacheValue)
@@ -147,13 +149,15 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 	}
 
 	newRegion, err, _ := ucQueryV4Group.Do(regionCacheKey, func() (interface{}, error) {
-		reqURL := fmt.Sprintf("%s/v4/query?ak=%s&bucket=%s", getUcHost(options.UseHttps), ak, bucket)
+		reqURL := fmt.Sprintf("%s/v4/query?ak=%s&bucket=%s", endpoint(options.UseHttps, options.firstHost()), ak, bucket)
 
 		var ret ucQueryV4Ret
 		c := getUCClient(ucClientConfig{
 			IsUcQueryApi:       true,
 			RetryMax:           options.RetryMax,
+			Hosts:              options.Hosts,
 			HostFreezeDuration: options.HostFreezeDuration,
+			Client:             options.Client,
 		}, nil)
 		err := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 			Context: context.Background(),
