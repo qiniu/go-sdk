@@ -5,9 +5,10 @@ package storage
 
 import (
 	"encoding/json"
-	"github.com/qiniu/go-sdk/v7/client"
 	"strings"
 	"testing"
+
+	"github.com/qiniu/go-sdk/v7/client"
 )
 
 func TestRegion(t *testing.T) {
@@ -150,6 +151,17 @@ func TestRegionWithSetHost(t *testing.T) {
 	if !strings.HasPrefix(region1.IovipHost, "iovip") || !strings.HasSuffix(region1.IovipHost, ".qbox.me") {
 		t.Fatalf("region1.IovipHost is wrong: %v\v", region1.IovipHost)
 	}
+
+	region1, err = GetRegionWithOptions(testAK, testBucket, UCApiOptions{
+		UseHttps:           true,
+		RetryMax:           0,
+		Hosts:              []string{"mock.uc.com"},
+		HostFreezeDuration: 0,
+		Client:             nil,
+	})
+	if err == nil {
+		t.Fatalf("request should be wrong")
+	}
 }
 
 func TestRegionV4(t *testing.T) {
@@ -160,6 +172,17 @@ func TestRegionV4(t *testing.T) {
 
 	if len(regionGroup.regions) == 0 {
 		t.Fatalf("region1.IovipHost is wrong")
+	}
+
+	_, err = getRegionGroupWithOptions(testAK, testBucket, UCApiOptions{
+		UseHttps:           true,
+		RetryMax:           0,
+		Hosts:              []string{"mock.uc.com"},
+		HostFreezeDuration: 0,
+		Client:             nil,
+	})
+	if err == nil {
+		t.Fatalf("request should be wrong")
 	}
 }
 

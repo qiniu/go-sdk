@@ -925,7 +925,12 @@ func (m *BucketManager) Zone(bucket string) (z *Zone, err error) {
 		return
 	}
 
-	z, err = GetZone(m.Mac.AccessKey, bucket)
+	z, err = GetRegionWithOptions(m.Mac.AccessKey, bucket, UCApiOptions{
+		UseHttps:           m.Cfg.UseHTTPS,
+		RetryMax:           0,
+		HostFreezeDuration: 0,
+		Client:             m.Client,
+	})
 	return
 }
 

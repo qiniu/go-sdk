@@ -309,11 +309,14 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]R
 		Regions []RegionInfo `json:"regions"`
 	}
 
-	reqUrl := getUcHost(options.UseHttps) + "/regions"
+	options.init()
+	reqUrl := endpoint(options.UseHttps, options.firstHost()) + "/regions"
 	c := getUCClient(ucClientConfig{
 		IsUcQueryApi:       false,
 		RetryMax:           options.RetryMax,
+		Hosts:              options.Hosts,
 		HostFreezeDuration: options.HostFreezeDuration,
+		Client:             options.Client,
 	}, mac)
 	qErr := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 		Context:     context.Background(),
@@ -336,6 +339,9 @@ type ucClientConfig struct {
 	// 单域名重试次数
 	RetryMax int
 
+	// 请求的域名
+	Hosts []string
+
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
 
@@ -343,7 +349,11 @@ type ucClientConfig struct {
 }
 
 func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
-	allHosts := getUcBackupHosts()
+	allHosts := config.Hosts
+	if len(allHosts) == 0 {
+		allHosts = getUcBackupHosts()
+	}
+
 	var hosts []string = nil
 	if !config.IsUcQueryApi {
 		// 非 uc query api 去除 defaultApiHost

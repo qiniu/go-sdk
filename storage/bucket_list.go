@@ -54,6 +54,11 @@ type ListItem struct {
 	 * 文件的 md5 值
 	 */
 	Md5 string `json:"md5"`
+
+	/**
+	 * 文件的分片信息
+	 */
+	Parts []uint `json:"parts"`
 }
 
 // 接口可能返回空的记录
@@ -103,6 +108,7 @@ type listInputOptions struct {
 	delimiter string
 	marker    string
 	limit     int
+	needParts bool
 }
 
 type ListInputOption func(options *listInputOptions)
@@ -128,6 +134,12 @@ func ListInputOptionsMarker(marker string) ListInputOption {
 func ListInputOptionsLimit(limit int) ListInputOption {
 	return func(input *listInputOptions) {
 		input.limit = limit
+	}
+}
+
+func ListInputOptionsNeedParts(needParts bool) ListInputOption {
+	return func(input *listInputOptions) {
+		input.needParts = needParts
 	}
 }
 
@@ -166,7 +178,7 @@ func (m *BucketManager) ListFilesWithContext(ctx context.Context, bucket string,
 	}
 
 	ret = &ListFilesRet{}
-	reqURL := fmt.Sprintf("%s%s", host, uriListFiles(bucket, inputOptions.prefix, inputOptions.delimiter, inputOptions.marker, inputOptions.limit))
+	reqURL := fmt.Sprintf("%s%s", host, uriListFiles(bucket, inputOptions.prefix, inputOptions.delimiter, inputOptions.marker, inputOptions.limit, inputOptions.needParts))
 	err = m.Client.CredentialedCall(ctx, m.Mac, auth.TokenQiniu, ret, "POST", reqURL, nil)
 	if err != nil {
 		return nil, false, err
@@ -228,7 +240,7 @@ func (m *BucketManager) ListBucketContext(ctx context.Context, bucket, prefix, d
 	return retCh, err
 }
 
-func uriListFiles(bucket, prefix, delimiter, marker string, limit int) string {
+func uriListFiles(bucket, prefix, delimiter, marker string, limit int, needParts bool) string {
 	query := make(url.Values)
 	query.Add("bucket", bucket)
 	if prefix != "" {
@@ -243,5 +255,6 @@ func uriListFiles(bucket, prefix, delimiter, marker string, limit int) string {
 	if limit > 0 {
 		query.Add("limit", strconv.FormatInt(int64(limit), 10))
 	}
+	query.Add("needparts", strconv.FormatBool(needParts))
 	return fmt.Sprintf("/list?%s", query.Encode())
 }
