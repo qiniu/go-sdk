@@ -104,9 +104,9 @@ type ListedObjects = []ListedObjectEntry
 // 本次列举的对象条目信息
 type ListedObjectEntries = Response
 type jsonResponse struct {
-	Marker         string         `json:"marker,omitempty"`          // 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
-	CommonPrefixes CommonPrefixes `json:"common_prefixes,omitempty"` // 公共前缀的数组，如没有指定 delimiter 参数则不返回
-	Items          ListedObjects  `json:"items"`                     // 条目的数组，不能用来判断是否还有剩余条目
+	Marker         string         `json:"marker,omitempty"`         // 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
+	CommonPrefixes CommonPrefixes `json:"commonPrefixes,omitempty"` // 公共前缀的数组，如没有指定 delimiter 参数则不返回
+	Items          ListedObjects  `json:"items"`                    // 条目的数组，不能用来判断是否还有剩余条目
 }
 
 func (j *Response) MarshalJSON() ([]byte, error) {
