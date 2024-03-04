@@ -26,7 +26,7 @@ func main() {
 	//cfg.Zone=&storage.ZoneHuabei
 	bucketManager := storage.NewBucketManager(mac, &cfg)
 
-	srcBucket := "if-pbl"
+	srcBucket := bucket
 	srcKey := "github.png"
 	//目标空间可以和源空间相同，但是不能为跨机房的空间
 	destBucket := srcBucket
