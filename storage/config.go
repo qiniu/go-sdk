@@ -9,10 +9,9 @@ type Config struct {
 
 	// 如果设置的Host本身是以http://开头的，又设置了该字段为true，那么优先使用该字段，使用https协议
 	// 同理如果该字段为false, 但是设置的host以https开头，那么使用http协议通信
-	UseHTTPS      bool     //是否使用https域名
-	UseCdnDomains bool     //是否使用cdn加速域名
-	CentralRsHost string   //中心机房的RsHost，用于list bucket
-	UCHosts       []string // uc 域名
+	UseHTTPS      bool   //是否使用https域名
+	UseCdnDomains bool   //是否使用cdn加速域名
+	CentralRsHost string //中心机房的RsHost，用于list bucket
 
 	// 兼容保留
 	RsHost  string

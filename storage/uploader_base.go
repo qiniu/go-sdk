@@ -47,7 +47,6 @@ func getUpHostProvider(config *Config, retryMax int, hostFreezeDuration time.Dur
 	if region == nil {
 		if region, err = GetRegionWithOptions(ak, bucket, UCApiOptions{
 			RetryMax:           retryMax,
-			Hosts:              ucHosts,
 			HostFreezeDuration: hostFreezeDuration,
 		}); err != nil {
 			return nil, err
