@@ -1,0 +1,48 @@
+method: get
+service_names:
+  - uc
+base_path: /v3/domains
+documentation: 获取存储空间的域名列表
+request:
+  authorization: qiniu
+  query_names:
+    - field_name: bucket_name
+      query_name: tbl
+      query_type: string
+      documentation: 要获取域名列表的目标空间名称
+      service_bucket: plain_text
+response:
+  body:
+    json:
+      array:
+        name: DomainInfos
+        documentation: 存储空间的域名信息列表
+        type:
+          struct:
+            name: DomainInfo
+            documentation: 存储空间的域名信息
+            fields:
+              - field_name: domain
+                key: domain
+                type: string
+                documentation: 域名
+              - field_name: bucket
+                key: tbl
+                type: string
+                documentation: 存储空间名称
+              - field_name: owner_id
+                key: uid
+                type: integer
+                documentation: 用户 UID
+              - field_name: auto_refresh
+                key: refresh
+                type: boolean
+                documentation: 是否自动刷新
+              - field_name: created_time
+                key: ctime
+                type: integer
+                documentation: 域名创建时间
+              - field_name: updated_time
+                key: utime
+                type: integer
+                documentation: 域名更新时间

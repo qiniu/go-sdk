@@ -29,28 +29,33 @@ func main() {
 		os.Exit(1)
 	}
 
-	storageApiSpecsPath := filepath.Join(rootProjectPath, "..", "api-specs", "storage")
+	storageApiSpecsPaths := []string{
+		filepath.Join(rootProjectPath, "..", "api-specs", "storage"),
+		filepath.Join(rootProjectPath, "internal", "api-specs"),
+	}
 	storageGeneratedDirPath := filepath.Join(rootProjectPath, "apis")
 
 	os.RemoveAll(storageGeneratedDirPath)
 
-	storageApiSpecEntries, err := ioutil.ReadDir(storageApiSpecsPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to read directory %s: %s\n", storageApiSpecsPath, err)
-		os.Exit(1)
-	}
-
-	for _, storageApiSpecEntry := range storageApiSpecEntries {
-		apiSpecName := extractApiSpecName(storageApiSpecEntry.Name())
-		apiSpecPath := filepath.Join(storageApiSpecsPath, storageApiSpecEntry.Name())
-		generatedDirPath := filepath.Join(storageGeneratedDirPath, apiSpecName)
-		if err = os.MkdirAll(generatedDirPath, 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to create directory %s: %s\n", generatedDirPath, err)
+	for _, storageApiSpecsPath := range storageApiSpecsPaths {
+		storageApiSpecEntries, err := ioutil.ReadDir(storageApiSpecsPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to read directory %s: %s\n", storageApiSpecsPath, err)
 			os.Exit(1)
 		}
-		if err = writeGolangPackages(apiSpecName, apiSpecPath, storageGeneratedDirPath); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to write go package %s: %s\n", apiSpecName, err)
-			os.Exit(1)
+
+		for _, storageApiSpecEntry := range storageApiSpecEntries {
+			apiSpecName := extractApiSpecName(storageApiSpecEntry.Name())
+			apiSpecPath := filepath.Join(storageApiSpecsPath, storageApiSpecEntry.Name())
+			generatedDirPath := filepath.Join(storageGeneratedDirPath, apiSpecName)
+			if err = os.MkdirAll(generatedDirPath, 0755); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to create directory %s: %s\n", generatedDirPath, err)
+				os.Exit(1)
+			}
+			if err = writeGolangPackages(apiSpecName, apiSpecPath, storageGeneratedDirPath); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to write go package %s: %s\n", apiSpecName, err)
+				os.Exit(1)
+			}
 		}
 	}
 	if err = writeApiClient(storageGeneratedDirPath); err != nil {

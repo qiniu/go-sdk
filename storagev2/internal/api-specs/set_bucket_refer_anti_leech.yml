@@ -1,0 +1,33 @@
+method: post
+service_names:
+  - uc
+base_path: /referAntiLeech
+documentation: 设置存储空间的防盗链模式
+request:
+  authorization: qiniu
+  query_names:
+    - field_name: bucket
+      query_name: bucket
+      query_type: string
+      documentation: 存储空间名称
+      service_bucket: plain_text
+    - field_name: mode
+      query_name: mode
+      query_type: integer
+      documentation: 设置防盗链模式，0：表示关闭 Referer(使用此选项将会忽略以下参数并将恢复默认值); 1：表示设置 Referer 白名单; 2：表示设置 Referer 黑名单
+      optional: keepempty
+    - field_name: pattern
+      query_name: pattern
+      query_type: string
+      documentation: 规则字符串，当前允许格式分为三种：一种为空主机头域名，比如 `foo.com`; 一种是泛域名，比如 `*.bar.com`; 一种是完全通配符，即一个 `*`; 多个规则之间用`;`隔开，比如：`foo.com;*.bar.com;sub.foo.com;*.sub.bar.com`
+      optional: keepempty
+    - field_name: allow_empty_referer
+      query_name: norefer
+      query_type: integer
+      documentation: 0：表示不允许空 Refer 访问; 1：表示允许空 Refer 访问
+      optional: keepempty
+    - field_name: source_enabled
+      query_name: source_enabled
+      query_type: integer
+      documentation: 源站是否支持，默认为 0 只给 CDN 配置, 设置为 1 表示开启源站防盗链
+      optional: keepempty

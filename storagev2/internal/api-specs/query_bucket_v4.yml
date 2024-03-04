@@ -1,0 +1,148 @@
+method: get
+service_names:
+  - uc
+base_path: /v4/query
+documentation: 查询存储空间服务域名
+request:
+  query_names:
+    - field_name: bucket
+      query_name: bucket
+      query_type: string
+      documentation: 存储空间名称
+      service_bucket: plain_text
+    - field_name: access_key
+      query_name: ak
+      query_type: string
+      documentation: Access Key
+response:
+  body:
+    json:
+      struct:
+        name: BucketQueryResult
+        documentation: 存储空间服务域名查询结果
+        fields:
+          - field_name: hosts
+            key: hosts
+            documentation: 存储空间服务域名
+            type:
+              array:
+                name: BucketQueryHosts
+                documentation: 存储空间服务域名
+                type:
+                  struct:
+                    name: BucketQueryHost
+                    documentation: 存储空间服务域名
+                    fields:
+                      - field_name: region_id
+                        key: region
+                        type: string
+                        documentation: 区域 ID
+                      - field_name: time_to_live
+                        key: ttl
+                        type: integer
+                        documentation: 查询结果的 TTL
+                      - field_name: up_domains
+                        key: up
+                        documentation: 上传域名
+                        type:
+                          struct:
+                            name: UpDomains
+                            documentation: 上传域名
+                            fields:
+                              - field_name: prefered_up_domains
+                                key: domains
+                                documentation: 主上传域名列表
+                                type:
+                                  array:
+                                    name: PreferedUpDomains
+                                    documentation: 主上传域名列表
+                                    type: string
+                              - field_name: alternative_up_domains
+                                key: old
+                                documentation: 备选上传域名列表
+                                type:
+                                  array:
+                                    name: AlternativeUpDomains
+                                    documentation: 备选上传域名列表
+                                    type: string
+                      - field_name: io_domains
+                        key: io
+                        documentation: 下载域名
+                        type:
+                          struct:
+                            name: IoDomains
+                            documentation: 下载域名
+                            fields:
+                              - field_name: prefered_io_domains
+                                key: domains
+                                documentation: 主下载域名列表
+                                type:
+                                  array:
+                                    name: PreferedIoDomains
+                                    documentation: 主下载域名列表
+                                    type: string
+                      - field_name: io_src_domains
+                        key: io_src
+                        documentation: 源站下载域名
+                        optional: omitempty
+                        type:
+                          struct:
+                            name: IoSrcDomains
+                            documentation: 源站下载域名
+                            fields:
+                              - field_name: prefered_io_src_domains
+                                key: domains
+                                documentation: 主源站下载域名列表
+                                type:
+                                  array:
+                                    name: PreferedIoSrcDomains
+                                    documentation: 主源站下载域名列表
+                                    type: string
+                      - field_name: rs_domains
+                        key: rs
+                        documentation: 对象管理域名
+                        type:
+                          struct:
+                            name: RsDomains
+                            documentation: 对象管理域名
+                            fields:
+                              - field_name: prefered_rs_domains
+                                key: domains
+                                documentation: 主对象管理域名列表
+                                type:
+                                  array:
+                                    name: PreferedRsDomains
+                                    documentation: 主对象管理域名列表
+                                    type: string
+                      - field_name: rsf_domains
+                        key: rsf
+                        documentation: 对象列举域名
+                        type:
+                          struct:
+                            name: RsfDomains
+                            documentation: 对象列举域名
+                            fields:
+                              - field_name: prefered_rsf_domains
+                                key: domains
+                                documentation: 主对象列举域名列表
+                                type:
+                                  array:
+                                    name: PreferedRsfDomains
+                                    documentation: 主对象列举域名列表
+                                    type: string
+                      - field_name: api_domains
+                        key: api
+                        documentation: API 域名
+                        type:
+                          struct:
+                            name: ApiDomains
+                            documentation: API 域名
+                            fields:
+                              - field_name: prefered_api_domains
+                                key: domains
+                                documentation: 主 API 域名列表
+                                type:
+                                  array:
+                                    name: PreferedApiDomains
+                                    documentation: 主 API 域名列表
+                                    type: string

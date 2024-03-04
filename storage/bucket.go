@@ -20,6 +20,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/batch_ops"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_domains_v3"
 	"github.com/qiniu/go-sdk/v7/storagev2/backoff"
 	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
@@ -917,19 +918,31 @@ type DomainInfo struct {
 
 // ListBucketDomains 返回绑定在存储空间中的域名信息
 func (m *BucketManager) ListBucketDomains(bucket string) (info []DomainInfo, err error) {
-	reqURL := fmt.Sprintf("%s/v3/domains?tbl=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
-	c, err := m.getUCClient()
-	if err != nil {
-		return
+	toDomainInfo := func(info *get_bucket_domains_v3.DomainInfo) DomainInfo {
+		return DomainInfo{
+			Domain:  info.Domain,
+			Tbl:     info.Bucket,
+			Owner:   int(info.OwnerId),
+			Refresh: info.AutoRefresh,
+			Ctime:   int(info.CreatedTime),
+			Utime:   int(info.UpdatedTime),
+		}
 	}
-	err = clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodGet,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, &info)
-	return info, err
+	response, err := m.apiClient.GetBucketDomainsV3(
+		context.Background(),
+		&apis.GetBucketDomainsV3Request{
+			BucketName: bucket,
+		},
+		m.makeRequestOptions(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	domainInfos := make([]DomainInfo, 0, len(response.DomainInfos))
+	for _, domainInfo := range response.DomainInfos {
+		domainInfos = append(domainInfos, toDomainInfo(&domainInfo))
+	}
+	return domainInfos, nil
 }
 
 // Prefetch 用来同步镜像空间的资源和镜像源资源内容
@@ -945,52 +958,42 @@ func (m *BucketManager) Prefetch(bucket, key string) error {
 }
 
 // SetImage 用来设置空间镜像源
-func (m *BucketManager) SetImage(siteURL, bucket string) (err error) {
-	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriSetImage(siteURL, bucket))
-	c, err := m.getUCClient()
-	if err != nil {
-		return
-	}
-	return clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, nil)
+func (m *BucketManager) SetImage(siteURL, bucket string) error {
+	_, err := m.apiClient.SetBucketImage(
+		context.Background(),
+		&apis.SetBucketImageRequest{
+			Bucket: bucket,
+			Url:    siteURL,
+		},
+		m.makeRequestOptions(),
+	)
+	return err
 }
 
 // SetImageWithHost 用来设置空间镜像源，额外添加回源Host头部
-func (m *BucketManager) SetImageWithHost(siteURL, bucket, host string) (err error) {
-	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS),
-		uriSetImageWithHost(siteURL, bucket, host))
-	c, err := m.getUCClient()
-	if err != nil {
-		return
-	}
-	return clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, nil)
+func (m *BucketManager) SetImageWithHost(siteURL, bucket, host string) error {
+	_, err := m.apiClient.SetBucketImage(
+		context.Background(),
+		&apis.SetBucketImageRequest{
+			Bucket: bucket,
+			Url:    siteURL,
+			Host:   host,
+		},
+		m.makeRequestOptions(),
+	)
+	return err
 }
 
 // UnsetImage 用来取消空间镜像源设置
-func (m *BucketManager) UnsetImage(bucket string) (err error) {
-	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriUnsetImage(bucket))
-	c, err := m.getUCClient()
-	if err != nil {
-		return
-	}
-	return clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, nil)
+func (m *BucketManager) UnsetImage(bucket string) error {
+	_, err := m.apiClient.UnsetBucketImage(
+		context.Background(),
+		&apis.UnsetBucketImageRequest{
+			Bucket: bucket,
+		},
+		m.makeRequestOptions(),
+	)
+	return err
 }
 
 type AsyncFetchParam struct {
@@ -1252,21 +1255,6 @@ func URIChangeType(bucket, key string, fileType int) string {
 // URIRestoreAr 构建 restoreAr 接口的请求命令
 func URIRestoreAr(bucket, key string, afterDay int) string {
 	return fmt.Sprintf("/restoreAr/%s/freezeAfterDays/%d", EncodedEntry(bucket, key), afterDay)
-}
-
-func uriSetImage(siteURL, bucket string) string {
-	return fmt.Sprintf("/image/%s/from/%s", bucket,
-		base64.URLEncoding.EncodeToString([]byte(siteURL)))
-}
-
-func uriSetImageWithHost(siteURL, bucket, host string) string {
-	return fmt.Sprintf("/image/%s/from/%s/host/%s", bucket,
-		base64.URLEncoding.EncodeToString([]byte(siteURL)),
-		base64.URLEncoding.EncodeToString([]byte(host)))
-}
-
-func uriUnsetImage(bucket string) string {
-	return fmt.Sprintf("/unimage/%s", bucket)
 }
 
 // EncodedEntry 生成URL Safe Base64编码的 Entry

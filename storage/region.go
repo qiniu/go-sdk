@@ -3,23 +3,14 @@ package storage
 import (
 	"context"
 	"fmt"
-	"net"
-	"net/http"
 	"strings"
-	"time"
 
 	"github.com/qiniu/go-sdk/v7/auth"
-	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
-	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis"
-	"github.com/qiniu/go-sdk/v7/storagev2/backoff"
-	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
 	"github.com/qiniu/go-sdk/v7/storagev2/defaults"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region_v2 "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
-	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 )
 
 // 存储所在的地区，例如华东，华南，华北
@@ -275,34 +266,6 @@ func SetUcHosts(hosts ...string) {
 	ucHosts = newHosts
 }
 
-func getUcHost(useHttps bool) string {
-	// 兼容老版本，优先使用 UcHost
-	host := ""
-	if len(UcHost) > 0 {
-		host = UcHost
-	} else if len(ucHosts) > 0 {
-		host = ucHosts[0]
-	}
-	return endpoint(useHttps, host)
-}
-
-// 不带 scheme
-func getUcBackupHosts() []string {
-	var hosts []string
-	if len(UcHost) > 0 {
-		hosts = append(hosts, removeHostScheme(UcHost))
-	}
-
-	for _, host := range ucHosts {
-		if len(host) > 0 {
-			hosts = append(hosts, removeHostScheme(host))
-		}
-	}
-
-	hosts = removeRepeatStringItem(hosts)
-	return hosts
-}
-
 func getUcEndpoint(useHttps bool, hosts []string) region_v2.EndpointsProvider {
 	if len(hosts) == 0 {
 		if len(UcHost) > 0 {
@@ -395,117 +358,4 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]R
 		})
 	}
 	return regions, nil
-}
-
-type ucClientConfig struct {
-	// 非 uc query api 需要去除默认域名 defaultApiHost
-	IsUcQueryApi bool
-
-	// 单域名重试次数
-	RetryMax int
-
-	// 请求的域名
-	Hosts []string
-
-	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
-	HostFreezeDuration time.Duration
-
-	// 域名解析器
-	Resolver resolver.Resolver
-
-	// 域名选择器
-	Chooser chooser.Chooser
-
-	// 退避器
-	Backoff backoff.Backoff
-
-	// 重试器
-	Retrier retrier.Retrier
-
-	// 签名前回调函数
-	BeforeSign func(*http.Request)
-
-	// 签名后回调函数
-	AfterSign func(*http.Request)
-
-	// 签名失败回调函数
-	SignError func(*http.Request, error)
-
-	// 域名解析前回调函数
-	BeforeResolve func(*http.Request)
-
-	// 域名解析后回调函数
-	AfterResolve func(*http.Request, []net.IP)
-
-	// 域名解析错误回调函数
-	ResolveError func(*http.Request, error)
-
-	// 退避前回调函数
-	BeforeBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
-
-	// 退避后回调函数
-	AfterBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
-
-	// 请求前回调函数
-	BeforeRequest func(*http.Request, *retrier.RetrierOptions)
-
-	// 请求后回调函数
-	AfterResponse func(*http.Request, *http.Response, *retrier.RetrierOptions, error)
-
-	// 自定义客户端
-	Client *client.Client
-}
-
-func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
-	allHosts := config.Hosts
-	if len(allHosts) == 0 {
-		allHosts = getUcBackupHosts()
-	}
-
-	var hosts []string = nil
-	if !config.IsUcQueryApi {
-		// 非 uc query api 去除 defaultApiHost
-		for _, host := range allHosts {
-			if host != defaultApiHost {
-				hosts = append(hosts, host)
-			}
-		}
-	} else {
-		hosts = allHosts
-	}
-
-	is := []clientv2.Interceptor{
-		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
-			RetryMax:           len(hosts),
-			HostFreezeDuration: config.HostFreezeDuration,
-			HostProvider:       hostprovider.NewWithHosts(hosts),
-			Retrier:            config.Retrier,
-		}),
-		clientv2.NewSimpleRetryInterceptor(clientv2.SimpleRetryConfig{
-			RetryMax:      config.RetryMax,
-			Backoff:       config.Backoff,
-			Resolver:      config.Resolver,
-			Chooser:       config.Chooser,
-			Retrier:       config.Retrier,
-			BeforeResolve: config.BeforeResolve,
-			AfterResolve:  config.AfterResolve,
-			ResolveError:  config.ResolveError,
-			BeforeBackoff: config.BeforeBackoff,
-			AfterBackoff:  config.AfterBackoff,
-			BeforeRequest: config.BeforeRequest,
-			AfterResponse: config.AfterResponse,
-		}),
-	}
-
-	if mac != nil {
-		is = append(is, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
-			Credentials: mac,
-			TokenType:   auth.TokenQiniu,
-			BeforeSign:  config.BeforeSign,
-			AfterSign:   config.AfterSign,
-			SignError:   config.SignError,
-		}))
-	}
-
-	return clientv2.NewClient(clientv2.NewClientWithClientV1(config.Client), is...)
 }
