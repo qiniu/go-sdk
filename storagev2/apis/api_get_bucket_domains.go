@@ -5,7 +5,7 @@ package apis
 import (
 	"context"
 	auth "github.com/qiniu/go-sdk/v7/auth"
-	getdomains "github.com/qiniu/go-sdk/v7/storagev2/apis/get_domains"
+	getbucketdomains "github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_domains"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
@@ -13,12 +13,12 @@ import (
 	"strings"
 )
 
-type innerGetDomainsRequest getdomains.Request
+type innerGetBucketDomainsRequest getbucketdomains.Request
 
-func (query *innerGetDomainsRequest) getBucketName(ctx context.Context) (string, error) {
+func (query *innerGetBucketDomainsRequest) getBucketName(ctx context.Context) (string, error) {
 	return query.BucketName, nil
 }
-func (query *innerGetDomainsRequest) buildQuery() (url.Values, error) {
+func (query *innerGetBucketDomainsRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.BucketName != "" {
 		allQuery.Set("tbl", query.BucketName)
@@ -27,7 +27,7 @@ func (query *innerGetDomainsRequest) buildQuery() (url.Values, error) {
 	}
 	return allQuery, nil
 }
-func (request *innerGetDomainsRequest) getAccessKey(ctx context.Context) (string, error) {
+func (request *innerGetBucketDomainsRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
 			return "", err
@@ -38,15 +38,15 @@ func (request *innerGetDomainsRequest) getAccessKey(ctx context.Context) (string
 	return "", nil
 }
 
-type GetDomainsRequest = getdomains.Request
-type GetDomainsResponse = getdomains.Response
+type GetBucketDomainsRequest = getbucketdomains.Request
+type GetBucketDomainsResponse = getbucketdomains.Response
 
 // 获取存储空间的域名列表
-func (storage *Storage) GetDomains(ctx context.Context, request *GetDomainsRequest, options *Options) (*GetDomainsResponse, error) {
+func (storage *Storage) GetBucketDomains(ctx context.Context, request *GetBucketDomainsRequest, options *Options) (*GetBucketDomainsResponse, error) {
 	if options == nil {
 		options = &Options{}
 	}
-	innerRequest := (*innerGetDomainsRequest)(request)
+	innerRequest := (*innerGetBucketDomainsRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "v2", "domains")
@@ -94,7 +94,7 @@ func (storage *Storage) GetDomains(ctx context.Context, request *GetDomainsReque
 			}
 		}
 	}
-	var respBody GetDomainsResponse
+	var respBody GetBucketDomainsResponse
 	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
