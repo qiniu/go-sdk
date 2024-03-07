@@ -56,3 +56,7 @@ func (r *sizedReadSeekCloserFromReader) Seek(offset int64, whence int) (int64, e
 func (r *sizedReadSeekCloserFromReader) Close() error {
 	return nil
 }
+
+func (r *sizedReadSeekCloserFromReader) DetectLength() (int64, error) {
+	return r.size, nil
+}

@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	api "github.com/qiniu/go-sdk/v7"
+	"github.com/qiniu/go-sdk/v7/storagev2/uplog"
 )
 
 // 分片上传过程中可能遇到的错误
@@ -109,16 +110,25 @@ type (
 	// 通用分片上传接口，同时适用于分片上传 v1 和 v2 接口
 	resumeUploaderBase interface {
 		// 开始上传前调用一次用于初始化，在 v1 中该接口不做任何事情，而在 v2 中该接口对应 initParts
-		initUploader(context.Context) ([]int64, error)
+		initUploader(context.Context) ([]int64, int64, error)
 		// 上传实际的分片数据，允许并发上传。在 v1 中该接口对应 mkblk 和 bput 组合，而在 v2 中该接口对应 uploadParts
 		uploadChunk(context.Context, chunk) error
 		// 上传所有分片后调用一次用于结束上传，在 v1 中该接口对应 mkfile，而在 v2 中该接口对应 completeParts
 		final(context.Context) error
+		// 上传接口版本
+		version() uplog.UpApiVersion
+		// 获取上传凭证
+		getUpToken() string
+		// 获取存储空间
+		getBucket() string
+		// 获取对象名称
+		getKey() (string, bool)
 	}
 
 	// 将已知数据流大小的情况和未知数据流大小的情况抽象成一个接口
 	chunkReader interface {
 		readChunks([]int64, func(chunkID, off, size int64, reader io.ReaderAt) error) error
+		expectedSize() int64
 	}
 
 	// 已知数据流大小的情况下读取数据流
@@ -137,55 +147,55 @@ type (
 
 // 使用并发 Goroutine 上传数据
 func uploadByWorkers(uploader resumeUploaderBase, ctx context.Context, body chunkReader) error {
-
 	initWorkers()
 
-	recovered, iErr := uploader.initUploader(ctx)
-	if iErr != nil {
-		return iErr
+	recovered, recoveredSize, err := uploader.initUploader(ctx)
+	if err != nil {
+		return err
 	}
-
-	// 读取 Chunk 并创建任务
-	var uErr error
-	var locker = sync.Mutex{}
-	var waiter = sync.WaitGroup{}
-	rErr := body.readChunks(recovered, func(chunkID, off, size int64, reader io.ReaderAt) error {
-		locker.Lock()
-		if uErr != nil {
-			locker.Unlock()
-			return uErr
-		}
-		locker.Unlock()
-
-		waiter.Add(1)
-		tasks <- func() {
-			pErr := uploader.uploadChunk(ctx, chunk{
-				id:     chunkID,
-				offset: off,
-				size:   size,
-				reader: reader,
-			})
-
+	targetKey, _ := uploader.getKey()
+	return uplog.WithBlock(ctx, uploader.version(), uint64(body.expectedSize()), uint64(recoveredSize), uploader.getBucket(), targetKey, uploader.getUpToken(), func(ctx context.Context) error {
+		// 读取 Chunk 并创建任务
+		var (
+			uErr   error
+			locker sync.Mutex
+			waiter sync.WaitGroup
+		)
+		rErr := body.readChunks(recovered, func(chunkID, off, size int64, reader io.ReaderAt) error {
 			locker.Lock()
-			if uErr == nil {
-				uErr = pErr
+			if uErr != nil {
+				locker.Unlock()
+				return uErr
 			}
 			locker.Unlock()
-			waiter.Done()
+
+			waiter.Add(1)
+			tasks <- func() {
+				pErr := uploader.uploadChunk(ctx, chunk{
+					id:     chunkID,
+					offset: off,
+					size:   size,
+					reader: reader,
+				})
+
+				locker.Lock()
+				if uErr == nil {
+					uErr = pErr
+				}
+				locker.Unlock()
+				waiter.Done()
+			}
+			return nil
+		})
+		waiter.Wait()
+		if rErr != nil {
+			return rErr
 		}
-		return nil
+		if uErr != nil {
+			return uErr
+		}
+		return uploader.final(ctx)
 	})
-	waiter.Wait()
-
-	if rErr != nil {
-		return rErr
-	}
-
-	if uErr != nil {
-		return uErr
-	}
-
-	return uploader.final(ctx)
 }
 
 func newUnsizedChunkReader(body io.Reader, blockSize int64) *unsizedChunkReader {
@@ -232,6 +242,10 @@ func (r *unsizedChunkReader) readChunks(recovered []int64, f func(chunkID, off, 
 	return nil
 }
 
+func (r *unsizedChunkReader) expectedSize() int64 {
+	return 0
+}
+
 func newSizedChunkReader(body io.ReaderAt, totalSize, blockSize int64) *sizedChunkReader {
 	return &sizedChunkReader{body: body, totalSize: totalSize, blockSize: blockSize}
 }
@@ -262,6 +276,10 @@ func (r *sizedChunkReader) readChunks(recovered []int64, f func(chunkID, off, si
 		chunkID += 1
 	}
 	return nil
+}
+
+func (r *sizedChunkReader) expectedSize() int64 {
+	return r.totalSize
 }
 
 func getRecorderKey(recorder Recorder, upToken string, key string,

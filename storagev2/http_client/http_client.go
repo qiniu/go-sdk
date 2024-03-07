@@ -171,6 +171,9 @@ type (
 
 		// 是否缓存响应
 		BufferResponse bool
+
+		// 拦截器追加列表
+		Interceptors []Interceptor
 	}
 )
 
@@ -247,6 +250,9 @@ func (httpClient *Client) Do(ctx context.Context, request *Request) (*http.Respo
 				}))
 			}
 		}
+	}
+	if len(request.Interceptors) > 0 {
+		req = clientv2.WithInterceptors(req, request.Interceptors...)
 	}
 	return httpClient.basicHTTPClient.Do(req)
 }
@@ -327,7 +333,7 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 		return nil, err
 	}
 
-	interceptors := make([]Interceptor, 0, 2)
+	interceptors := make([]Interceptor, 0, 3)
 	hostsRetryConfig := httpClient.hostsRetryConfig
 	if hostsRetryConfig == nil {
 		hostsRetryConfig = &RetryConfig{
@@ -344,6 +350,7 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 	if cs == nil {
 		cs = chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil))
 	}
+	interceptors = append(interceptors, clientv2.NewBufferResponseInterceptor())
 	interceptors = append(interceptors, clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
 		RetryMax:           hostsRetryConfig.RetryMax,
 		ShouldRetry:        hostsRetryConfig.ShouldRetry,

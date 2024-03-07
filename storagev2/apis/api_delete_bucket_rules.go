@@ -8,9 +8,12 @@ import (
 	deletebucketrules "github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket_rules"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	uplog "github.com/qiniu/go-sdk/v7/storagev2/internal/uplog"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
+	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type innerDeleteBucketRulesRequest deletebucketrules.Request
@@ -64,7 +67,29 @@ func (storage *Storage) DeleteBucketRules(ctx context.Context, request *DeleteBu
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: httpclient.GetFormRequestBody(body)}
+	bucketName := options.OverwrittenBucketName
+	if bucketName == "" {
+		var err error
+		if bucketName, err = innerRequest.getBucketName(ctx); err != nil {
+			return nil, err
+		}
+	}
+	var objectName string
+	uplogInterceptor, err := uplog.NewRequestUplog("deleteBucketRules", bucketName, objectName, func() (string, error) {
+		credentials := innerRequest.Credentials
+		if credentials == nil {
+			credentials = storage.client.GetCredentials()
+		}
+		putPolicy, err := uptoken.NewPutPolicy(bucketName, time.Now().Add(time.Hour))
+		if err != nil {
+			return "", err
+		}
+		return uptoken.NewSigner(putPolicy, credentials).GetUpToken(ctx)
+	})
+	if err != nil {
+		return nil, err
+	}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: httpclient.GetFormRequestBody(body)}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
 		query := storage.client.GetBucketQuery()
 		if query == nil {
@@ -76,14 +101,8 @@ func (storage *Storage) DeleteBucketRules(ctx context.Context, request *DeleteBu
 			}
 		}
 		if query != nil {
-			bucketName := options.OverwrittenBucketName
 			var accessKey string
 			var err error
-			if bucketName == "" {
-				if bucketName, err = innerRequest.getBucketName(ctx); err != nil {
-					return nil, err
-				}
-			}
 			if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 				return nil, err
 			}

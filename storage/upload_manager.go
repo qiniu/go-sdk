@@ -11,6 +11,7 @@ import (
 
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/storagev2/defaults"
+	"github.com/qiniu/go-sdk/v7/storagev2/uplog"
 )
 
 type UploadResumeVersion = int
@@ -212,13 +213,16 @@ func (manager *UploadManager) putRetryBetweenRegion(ctx context.Context, ret int
 
 	resumeVersion := "v2"
 	uploadMethod := uploadMethodResumeV2
+	upType := uplog.UpTypeResumableV2
 	if source.Size() > 0 && source.Size() < extra.UploadThreshold {
 		uploadMethod = uploadMethodForm
 		resumeVersion = ""
+		upType = uplog.UpTypeForm
 	} else if extra.UploadResumeVersion == UploadResumeV1 {
 		// 默认使用分片 v2，如果设置了 v1 则使用 v1
 		uploadMethod = uploadMethodResumeV1
 		resumeVersion = "v1"
+		upType = uplog.UpTypeResumableV1
 	}
 
 	if uploadMethod != uploadMethodForm {
@@ -229,28 +233,41 @@ func (manager *UploadManager) putRetryBetweenRegion(ctx context.Context, ret int
 		}
 	}
 
-	var err error
-	for {
-		region := regions.GetRegion()
-		err = manager.put(ctx, ret, region, uploadMethod, upToken, key, source, extra)
-
-		// 是否需要重试
-		if !shouldUploadAgain(err) {
-			break
-		}
-
-		// context 过期不需要切换 region
-		// 切换区域是否成功
-		if !isContextExpiredError(err) && (!regions.CouldSwitchRegion() || !regions.SwitchRegion()) {
-			break
-		}
-
-		// 资源重新加载
-		if !source.Rewindable() || source.Rewind() != nil {
-			break
-		}
+	var (
+		targetBucket, targetKey string
+		err                     error
+	)
+	if _, targetBucket, err = getAkBucketFromUploadToken(upToken); err != nil {
+		return err
 	}
-	return err
+	if key != nil {
+		targetKey = *key
+	}
+
+	return uplog.WithQuality(ctx, upType, uint64(source.Size()), targetBucket, targetKey, upToken, func(ctx context.Context, switchRegion func()) (err error) {
+		for {
+			switchRegion()
+			region := regions.GetRegion()
+			err = manager.put(ctx, ret, region, uploadMethod, upToken, key, source, extra)
+
+			// 是否需要重试
+			if !shouldUploadAgain(err) {
+				break
+			}
+
+			// context 过期不需要切换 region
+			// 切换区域是否成功
+			if !isContextExpiredError(err) && (!regions.CouldSwitchRegion() || !regions.SwitchRegion()) {
+				break
+			}
+
+			// 资源重新加载
+			if !source.Rewindable() || source.Rewind() != nil {
+				break
+			}
+		}
+		return
+	})
 }
 
 func (manager *UploadManager) put(ctx context.Context, ret interface{}, region *Region, uploadMethod int,

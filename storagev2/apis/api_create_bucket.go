@@ -8,8 +8,11 @@ import (
 	createbucket "github.com/qiniu/go-sdk/v7/storagev2/apis/create_bucket"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	uplog "github.com/qiniu/go-sdk/v7/storagev2/internal/uplog"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
+	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 	"strings"
+	"time"
 )
 
 type innerCreateBucketRequest createbucket.Request
@@ -59,7 +62,23 @@ func (storage *Storage) CreateBucket(ctx context.Context, request *CreateBucketR
 	}
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials}
+	bucketName := options.OverwrittenBucketName
+	var objectName string
+	uplogInterceptor, err := uplog.NewRequestUplog("createBucket", bucketName, objectName, func() (string, error) {
+		credentials := innerRequest.Credentials
+		if credentials == nil {
+			credentials = storage.client.GetCredentials()
+		}
+		putPolicy, err := uptoken.NewPutPolicy(bucketName, time.Now().Add(time.Hour))
+		if err != nil {
+			return "", err
+		}
+		return uptoken.NewSigner(putPolicy, credentials).GetUpToken(ctx)
+	})
+	if err != nil {
+		return nil, err
+	}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
 		query := storage.client.GetBucketQuery()
 		if query == nil {
@@ -71,7 +90,6 @@ func (storage *Storage) CreateBucket(ctx context.Context, request *CreateBucketR
 			}
 		}
 		if query != nil {
-			bucketName := options.OverwrittenBucketName
 			var accessKey string
 			var err error
 			if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {

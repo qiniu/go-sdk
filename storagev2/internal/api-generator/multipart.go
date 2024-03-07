@@ -21,6 +21,7 @@ type (
 		Type               *MultipartFormDataType `yaml:"type,omitempty"`
 		Documentation      string                 `yaml:"documentation,omitempty"`
 		ServiceBucket      *ServiceBucketType     `yaml:"service_bucket,omitempty"`
+		ServiceObject      *ServiceObjectType     `yaml:"service_object,omitempty"`
 		Optional           *OptionalType          `yaml:"optional,omitempty"`
 	}
 
@@ -66,6 +67,8 @@ func (mff *MultipartFormFields) addGetBucketNameFunc(group *jen.Group, structNam
 
 	if field == nil || field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
 		return false, nil
+	} else if field.Type.ToMultipartFormDataType() != MultipartFormDataTypeString && field.Type.ToMultipartFormDataType() != MultipartFormDataTypeUploadToken {
+		panic(fmt.Sprintf("service bucket field must be string: %s", field.FieldName))
 	}
 
 	group.Add(jen.Func().
@@ -110,6 +113,50 @@ func (mff *MultipartFormFields) addGetBucketNameFunc(group *jen.Group, structNam
 				)
 			default:
 				panic("unknown ServiceBucketType")
+			}
+		}))
+	return true, nil
+}
+
+func (mff *MultipartFormFields) addGetObjectNameFunc(group *jen.Group, structName string) (bool, error) {
+	field := mff.getServiceObjectField()
+
+	if field == nil || field.ServiceObject.ToServiceObjectType() == ServiceObjectTypeNone {
+		return false, nil
+	} else if field.Type.ToMultipartFormDataType() != MultipartFormDataTypeString {
+		panic(fmt.Sprintf("service object field must be string: %s", field.FieldName))
+	}
+
+	group.Add(jen.Func().
+		Params(jen.Id("form").Op("*").Id(structName)).
+		Id("getObjectName").
+		Params().
+		Params(jen.String()).
+		BlockFunc(func(group *jen.Group) {
+			fieldName := field.camelCaseName()
+			switch field.ServiceObject.ToServiceObjectType() {
+			case ServiceObjectTypePlainText:
+				if field.Optional.ToOptionalType() == OptionalTypeNullable {
+					group.Add(jen.Var().Id("objectName").String())
+					group.Add(jen.If(jen.Id("form").Dot(fieldName).Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+						group.Add(jen.Id("objectName").Op("=").Op("*").Id("form").Dot(fieldName))
+					}))
+					group.Add(jen.Return(jen.Id("objectName")))
+				} else {
+					group.Return(jen.Id("form").Dot(fieldName))
+				}
+			case ServiceObjectTypeEntry:
+				group.Add(
+					jen.Id("parts").
+						Op(":=").
+						Qual("strings", "SplitN").
+						Call(jen.Id("form").Dot(fieldName), jen.Lit(":"), jen.Lit(2)))
+				group.Add(jen.If(jen.Len(jen.Id("parts")).Op(">").Lit(1)), jen.BlockFunc(func(group *jen.Group) {
+					group.Return(jen.Id("parts").Index(jen.Lit(1)))
+				}))
+				group.Add(jen.Return(jen.Lit("")))
+			default:
+				panic("unknown ServiceObjectType")
 			}
 		}))
 	return true, nil
@@ -236,4 +283,19 @@ func (mff *MultipartFormFields) getServiceBucketField() *NamedMultipartFormField
 		}
 	}
 	return serviceBucketField
+}
+
+func (mff *MultipartFormFields) getServiceObjectField() *NamedMultipartFormField {
+	var serviceObjectField *NamedMultipartFormField
+
+	for i := range mff.Named {
+		if mff.Named[i].ServiceObject.ToServiceObjectType() != ServiceObjectTypeNone {
+			if serviceObjectField == nil {
+				serviceObjectField = &mff.Named[i]
+			} else {
+				panic(fmt.Sprintf("multiple service object fields: %s & %s", mff.Named[i].FieldName, serviceObjectField.FieldName))
+			}
+		}
+	}
+	return serviceObjectField
 }

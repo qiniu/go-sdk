@@ -12,6 +12,7 @@ require (
 	github.com/gofrs/flock v0.8.1
 	github.com/iancoleman/strcase v0.3.0
 	github.com/kr/pretty v0.3.0 // indirect
+	github.com/matishsiao/goInfo v0.0.0-20210923090445-da2e3fa8d45f
 	github.com/qiniu/dyn v1.3.0
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/stretchr/testify v1.6.1

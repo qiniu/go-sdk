@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/dave/jennifer/jen"
 )
@@ -21,10 +22,10 @@ type (
 )
 
 const (
-	MethodNameGET    MethodName = "GET"
-	MethodNamePOST   MethodName = "POST"
-	MethodNamePUT    MethodName = "PUT"
-	MethodNameDELETE MethodName = "DELETE"
+	MethodNameGET    MethodName = http.MethodGet
+	MethodNamePOST   MethodName = http.MethodPost
+	MethodNamePUT    MethodName = http.MethodPut
+	MethodNameDELETE MethodName = http.MethodDelete
 
 	ServiceNameUp     ServiceName = "up"
 	ServiceNameIo     ServiceName = "io"
@@ -65,6 +66,10 @@ const (
 	ServiceBucketTypePlainText   = "plain_text"
 	ServiceBucketTypeEntry       = "entry"
 	ServiceBucketTypeUploadToken = "upload_token"
+
+	ServiceObjectTypeNone      = ""
+	ServiceObjectTypePlainText = "plain_text"
+	ServiceObjectTypeEntry     = "entry"
 )
 
 func (s MethodName) ToString() (string, error) {
@@ -290,6 +295,18 @@ func (t *ServiceBucketType) ToServiceBucketType() ServiceBucketType {
 	}
 }
 
+func (t *ServiceObjectType) ToServiceObjectType() ServiceObjectType {
+	if t == nil {
+		return ServiceObjectTypeNone
+	}
+	switch *t {
+	case ServiceObjectTypeNone, ServiceObjectTypePlainText, ServiceObjectTypeEntry:
+		return *t
+	default:
+		panic(fmt.Sprintf("unknown ServiceObjectType: %s", *t))
+	}
+}
+
 func (authorization Authorization) addGetBucketNameFunc(group *jen.Group, structName string) (bool, error) {
 	if authorization.ToAuthorization() == AuthorizationUpToken {
 		group.Add(jen.Func().
@@ -312,5 +329,9 @@ func (authorization Authorization) addGetBucketNameFunc(group *jen.Group, struct
 			}))
 		return true, nil
 	}
+	return false, nil
+}
+
+func (authorization Authorization) addGetObjectNameFunc(group *jen.Group, structName string) (bool, error) {
 	return false, nil
 }

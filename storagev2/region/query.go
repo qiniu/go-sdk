@@ -360,6 +360,7 @@ func makeBucketQueryClient(
 			BeforeRequest: beforeRequest,
 			AfterResponse: afterResponse,
 		}),
+		clientv2.NewBufferResponseInterceptor(),
 	}
 	return clientv2.NewClient(client, is...)
 }

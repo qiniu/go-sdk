@@ -7,6 +7,7 @@ import (
 	querybucketv4 "github.com/qiniu/go-sdk/v7/storagev2/apis/query_bucket_v4"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	uplog "github.com/qiniu/go-sdk/v7/storagev2/internal/uplog"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"net/url"
 	"strings"
@@ -54,7 +55,19 @@ func (storage *Storage) QueryBucketV4(ctx context.Context, request *QueryBucketV
 	} else {
 		rawQuery += query.Encode()
 	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, BufferResponse: true}
+	bucketName := options.OverwrittenBucketName
+	if bucketName == "" {
+		var err error
+		if bucketName, err = innerRequest.getBucketName(ctx); err != nil {
+			return nil, err
+		}
+	}
+	var objectName string
+	uplogInterceptor, err := uplog.NewRequestUplog("queryBucketV4", bucketName, objectName, nil)
+	if err != nil {
+		return nil, err
+	}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, BufferResponse: true}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
 		query := storage.client.GetBucketQuery()
 		if query == nil {
@@ -66,14 +79,8 @@ func (storage *Storage) QueryBucketV4(ctx context.Context, request *QueryBucketV
 			}
 		}
 		if query != nil {
-			bucketName := options.OverwrittenBucketName
 			var accessKey string
 			var err error
-			if bucketName == "" {
-				if bucketName, err = innerRequest.getBucketName(ctx); err != nil {
-					return nil, err
-				}
-			}
 			if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 				return nil, err
 			}

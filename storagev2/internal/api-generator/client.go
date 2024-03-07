@@ -64,11 +64,12 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 	reexportedRequestStructName := options.camelCaseName() + "Request"
 	reexportedResponseStructName := options.camelCaseName() + "Response"
 	group.Add(jen.Type().Id(innerStructName).Qual(packageName, "Request"))
-	var getBucketNameGenerated bool
+	var getBucketNameGenerated, getObjectNameGenerated bool
 	if getBucketNameGenerated, err = description.generateGetBucketNameFunc(group, innerStructName); err != nil {
 		return
-	}
-	if err = description.generateBuildFunc(group, innerStructName); err != nil {
+	} else if getObjectNameGenerated, err = description.generateGetObjectNameFunc(group, innerStructName); err != nil {
+		return
+	} else if err = description.generateBuildFunc(group, innerStructName); err != nil {
 		return
 	}
 	if body := description.Request.Body; body != nil && body.Json != nil {
@@ -270,6 +271,81 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 						)
 					}
 				}
+				group.Add(jen.Id("bucketName").Op(":=").Id("options").Dot("OverwrittenBucketName"))
+				if getBucketNameGenerated {
+					group.Add(
+						jen.If(jen.Id("bucketName").Op("==").Lit("")).BlockFunc(func(group *jen.Group) {
+							group.Add(jen.Var().Id("err").Error())
+							group.Add(
+								jen.If(
+									jen.List(jen.Id("bucketName"), jen.Err()).Op("=").Id("innerRequest").Dot("getBucketName").Call(jen.Id("ctx")),
+									jen.Err().Op("!=").Nil(),
+								).BlockFunc(func(group *jen.Group) {
+									group.Return(jen.Nil(), jen.Err())
+								}),
+							)
+						}),
+					)
+				}
+
+				if getObjectNameGenerated {
+					group.Add(jen.Id("objectName").Op(":=").Id("innerRequest").Dot("getObjectName").Call())
+				} else {
+					group.Add(jen.Var().Id("objectName").String())
+				}
+
+				var getUpTokenFunc jen.Code
+				switch description.Request.Authorization.ToAuthorization() {
+				case AuthorizationQbox, AuthorizationQiniu:
+					getUpTokenFunc = jen.Func().Params().Params(jen.String(), jen.Error()).BlockFunc(func(group *jen.Group) {
+						group.Add(
+							jen.Id("credentials").
+								Op(":=").
+								Id("innerRequest").
+								Dot("Credentials"))
+						group.Add(jen.If(jen.Id("credentials").Op("==").Nil()).BlockFunc(func(group *jen.Group) {
+							group.Add(
+								jen.Id("credentials").
+									Op("=").
+									Id("storage").
+									Dot("client").
+									Dot("GetCredentials").
+									Call())
+						}))
+						group.Add(
+							jen.List(jen.Id("putPolicy"), jen.Err()).
+								Op(":=").
+								Qual(PackageNameUpToken, "NewPutPolicy").
+								Call(jen.Id("bucketName"), jen.Qual("time", "Now").Call().Dot("Add").Call(jen.Qual("time", "Hour"))))
+						group.Add(jen.If(jen.Err().Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+							group.Return(jen.List(jen.Lit(""), jen.Err()))
+						}))
+						group.Add(
+							jen.Return(
+								jen.Qual(PackageNameUpToken, "NewSigner").Call(jen.Id("putPolicy"), jen.Id("credentials")).Dot("GetUpToken").Call(jen.Id("ctx"))))
+					})
+				case AuthorizationUpToken:
+					getUpTokenFunc = jen.Func().Params().Params(jen.String(), jen.Error()).BlockFunc(func(group *jen.Group) {
+						group.Return(jen.Id("innerRequest").Dot("UpToken").Dot("GetUpToken").Call(jen.Id("ctx")))
+					})
+				default:
+					getUpTokenFunc = jen.Nil()
+				}
+
+				group.Add(
+					jen.List(jen.Id("uplogInterceptor"), jen.Err()).
+						Op(":=").
+						Qual(PackageNameUplog, "NewRequestUplog").Call(
+						jen.Lit(strcase.ToLowerCamel(options.camelCaseName())),
+						jen.Id("bucketName"),
+						jen.Id("objectName"),
+						getUpTokenFunc,
+					),
+				)
+				group.Add(jen.If(jen.Err().Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+					group.Return(jen.Nil(), jen.Err())
+				}))
+
 				method, err := description.Method.ToString()
 				if err != nil {
 					return
@@ -285,6 +361,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							group.Add(jen.Id("RawQuery").Op(":").Id("rawQuery"))
 							group.Add(jen.Id("Endpoints").Op(":").Id("options").Dot("OverwrittenEndpoints"))
 							group.Add(jen.Id("Region").Op(":").Id("options").Dot("OverwrittenRegion"))
+							group.Add(jen.Id("Interceptors").Op(":").Index().Qual(PackageNameHTTPClient, "Interceptor").Values(jen.Id("uplogInterceptor")))
 							if description.Request.HeaderNames != nil {
 								group.Add(jen.Id("Header").Op(":").Id("headers"))
 							}
@@ -353,7 +430,6 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 												}),
 										)
 									} else {
-										group.Add(jen.Var().Id("err").Error())
 										group.Add(
 											jen.If(jen.Id("options").Dot("OverwrittenBucketHosts").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
 												group.Add(
@@ -405,23 +481,8 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							)
 							group.Add(
 								jen.If(jen.Id("query").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
-									group.Add(jen.Id("bucketName").Op(":=").Id("options").Dot("OverwrittenBucketName"))
 									group.Add(jen.Var().Id("accessKey").String())
 									group.Add(jen.Var().Err().Error())
-									if getBucketNameGenerated {
-										group.Add(
-											jen.If(jen.Id("bucketName").Op("==").Lit("")).BlockFunc(func(group *jen.Group) {
-												group.Add(
-													jen.If(
-														jen.List(jen.Id("bucketName"), jen.Err()).Op("=").Id("innerRequest").Dot("getBucketName").Call(jen.Id("ctx")),
-														jen.Err().Op("!=").Nil(),
-													).BlockFunc(func(group *jen.Group) {
-														group.Add(jen.Return(jen.Nil(), jen.Err()))
-													}),
-												)
-											}),
-										)
-									}
 									group.Add(
 										jen.If(
 											jen.List(jen.Id("accessKey"), jen.Err()).Op("=").Id("innerRequest").Dot("getAccessKey").Call(jen.Id("ctx")),
@@ -577,6 +638,47 @@ func (description *ApiDetailedDescription) generateGetBucketNameFunc(group *jen.
 			}
 		} else if multipartFormData := body.MultipartFormData; multipartFormData != nil {
 			if ok, err = multipartFormData.addGetBucketNameFunc(group, structName); err != nil || ok {
+				return
+			}
+		}
+	}
+	return
+}
+
+func (description *ApiDetailedDescription) generateGetObjectNameFunc(group *jen.Group, structName string) (ok bool, err error) {
+	if pp := description.Request.PathParams; pp != nil {
+		if ok, err = pp.addGetObjectNameFunc(group, structName); err != nil || ok {
+			return
+		}
+	}
+	if queryNames := description.Request.QueryNames; queryNames != nil {
+		if ok, err = queryNames.addGetObjectNameFunc(group, structName); err != nil || ok {
+			return
+		}
+	}
+	if headerNames := description.Request.HeaderNames; headerNames != nil {
+		if ok, err = headerNames.addGetObjectNameFunc(group, structName); err != nil || ok {
+			return
+		}
+	}
+	if authorization := description.Request.Authorization; authorization != nil {
+		if ok, err = authorization.addGetObjectNameFunc(group, structName); err != nil || ok {
+			return
+		}
+	}
+	if body := description.Request.Body; body != nil {
+		if json := body.Json; json != nil {
+			if jsonStruct := json.Struct; jsonStruct != nil {
+				if ok, err = jsonStruct.addGetObjectNameFunc(group, structName); err != nil || ok {
+					return
+				}
+			}
+		} else if formUrlencoded := body.FormUrlencoded; formUrlencoded != nil {
+			if ok, err = formUrlencoded.addGetObjectNameFunc(group, structName); err != nil || ok {
+				return
+			}
+		} else if multipartFormData := body.MultipartFormData; multipartFormData != nil {
+			if ok, err = multipartFormData.addGetObjectNameFunc(group, structName); err != nil || ok {
 				return
 			}
 		}

@@ -70,10 +70,12 @@ func (c *SimpleRetryConfig) getRetryDecision(req *http.Request, resp *http.Respo
 		} else {
 			return retrier.DontRetry
 		}
-	} else if c.Retrier != nil {
-		return c.Retrier.Retry(req, resp, err, &retrier.RetrierOptions{Attempts: attempts})
 	} else {
-		return errorRetrier.Retry(req, resp, err, &retrier.RetrierOptions{Attempts: attempts})
+		r := errorRetrier
+		if c.Retrier != nil {
+			r = c.Retrier
+		}
+		return r.Retry(req, resp, err, &retrier.RetrierOptions{Attempts: attempts})
 	}
 }
 
@@ -91,7 +93,6 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 	if interceptor == nil || req == nil {
 		return interceptor.callHandler(req, &retrier.RetrierOptions{Attempts: 0}, handler)
 	}
-	toBufferResponse := req.Context().Value(contextKeyBufferResponse{}) != nil
 
 	interceptor.config.init()
 
@@ -104,10 +105,6 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 		// Clone 防止后面 Handler 处理对 req 有污染
 		reqBefore := cloneReq(req)
 		resp, err = interceptor.callHandler(req, &retrier.RetrierOptions{Attempts: i}, handler)
-
-		if err == nil && toBufferResponse {
-			err = bufferResponse(resp)
-		}
 
 		retryDecision := interceptor.config.getRetryDecision(reqBefore, resp, err, i)
 		if retryDecision == retrier.DontRetry {

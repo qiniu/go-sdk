@@ -17,6 +17,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/apis"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	"github.com/qiniu/go-sdk/v7/storagev2/region"
+	"github.com/qiniu/go-sdk/v7/storagev2/uplog"
 )
 
 // ResumeUploaderV2 表示一个分片上传 v2 的对象
@@ -277,16 +278,13 @@ func newResumeUploaderV2Impl(resumeUploader *ResumeUploaderV2, bucket, key strin
 	}
 }
 
-func (impl *resumeUploaderV2Impl) initUploader(ctx context.Context) ([]int64, error) {
-	var (
-		recovered []int64
-		ret       InitPartsRet
-	)
+func (impl *resumeUploaderV2Impl) initUploader(ctx context.Context) (recovered []int64, recoveredSize int64, err error) {
+	var ret InitPartsRet
 
 	if impl.extra.Recorder != nil && len(impl.recorderKey) > 0 {
 		if recorderData, err := impl.extra.Recorder.Get(impl.recorderKey); err == nil {
-			if recovered = impl.recover(ctx, recorderData); len(recovered) > 0 {
-				return recovered, nil
+			if recovered, recoveredSize = impl.recover(ctx, recorderData); len(recovered) > 0 {
+				return recovered, recoveredSize, nil
 			}
 			if len(recovered) == 0 {
 				impl.deleteUploadRecordIfNeed(nil, true)
@@ -294,12 +292,11 @@ func (impl *resumeUploaderV2Impl) initUploader(ctx context.Context) ([]int64, er
 		}
 	}
 
-	err := impl.resumeUploaderAPIs().initParts(ctx, impl.upToken, impl.upEndpoints, impl.bucket, impl.key, impl.hasKey, &ret)
-	if err == nil {
+	if err = impl.resumeUploaderAPIs().initParts(ctx, impl.upToken, impl.upEndpoints, impl.bucket, impl.key, impl.hasKey, &ret); err == nil {
 		impl.uploadId = ret.UploadID
 		impl.expiredAt = ret.ExpireAt
 	}
-	return nil, err
+	return nil, 0, err
 }
 
 func (impl *resumeUploaderV2Impl) uploadChunk(ctx context.Context, c chunk) error {
@@ -359,6 +356,22 @@ func (impl *resumeUploaderV2Impl) final(ctx context.Context) error {
 	return err
 }
 
+func (impl *resumeUploaderV2Impl) version() uplog.UpApiVersion {
+	return uplog.UpApiVersionV2
+}
+
+func (impl *resumeUploaderV2Impl) getUpToken() string {
+	return impl.upToken
+}
+
+func (impl *resumeUploaderV2Impl) getBucket() string {
+	return impl.bucket
+}
+
+func (impl *resumeUploaderV2Impl) getKey() (string, bool) {
+	return impl.key, impl.hasKey
+}
+
 func (impl *resumeUploaderV2Impl) deleteUploadRecordIfNeed(err error, force bool) {
 	// 无效删除之前的记录
 	if force || (isContextExpiredError(err) && impl.extra.Recorder != nil && len(impl.recorderKey) > 0) {
@@ -366,7 +379,7 @@ func (impl *resumeUploaderV2Impl) deleteUploadRecordIfNeed(err error, force bool
 	}
 }
 
-func (impl *resumeUploaderV2Impl) recover(ctx context.Context, recoverData []byte) (recovered []int64) {
+func (impl *resumeUploaderV2Impl) recover(ctx context.Context, recoverData []byte) (recovered []int64, recoveredSize int64) {
 	var recoveryInfo resumeUploaderV2RecoveryInfo
 	if err := json.Unmarshal(recoverData, &recoveryInfo); err != nil {
 		return
@@ -388,6 +401,7 @@ func (impl *resumeUploaderV2Impl) recover(ctx context.Context, recoverData []byt
 		impl.extra.Progresses = append(impl.extra.Progresses, UploadPartInfo{
 			Etag: c.Etag, PartNumber: c.PartNumber, fileOffset: c.Offset, partSize: c.PartSize,
 		})
+		recoveredSize += int64(c.PartSize)
 		recovered = append(recovered, int64(c.Offset))
 	}
 

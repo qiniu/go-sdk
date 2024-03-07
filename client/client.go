@@ -49,8 +49,12 @@ func SetAppName(userApp string) error {
 }
 
 func getUserAgentWithAppName(userApp string) string {
-	return fmt.Sprintf("QiniuGo/%s (%s; %s; %s) %s",
-		conf.Version, runtime.GOOS, runtime.GOARCH, userApp, runtime.Version())
+	userAgentPrefix := "QiniuGo/"
+	if testRuntime {
+		userAgentPrefix = "QiniuGo_Debug/"
+	}
+	return fmt.Sprintf("%s%s (%s; %s; %s) %s",
+		userAgentPrefix, conf.Version, runtime.GOOS, runtime.GOARCH, userApp, runtime.Version())
 }
 
 // --------------------------------------------------------------------

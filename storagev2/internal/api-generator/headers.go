@@ -43,6 +43,10 @@ func (names HeaderNames) addGetBucketNameFunc(group *jen.Group, structName strin
 	return false, nil
 }
 
+func (names HeaderNames) addGetObjectNameFunc(group *jen.Group, structName string) (bool, error) {
+	return false, nil
+}
+
 func (names HeaderNames) addBuildFunc(group *jen.Group, structName string) error {
 	group.Add(
 		jen.Func().
