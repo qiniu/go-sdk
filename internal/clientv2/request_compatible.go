@@ -1,7 +1,6 @@
 package clientv2
 
 import (
-	"context"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -10,12 +9,8 @@ import (
 
 // 此处是为了版本兼容，sdk 支持最低版本为 go1.10, go1.13 提供 req.Clone 方法，
 // 此处 copy 高版本的 go 标准库方法
-func cloneReq(ctx context.Context, r *http.Request) *http.Request {
-	if ctx == nil {
-		panic("nil context")
-	}
-
-	r2 := r.WithContext(ctx)
+func cloneReq(r *http.Request) *http.Request {
+	r2 := r.WithContext(r.Context())
 	if r.Header != nil {
 		r2.Header = cloneHeader(r.Header)
 	}

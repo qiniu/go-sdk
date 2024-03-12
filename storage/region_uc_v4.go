@@ -156,11 +156,11 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 			HostFreezeDuration: options.HostFreezeDuration,
 		}, nil)
 		err := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
-			Context:     context.Background(),
-			Method:      clientv2.RequestMethodGet,
-			Url:         reqURL,
-			Header:      nil,
-			BodyCreator: nil,
+			Context: context.Background(),
+			Method:  clientv2.RequestMethodGet,
+			Url:     reqURL,
+			Header:  nil,
+			GetBody: nil,
 		}, &ret)
 		if err != nil {
 			return nil, fmt.Errorf("query region error, %s", err.Error())

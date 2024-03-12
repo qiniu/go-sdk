@@ -1,13 +1,12 @@
 package storage
 
 import (
-	"encoding/base64"
+	"context"
 	"encoding/json"
-	"errors"
-	"strings"
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/auth"
+	"github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
 
 // PutPolicy 表示文件上传的上传策略，参考 https://developer.qiniu.com/kodo/manual/1206/put-policy
@@ -145,29 +144,14 @@ func (p PutPolicy) uploadToken(cred *auth.Credentials) (token string) {
 }
 
 func getAkBucketFromUploadToken(token string) (ak, bucket string, err error) {
-	items := strings.Split(token, ":")
-	// KODO-11919
-	if len(items) == 5 && items[0] == "" {
-		items = items[2:]
-	} else if len(items) != 3 {
-		err = errors.New("invalid upload token, format error")
+	parser := uptoken.NewParser(token)
+	if ak, err = parser.GetAccessKey(context.Background()); err != nil {
 		return
 	}
-
-	ak = items[0]
-	policyBytes, dErr := base64.URLEncoding.DecodeString(items[2])
-	if dErr != nil {
-		err = errors.New("invalid upload token, invalid put policy")
+	upPolicy, err := parser.GetPutPolicy(context.Background())
+	if err != nil {
 		return
 	}
-
-	putPolicy := PutPolicy{}
-	uErr := json.Unmarshal(policyBytes, &putPolicy)
-	if uErr != nil {
-		err = errors.New("invalid upload token, invalid put policy")
-		return
-	}
-
-	bucket = strings.Split(putPolicy.Scope, ":")[0]
+	bucket, err = upPolicy.GetBucketName()
 	return
 }

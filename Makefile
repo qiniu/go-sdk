@@ -6,3 +6,6 @@ unittest:
 
 staticcheck:
 	staticcheck -go 1.10 `go list ./... | egrep -v 'examples|sms'`
+
+generate:
+	go generate ./storagev2/

@@ -5,13 +5,15 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"hash/crc32"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/qiniu/go-sdk/v7/conf"
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 
 	"github.com/qiniu/go-sdk/v7/client"
 )
@@ -159,8 +161,8 @@ func (p *Base64Uploader) put(
 	return doUploadAction(upHostProvider, extra.TryTimes, extra.HostFreezeDuration, func(host string) error {
 		postURL := fmt.Sprintf("%s%s", host, postPath.String())
 		headers := http.Header{}
-		headers.Add("Content-Type", "application/octet-stream")
-		headers.Add("Authorization", "UpToken "+uptoken)
+		headers.Set("Content-Type", conf.CONTENT_TYPE_OCTET)
+		headers.Set("Authorization", "UpToken "+uptoken)
 
 		return p.client.CallWith(ctx, ret, "POST", postURL, headers, bytes.NewReader(base64Data), len(base64Data))
 	})
