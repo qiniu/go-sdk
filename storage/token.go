@@ -117,6 +117,15 @@ type PutPolicy struct {
 
 	// 上传单链接限速，单位：bit/s；范围：819200 - 838860800（即800Kb/s - 800Mb/s），如果超出该范围将返回 400 错误
 	TrafficLimit uint64 `json:"trafficLimit,omitempty"`
+
+	// 同步转码命令，不推荐使用
+	Transform string `json:"transform,omitempty"`
+
+	// 同步转码降级模式，不推荐使用。 缺省: 不降级 (默认); ORIGIN 保存原始内容;
+	TransformFallbackMode string `json:"transformFallbackMode,omitempty"`
+
+	// 同步转码降级 Key，不推荐使用。 transformFallbackMode 为 ORIGIN 时必填。
+	TransformFallbackKey string `json:"transformFallbackKey,omitempty"`
 }
 
 // UploadToken 方法用来进行上传凭证的生成
