@@ -1,4 +1,8 @@
 # Changelog
+## 7.19.1
+* 新增
+  * PutPolicy 添加 transform 相关字段
+  
 ## 7.19.0
 * 新增
   * 支持归档直读存储
