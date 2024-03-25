@@ -1,7 +1,8 @@
 package retrier
 
 import (
-	"io"
+	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/url"
@@ -22,13 +23,13 @@ type (
 	// Retrier 重试器接口
 	Retrier interface {
 		// Retry 判断是否重试，如何重试
-		Retry(*http.Request, *http.Response, error, *RetrierOptions) RetryDecision
+		Retry(*http.Response, error, *RetrierOptions) RetryDecision
 	}
 
 	neverRetrier      struct{}
 	errorRetrier      struct{}
 	customizedRetrier struct {
-		retryFn func(*http.Request, *http.Response, error, *RetrierOptions) RetryDecision
+		retryFn func(*http.Response, error, *RetrierOptions) RetryDecision
 	}
 )
 
@@ -44,12 +45,12 @@ const (
 )
 
 // NewRetrier 创建自定义重试器
-func NewRetrier(fn func(*http.Request, *http.Response, error, *RetrierOptions) RetryDecision) Retrier {
+func NewRetrier(fn func(*http.Response, error, *RetrierOptions) RetryDecision) Retrier {
 	return customizedRetrier{retryFn: fn}
 }
 
-func (retrier customizedRetrier) Retry(request *http.Request, response *http.Response, err error, options *RetrierOptions) RetryDecision {
-	return retrier.retryFn(request, response, err, options)
+func (retrier customizedRetrier) Retry(response *http.Response, err error, options *RetrierOptions) RetryDecision {
+	return retrier.retryFn(response, err, options)
 }
 
 // NewNeverRetrier 创建从不重试的重试器
@@ -57,7 +58,7 @@ func NewNeverRetrier() Retrier {
 	return neverRetrier{}
 }
 
-func (neverRetrier) Retry(*http.Request, *http.Response, error, *RetrierOptions) RetryDecision {
+func (neverRetrier) Retry(*http.Response, error, *RetrierOptions) RetryDecision {
 	return DontRetry
 }
 
@@ -66,39 +67,12 @@ func NewErrorRetrier() Retrier {
 	return errorRetrier{}
 }
 
-func (errorRetrier) Retry(request *http.Request, response *http.Response, err error, _ *RetrierOptions) RetryDecision {
-	if isRequestRetryable(request) && (isResponseRetryable(response) || IsErrorRetryable(err)) {
+func (errorRetrier) Retry(response *http.Response, err error, _ *RetrierOptions) RetryDecision {
+	if isResponseRetryable(response) || IsErrorRetryable(err) {
 		return RetryRequest
 	} else {
 		return DontRetry
 	}
-}
-
-func isRequestRetryable(req *http.Request) bool {
-	if req == nil {
-		return false
-	}
-
-	if req.Body == nil {
-		return true
-	}
-
-	if req.GetBody != nil {
-		b, err := req.GetBody()
-		if err != nil || b == nil {
-			return false
-		}
-		req.Body = b
-		return true
-	}
-
-	seeker, ok := req.Body.(io.Seeker)
-	if !ok {
-		return false
-	}
-
-	_, err := seeker.Seek(0, io.SeekStart)
-	return err == nil
 }
 
 func isResponseRetryable(resp *http.Response) bool {
@@ -127,43 +101,50 @@ func IsErrorRetryable(err error) bool {
 		return false
 	}
 
-	switch t := err.(type) {
-	case *net.OpError:
-		return isNetworkErrorWithOpError(t)
-	case *url.Error:
-		return IsErrorRetryable(t.Err)
-	case net.Error:
-		return t.Timeout()
-	case *clientv1.ErrorInfo:
-		return isStatusCodeRetryable(t.Code)
+	switch getRetryDecisionForError(err) {
+	case RetryRequest, TryNextHost:
+		return true
 	default:
-		return err == io.EOF
+		return false
 	}
 }
 
-func isNetworkErrorWithOpError(err *net.OpError) bool {
-	if err == nil || err.Err == nil {
-		return false
+func getRetryDecisionForError(err error) RetryDecision {
+	if err == nil {
+		return DontRetry
 	}
 
-	switch t := err.Err.(type) {
-	case *net.DNSError:
-		return true
-	case *os.SyscallError:
-		if errno, ok := t.Err.(syscall.Errno); ok {
-			return errno == syscall.ECONNABORTED ||
-				errno == syscall.ECONNRESET ||
-				errno == syscall.ECONNREFUSED ||
-				errno == syscall.ETIMEDOUT
-		}
-		return false
-	case *net.OpError:
-		return isNetworkErrorWithOpError(t)
-	default:
-		desc := err.Err.Error()
-		return strings.Contains(desc, "use of closed network connection") ||
+	var dnsError *net.DNSError
+	if os.IsTimeout(err) || errors.Is(err, syscall.ETIMEDOUT) {
+		return RetryRequest
+	} else if errors.As(err, &dnsError) && dnsError.IsNotFound {
+		return TryNextHost
+	} else if errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.ECONNABORTED) || errors.Is(err, syscall.ECONNRESET) {
+		return TryNextHost
+	} else if errors.Is(err, context.Canceled) {
+		return DontRetry
+	} else if errors.Is(err, http.ErrSchemeMismatch) {
+		return DontRetry
+	}
+
+	switch t := err.(type) {
+	case *url.Error:
+		desc := err.Error()
+		if strings.Contains(desc, "use of closed network connection") ||
 			strings.Contains(desc, "unexpected EOF reading trailer") ||
 			strings.Contains(desc, "transport connection broken") ||
-			strings.Contains(desc, "server closed idle connection")
+			strings.Contains(desc, "server closed idle connection") {
+			return RetryRequest
+		} else {
+			return DontRetry
+		}
+	case *clientv1.ErrorInfo:
+		if isStatusCodeRetryable(t.Code) {
+			return RetryRequest
+		} else {
+			return DontRetry
+		}
+	default:
+		return RetryRequest
 	}
 }

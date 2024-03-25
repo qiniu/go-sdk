@@ -56,9 +56,14 @@ func SetUplogFileBufferDirPath(path string) {
 	uplog.SetUplogFileBufferDirPath(path)
 }
 
-// ResetFlushFileBufferInterval 重置日志文件缓存刷新间隔
-func ResetFlushFileBufferInterval(d time.Duration) {
-	uplog.ResetWriteFileBufferInterval(d)
+// SetFlushFileBufferInterval 设置日志文件缓存刷新间隔
+func SetFlushFileBufferInterval(d time.Duration) {
+	uplog.SetWriteFileBufferInterval(d)
+}
+
+// GetWriteFileBufferInterval() 获取日志文件缓存刷新间隔
+func GetWriteFileBufferInterval() time.Duration {
+	return uplog.GetWriteFileBufferInterval()
 }
 
 // FlushBuffer 刷新日志缓存

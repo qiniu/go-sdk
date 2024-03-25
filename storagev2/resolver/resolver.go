@@ -62,8 +62,8 @@ type (
 		cacheLifetime time.Duration
 	}
 
-	// CacheResolverOptions 缓存域名解析器选项
-	CacheResolverOptions struct {
+	// CacheResolverConfig 缓存域名解析器选项
+	CacheResolverConfig struct {
 		// 压缩周期（默认：60s）
 		CompactInterval time.Duration
 
@@ -72,9 +72,6 @@ type (
 
 		// 持久化周期（默认：60s）
 		PersistentDuration time.Duration
-
-		// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 RetryMax 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
-		HostFreezeDuration time.Duration
 
 		// 缓存有效期（默认：120s）
 		CacheLifetime time.Duration
@@ -95,9 +92,9 @@ var (
 )
 
 // NewCacheResolver 创建带缓存功能的域名解析器
-func NewCacheResolver(resolver Resolver, opts *CacheResolverOptions) (Resolver, error) {
+func NewCacheResolver(resolver Resolver, opts *CacheResolverConfig) (Resolver, error) {
 	if opts == nil {
-		opts = &CacheResolverOptions{}
+		opts = &CacheResolverConfig{}
 	}
 	if opts.CompactInterval == time.Duration(0) {
 		opts.CompactInterval = 60 * time.Second
@@ -126,7 +123,7 @@ func NewCacheResolver(resolver Resolver, opts *CacheResolverOptions) (Resolver, 
 	}, nil
 }
 
-func getPersistentCache(opts *CacheResolverOptions) (*cache.Cache, error) {
+func getPersistentCache(opts *CacheResolverConfig) (*cache.Cache, error) {
 	var (
 		persistentCache *cache.Cache
 		ok              bool
@@ -205,7 +202,7 @@ func (*cacheResolver) localIp(host string) (string, error) {
 	return conn.LocalAddr().(*net.UDPAddr).IP.String(), nil
 }
 
-func (opts *CacheResolverOptions) toBytes() []byte {
+func (opts *CacheResolverConfig) toBytes() []byte {
 	bytes := make([]byte, 0, 1024)
 	bytes = strconv.AppendInt(bytes, int64(opts.CompactInterval), 36)
 	bytes = strconv.AppendInt(bytes, int64(opts.PersistentDuration), 36)
@@ -215,6 +212,6 @@ func (opts *CacheResolverOptions) toBytes() []byte {
 	return bytes
 }
 
-func calcPersistentCacheCrc64(opts *CacheResolverOptions) uint64 {
+func calcPersistentCacheCrc64(opts *CacheResolverConfig) uint64 {
 	return crc64.Checksum(opts.toBytes(), crc64.MakeTable(crc64.ISO))
 }

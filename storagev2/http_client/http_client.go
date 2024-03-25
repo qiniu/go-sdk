@@ -59,7 +59,7 @@ type (
 		beforeBackoff      func(*http.Request, *retrier.RetrierOptions, time.Duration)
 		afterBackoff       func(*http.Request, *retrier.RetrierOptions, time.Duration)
 		beforeRequest      func(*http.Request, *retrier.RetrierOptions)
-		afterResponse      func(*http.Request, *http.Response, *retrier.RetrierOptions, error)
+		afterResponse      func(*http.Response, *retrier.RetrierOptions, error)
 	}
 
 	// Options 为构建 Client 提供了可选参数
@@ -128,7 +128,7 @@ type (
 		BeforeRequest func(*http.Request, *retrier.RetrierOptions)
 
 		// 请求后回调函数
-		AfterResponse func(*http.Request, *http.Response, *retrier.RetrierOptions, error)
+		AfterResponse func(*http.Response, *retrier.RetrierOptions, error)
 	}
 
 	// Request 包含一个具体的 HTTP 请求的参数

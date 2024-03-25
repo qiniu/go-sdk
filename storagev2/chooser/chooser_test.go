@@ -13,8 +13,7 @@ import (
 
 func TestDirectChooser(t *testing.T) {
 	cs := chooser.NewDirectChooser()
-	ips := cs.Choose(context.Background(), &chooser.ChooseOptions{
-		IPs:    []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)},
+	ips := cs.Choose(context.Background(), []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)}, &chooser.ChooseOptions{
 		Domain: "www.qiniu.com",
 	})
 	assertIPs(t, ips, []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)})

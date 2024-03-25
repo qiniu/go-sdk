@@ -224,7 +224,7 @@ type UCApiOptions struct {
 	BeforeRequest func(*http.Request, *retrier.RetrierOptions)
 
 	// 请求后回调函数
-	AfterResponse func(*http.Request, *http.Response, *retrier.RetrierOptions, error)
+	AfterResponse func(*http.Response, *retrier.RetrierOptions, error)
 }
 
 func (options *UCApiOptions) getApiStorageClient() *apis.Storage {

@@ -34,6 +34,7 @@ const (
 	ErrorTypeUnknownHost            ErrorType    = "unknown_host"
 	ErrorTypeCannotConnectToHost    ErrorType    = "cannot_connect_to_host"
 	ErrorTypeSSLError               ErrorType    = "ssl_error"
+	ErrorTypeTransmissionError      ErrorType    = "transmission_error"
 	ErrorTypeProtocolError          ErrorType    = "protocol_error"
 	ErrorTypeResponseError          ErrorType    = "response_error"
 	ErrorTypeUserCanceled           ErrorType    = "user_canceled"
@@ -52,6 +53,7 @@ const (
 	LogResultUnknownHost            LogResult    = "unknown_host"
 	LogResultCannotConnectToHost    LogResult    = "cannot_connect_to_host"
 	LogResultSSLError               LogResult    = "ssl_error"
+	LogResultTransmissionError      LogResult    = "transmission_error"
 	LogResultProtocolError          LogResult    = "protocol_error"
 	LogResultResponseError          LogResult    = "response_error"
 	LogResultUserCanceled           LogResult    = "user_canceled"
@@ -79,13 +81,13 @@ func detectErrorType(err error) ErrorType {
 		tlsVerifyCertError *tls.CertificateVerificationError
 		syscallError       syscall.Errno
 	)
-	if os.IsTimeout(err) {
+	if os.IsTimeout(err) || errors.Is(err, syscall.ETIMEDOUT) {
 		return ErrorTypeTimeout
 	} else if errors.As(err, &dnsError) && dnsError.IsNotFound {
 		return ErrorTypeUnknownHost
 	} else if os.IsNotExist(err) || os.IsPermission(err) {
 		return ErrorTypeLocalIoError
-	} else if errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.ECONNRESET) {
+	} else if errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.ECONNABORTED) || errors.Is(err, syscall.ECONNRESET) {
 		return ErrorTypeCannotConnectToHost
 	} else if errors.As(err, &syscallError) {
 		return ErrorTypeUnexpectedSyscallError
@@ -95,10 +97,17 @@ func detectErrorType(err error) ErrorType {
 		return ErrorTypeProtocolError
 	} else if errors.As(err, &tlsVerifyCertError) {
 		return ErrorTypeSSLError
-	} else if errors.As(err, &urlError) &&
-		(strings.HasPrefix(urlError.Err.Error(), "tls: ") ||
-			strings.HasPrefix(urlError.Err.Error(), "x509: ")) {
-		return ErrorTypeSSLError
+	} else if errors.As(err, &urlError) {
+		desc := urlError.Err.Error()
+		if strings.HasPrefix(desc, "tls: ") ||
+			strings.HasPrefix(desc, "x509: ") {
+			return ErrorTypeSSLError
+		} else if strings.Contains(desc, "use of closed network connection") ||
+			strings.Contains(desc, "unexpected EOF reading trailer") ||
+			strings.Contains(desc, "transport connection broken") ||
+			strings.Contains(desc, "server closed idle connection") {
+			return ErrorTypeTransmissionError
+		}
 	}
 	return ErrorTypeUnknownError
 }

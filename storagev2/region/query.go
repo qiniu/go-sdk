@@ -91,7 +91,7 @@ type (
 		BeforeRequest func(*http.Request, *retrier.RetrierOptions)
 
 		// 请求后回调函数
-		AfterResponse func(*http.Request, *http.Response, *retrier.RetrierOptions, error)
+		AfterResponse func(*http.Response, *retrier.RetrierOptions, error)
 	}
 
 	bucketRegionsProvider struct {
@@ -339,7 +339,7 @@ func makeBucketQueryClient(
 	beforeBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration),
 	afterBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration),
 	beforeRequest func(*http.Request, *retrier.RetrierOptions),
-	afterResponse func(*http.Request, *http.Response, *retrier.RetrierOptions, error),
+	afterResponse func(*http.Response, *retrier.RetrierOptions, error),
 ) clientv2.Client {
 	is := []clientv2.Interceptor{
 		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{

@@ -10,34 +10,34 @@ type (
 		ipChooser, subnetChooser Chooser
 	}
 
-	// SmartIPChooserOptions 智能 IP 选择器的选项
-	SmartIPChooserOptions IPChooserOptions
+	// SmartIPChooserConfig 智能 IP 选择器的选项
+	SmartIPChooserConfig IPChooserConfig
 )
 
 // NewSmartIPChooser 创建智能 IP 选择器
-func NewSmartIPChooser(options *SmartIPChooserOptions) Chooser {
+func NewSmartIPChooser(options *SmartIPChooserConfig) Chooser {
 	return &smartIPChooser{
-		ipChooser:     NewIPChooser((*IPChooserOptions)(options)),
-		subnetChooser: NewSubnetChooser((*SubnetChooserOptions)(options)),
+		ipChooser:     NewIPChooser((*IPChooserConfig)(options)),
+		subnetChooser: NewSubnetChooser((*SubnetChooserConfig)(options)),
 	}
 }
 
-func (chooser *smartIPChooser) Choose(ctx context.Context, options *ChooseOptions) []net.IP {
-	if chooser.allInSingleSubnet(options.IPs) {
-		return chooser.ipChooser.Choose(ctx, options)
+func (chooser *smartIPChooser) Choose(ctx context.Context, ips []net.IP, options *ChooseOptions) []net.IP {
+	if chooser.allInSingleSubnet(ips) {
+		return chooser.ipChooser.Choose(ctx, ips, options)
 	} else {
-		return chooser.subnetChooser.Choose(ctx, options)
+		return chooser.subnetChooser.Choose(ctx, ips, options)
 	}
 }
 
-func (chooser *smartIPChooser) FeedbackGood(ctx context.Context, options *FeedbackOptions) {
-	chooser.ipChooser.FeedbackGood(ctx, options)
-	chooser.subnetChooser.FeedbackGood(ctx, options)
+func (chooser *smartIPChooser) FeedbackGood(ctx context.Context, ips []net.IP, options *FeedbackOptions) {
+	chooser.ipChooser.FeedbackGood(ctx, ips, options)
+	chooser.subnetChooser.FeedbackGood(ctx, ips, options)
 }
 
-func (chooser *smartIPChooser) FeedbackBad(ctx context.Context, options *FeedbackOptions) {
-	chooser.ipChooser.FeedbackBad(ctx, options)
-	chooser.subnetChooser.FeedbackBad(ctx, options)
+func (chooser *smartIPChooser) FeedbackBad(ctx context.Context, ips []net.IP, options *FeedbackOptions) {
+	chooser.ipChooser.FeedbackBad(ctx, ips, options)
+	chooser.subnetChooser.FeedbackBad(ctx, ips, options)
 }
 
 func (chooser *smartIPChooser) allInSingleSubnet(ips []net.IP) bool {

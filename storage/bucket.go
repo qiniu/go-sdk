@@ -338,7 +338,7 @@ type BucketManagerOptions struct {
 	BeforeRequest func(*http.Request, *retrier.RetrierOptions)
 
 	// 请求后回调函数
-	AfterResponse func(*http.Request, *http.Response, *retrier.RetrierOptions, error)
+	AfterResponse func(*http.Response, *retrier.RetrierOptions, error)
 }
 
 // BucketManager 提供了对资源进行管理的操作

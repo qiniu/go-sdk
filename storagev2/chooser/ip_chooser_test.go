@@ -13,63 +13,53 @@ import (
 )
 
 func TestIPChooser(t *testing.T) {
-	ipc := chooser.NewIPChooser(&chooser.IPChooserOptions{
+	ipc := chooser.NewIPChooser(&chooser.IPChooserConfig{
 		FreezeDuration: 2 * time.Second,
 	})
 
-	ips := ipc.Choose(context.Background(), &chooser.ChooseOptions{
+	ips := ipc.Choose(context.Background(), nil, &chooser.ChooseOptions{
 		Domain: "www.qiniu.com",
 	})
 	assertIPs(t, ips, []net.IP{})
 
-	ips = ipc.Choose(context.Background(), &chooser.ChooseOptions{
-		IPs:    []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)},
+	ips = ipc.Choose(context.Background(), []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)}, &chooser.ChooseOptions{
 		Domain: "www.qiniu.com",
 	})
 	assertIPs(t, ips, []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)})
 
-	ipc.FeedbackBad(context.Background(), &chooser.FeedbackOptions{
-		IPs:    []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)},
+	ipc.FeedbackBad(context.Background(), []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)}, &chooser.FeedbackOptions{
 		Domain: "www.qiniu.com",
 	})
-	ips = ipc.Choose(context.Background(), &chooser.ChooseOptions{
-		IPs:    []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)},
+	ips = ipc.Choose(context.Background(), []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)}, &chooser.ChooseOptions{
 		Domain: "www.qiniu.com",
 	})
 	assertIPs(t, ips, []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)})
-	ipc.FeedbackGood(context.Background(), &chooser.FeedbackOptions{
-		IPs:    []net.IP{net.IPv4(1, 2, 3, 4)},
+	ipc.FeedbackGood(context.Background(), []net.IP{net.IPv4(1, 2, 3, 4)}, &chooser.FeedbackOptions{
 		Domain: "www.qiniu.com",
 	})
-	ips = ipc.Choose(context.Background(), &chooser.ChooseOptions{
-		IPs:    []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)},
+	ips = ipc.Choose(context.Background(), []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)}, &chooser.ChooseOptions{
 		Domain: "www.qiniu.com",
 	})
 	assertIPs(t, ips, []net.IP{net.IPv4(1, 2, 3, 4)})
 
 	time.Sleep(2 * time.Second)
-	ips = ipc.Choose(context.Background(), &chooser.ChooseOptions{
-		IPs:    []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)},
+	ips = ipc.Choose(context.Background(), []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)}, &chooser.ChooseOptions{
 		Domain: "www.qiniu.com",
 	})
 	assertIPs(t, ips, []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)})
 
-	ipc.FeedbackBad(context.Background(), &chooser.FeedbackOptions{
-		IPs:    []net.IP{net.IPv4(1, 2, 3, 4)},
+	ipc.FeedbackBad(context.Background(), []net.IP{net.IPv4(1, 2, 3, 4)}, &chooser.FeedbackOptions{
 		Domain: "www.qiniu.com",
 	})
-	ips = ipc.Choose(context.Background(), &chooser.ChooseOptions{
-		IPs:    []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)},
+	ips = ipc.Choose(context.Background(), []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)}, &chooser.ChooseOptions{
 		Domain: "www.qiniu.com",
 	})
 	assertIPs(t, ips, []net.IP{net.IPv4(5, 6, 7, 8)})
 
-	ipc.FeedbackGood(context.Background(), &chooser.FeedbackOptions{
-		IPs:    []net.IP{net.IPv4(1, 2, 3, 4)},
+	ipc.FeedbackGood(context.Background(), []net.IP{net.IPv4(1, 2, 3, 4)}, &chooser.FeedbackOptions{
 		Domain: "www.qiniu.com",
 	})
-	ips = ipc.Choose(context.Background(), &chooser.ChooseOptions{
-		IPs:    []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)},
+	ips = ipc.Choose(context.Background(), []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)}, &chooser.ChooseOptions{
 		Domain: "www.qiniu.com",
 	})
 	assertIPs(t, ips, []net.IP{net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8)})

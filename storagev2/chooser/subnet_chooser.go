@@ -15,14 +15,14 @@ type (
 		freezeDuration time.Duration
 	}
 
-	// SubnetChooserOptions 子网选择器的选项
-	SubnetChooserOptions IPChooserOptions
+	// SubnetChooserConfig 子网选择器的选项
+	SubnetChooserConfig IPChooserConfig
 )
 
 // NewSubnetChooser 创建子网选择器
-func NewSubnetChooser(options *SubnetChooserOptions) Chooser {
+func NewSubnetChooser(options *SubnetChooserConfig) Chooser {
 	if options == nil {
-		options = &SubnetChooserOptions{}
+		options = &SubnetChooserConfig{}
 	}
 	if options.FreezeDuration == 0 {
 		options.FreezeDuration = 10 * time.Minute
@@ -36,9 +36,12 @@ func NewSubnetChooser(options *SubnetChooserOptions) Chooser {
 	}
 }
 
-func (chooser *subnetChooser) Choose(_ context.Context, options *ChooseOptions) []net.IP {
-	if len(options.IPs) == 0 {
+func (chooser *subnetChooser) Choose(_ context.Context, ips []net.IP, options *ChooseOptions) []net.IP {
+	if len(ips) == 0 {
 		return nil
+	}
+	if options == nil {
+		options = &ChooseOptions{}
 	}
 
 	chooser.blackheapMutex.Lock()
@@ -46,7 +49,7 @@ func (chooser *subnetChooser) Choose(_ context.Context, options *ChooseOptions) 
 
 	var chosenSubnet net.IP
 	chosenIPs := make([]net.IP, 0, chooser.blackheap.Len())
-	for _, ip := range options.IPs {
+	for _, ip := range ips {
 		subnetIP := makeSubnet(ip)
 		if len(chosenIPs) == 0 {
 			if item := chooser.blackheap.FindByDomainAndIp(options.Domain, subnetIP); item == nil {
@@ -62,7 +65,7 @@ func (chooser *subnetChooser) Choose(_ context.Context, options *ChooseOptions) 
 	}
 
 	var chosenExpiredAt time.Time
-	toFind := options.makeSet(func(domain string, ip net.IP) string {
+	toFind := makeSet(ips, options.Domain, func(domain string, ip net.IP) string {
 		return makeMapKey(domain, makeSubnet(ip))
 	})
 	backups := make([]*blackItem, 0, chooser.blackheap.Len())
@@ -79,7 +82,7 @@ func (chooser *subnetChooser) Choose(_ context.Context, options *ChooseOptions) 
 	if chosenExpiredAt.IsZero() {
 		panic("chosenExpiredAt should not be empty")
 	}
-	for _, ip := range options.IPs {
+	for _, ip := range ips {
 		if chosenSubnet.Equal(makeSubnet(ip)) {
 			chosenIPs = append(chosenIPs, ip)
 		}
@@ -92,16 +95,19 @@ func (chooser *subnetChooser) Choose(_ context.Context, options *ChooseOptions) 
 	return chosenIPs
 }
 
-func (chooser *subnetChooser) FeedbackGood(_ context.Context, options *FeedbackOptions) {
-	if len(options.IPs) == 0 {
+func (chooser *subnetChooser) FeedbackGood(_ context.Context, ips []net.IP, options *FeedbackOptions) {
+	if len(ips) == 0 {
 		return
+	}
+	if options == nil {
+		options = &FeedbackOptions{}
 	}
 
 	chooser.blackheapMutex.Lock()
 	defer chooser.blackheapMutex.Unlock()
 
 	haveFeedback := make(map[string]struct{})
-	for _, ip := range options.IPs {
+	for _, ip := range ips {
 		subnetIP := makeSubnet(ip)
 		subnetIPString := subnetIP.String()
 		if _, ok := haveFeedback[subnetIPString]; ok {
@@ -115,9 +121,12 @@ func (chooser *subnetChooser) FeedbackGood(_ context.Context, options *FeedbackO
 	}
 }
 
-func (chooser *subnetChooser) FeedbackBad(_ context.Context, options *FeedbackOptions) {
-	if len(options.IPs) == 0 {
+func (chooser *subnetChooser) FeedbackBad(_ context.Context, ips []net.IP, options *FeedbackOptions) {
+	if len(ips) == 0 {
 		return
+	}
+	if options == nil {
+		options = &FeedbackOptions{}
 	}
 
 	chooser.blackheapMutex.Lock()
@@ -125,7 +134,7 @@ func (chooser *subnetChooser) FeedbackBad(_ context.Context, options *FeedbackOp
 
 	haveFeedback := make(map[string]struct{})
 	newExpiredAt := time.Now().Add(chooser.freezeDuration)
-	for _, ip := range options.IPs {
+	for _, ip := range ips {
 		subnetIP := makeSubnet(ip)
 		subnetIPString := subnetIP.String()
 		if _, ok := haveFeedback[subnetIPString]; ok {

@@ -15,10 +15,11 @@ import (
 )
 
 func getUploadManager() *UploadManager {
-	region01 := &Region{
-		SrcUpHosts: []string{"mock01.qiniu.com", "mock02.qiniu.com"},
-	}
+	return getUploadManagerV2([]string{"mock01.qiniu.com", "mock02.qiniu.com"})
+}
 
+func getUploadManagerV2(srcUpHosts []string) *UploadManager {
+	region01 := &Region{SrcUpHosts: srcUpHosts}
 	region02, err := GetRegion(testAK, testBucket)
 	if err != nil {
 		return nil

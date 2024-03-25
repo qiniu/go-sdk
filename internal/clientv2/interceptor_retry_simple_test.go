@@ -67,7 +67,7 @@ func TestSimpleAlwaysRetryInterceptor(t *testing.T) {
 				t.Fatal("unexpected attempts", options.Attempts)
 			}
 		},
-		AfterResponse: func(req *http.Request, resp *http.Response, options *retrier.RetrierOptions, err error) {
+		AfterResponse: func(resp *http.Response, options *retrier.RetrierOptions, err error) {
 			callbackedCount += 1
 			if options.Attempts != (doCount - 1) {
 				t.Fatal("unexpected attempts", options.Attempts)
@@ -174,7 +174,7 @@ func TestSimpleNotRetryInterceptor(t *testing.T) {
 				t.Fatal("unexpected attempts", options.Attempts)
 			}
 		},
-		AfterResponse: func(req *http.Request, resp *http.Response, options *retrier.RetrierOptions, err error) {
+		AfterResponse: func(resp *http.Response, options *retrier.RetrierOptions, err error) {
 			callbackedCount += 1
 			if options.Attempts != (doCount - 1) {
 				t.Fatal("unexpected attempts", options.Attempts)
@@ -278,7 +278,7 @@ func TestRetryInterceptorWithBackoff(t *testing.T) {
 				t.Fatal("unexpected attempts", options.Attempts)
 			}
 		},
-		AfterResponse: func(req *http.Request, resp *http.Response, options *retrier.RetrierOptions, err error) {
+		AfterResponse: func(resp *http.Response, options *retrier.RetrierOptions, err error) {
 			callbackedCount += 1
 			if options.Attempts != (doCount - 1) {
 				t.Fatal("unexpected attempts", options.Attempts)

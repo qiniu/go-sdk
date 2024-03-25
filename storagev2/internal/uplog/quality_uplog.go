@@ -114,6 +114,8 @@ func detectLogResult(err error) LogResult {
 			return LogResultProtocolError
 		case ErrorTypeSSLError:
 			return LogResultSSLError
+		case ErrorTypeTransmissionError:
+			return LogResultTransmissionError
 		case ErrorTypeLocalIoError:
 			return LogResultLocalIoError
 		case ErrorTypeUnexpectedSyscallError:

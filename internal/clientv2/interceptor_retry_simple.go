@@ -27,13 +27,13 @@ type (
 		Chooser       chooser.Chooser   // IP 选择器
 		Retrier       retrier.Retrier   // 重试器
 
-		BeforeResolve func(*http.Request)                                                 // 域名解析前回调函数
-		AfterResolve  func(*http.Request, []net.IP)                                       // 域名解析后回调函数
-		ResolveError  func(*http.Request, error)                                          // 域名解析错误回调函数
-		BeforeBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)         // 退避前回调函数
-		AfterBackoff  func(*http.Request, *retrier.RetrierOptions, time.Duration)         // 退避后回调函数
-		BeforeRequest func(*http.Request, *retrier.RetrierOptions)                        // 请求前回调函数
-		AfterResponse func(*http.Request, *http.Response, *retrier.RetrierOptions, error) // 请求后回调函数
+		BeforeResolve func(*http.Request)                                         // 域名解析前回调函数
+		AfterResolve  func(*http.Request, []net.IP)                               // 域名解析后回调函数
+		ResolveError  func(*http.Request, error)                                  // 域名解析错误回调函数
+		BeforeBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration) // 退避前回调函数
+		AfterBackoff  func(*http.Request, *retrier.RetrierOptions, time.Duration) // 退避后回调函数
+		BeforeRequest func(*http.Request, *retrier.RetrierOptions)                // 请求前回调函数
+		AfterResponse func(*http.Response, *retrier.RetrierOptions, error)        // 请求后回调函数
 	}
 
 	simpleRetryInterceptor struct {
@@ -75,7 +75,7 @@ func (c *SimpleRetryConfig) getRetryDecision(req *http.Request, resp *http.Respo
 		if c.Retrier != nil {
 			r = c.Retrier
 		}
-		return r.Retry(req, resp, err, &retrier.RetrierOptions{Attempts: attempts})
+		return r.Retry(resp, err, &retrier.RetrierOptions{Attempts: attempts})
 	}
 }
 
@@ -135,7 +135,7 @@ func (interceptor *simpleRetryInterceptor) callHandler(req *http.Request, option
 	}
 	resp, err = handler(req)
 	if interceptor.config.AfterResponse != nil {
-		interceptor.config.AfterResponse(req, resp, options, err)
+		interceptor.config.AfterResponse(resp, options, err)
 	}
 	return
 }
@@ -163,7 +163,7 @@ func (interceptor *simpleRetryInterceptor) resolve(req *http.Request, hostname s
 func (interceptor *simpleRetryInterceptor) choose(req *http.Request, ips []net.IP, hostname string) (*http.Request, []net.IP) {
 	if len(ips) > 0 {
 		if cs := interceptor.config.Chooser; cs != nil {
-			ips = cs.Choose(req.Context(), &chooser.ChooseOptions{IPs: ips, Domain: hostname})
+			ips = cs.Choose(req.Context(), ips, &chooser.ChooseOptions{Domain: hostname})
 		}
 		req = req.WithContext(clientv1.WithResolvedIPs(req.Context(), hostname, ips))
 	}
@@ -173,7 +173,7 @@ func (interceptor *simpleRetryInterceptor) choose(req *http.Request, ips []net.I
 func (interceptor *simpleRetryInterceptor) feedbackGood(req *http.Request, hostname string, ips []net.IP) {
 	if len(ips) > 0 {
 		if cs := interceptor.config.Chooser; cs != nil {
-			cs.FeedbackGood(req.Context(), &chooser.FeedbackOptions{IPs: ips, Domain: hostname})
+			cs.FeedbackGood(req.Context(), ips, &chooser.FeedbackOptions{Domain: hostname})
 		}
 	}
 }
@@ -181,7 +181,7 @@ func (interceptor *simpleRetryInterceptor) feedbackGood(req *http.Request, hostn
 func (interceptor *simpleRetryInterceptor) feedbackBad(req *http.Request, hostname string, ips []net.IP) {
 	if len(ips) > 0 {
 		if cs := interceptor.config.Chooser; cs != nil {
-			cs.FeedbackBad(req.Context(), &chooser.FeedbackOptions{IPs: ips, Domain: hostname})
+			cs.FeedbackBad(req.Context(), ips, &chooser.FeedbackOptions{Domain: hostname})
 		}
 	}
 }

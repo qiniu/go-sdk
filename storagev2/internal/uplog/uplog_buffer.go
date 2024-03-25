@@ -193,33 +193,29 @@ func tryToArchiveFileBuffer(force bool) {
 	go uploadAllClosedFileBuffers()
 }
 
-func closeUplogFileBufferWithoutLock() {
-	uplogFileBuffer.Close()
-	uplogFileBuffer = nil
-	uplogFileBufferFileLocker.Close()
-	uplogFileBufferFileLocker = nil
-}
-
 func withUploadFileBuffer(fn func(io.Writer) (bool, error)) (err error) {
 	var shouldClose bool
 
 	uplogFileBufferLock.Lock()
 	defer uplogFileBufferLock.Unlock()
 
+	uplogFileBufferPath := getUplogFileBufferPath(true)
+
 	if uplogFileBuffer != nil {
-		if _, err := os.Stat(uplogFileBuffer.Name()); err != nil && os.IsNotExist(err) {
+		if uplogFileBuffer.Name() != uplogFileBufferPath {
+			closeUplogFileBufferWithoutLock()
+		} else if _, err := os.Stat(uplogFileBufferPath); err != nil && os.IsNotExist(err) {
 			closeUplogFileBufferWithoutLock()
 		}
 	}
 
 	if uplogFileBuffer == nil {
-		uplogFileBufferPath := getUplogFileBufferPath(true)
 		if err = os.MkdirAll(filepath.Dir(uplogFileBufferPath), 0755); err != nil {
 			return
 		} else if uplogFileBuffer, err = os.OpenFile(uplogFileBufferPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err != nil {
 			return
 		}
-		uplogFileBufferFileLocker = flock.New(uplogFileBuffer.Name())
+		uplogFileBufferFileLocker = flock.New(uplogFileBufferPath)
 	}
 
 	if err = uplogFileBufferFileLocker.Lock(); err != nil {
@@ -233,11 +229,28 @@ func withUploadFileBuffer(fn func(io.Writer) (bool, error)) (err error) {
 	return
 }
 
-func ResetWriteFileBufferInterval(d time.Duration) {
+func closeUplogFileBufferWithoutLock() {
+	uplogFileBuffer.Close()
+	uplogFileBuffer = nil
+	uplogFileBufferFileLocker.Close()
+	uplogFileBufferFileLocker = nil
+}
+
+func SetWriteFileBufferInterval(d time.Duration) {
 	uplogWriteFileBufferTimerLock.Lock()
 	defer uplogWriteFileBufferTimerLock.Unlock()
+	if d == 0 {
+		d = 1 * time.Minute
+	}
 	uplogWriteFileBufferInterval = d
 	uplogWriteFileBufferTicker.Reset(d)
+}
+
+func GetWriteFileBufferInterval() time.Duration {
+	uplogWriteFileBufferTimerLock.Lock()
+	defer uplogWriteFileBufferTimerLock.Unlock()
+
+	return uplogWriteFileBufferInterval
 }
 
 func resetWriteFileBufferInterval() {

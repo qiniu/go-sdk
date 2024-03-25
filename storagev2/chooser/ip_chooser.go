@@ -29,17 +29,17 @@ type (
 		freezeDuration time.Duration
 	}
 
-	// IPChooserOptions IP 选择器的选项
-	IPChooserOptions struct {
+	// IPChooserConfig IP 选择器的选项
+	IPChooserConfig struct {
 		// FreezeDuration IP 冻结时长（默认：600s）
 		FreezeDuration time.Duration
 	}
 )
 
 // NewIPChooser 创建 IP 选择器
-func NewIPChooser(options *IPChooserOptions) Chooser {
+func NewIPChooser(options *IPChooserConfig) Chooser {
 	if options == nil {
-		options = &IPChooserOptions{}
+		options = &IPChooserConfig{}
 	}
 	if options.FreezeDuration == 0 {
 		options.FreezeDuration = 10 * time.Minute
@@ -53,16 +53,19 @@ func NewIPChooser(options *IPChooserOptions) Chooser {
 	}
 }
 
-func (chooser *ipChooser) Choose(_ context.Context, options *ChooseOptions) []net.IP {
-	if len(options.IPs) == 0 {
+func (chooser *ipChooser) Choose(_ context.Context, ips []net.IP, options *ChooseOptions) []net.IP {
+	if len(ips) == 0 {
 		return nil
+	}
+	if options == nil {
+		options = &ChooseOptions{}
 	}
 
 	chooser.blackheapMutex.Lock()
 	defer chooser.blackheapMutex.Unlock()
 
 	chosenIPs := make([]net.IP, 0, chooser.blackheap.Len())
-	for _, ip := range options.IPs {
+	for _, ip := range ips {
 		if item := chooser.blackheap.FindByDomainAndIp(options.Domain, ip); item == nil {
 			chosenIPs = append(chosenIPs, ip)
 		}
@@ -72,7 +75,7 @@ func (chooser *ipChooser) Choose(_ context.Context, options *ChooseOptions) []ne
 	}
 
 	var chosenExpiredAt time.Time
-	toFind := options.makeSet(makeMapKey)
+	toFind := makeSet(ips, options.Domain, makeMapKey)
 	backups := make([]*blackItem, 0, chooser.blackheap.Len())
 	for chooser.blackheap.Len() > 0 {
 		firstChosen := heap.Pop(&chooser.blackheap).(*blackItem)
@@ -109,31 +112,37 @@ func (chooser *ipChooser) Choose(_ context.Context, options *ChooseOptions) []ne
 	return chosenIPs
 }
 
-func (chooser *ipChooser) FeedbackGood(_ context.Context, options *FeedbackOptions) {
-	if len(options.IPs) == 0 {
+func (chooser *ipChooser) FeedbackGood(_ context.Context, ips []net.IP, options *FeedbackOptions) {
+	if len(ips) == 0 {
 		return
+	}
+	if options == nil {
+		options = &FeedbackOptions{}
 	}
 
 	chooser.blackheapMutex.Lock()
 	defer chooser.blackheapMutex.Unlock()
 
-	for _, ip := range options.IPs {
+	for _, ip := range ips {
 		if item := chooser.blackheap.FindByDomainAndIp(options.Domain, ip); item != nil {
 			heap.Remove(&chooser.blackheap, item.index)
 		}
 	}
 }
 
-func (chooser *ipChooser) FeedbackBad(_ context.Context, options *FeedbackOptions) {
-	if len(options.IPs) == 0 {
+func (chooser *ipChooser) FeedbackBad(_ context.Context, ips []net.IP, options *FeedbackOptions) {
+	if len(ips) == 0 {
 		return
+	}
+	if options == nil {
+		options = &FeedbackOptions{}
 	}
 
 	chooser.blackheapMutex.Lock()
 	defer chooser.blackheapMutex.Unlock()
 
 	newExpiredAt := time.Now().Add(chooser.freezeDuration)
-	for _, ip := range options.IPs {
+	for _, ip := range ips {
 		if item := chooser.blackheap.FindByDomainAndIp(options.Domain, ip); item != nil {
 			chooser.blackheap.items[item.index].expiredAt = newExpiredAt
 			heap.Fix(&chooser.blackheap, item.index)

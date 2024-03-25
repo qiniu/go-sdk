@@ -4,6 +4,9 @@ test:
 unittest:
 	go test -tags=unit -failfast -v -coverprofile=coverage.txt `go list ./... | egrep -v 'examples|sms'`
 
+integrationtest:
+	go test -tags=integration -failfast -parallel 1 -v -coverprofile=coverage.txt `go list ./... | egrep -v 'examples|sms'`
+
 staticcheck:
 	staticcheck -go 1.10 `go list ./... | egrep -v 'examples|sms'`
 

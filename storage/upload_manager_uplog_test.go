@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -18,12 +17,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/uplog"
 )
 
-var testLock sync.Mutex
-
 func TestUploadManagerUplogForm(t *testing.T) {
-	testLock.Lock()
-	defer testLock.Unlock()
-
 	tmpDir, err := ioutil.TempDir("", "test-uplog-*")
 	if err != nil {
 		t.Fatal(err)
@@ -36,6 +30,10 @@ func TestUploadManagerUplogForm(t *testing.T) {
 	if err = uplog.FlushBuffer(); err != nil {
 		t.Fatal(err)
 	}
+
+	writeFileBufferInterval := uplog.GetWriteFileBufferInterval()
+	uplog.SetFlushFileBufferInterval(1 * time.Hour)
+	defer uplog.SetFlushFileBufferInterval(writeFileBufferInterval)
 
 	clientV1.DebugMode = true
 	defer func() {
@@ -54,7 +52,7 @@ func TestUploadManagerUplogForm(t *testing.T) {
 	}()
 	tempFile.Write(data)
 
-	uploadManager := getUploadManager()
+	uploadManager := getUploadManagerV2([]string{"mock03.qiniu.com", "mock04.qiniu.com"})
 	var ret Ret
 
 	// 上传 file
@@ -104,7 +102,7 @@ func TestUploadManagerUplogForm(t *testing.T) {
 	if uplogs[0]["error_type"] != "unknown_host" {
 		t.Fatalf("unexpected uplog error_type:%v", uplogs[0]["error_type"])
 	}
-	if uplogs[0]["host"] != "mock01.qiniu.com" {
+	if uplogs[0]["host"] != "mock03.qiniu.com" {
 		t.Fatalf("unexpected uplog host:%v", uplogs[0]["host"])
 	}
 	if uplogs[0]["path"] != "/" {
@@ -128,7 +126,7 @@ func TestUploadManagerUplogForm(t *testing.T) {
 	if uplogs[1]["error_type"] != "unknown_host" {
 		t.Fatalf("unexpected uplog error_type:%v", uplogs[1]["error_type"])
 	}
-	if uplogs[1]["host"] != "mock02.qiniu.com" {
+	if uplogs[1]["host"] != "mock04.qiniu.com" {
 		t.Fatalf("unexpected uplog host:%v", uplogs[1]["host"])
 	}
 	if uplogs[1]["target_bucket"] != testBucket {
@@ -194,9 +192,6 @@ func TestUploadManagerUplogForm(t *testing.T) {
 }
 
 func TestUploadManagerUplogResumableV1(t *testing.T) {
-	testLock.Lock()
-	defer testLock.Unlock()
-
 	tmpDir, err := ioutil.TempDir("", "test-uplog-*")
 	if err != nil {
 		t.Fatal(err)
@@ -209,6 +204,10 @@ func TestUploadManagerUplogResumableV1(t *testing.T) {
 	if err = uplog.FlushBuffer(); err != nil {
 		t.Fatal(err)
 	}
+
+	writeFileBufferInterval := uplog.GetWriteFileBufferInterval()
+	uplog.SetFlushFileBufferInterval(1 * time.Hour)
+	defer uplog.SetFlushFileBufferInterval(writeFileBufferInterval)
 
 	clientV1.DebugMode = true
 	defer func() {
@@ -229,7 +228,7 @@ func TestUploadManagerUplogResumableV1(t *testing.T) {
 	}()
 	tempFile.Write(data)
 
-	uploadManager := getUploadManager()
+	uploadManager := getUploadManagerV2([]string{"mock05.qiniu.com", "mock06.qiniu.com"})
 	var ret Ret
 
 	// 上传 file
@@ -283,7 +282,7 @@ func TestUploadManagerUplogResumableV1(t *testing.T) {
 		if uplogs[i]["error_type"] != "unknown_host" {
 			t.Fatalf("unexpected uplog error_type:%v", uplogs[i]["error_type"])
 		}
-		if uplogs[i]["host"] != "mock01.qiniu.com" {
+		if uplogs[i]["host"] != "mock05.qiniu.com" {
 			t.Fatalf("unexpected uplog host:%v", uplogs[i]["host"])
 		}
 		if uplogs[i]["path"] != "/mkblk/4194304" {
@@ -309,7 +308,7 @@ func TestUploadManagerUplogResumableV1(t *testing.T) {
 		if uplogs[i]["error_type"] != "unknown_host" {
 			t.Fatalf("unexpected uplog error_type:%v", uplogs[i]["error_type"])
 		}
-		if uplogs[i]["host"] != "mock02.qiniu.com" {
+		if uplogs[i]["host"] != "mock06.qiniu.com" {
 			t.Fatalf("unexpected uplog host:%v", uplogs[i]["host"])
 		}
 		if uplogs[i]["path"] != "/mkblk/4194304" {

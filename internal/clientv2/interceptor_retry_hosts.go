@@ -44,9 +44,9 @@ func (c *HostsRetryConfig) getRetryDecision(req *http.Request, resp *http.Respon
 			return retrier.DontRetry
 		}
 	} else if c.Retrier != nil {
-		return c.Retrier.Retry(req, resp, err, &retrier.RetrierOptions{Attempts: attempts})
+		return c.Retrier.Retry(resp, err, &retrier.RetrierOptions{Attempts: attempts})
 	} else {
-		return errorRetrier.Retry(req, resp, err, &retrier.RetrierOptions{Attempts: attempts})
+		return errorRetrier.Retry(resp, err, &retrier.RetrierOptions{Attempts: attempts})
 	}
 }
 

@@ -26,6 +26,7 @@ jobs:
           GOPATH=$GITHUB_WORKSPACE go get github.com/qiniu/dyn
           GOPATH=$GITHUB_WORKSPACE go get github.com/gofrs/flock
           GOPATH=$GITHUB_WORKSPACE go get github.com/alex-ant/gomath/rational
+          GOPATH=$GITHUB_WORKSPACE go get github.com/matishsiao/goInfo
 
           # FIXME special package
           # github.com/go-playground/validator/v10
