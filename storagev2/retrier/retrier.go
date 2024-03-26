@@ -2,7 +2,6 @@ package retrier
 
 import (
 	"context"
-	"errors"
 	"net"
 	"net/http"
 	"net/url"
@@ -114,37 +113,56 @@ func getRetryDecisionForError(err error) RetryDecision {
 		return DontRetry
 	}
 
-	var dnsError *net.DNSError
-	if os.IsTimeout(err) || errors.Is(err, syscall.ETIMEDOUT) {
-		return RetryRequest
-	} else if errors.As(err, &dnsError) && dnsError.IsNotFound {
-		return TryNextHost
-	} else if errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.ECONNABORTED) || errors.Is(err, syscall.ECONNRESET) {
-		return TryNextHost
-	} else if errors.Is(err, context.Canceled) {
-		return DontRetry
-	} else if errors.Is(err, http.ErrSchemeMismatch) {
-		return DontRetry
+	tryToUnwrapUnderlyingError := func(err error) (error, bool) {
+		switch err := err.(type) {
+		case *os.PathError:
+			return err.Err, true
+		case *os.LinkError:
+			return err.Err, true
+		case *os.SyscallError:
+			return err.Err, true
+		case *url.Error:
+			return err.Err, true
+		case *net.OpError:
+			return err.Err, true
+		}
+		return err, false
+	}
+	unwrapUnderlyingError := func(err error) error {
+		ok := true
+		for ok {
+			err, ok = tryToUnwrapUnderlyingError(err)
+		}
+		return err
 	}
 
-	switch t := err.(type) {
-	case *url.Error:
-		desc := err.Error()
-		if strings.Contains(desc, "use of closed network connection") ||
-			strings.Contains(desc, "unexpected EOF reading trailer") ||
-			strings.Contains(desc, "transport connection broken") ||
-			strings.Contains(desc, "server closed idle connection") {
+	unwrapedErr := unwrapUnderlyingError(err)
+	if os.IsTimeout(unwrapedErr) {
+		return RetryRequest
+	} else if dnsError, ok := unwrapedErr.(*net.DNSError); ok && isDnsNotFoundError(dnsError) {
+		return TryNextHost
+	} else if syscallError, ok := unwrapedErr.(*os.SyscallError); ok {
+		switch syscallError.Err {
+		case syscall.ECONNREFUSED, syscall.ECONNABORTED, syscall.ECONNRESET:
+			return TryNextHost
+		default:
+			return DontRetry
+		}
+	} else if unwrapedErr == context.Canceled {
+		return DontRetry
+	} else if clientErr, ok := unwrapedErr.(*clientv1.ErrorInfo); ok {
+		if isStatusCodeRetryable(clientErr.Code) {
 			return RetryRequest
 		} else {
 			return DontRetry
 		}
-	case *clientv1.ErrorInfo:
-		if isStatusCodeRetryable(t.Code) {
-			return RetryRequest
-		} else {
-			return DontRetry
-		}
-	default:
+	}
+	desc := unwrapedErr.Error()
+	if strings.Contains(desc, "use of closed network connection") ||
+		strings.Contains(desc, "unexpected EOF reading trailer") ||
+		strings.Contains(desc, "transport connection broken") ||
+		strings.Contains(desc, "server closed idle connection") {
 		return RetryRequest
 	}
+	return DontRetry
 }

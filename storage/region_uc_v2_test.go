@@ -4,7 +4,9 @@
 package storage
 
 import (
+	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	clientV1 "github.com/qiniu/go-sdk/v7/client"
@@ -20,6 +22,9 @@ func TestUCRetry(t *testing.T) {
 
 	SetUcHosts("aaa.aaa.com", "uc.qbox.me")
 	defer SetUcHosts("uc.qbox.me")
+
+	_ = os.Remove(regionV2CachePath)
+	regionV2Cache = sync.Map{}
 
 	r, err := GetRegion(testAK, testBucket)
 	if err != nil {

@@ -2,10 +2,7 @@ package uplog
 
 import (
 	"context"
-	"crypto/tls"
-	"errors"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -75,30 +72,47 @@ func getOsVersion() (string, error) {
 }
 
 func detectErrorType(err error) ErrorType {
-	var (
-		dnsError           *net.DNSError
-		urlError           *url.Error
-		tlsVerifyCertError *tls.CertificateVerificationError
-		syscallError       syscall.Errno
-	)
-	if os.IsTimeout(err) || errors.Is(err, syscall.ETIMEDOUT) {
+	tryToUnwrapUnderlyingError := func(err error) (error, bool) {
+		switch err := err.(type) {
+		case *os.PathError:
+			return err.Err, true
+		case *os.LinkError:
+			return err.Err, true
+		case *os.SyscallError:
+			return err.Err, true
+		case *url.Error:
+			return err.Err, true
+		case *net.OpError:
+			return err.Err, true
+		}
+		return err, false
+	}
+	unwrapUnderlyingError := func(err error) error {
+		ok := true
+		for ok {
+			err, ok = tryToUnwrapUnderlyingError(err)
+		}
+		return err
+	}
+
+	unwrapedErr := unwrapUnderlyingError(err)
+	if os.IsTimeout(unwrapedErr) {
 		return ErrorTypeTimeout
-	} else if errors.As(err, &dnsError) && dnsError.IsNotFound {
+	} else if dnsError, ok := unwrapedErr.(*net.DNSError); ok && isDnsNotFoundError(dnsError) {
 		return ErrorTypeUnknownHost
-	} else if os.IsNotExist(err) || os.IsPermission(err) {
+	} else if os.IsNotExist(unwrapedErr) || os.IsPermission(unwrapedErr) {
 		return ErrorTypeLocalIoError
-	} else if errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.ECONNABORTED) || errors.Is(err, syscall.ECONNRESET) {
-		return ErrorTypeCannotConnectToHost
-	} else if errors.As(err, &syscallError) {
-		return ErrorTypeUnexpectedSyscallError
-	} else if errors.Is(err, context.Canceled) {
+	} else if syscallError, ok := unwrapedErr.(*os.SyscallError); ok {
+		switch syscallError.Err {
+		case syscall.ECONNREFUSED, syscall.ECONNABORTED, syscall.ECONNRESET:
+			return ErrorTypeCannotConnectToHost
+		default:
+			return ErrorTypeUnexpectedSyscallError
+		}
+	} else if unwrapedErr == context.Canceled {
 		return ErrorTypeUserCanceled
-	} else if errors.Is(err, http.ErrSchemeMismatch) {
-		return ErrorTypeProtocolError
-	} else if errors.As(err, &tlsVerifyCertError) {
-		return ErrorTypeSSLError
-	} else if errors.As(err, &urlError) {
-		desc := urlError.Err.Error()
+	} else {
+		desc := unwrapedErr.Error()
 		if strings.HasPrefix(desc, "tls: ") ||
 			strings.HasPrefix(desc, "x509: ") {
 			return ErrorTypeSSLError
@@ -108,8 +122,8 @@ func detectErrorType(err error) ErrorType {
 			strings.Contains(desc, "server closed idle connection") {
 			return ErrorTypeTransmissionError
 		}
+		return ErrorTypeUnknownError
 	}
-	return ErrorTypeUnknownError
 }
 
 func getHttpClientName() string {

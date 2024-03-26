@@ -192,7 +192,9 @@ func NewClient(options *Options) *Client {
 		options.ShouldFreezeHost = defaultShouldFreezeHost
 	}
 	if options.Credentials == nil {
-		options.Credentials = auth.Default()
+		if defaultAuth := auth.Default(); defaultAuth != nil {
+			options.Credentials = defaultAuth
+		}
 	}
 
 	return &Client{

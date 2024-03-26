@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -243,7 +244,8 @@ func SetWriteFileBufferInterval(d time.Duration) {
 		d = 1 * time.Minute
 	}
 	uplogWriteFileBufferInterval = d
-	uplogWriteFileBufferTicker.Reset(d)
+	uplogWriteFileBufferTicker.Stop()
+	uplogWriteFileBufferTicker = time.NewTicker(d)
 }
 
 func GetWriteFileBufferInterval() time.Duration {
@@ -256,7 +258,8 @@ func GetWriteFileBufferInterval() time.Duration {
 func resetWriteFileBufferInterval() {
 	uplogWriteFileBufferTimerLock.Lock()
 	defer uplogWriteFileBufferTimerLock.Unlock()
-	uplogWriteFileBufferTicker.Reset(uplogWriteFileBufferInterval)
+	uplogWriteFileBufferTicker.Stop()
+	uplogWriteFileBufferTicker = time.NewTicker(uplogWriteFileBufferInterval)
 }
 
 type multipleFileReader struct {
@@ -330,14 +333,14 @@ func (r *multipleFileReader) Close() error {
 }
 
 func getArchivedUplogFileBufferPaths(dirPath string) ([]string, error) {
-	dirEntries, err := os.ReadDir(dirPath)
+	dirEntries, err := ioutil.ReadDir(dirPath)
 	if err != nil {
 		return nil, err
 	}
 
 	archivedPaths := make([]string, 0, len(dirEntries))
 	for _, dirEntry := range dirEntries {
-		if !dirEntry.Type().IsRegular() {
+		if !dirEntry.Mode().IsRegular() {
 			continue
 		}
 		if !strings.HasPrefix(dirEntry.Name(), UPLOG_FILE_BUFFER_NAME+".") {
