@@ -98,7 +98,7 @@ func DoAndDecodeJsonResponse(c Client, options RequestParams, ret interface{}) e
 	resp, err := Do(c, options)
 	defer func() {
 		if resp != nil && resp.Body != nil {
-			internal_io.SinkAll(resp.Body)
+			_ = internal_io.SinkAll(resp.Body)
 			resp.Body.Close()
 		}
 	}()

@@ -92,7 +92,7 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 		}
 
 		if resp != nil && resp.Body != nil {
-			internal_io.SinkAll(resp.Body)
+			_ = internal_io.SinkAll(resp.Body)
 			resp.Body.Close()
 		}
 

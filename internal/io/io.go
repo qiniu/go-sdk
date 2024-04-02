@@ -10,8 +10,8 @@ import (
 func ReadAll(r io.Reader) ([]byte, error) {
 	switch b := r.(type) {
 	case *BytesNopCloser:
-		b.Seek(0, io.SeekEnd)
-		return b.Bytes(), nil
+		_, err := b.Seek(0, io.SeekEnd)
+		return b.Bytes(), err
 	default:
 		return ioutil.ReadAll(r)
 	}

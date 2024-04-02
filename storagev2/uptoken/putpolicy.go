@@ -90,7 +90,7 @@ func (putPolicy PutPolicy) GetScope() (string, bool) {
 
 // SetScope 指定上传的目标资源空间 Bucket 和资源键 Key
 func (putPolicy PutPolicy) SetScope(value string) PutPolicy {
-	putPolicy.Set(putPolicyKeyScope, value)
+	_ = putPolicy.Set(putPolicyKeyScope, value)
 	return putPolicy
 }
 
@@ -101,7 +101,7 @@ func (putPolicy PutPolicy) GetDeadline() (int64, bool) {
 
 // SetDeadline 指定上传策略有效截止时间
 func (putPolicy PutPolicy) SetDeadline(value int64) PutPolicy {
-	putPolicy.Set(putPolicyKeyDeadline, value)
+	_ = putPolicy.Set(putPolicyKeyDeadline, value)
 	return putPolicy
 }
 
@@ -112,7 +112,7 @@ func (putPolicy PutPolicy) GetIsPrefixalScope() (int64, bool) {
 
 // SetIsPrefixalScope 指定是否允许用户上传以 scope 的 keyPrefix 为前缀的文件
 func (putPolicy PutPolicy) SetIsPrefixalScope(value int64) PutPolicy {
-	putPolicy.Set(putPolicyKeyIsPrefixalScope, value)
+	_ = putPolicy.Set(putPolicyKeyIsPrefixalScope, value)
 	return putPolicy
 }
 
@@ -123,7 +123,7 @@ func (putPolicy PutPolicy) GetInsertOnly() (int64, bool) {
 
 // SetInsertOnly 指定是否限定为新增语意
 func (putPolicy PutPolicy) SetInsertOnly(value int64) PutPolicy {
-	putPolicy.Set(putPolicyKeyInsertOnly, value)
+	_ = putPolicy.Set(putPolicyKeyInsertOnly, value)
 	return putPolicy
 }
 
@@ -134,7 +134,7 @@ func (putPolicy PutPolicy) GetEndUser() (string, bool) {
 
 // SetEndUser 指定唯一属主标识
 func (putPolicy PutPolicy) SetEndUser(value string) PutPolicy {
-	putPolicy.Set(putPolicyKeyEndUser, value)
+	_ = putPolicy.Set(putPolicyKeyEndUser, value)
 	return putPolicy
 }
 
@@ -145,7 +145,7 @@ func (putPolicy PutPolicy) GetReturnUrl() (string, bool) {
 
 // SetReturnUrl 指定 Web 端文件上传成功后，浏览器执行 303 跳转的 URL
 func (putPolicy PutPolicy) SetReturnUrl(value string) PutPolicy {
-	putPolicy.Set(putPolicyKeyReturnUrl, value)
+	_ = putPolicy.Set(putPolicyKeyReturnUrl, value)
 	return putPolicy
 }
 
@@ -156,7 +156,7 @@ func (putPolicy PutPolicy) GetReturnBody() (string, bool) {
 
 // SetReturnBody 指定上传成功后，自定义七牛云最终返回给上传端的数据
 func (putPolicy PutPolicy) SetReturnBody(value string) PutPolicy {
-	putPolicy.Set(putPolicyKeyReturnBody, value)
+	_ = putPolicy.Set(putPolicyKeyReturnBody, value)
 	return putPolicy
 }
 
@@ -167,7 +167,7 @@ func (putPolicy PutPolicy) GetCallbackUrl() (string, bool) {
 
 // SetCallbackUrl 指定上传成功后，七牛云向业务服务器发送 POST 请求的 URL
 func (putPolicy PutPolicy) SetCallbackUrl(value string) PutPolicy {
-	putPolicy.Set(putPolicyKeyCallbackUrl, value)
+	_ = putPolicy.Set(putPolicyKeyCallbackUrl, value)
 	return putPolicy
 }
 
@@ -178,7 +178,7 @@ func (putPolicy PutPolicy) GetCallbackHost() (string, bool) {
 
 // SetCallbackHost 指定上传成功后，七牛云向业务服务器发送回调通知时的 Host 值
 func (putPolicy PutPolicy) SetCallbackHost(value string) PutPolicy {
-	putPolicy.Set(putPolicyKeyCallbackHost, value)
+	_ = putPolicy.Set(putPolicyKeyCallbackHost, value)
 	return putPolicy
 }
 
@@ -189,7 +189,7 @@ func (putPolicy PutPolicy) GetCallbackBody() (string, bool) {
 
 // SetCallbackBody 指定上传成功后，七牛云向业务服务器发送 Content-Type: application/x-www-form-urlencoded 的 POST 请求
 func (putPolicy PutPolicy) SetCallbackBody(value string) PutPolicy {
-	putPolicy.Set(putPolicyKeyCallbackBody, value)
+	_ = putPolicy.Set(putPolicyKeyCallbackBody, value)
 	return putPolicy
 }
 
@@ -200,7 +200,7 @@ func (putPolicy PutPolicy) GetCallbackBodyType() (string, bool) {
 
 // SetCallbackBodyType 指定上传成功后，七牛云向业务服务器发送回调通知 callbackBody 的 Content-Type
 func (putPolicy PutPolicy) SetCallbackBodyType(value string) PutPolicy {
-	putPolicy.Set(putPolicyKeyCallbackBodyType, value)
+	_ = putPolicy.Set(putPolicyKeyCallbackBodyType, value)
 	return putPolicy
 }
 
@@ -211,7 +211,7 @@ func (putPolicy PutPolicy) GetPersistentOps() (string, bool) {
 
 // SetPersistentOps 指定资源上传成功后触发执行的预转持久化处理指令列表
 func (putPolicy PutPolicy) SetPersistentOps(value string) PutPolicy {
-	putPolicy.Set(putPolicyKeyPersistentOps, value)
+	_ = putPolicy.Set(putPolicyKeyPersistentOps, value)
 	return putPolicy
 }
 
@@ -222,7 +222,7 @@ func (putPolicy PutPolicy) GetPersistentNotifyUrl() (string, bool) {
 
 // SetPersistentNotifyUrl 指定接收持久化处理结果通知的 URL
 func (putPolicy PutPolicy) SetPersistentNotifyUrl(value string) PutPolicy {
-	putPolicy.Set(putPolicyKeyPersistentNotifyUrl, value)
+	_ = putPolicy.Set(putPolicyKeyPersistentNotifyUrl, value)
 	return putPolicy
 }
 
@@ -233,7 +233,7 @@ func (putPolicy PutPolicy) GetPersistentPipeline() (string, bool) {
 
 // SetPersistentPipeline 指定转码队列名
 func (putPolicy PutPolicy) SetPersistentPipeline(value string) PutPolicy {
-	putPolicy.Set(putPolicyKeyPersistentPipeline, value)
+	_ = putPolicy.Set(putPolicyKeyPersistentPipeline, value)
 	return putPolicy
 }
 
@@ -244,7 +244,7 @@ func (putPolicy PutPolicy) GetForceSaveKey() (bool, bool) {
 
 // SetForceSaveKey 指定 saveKey 的优先级设置
 func (putPolicy PutPolicy) SetForceSaveKey(value bool) PutPolicy {
-	putPolicy.Set(putPolicyKeyForceSaveKey, value)
+	_ = putPolicy.Set(putPolicyKeyForceSaveKey, value)
 	return putPolicy
 }
 
@@ -255,7 +255,7 @@ func (putPolicy PutPolicy) GetSaveKey() (string, bool) {
 
 // SetSaveKey 指定自定义资源名
 func (putPolicy PutPolicy) SetSaveKey(value string) PutPolicy {
-	putPolicy.Set(putPolicyKeySaveKey, value)
+	_ = putPolicy.Set(putPolicyKeySaveKey, value)
 	return putPolicy
 }
 
@@ -266,7 +266,7 @@ func (putPolicy PutPolicy) GetFsizeMin() (int64, bool) {
 
 // SetFsizeMin 指定限定上传文件大小最小值
 func (putPolicy PutPolicy) SetFsizeMin(value int64) PutPolicy {
-	putPolicy.Set(putPolicyKeyFsizeMin, value)
+	_ = putPolicy.Set(putPolicyKeyFsizeMin, value)
 	return putPolicy
 }
 
@@ -277,7 +277,7 @@ func (putPolicy PutPolicy) GetFsizeLimit() (int64, bool) {
 
 // SetFsizeLimit 指定限定上传文件大小最大值
 func (putPolicy PutPolicy) SetFsizeLimit(value int64) PutPolicy {
-	putPolicy.Set(putPolicyKeyFsizeLimit, value)
+	_ = putPolicy.Set(putPolicyKeyFsizeLimit, value)
 	return putPolicy
 }
 
@@ -288,7 +288,7 @@ func (putPolicy PutPolicy) GetDetectMime() (int64, bool) {
 
 // SetDetectMime 指定开启 MimeType 侦测功能
 func (putPolicy PutPolicy) SetDetectMime(value int64) PutPolicy {
-	putPolicy.Set(putPolicyKeyDetectMime, value)
+	_ = putPolicy.Set(putPolicyKeyDetectMime, value)
 	return putPolicy
 }
 
@@ -299,7 +299,7 @@ func (putPolicy PutPolicy) GetMimeLimit() (string, bool) {
 
 // SetMimeLimit 指定限定用户上传的文件类型
 func (putPolicy PutPolicy) SetMimeLimit(value string) PutPolicy {
-	putPolicy.Set(putPolicyKeyMimeLimit, value)
+	_ = putPolicy.Set(putPolicyKeyMimeLimit, value)
 	return putPolicy
 }
 
@@ -310,7 +310,7 @@ func (putPolicy PutPolicy) GetFileType() (int64, bool) {
 
 // SetFileType 指定文件存储类型
 func (putPolicy PutPolicy) SetFileType(value int64) PutPolicy {
-	putPolicy.Set(putPolicyKeyFileType, value)
+	_ = putPolicy.Set(putPolicyKeyFileType, value)
 	return putPolicy
 }
 

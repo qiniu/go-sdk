@@ -117,7 +117,7 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 		req = reqBefore
 
 		if resp != nil && resp.Body != nil {
-			internal_io.SinkAll(resp.Body)
+			_ = internal_io.SinkAll(resp.Body)
 			resp.Body.Close()
 		}
 

@@ -34,7 +34,7 @@ func (response *ApiResponseDescription) generate(group *jen.Group, opts CodeGene
 
 	if body := response.Body; body != nil {
 		if bodyJson := body.Json; bodyJson != nil {
-			bodyJson.generate(group, opts)
+			err = bodyJson.generate(group, opts)
 		}
 	}
 

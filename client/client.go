@@ -284,7 +284,7 @@ func ResponseError(resp *http.Response) error {
 func CallRet(ctx context.Context, ret interface{}, resp *http.Response) (err error) {
 
 	defer func() {
-		internal_io.SinkAll(resp.Body)
+		_ = internal_io.SinkAll(resp.Body)
 		resp.Body.Close()
 	}()
 
