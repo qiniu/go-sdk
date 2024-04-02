@@ -23,6 +23,7 @@ type (
 		Documentation      string             `yaml:"documentation,omitempty"`
 		Encode             *EncodeType        `yaml:"encode,omitempty"`
 		ServiceBucket      *ServiceBucketType `yaml:"service_bucket,omitempty"`
+		ServiceObject      *ServiceObjectType `yaml:"service_object,omitempty"`
 		Optional           *OptionalType      `yaml:"optional,omitempty"`
 	}
 

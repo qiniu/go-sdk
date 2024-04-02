@@ -17,6 +17,7 @@ type (
 	Idempotent            string
 	EncodeType            string
 	ServiceBucketType     string
+	ServiceObjectType     string
 )
 
 const (
