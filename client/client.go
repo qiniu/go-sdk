@@ -199,11 +199,12 @@ func (r Client) Do(ctx context.Context, req *http.Request) (resp *http.Response,
 // --------------------------------------------------------------------
 
 type ErrorInfo struct {
-	Err   string `json:"error,omitempty"`
-	Key   string `json:"key,omitempty"`
-	Reqid string `json:"reqid,omitempty"`
-	Errno int    `json:"errno,omitempty"`
-	Code  int    `json:"code"`
+	Err       string `json:"error,omitempty"`
+	ErrorCode string `json:"error_code,omitempty"`
+	Key       string `json:"key,omitempty"`
+	Reqid     string `json:"reqid,omitempty"`
+	Errno     int    `json:"errno,omitempty"`
+	Code      int    `json:"code"`
 }
 
 func (r *ErrorInfo) ErrorDetail() string {
@@ -238,13 +239,14 @@ func parseError(e *ErrorInfo, r io.Reader) {
 	}
 
 	var ret struct {
-		Err   string `json:"error"`
-		Key   string `json:"key"`
-		Errno int    `json:"errno"`
+		Err       string `json:"error"`
+		Key       string `json:"key"`
+		Errno     int    `json:"errno"`
+		ErrorCode string `json:"error_code,omitempty"`
 	}
 	if decodeJsonFromData(body, &ret) == nil && ret.Err != "" {
 		// qiniu error msg style returns here
-		e.Err, e.Key, e.Errno = ret.Err, ret.Key, ret.Errno
+		e.Err, e.Key, e.Errno, e.ErrorCode = ret.Err, ret.Key, ret.Errno, ret.ErrorCode
 		return
 	}
 	e.Err = string(body)
