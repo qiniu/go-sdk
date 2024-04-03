@@ -108,26 +108,26 @@ func (httpClient *Client) Do(ctx context.Context, request *Request) (*http.Respo
 	if err != nil {
 		return nil, err
 	}
-	credentialsProvider := request.Credentials
-	if credentialsProvider == nil {
-		credentialsProvider = httpClient.credentials
-	}
-	upTokenProvider := request.UpToken
-	if credentialsProvider != nil {
-		if credentials, err := credentialsProvider.Get(ctx); err != nil {
-			return nil, err
-		} else {
-			req = clientv2.WithInterceptors(req, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
-				Credentials: credentials,
-				TokenType:   request.AuthType,
-			}))
-		}
-
-	} else if upTokenProvider != nil {
+	if upTokenProvider := request.UpToken; upTokenProvider != nil {
 		if upToken, err := upTokenProvider.GetUpToken(ctx); err != nil {
 			return nil, err
 		} else {
 			req.Header.Set("Authorization", "UpToken "+upToken)
+		}
+	} else {
+		credentialsProvider := request.Credentials
+		if credentialsProvider == nil {
+			credentialsProvider = httpClient.credentials
+		}
+		if credentialsProvider != nil {
+			if credentials, err := credentialsProvider.Get(ctx); err != nil {
+				return nil, err
+			} else {
+				req = clientv2.WithInterceptors(req, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
+					Credentials: credentials,
+					TokenType:   request.AuthType,
+				}))
+			}
 		}
 	}
 	return httpClient.basicHTTPClient.Do(req)
