@@ -48,6 +48,9 @@ func (storage *Storage) PrefetchObject(ctx context.Context, request *PrefetchObj
 	}
 	innerRequest := (*innerPrefetchObjectRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceIo}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "prefetch")
 	if segments, err := innerRequest.buildPath(); err != nil {

@@ -49,6 +49,9 @@ func (storage *Storage) SetBucketAccessMode(ctx context.Context, request *SetBuc
 	}
 	innerRequest := (*innerSetBucketAccessModeRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "accessMode")
 	if segments, err := innerRequest.buildPath(); err != nil {

@@ -47,6 +47,9 @@ func (storage *Storage) BatchOps(ctx context.Context, request *BatchOpsRequest, 
 	}
 	innerRequest := (*innerBatchOpsRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceRs}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "batch")
 	path := "/" + strings.Join(pathSegments, "/")

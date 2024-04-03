@@ -64,6 +64,9 @@ func (storage *Storage) ModifyObjectLifeCycle(ctx context.Context, request *Modi
 	}
 	innerRequest := (*innerModifyObjectLifeCycleRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceRs}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "lifecycle")
 	if segments, err := innerRequest.buildPath(); err != nil {

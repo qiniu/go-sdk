@@ -54,6 +54,9 @@ func (storage *Storage) RestoreArchivedObject(ctx context.Context, request *Rest
 	}
 	innerRequest := (*innerRestoreArchivedObjectRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceRs}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "restoreAr")
 	if segments, err := innerRequest.buildPath(); err != nil {

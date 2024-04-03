@@ -45,6 +45,9 @@ func (storage *Storage) GetAsyncFetchTask(ctx context.Context, request *GetAsync
 	}
 	innerRequest := (*innerGetAsyncFetchTaskRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceApi}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "sisyphus", "fetch")
 	path := "/" + strings.Join(pathSegments, "/")

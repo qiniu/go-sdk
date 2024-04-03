@@ -60,6 +60,9 @@ func (storage *Storage) ResumableUploadV1MakeFile(ctx context.Context, request *
 	}
 	innerRequest := (*innerResumableUploadV1MakeFileRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceUp}
+	if innerRequest.UpToken == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "UpToken"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "mkfile")
 	if segments, err := innerRequest.buildPath(); err != nil {

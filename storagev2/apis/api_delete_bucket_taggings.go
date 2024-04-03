@@ -48,6 +48,9 @@ func (storage *Storage) DeleteBucketTaggings(ctx context.Context, request *Delet
 	}
 	innerRequest := (*innerDeleteBucketTaggingsRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "bucketTagging")
 	path := "/" + strings.Join(pathSegments, "/")

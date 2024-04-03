@@ -47,6 +47,9 @@ func (storage *Storage) GetBucketQuota(ctx context.Context, request *GetBucketQu
 	}
 	innerRequest := (*innerGetBucketQuotaRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "getbucketquota")
 	if segments, err := innerRequest.buildPath(); err != nil {

@@ -51,6 +51,9 @@ func (storage *Storage) ResumableUploadV1Bput(ctx context.Context, request *Resu
 	}
 	innerRequest := (*innerResumableUploadV1BputRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceUp}
+	if innerRequest.UpToken == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "UpToken"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "bput")
 	if segments, err := innerRequest.buildPath(); err != nil {

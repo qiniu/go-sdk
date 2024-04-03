@@ -60,6 +60,9 @@ func (storage *Storage) ResumableUploadV2AbortMultipartUpload(ctx context.Contex
 	}
 	innerRequest := (*innerResumableUploadV2AbortMultipartUploadRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceUp}
+	if innerRequest.UpToken == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "UpToken"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "buckets")
 	if segments, err := innerRequest.buildPath(); err != nil {

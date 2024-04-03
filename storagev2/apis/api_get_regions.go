@@ -6,6 +6,7 @@ import (
 	"context"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getregions "github.com/qiniu/go-sdk/v7/storagev2/apis/get_regions"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"strings"
@@ -34,6 +35,9 @@ func (storage *Storage) GetRegions(ctx context.Context, request *GetRegionsReque
 	}
 	innerRequest := (*innerGetRegionsRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "regions")
 	path := "/" + strings.Join(pathSegments, "/")

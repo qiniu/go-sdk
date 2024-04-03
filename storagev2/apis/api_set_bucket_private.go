@@ -50,6 +50,9 @@ func (storage *Storage) SetBucketPrivate(ctx context.Context, request *SetBucket
 	}
 	innerRequest := (*innerSetBucketPrivateRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "private")
 	path := "/" + strings.Join(pathSegments, "/")

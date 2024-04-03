@@ -48,6 +48,9 @@ func (storage *Storage) DeleteObject(ctx context.Context, request *DeleteObjectR
 	}
 	innerRequest := (*innerDeleteObjectRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceRs}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "delete")
 	if segments, err := innerRequest.buildPath(); err != nil {

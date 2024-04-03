@@ -54,6 +54,9 @@ func (storage *Storage) SetBucketRemark(ctx context.Context, request *SetBucketR
 	}
 	innerRequest := (*innerSetBucketRemarkRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "buckets")
 	if segments, err := innerRequest.buildPath(); err != nil {

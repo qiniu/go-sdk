@@ -58,6 +58,9 @@ func (storage *Storage) SetBucketsMirror(ctx context.Context, request *SetBucket
 	}
 	innerRequest := (*innerSetBucketsMirrorRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "image")
 	if segments, err := innerRequest.buildPath(); err != nil {

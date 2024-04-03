@@ -6,6 +6,7 @@ import (
 	"context"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getbucketsv4 "github.com/qiniu/go-sdk/v7/storagev2/apis/get_buckets_v4"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"net/url"
@@ -49,6 +50,9 @@ func (storage *Storage) GetBucketsV4(ctx context.Context, request *GetBucketsV4R
 	}
 	innerRequest := (*innerGetBucketsV4Request)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "buckets")
 	path := "/" + strings.Join(pathSegments, "/")

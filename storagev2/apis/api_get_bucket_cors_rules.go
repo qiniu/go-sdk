@@ -47,6 +47,9 @@ func (storage *Storage) GetBucketCORSRules(ctx context.Context, request *GetBuck
 	}
 	innerRequest := (*innerGetBucketCORSRulesRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "corsRules", "get")
 	if segments, err := innerRequest.buildPath(); err != nil {

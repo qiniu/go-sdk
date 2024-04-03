@@ -48,6 +48,9 @@ func (storage *Storage) GetBucketDomains(ctx context.Context, request *GetBucket
 	}
 	innerRequest := (*innerGetBucketDomainsRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "v2", "domains")
 	path := "/" + strings.Join(pathSegments, "/")

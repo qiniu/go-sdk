@@ -50,6 +50,9 @@ func (storage *Storage) ModifyObjectStatus(ctx context.Context, request *ModifyO
 	}
 	innerRequest := (*innerModifyObjectStatusRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceRs}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "chstatus")
 	if segments, err := innerRequest.buildPath(); err != nil {

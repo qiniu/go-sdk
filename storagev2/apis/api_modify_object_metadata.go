@@ -58,6 +58,9 @@ func (storage *Storage) ModifyObjectMetadata(ctx context.Context, request *Modif
 	}
 	innerRequest := (*innerModifyObjectMetadataRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceRs}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "chgm")
 	if segments, err := innerRequest.buildPath(); err != nil {

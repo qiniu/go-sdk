@@ -118,6 +118,32 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							}
 						}),
 				)
+				switch description.Request.Authorization.ToAuthorization() {
+				case AuthorizationQbox, AuthorizationQiniu:
+					group.Add(jen.If(
+						jen.Id("innerRequest").Dot("Credentials").Op("==").Nil().Op("&&").
+							Id("storage").Dot("client").Dot("GetCredentials").Call().Op("==").Nil()).
+						BlockFunc(func(group *jen.Group) {
+							group.Add(jen.Return(
+								jen.Nil(),
+								jen.Qual(PackageNameErrors, "MissingRequiredFieldError").
+									ValuesFunc(func(group *jen.Group) {
+										group.Add(jen.Id("Name").Op(":").Lit("Credentials"))
+									}),
+							))
+						}))
+				case AuthorizationUpToken:
+					group.Add(jen.If(jen.Id("innerRequest").Dot("UpToken").Op("==").Nil()).
+						BlockFunc(func(group *jen.Group) {
+							group.Add(jen.Return(
+								jen.Nil(),
+								jen.Qual(PackageNameErrors, "MissingRequiredFieldError").
+									ValuesFunc(func(group *jen.Group) {
+										group.Add(jen.Id("Name").Op(":").Lit("UpToken"))
+									}),
+							))
+						}))
+				}
 				if description.Request.HeaderNames != nil {
 					group.Add(
 						jen.List(jen.Id("headers"), jen.Err()).Op(":=").Id("innerRequest").Dot("buildHeaders").Call(),

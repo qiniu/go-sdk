@@ -56,6 +56,9 @@ func (storage *Storage) FetchObject(ctx context.Context, request *FetchObjectReq
 	}
 	innerRequest := (*innerFetchObjectRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceIo}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "fetch")
 	if segments, err := innerRequest.buildPath(); err != nil {

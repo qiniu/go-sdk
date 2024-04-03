@@ -50,6 +50,9 @@ func (storage *Storage) DeleteObjectAfterDays(ctx context.Context, request *Dele
 	}
 	innerRequest := (*innerDeleteObjectAfterDaysRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceRs}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "deleteAfterDays")
 	if segments, err := innerRequest.buildPath(); err != nil {

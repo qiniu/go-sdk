@@ -64,6 +64,9 @@ func (storage *Storage) GetObjects(ctx context.Context, request *GetObjectsReque
 	}
 	innerRequest := (*innerGetObjectsRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceRsf}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "list")
 	path := "/" + strings.Join(pathSegments, "/")

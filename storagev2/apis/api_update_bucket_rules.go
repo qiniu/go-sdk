@@ -62,6 +62,9 @@ func (storage *Storage) UpdateBucketRules(ctx context.Context, request *UpdateBu
 	}
 	innerRequest := (*innerUpdateBucketRulesRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "rules", "update")
 	path := "/" + strings.Join(pathSegments, "/")

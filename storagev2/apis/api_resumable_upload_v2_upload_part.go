@@ -74,6 +74,9 @@ func (storage *Storage) ResumableUploadV2UploadPart(ctx context.Context, request
 	}
 	innerRequest := (*innerResumableUploadV2UploadPartRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceUp}
+	if innerRequest.UpToken == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "UpToken"}
+	}
 	headers, err := innerRequest.buildHeaders()
 	if err != nil {
 		return nil, err

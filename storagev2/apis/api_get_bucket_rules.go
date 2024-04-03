@@ -45,6 +45,9 @@ func (storage *Storage) GetBucketRules(ctx context.Context, request *GetBucketRu
 	}
 	innerRequest := (*innerGetBucketRulesRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "rules", "get")
 	path := "/" + strings.Join(pathSegments, "/")

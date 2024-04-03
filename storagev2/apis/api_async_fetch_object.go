@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	asyncfetchobject "github.com/qiniu/go-sdk/v7/storagev2/apis/async_fetch_object"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"strings"
@@ -44,6 +45,9 @@ func (storage *Storage) AsyncFetchObject(ctx context.Context, request *AsyncFetc
 	}
 	innerRequest := (*innerAsyncFetchObjectRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceApi}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "sisyphus", "fetch")
 	path := "/" + strings.Join(pathSegments, "/")

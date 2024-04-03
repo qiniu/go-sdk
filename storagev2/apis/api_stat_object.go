@@ -57,6 +57,9 @@ func (storage *Storage) StatObject(ctx context.Context, request *StatObjectReque
 	}
 	innerRequest := (*innerStatObjectRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceRs}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "stat")
 	if segments, err := innerRequest.buildPath(); err != nil {

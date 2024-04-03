@@ -15,6 +15,7 @@ import (
 	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis"
 	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
+	"github.com/qiniu/go-sdk/v7/storagev2/errors"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	"github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
@@ -58,14 +59,20 @@ func TestMkBlk(t *testing.T) {
 	}, nil); err != nil {
 		t.Fatal(err)
 	}
+
+	if _, err = storageClient.ResumableUploadV1MakeBlock(context.Background(), &apis.ResumableUploadV1MakeBlockRequest{
+		BlockSize: 4 * 1024 * 1024,
+		Body:      internal_io.NewReadSeekableNopCloser(bufReader),
+	}, nil); err != nil {
+		if err.(errors.MissingRequiredFieldError).Name != "UpToken" {
+			t.FailNow()
+		}
+	}
 }
 
 func TestCreateBucket(t *testing.T) {
 	credentials := credentials.NewCredentials(testAK, testSK)
-	storageClient := apis.NewStorage(&http_client.Options{
-		Credentials: credentials,
-	})
-	_, err := storageClient.CreateBucket(context.Background(), &apis.CreateBucketRequest{
+	_, err := apis.NewStorage(&http_client.Options{Credentials: credentials}).CreateBucket(context.Background(), &apis.CreateBucketRequest{
 		Bucket: testBucket,
 		Region: "z0",
 	}, nil)
@@ -74,6 +81,27 @@ func TestCreateBucket(t *testing.T) {
 			t.Fatal(err)
 		}
 	} else {
+		t.FailNow()
+	}
+
+	_, err = apis.NewStorage(nil).CreateBucket(context.Background(), &apis.CreateBucketRequest{
+		Bucket:      testBucket,
+		Credentials: credentials,
+		Region:      "z0",
+	}, nil)
+	if err != nil {
+		if err.Error() != "the bucket already exists and you own it." {
+			t.Fatal(err)
+		}
+	} else {
+		t.FailNow()
+	}
+
+	_, err = apis.NewStorage(nil).CreateBucket(context.Background(), &apis.CreateBucketRequest{
+		Bucket: testBucket,
+		Region: "z0",
+	}, nil)
+	if err == nil || err.(errors.MissingRequiredFieldError).Name != "Credentials" {
 		t.FailNow()
 	}
 }

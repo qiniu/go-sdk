@@ -50,6 +50,9 @@ func (storage *Storage) SetBucketMaxAge(ctx context.Context, request *SetBucketM
 	}
 	innerRequest := (*innerSetBucketMaxAgeRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
+	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
+		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
+	}
 	var pathSegments []string
 	pathSegments = append(pathSegments, "maxAge")
 	path := "/" + strings.Join(pathSegments, "/")
