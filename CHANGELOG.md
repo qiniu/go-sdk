@@ -1,8 +1,16 @@
 # Changelog
+## 7.20.0
+* 新增
+  * 新版存储客户端库 storagev2 包，包含
+    * 新的 [region](github.com/qiniu/go-sdk/v7/storagev2/region) 包设计，使用新的 `RegionsProvider` 和 `EndpointsProvider` 接口替代之前的 `Region` 结构体
+    * 新的 [credentials](github.com/qiniu/go-sdk/v7/storagev2/credentials) 包设计，使用新的 `CredentialsProvider` 接口替代之前的 `Credentials` 结构体
+    * 新的 [uptoken](github.com/qiniu/go-sdk/v7/storagev2/uptoken) 包设计，使用新的 `PutPolicy` 结构体，使用新的 `UpTokenProvider` 接口替代之前用字符串表示上传凭证的方式
+    * 新的 [apis](github.com/qiniu/go-sdk/v7/storagev2/apis) 包设计，使用新的 `Storage` 结构体调用七牛 Kodo API
+
 ## 7.19.1
 * 新增
   * PutPolicy 添加 transform 相关字段
-  
+
 ## 7.19.0
 * 新增
   * 支持归档直读存储
