@@ -207,7 +207,10 @@ func isNetworkErrorWithOpError(err *net.OpError) bool {
 		return isNetworkErrorWithOpError(t)
 	default:
 		desc := err.Err.Error()
-		if strings.Contains(desc, "use of closed network connection") {
+		if strings.Contains(desc, "use of closed network connection") ||
+			strings.Contains(desc, "unexpected EOF reading trailer") ||
+			strings.Contains(desc, "transport connection broken") ||
+			strings.Contains(desc, "server closed idle connection") {
 			return true
 		}
 	}
