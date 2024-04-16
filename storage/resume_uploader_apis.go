@@ -2,22 +2,20 @@ package storage
 
 import (
 	"context"
-	"encoding/base64"
 	"io"
-	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
-
-	"github.com/qiniu/go-sdk/v7/client"
-	"github.com/qiniu/go-sdk/v7/conf"
+	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v2_complete_multipart_upload"
+	"github.com/qiniu/go-sdk/v7/storagev2/region"
+	"github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
 
 type resumeUploaderAPIs struct {
-	Client *client.Client
-	Cfg    *Config
+	cfg     *Config
+	storage *apis.Storage
 }
 
 // BlkputRet 表示分片上传每个片上传完毕的返回值
@@ -33,16 +31,59 @@ type BlkputRet struct {
 	blkIdx     int
 }
 
-func (p *resumeUploaderAPIs) mkBlk(ctx context.Context, upToken, upHost string, ret *BlkputRet, blockSize int64, body io.Reader, size int64) error {
-	reqUrl := upHost + "/mkblk/" + strconv.FormatInt(blockSize, 10)
-
-	return p.Client.CallWith64(ctx, ret, "POST", reqUrl, makeHeadersForUpload(upToken), body, size)
+func (p *resumeUploaderAPIs) mkBlk(
+	ctx context.Context, upToken string, upEndpoints region.EndpointsProvider,
+	ret *BlkputRet, blockSize int64, body io.Reader, size int64,
+) error {
+	response, err := p.storage.ResumableUploadV1MakeBlock(
+		ctx,
+		&apis.ResumableUploadV1MakeBlockRequest{
+			BlockSize: blockSize,
+			UpToken:   uptoken.NewParser(upToken),
+			Body:      internal_io.MakeReadSeekCloserFromReader(body),
+		},
+		makeApiOptionsFromUpEndpoints(upEndpoints),
+	)
+	if err != nil {
+		return err
+	}
+	*ret = BlkputRet{
+		Ctx:       response.Ctx,
+		Checksum:  response.Checksum,
+		Crc32:     uint32(response.Crc32),
+		Offset:    uint32(response.Offset),
+		Host:      response.Host,
+		ExpiredAt: response.ExpiredAt,
+	}
+	return nil
 }
 
-func (p *resumeUploaderAPIs) bput(ctx context.Context, upToken string, ret *BlkputRet, body io.Reader, size int64) error {
-	reqUrl := ret.Host + "/bput/" + ret.Ctx + "/" + strconv.FormatUint(uint64(ret.Offset), 10)
-
-	return p.Client.CallWith64(ctx, ret, "POST", reqUrl, makeHeadersForUpload(upToken), body, size)
+func (p *resumeUploaderAPIs) bput(
+	ctx context.Context, upToken string, upEndpoints region.EndpointsProvider,
+	ret *BlkputRet, body io.Reader, size int64,
+) error {
+	response, err := p.storage.ResumableUploadV1Bput(
+		ctx,
+		&apis.ResumableUploadV1BputRequest{
+			Ctx:         ret.Ctx,
+			ChunkOffset: int64(ret.Offset),
+			UpToken:     uptoken.NewParser(upToken),
+			Body:        internal_io.MakeReadSeekCloserFromReader(body),
+		},
+		makeApiOptionsFromUpEndpoints(upEndpoints),
+	)
+	if err != nil {
+		return err
+	}
+	*ret = BlkputRet{
+		Ctx:       response.Ctx,
+		Checksum:  response.Checksum,
+		Crc32:     uint32(response.Crc32),
+		Offset:    uint32(response.Offset),
+		Host:      response.Host,
+		ExpiredAt: response.ExpiredAt,
+	}
+	return nil
 }
 
 // RputExtra 表示分片上传额外可以指定的参数
@@ -81,32 +122,31 @@ func (extra *RputExtra) init() {
 	}
 }
 
-func (extra *RputExtra) getUpHost(useHttps bool) string {
-	return hostAddSchemeIfNeeded(useHttps, extra.UpHost)
-}
-
-func (p *resumeUploaderAPIs) mkfile(ctx context.Context, upToken, upHost string, ret interface{}, key string, hasKey bool, fsize int64, extra *RputExtra) (err error) {
-	url := upHost + "/mkfile/" + strconv.FormatInt(fsize, 10)
+func (p *resumeUploaderAPIs) mkfile(
+	ctx context.Context, upToken string, upEndpoints region.EndpointsProvider,
+	ret interface{}, key string, hasKey bool, fsize int64, extra *RputExtra,
+) error {
 	if extra == nil {
 		extra = &RputExtra{}
-	}
-	if extra.MimeType != "" {
-		url += "/mimeType/" + encode(extra.MimeType)
-	}
-	if hasKey {
-		url += "/key/" + encode(key)
-	}
-	for k, v := range extra.Params {
-		if (strings.HasPrefix(k, "x:") || strings.HasPrefix(k, "x-qn-meta-")) && v != "" {
-			url += "/" + k + "/" + encode(v)
-		}
 	}
 	ctxs := make([]string, len(extra.Progresses))
 	for i, progress := range extra.Progresses {
 		ctxs[i] = progress.Ctx
 	}
-	buf := strings.Join(ctxs, ",")
-	return p.Client.CallWith(ctx, ret, "POST", url, makeHeadersForUpload(upToken), strings.NewReader(buf), len(buf))
+	_, err := p.storage.ResumableUploadV1MakeFile(
+		ctx,
+		&apis.ResumableUploadV1MakeFileRequest{
+			Size:         fsize,
+			ObjectName:   makeKeyForUploading(key, hasKey),
+			MimeType:     extra.MimeType,
+			CustomData:   makeCustomData(extra.Params),
+			UpToken:      uptoken.NewParser(upToken),
+			Body:         internal_io.MakeReadSeekCloserFromReader(strings.NewReader(strings.Join(ctxs, ","))),
+			ResponseBody: ret,
+		},
+		makeApiOptionsFromUpEndpoints(upEndpoints),
+	)
+	return err
 }
 
 // InitPartsRet 表示分片上传 v2 初始化完毕的返回值
@@ -115,10 +155,27 @@ type InitPartsRet struct {
 	ExpireAt int64  `json:"expireAt"`
 }
 
-func (p *resumeUploaderAPIs) initParts(ctx context.Context, upToken, upHost, bucket, key string, hasKey bool, ret *InitPartsRet) error {
-	reqUrl := upHost + "/buckets/" + bucket + "/objects/" + encodeV2(key, hasKey) + "/uploads"
-
-	return p.Client.CallWith(ctx, ret, "POST", reqUrl, makeHeadersForUploadEx(upToken, ""), nil, 0)
+func (p *resumeUploaderAPIs) initParts(
+	ctx context.Context, upToken string, upEndpoints region.EndpointsProvider,
+	bucket, key string, hasKey bool, ret *InitPartsRet,
+) error {
+	response, err := p.storage.ResumableUploadV2InitiateMultipartUpload(
+		ctx,
+		&apis.ResumableUploadV2InitiateMultipartUploadRequest{
+			BucketName: bucket,
+			ObjectName: makeKeyForUploading(key, hasKey),
+			UpToken:    uptoken.NewParser(upToken),
+		},
+		makeApiOptionsFromUpEndpoints(upEndpoints),
+	)
+	if err != nil {
+		return err
+	}
+	*ret = InitPartsRet{
+		UploadID: response.UploadId,
+		ExpireAt: response.ExpiredAt,
+	}
+	return nil
 }
 
 // UploadPartsRet 表示分片上传 v2 每个片上传完毕的返回值
@@ -127,10 +184,31 @@ type UploadPartsRet struct {
 	MD5  string `json:"md5"`
 }
 
-func (p *resumeUploaderAPIs) uploadParts(ctx context.Context, upToken, upHost, bucket, key string, hasKey bool, uploadId string, partNumber int64, partMD5 string, ret *UploadPartsRet, body io.Reader, size int64) error {
-	reqUrl := upHost + "/buckets/" + bucket + "/objects/" + encodeV2(key, hasKey) + "/uploads/" + uploadId + "/" + strconv.FormatInt(partNumber, 10)
-
-	return p.Client.CallWith64(ctx, ret, "PUT", reqUrl, makeHeadersForUploadPart(upToken, partMD5), body, size)
+func (p *resumeUploaderAPIs) uploadParts(
+	ctx context.Context, upToken string, upEndpoints region.EndpointsProvider,
+	bucket, key string, hasKey bool, uploadId string, partNumber int64, partMD5 string, ret *UploadPartsRet, body io.Reader, size int64,
+) error {
+	response, err := p.storage.ResumableUploadV2UploadPart(
+		ctx,
+		&apis.ResumableUploadV2UploadPartRequest{
+			BucketName: bucket,
+			ObjectName: makeKeyForUploading(key, hasKey),
+			UploadId:   uploadId,
+			PartNumber: partNumber,
+			Md5:        partMD5,
+			UpToken:    uptoken.NewParser(upToken),
+			Body:       internal_io.MakeReadSeekCloserFromLimitedReader(body, size),
+		},
+		makeApiOptionsFromUpEndpoints(upEndpoints),
+	)
+	if err != nil {
+		return err
+	}
+	*ret = UploadPartsRet{
+		Etag: response.Etag,
+		MD5:  response.Md5,
+	}
+	return nil
 }
 
 type UploadPartInfo struct {
@@ -173,83 +251,70 @@ func (extra *RputV2Extra) init() {
 	}
 }
 
-func (extra *RputV2Extra) getUpHost(useHttps bool) string {
-	return hostAddSchemeIfNeeded(useHttps, extra.UpHost)
-}
-
-func hostAddSchemeIfNeeded(useHttps bool, host string) string {
-	if host == "" {
-		return ""
-	} else if strings.Contains(host, "://") {
-		return host
-	} else {
-		return endpoint(useHttps, host)
+func (p *resumeUploaderAPIs) completeParts(
+	ctx context.Context, upToken string, upEndpoints region.EndpointsProvider, ret interface{},
+	bucket, key string, hasKey bool, uploadId string, extra *RputV2Extra,
+) error {
+	parts := make([]resumable_upload_v2_complete_multipart_upload.PartInfo, 0, len(extra.Progresses))
+	for i := range extra.Progresses {
+		parts = append(parts, resumable_upload_v2_complete_multipart_upload.PartInfo{
+			PartNumber: extra.Progresses[i].PartNumber,
+			Etag:       extra.Progresses[i].Etag,
+		})
 	}
-}
-
-func (p *resumeUploaderAPIs) completeParts(ctx context.Context, upToken, upHost string, ret interface{}, bucket, key string, hasKey bool, uploadId string, extra *RputV2Extra) (err error) {
-	type CompletePartBody struct {
-		Parts      []UploadPartInfo  `json:"parts"`
-		MimeType   string            `json:"mimeType,omitempty"`
-		Metadata   map[string]string `json:"metadata,omitempty"`
-		CustomVars map[string]string `json:"customVars,omitempty"`
-	}
-	if extra == nil {
-		extra = &RputV2Extra{}
-	}
-	completePartBody := CompletePartBody{
-		Parts:      extra.Progresses,
-		MimeType:   extra.MimeType,
-		Metadata:   extra.Metadata,
-		CustomVars: make(map[string]string),
-	}
+	customVars := make(map[string]string, len(extra.CustomVars))
 	for k, v := range extra.CustomVars {
 		if strings.HasPrefix(k, "x:") && v != "" {
-			completePartBody.CustomVars[k] = v
+			customVars[k] = v
 		}
 	}
-
-	reqUrl := upHost + "/buckets/" + bucket + "/objects/" + encodeV2(key, hasKey) + "/uploads/" + uploadId
-
-	return p.Client.CallWithJson(ctx, ret, "POST", reqUrl, makeHeadersForUploadEx(upToken, conf.CONTENT_TYPE_JSON), &completePartBody)
+	_, err := p.storage.ResumableUploadV2CompleteMultipartUpload(
+		ctx,
+		&apis.ResumableUploadV2CompleteMultipartUploadRequest{
+			BucketName:   bucket,
+			ObjectName:   makeKeyForUploading(key, hasKey),
+			UploadId:     uploadId,
+			UpToken:      uptoken.NewParser(upToken),
+			Parts:        parts,
+			MimeType:     extra.MimeType,
+			Metadata:     extra.Metadata,
+			CustomVars:   customVars,
+			ResponseBody: ret,
+		},
+		makeApiOptionsFromUpEndpoints(upEndpoints),
+	)
+	return err
 }
 
 func (p *resumeUploaderAPIs) upHost(ak, bucket string) (upHost string, err error) {
-	return getUpHost(p.Cfg, 0, 0, ak, bucket)
+	return getUpHost(p.cfg, 0, 0, ak, bucket)
 }
 
-func (p *resumeUploaderAPIs) upHostProvider(ak, bucket string, retryMax int, hostFreezeDuration time.Duration) (hostProvider hostprovider.HostProvider, err error) {
-	return getUpHostProvider(p.Cfg, retryMax, hostFreezeDuration, ak, bucket)
-}
-
-func makeHeadersForUpload(upToken string) http.Header {
-	return makeHeadersForUploadEx(upToken, conf.CONTENT_TYPE_OCTET)
-}
-
-func makeHeadersForUploadPart(upToken, partMD5 string) http.Header {
-	headers := makeHeadersForUpload(upToken)
-	headers.Add("Content-MD5", partMD5)
-	return headers
-}
-
-func makeHeadersForUploadEx(upToken, contentType string) http.Header {
-	headers := http.Header{}
-	if contentType != "" {
-		headers.Add("Content-Type", contentType)
+func makeEndpointsFromUpHost(upHost string) region.EndpointsProvider {
+	if upHost != "" {
+		return &region.Endpoints{Preferred: []string{upHost}}
 	}
-	headers.Add("Authorization", "UpToken "+upToken)
-	return headers
+	return nil
 }
 
-func encode(raw string) string {
-	return base64.URLEncoding.EncodeToString([]byte(raw))
+func makeApiOptionsFromUpEndpoints(upEndpoints region.EndpointsProvider) *apis.Options {
+	if upEndpoints != nil {
+		return &apis.Options{
+			OverwrittenEndpoints: upEndpoints,
+		}
+	}
+	return nil
 }
 
-func encodeV2(key string, hasKey bool) string {
-	if !hasKey {
-		return "~"
+func makeApiOptionsFromUpHost(upHost string) *apis.Options {
+	return makeApiOptionsFromUpEndpoints(makeEndpointsFromUpHost(upHost))
+}
+
+func makeKeyForUploading(key string, hasKey bool) *string {
+	if hasKey {
+		return &key
 	} else {
-		return encode(key)
+		return nil
 	}
 }
 

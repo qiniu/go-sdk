@@ -6,11 +6,12 @@ package storage
 import (
 	"context"
 	"fmt"
-	clientV1 "github.com/qiniu/go-sdk/v7/client"
 	"io"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	clientV1 "github.com/qiniu/go-sdk/v7/client"
 )
 
 func getUploadManager() *UploadManager {

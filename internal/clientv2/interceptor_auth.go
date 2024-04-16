@@ -1,13 +1,14 @@
 package clientv2
 
 import (
-	"github.com/qiniu/go-sdk/v7/auth"
 	"net/http"
+
+	"github.com/qiniu/go-sdk/v7/auth"
 )
 
 type AuthConfig struct {
-	Credentials auth.Credentials //
-	TokenType   auth.TokenType   // 不包含上传
+	Credentials *auth.Credentials //
+	TokenType   auth.TokenType    // 不包含上传
 }
 
 type authInterceptor struct {
@@ -29,9 +30,11 @@ func (interceptor *authInterceptor) Intercept(req *http.Request, handler Handler
 		return handler(req)
 	}
 
-	err := interceptor.config.Credentials.AddToken(interceptor.config.TokenType, req)
-	if err != nil {
-		return nil, err
+	if credentials := interceptor.config.Credentials; credentials != nil {
+		err := credentials.AddToken(interceptor.config.TokenType, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return handler(req)

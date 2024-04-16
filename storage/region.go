@@ -10,6 +10,9 @@ import (
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis"
+	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	region_v2 "github.com/qiniu/go-sdk/v7/storagev2/region"
 )
 
 // 存储所在的地区，例如华东，华南，华北
@@ -93,6 +96,28 @@ func (r *Region) GetRsHost(useHttps bool) string {
 // 获取api host
 func (r *Region) GetApiHost(useHttps bool) string {
 	return endpoint(useHttps, r.ApiHost)
+}
+
+func (r *Region) GetRegions(ctx context.Context) ([]*region_v2.Region, error) {
+	newRegion := &region_v2.Region{
+		Up: region_v2.Endpoints{Preferred: append(r.CdnUpHosts, r.SrcUpHosts...)},
+	}
+	if host := r.IovipHost; host != "" {
+		newRegion.Io = region_v2.Endpoints{Preferred: []string{host}}
+	}
+	if host := r.IoSrcHost; host != "" {
+		newRegion.IoSrc = region_v2.Endpoints{Preferred: []string{host}}
+	}
+	if host := r.RsHost; host != "" {
+		newRegion.Rs = region_v2.Endpoints{Preferred: []string{host}}
+	}
+	if host := r.RsfHost; host != "" {
+		newRegion.Rsf = region_v2.Endpoints{Preferred: []string{host}}
+	}
+	if host := r.ApiHost; host != "" {
+		newRegion.Api = region_v2.Endpoints{Preferred: []string{host}}
+	}
+	return []*region_v2.Region{newRegion}, nil
 }
 
 var (
@@ -265,6 +290,23 @@ func getUcBackupHosts() []string {
 	return hosts
 }
 
+func getUcEndpoint(useHttps bool) region_v2.EndpointsProvider {
+	ucHosts := make([]string, 0, 1+len(ucHosts))
+	if len(UcHost) > 0 {
+		ucHosts = append(ucHosts, endpoint(useHttps, UcHost))
+	}
+	for _, host := range ucHosts {
+		if len(host) > 0 {
+			ucHosts = append(ucHosts, endpoint(useHttps, host))
+		}
+	}
+	if len(ucHosts) > 0 {
+		return region_v2.Endpoints{Preferred: ucHosts}
+	} else {
+		return nil
+	}
+}
+
 // GetRegion 用来根据ak和bucket来获取空间相关的机房信息
 // 延用 v2, v2 结构和 v4 结构不同且暂不可替代
 // Deprecated 使用 GetRegionWithOptions 替换
@@ -305,28 +347,27 @@ func GetRegionsInfo(mac *auth.Credentials) ([]RegionInfo, error) {
 }
 
 func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]RegionInfo, error) {
-	var regions struct {
-		Regions []RegionInfo `json:"regions"`
-	}
-
-	reqUrl := getUcHost(options.UseHttps) + "/regions"
-	c := getUCClient(ucClientConfig{
-		IsUcQueryApi:       false,
-		RetryMax:           options.RetryMax,
+	response, err := apis.NewStorage(&http_client.Options{
 		HostFreezeDuration: options.HostFreezeDuration,
-	}, mac)
-	qErr := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
-		Context:     context.Background(),
-		Method:      clientv2.RequestMethodGet,
-		Url:         reqUrl,
-		Header:      nil,
-		BodyCreator: nil,
-	}, &regions)
-	if qErr != nil {
-		return nil, fmt.Errorf("query region error, %s", qErr.Error())
-	} else {
-		return regions.Regions, nil
+		HostRetryConfig: &clientv2.RetryConfig{
+			RetryMax: options.RetryMax,
+		},
+	}).GetRegions(
+		context.Background(),
+		&apis.GetRegionsRequest{Credentials: mac},
+		&apis.Options{OverwrittenBucketHosts: getUcEndpoint(options.UseHttps)},
+	)
+	if err != nil {
+		return nil, err
 	}
+	regions := make([]RegionInfo, 0, len(response.Regions))
+	for _, region := range response.Regions {
+		regions = append(regions, RegionInfo{
+			ID:          region.Id,
+			Description: region.Description,
+		})
+	}
+	return regions, nil
 }
 
 type ucClientConfig struct {
@@ -376,7 +417,7 @@ func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
 
 	if mac != nil {
 		is = append(is, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
-			Credentials: *mac,
+			Credentials: mac,
 			TokenType:   auth.TokenQiniu,
 		}))
 	}

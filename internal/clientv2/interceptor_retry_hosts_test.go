@@ -4,11 +4,12 @@
 package clientv2
 
 import (
-	clientV1 "github.com/qiniu/go-sdk/v7/client"
-	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"net/http"
 	"testing"
 	"time"
+
+	clientV1 "github.com/qiniu/go-sdk/v7/client"
+	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 )
 
 func TestHostsAlwaysRetryInterceptor(t *testing.T) {
@@ -67,11 +68,11 @@ func TestHostsAlwaysRetryInterceptor(t *testing.T) {
 	start := time.Now()
 
 	resp, _ := Do(c, RequestParams{
-		Context:     nil,
-		Method:      RequestMethodGet,
-		Url:         "https://" + hostA + "/path/123",
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  RequestMethodGet,
+		Url:     "https://" + hostA + "/path/123",
+		Header:  nil,
+		GetBody: nil,
 	})
 	duration := float32(time.Now().UnixNano()-start.UnixNano()) / 1e9
 
@@ -149,11 +150,11 @@ func TestHostsNotRetryInterceptor(t *testing.T) {
 	start := time.Now()
 
 	resp, _ := Do(c, RequestParams{
-		Context:     nil,
-		Method:      RequestMethodGet,
-		Url:         "https://" + hostA + "/path/123",
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  RequestMethodGet,
+		Url:     "https://" + hostA + "/path/123",
+		Header:  nil,
+		GetBody: nil,
 	})
 	duration := float32(time.Now().UnixNano()-start.UnixNano()) / 1e9
 
@@ -225,11 +226,11 @@ func TestHostsRetryInterceptorByRequest(t *testing.T) {
 
 	c := NewClient(nil, interceptor, hRetryInterceptor, sRetryInterceptor)
 	resp, err := Do(c, RequestParams{
-		Context:     nil,
-		Method:      RequestMethodGet,
-		Url:         "https://" + hostA,
-		Header:      nil,
-		BodyCreator: nil,
+		Context: nil,
+		Method:  RequestMethodGet,
+		Url:     "https://" + hostA,
+		Header:  nil,
+		GetBody: nil,
 	})
 
 	if err != nil {

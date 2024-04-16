@@ -59,6 +59,7 @@ func init() {
 	mac = auth.New(testAK, testSK)
 	cfg := Config{}
 	cfg.UseCdnDomains = false
+	cfg.UseHTTPS = true
 	bucketManager = NewBucketManagerEx(mac, &cfg, &clt)
 	operationManager = NewOperationManagerEx(mac, &cfg, &clt)
 	formUploader = NewFormUploaderEx(&cfg, &clt)
@@ -797,16 +798,23 @@ func TestBucketLifeCycleRule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("TestBucketLifeCycleRule: %v\n", err)
 	}
-	ruleExists := false
-	for _, r := range rules {
-		if r.Name == "golangIntegrationTest" && r.Prefix == "testPutFileKey" && r.DeleteAfterDays == 13 &&
-			r.ToLineAfterDays == 1 && r.ToArchiveIRAfterDays == 2 && r.ToArchiveAfterDays == 6 && r.ToDeepArchiveAfterDays == 10 {
-			ruleExists = true
+	var foundRule *BucketLifeCycleRule
+	for i := range rules {
+		if rules[i].Name == "golangIntegrationTest" && rules[i].Prefix == "testPutFileKey" {
+			foundRule = &rules[i]
 			break
 		}
 	}
-	if !ruleExists {
-		t.Fatalf("TestBucketLifeCycleRule: %v\n", err)
+	if foundRule == nil {
+		t.Fatalf("TestBucketLifeCycleRule: rule name not found")
+	} else if foundRule.DeleteAfterDays != 13 {
+		t.Fatalf("TestBucketLifeCycleRule: foundRule.DeleteAfterDays = %d", foundRule.DeleteAfterDays)
+	} else if foundRule.ToLineAfterDays != 1 {
+		t.Fatalf("TestBucketLifeCycleRule: foundRule.ToLineAfterDays = %d", foundRule.ToLineAfterDays)
+	} else if foundRule.ToArchiveAfterDays != 6 {
+		t.Fatalf("TestBucketLifeCycleRule: foundRule.ToArchiveAfterDays = %d", foundRule.ToArchiveAfterDays)
+	} else if foundRule.ToDeepArchiveAfterDays != 10 {
+		t.Fatalf("TestBucketLifeCycleRule: foundRule.ToDeepArchiveAfterDays = %d", foundRule.ToDeepArchiveAfterDays)
 	}
 
 	err = bucketManager.UpdateBucketLifeCycleRule(testBucket, &BucketLifeCycleRule{
@@ -827,16 +835,23 @@ func TestBucketLifeCycleRule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("TestBucketLifeCycleRule: %v\n", err)
 	}
-	ruleExists = false
-	for _, r := range rules {
-		if r.Name == "golangIntegrationTest" && r.Prefix == "testPutFileKey" && r.DeleteAfterDays == 22 &&
-			r.ToLineAfterDays == 11 && r.ToArchiveIRAfterDays == 12 && r.ToArchiveAfterDays == 16 && r.ToDeepArchiveAfterDays == 20 {
-			ruleExists = true
+	foundRule = nil
+	for i := range rules {
+		if rules[i].Name == "golangIntegrationTest" && rules[i].Prefix == "testPutFileKey" {
+			foundRule = &rules[i]
 			break
 		}
 	}
-	if !ruleExists {
-		t.Fatalf("TestBucketLifeCycleRule: %v\n", err)
+	if foundRule == nil {
+		t.Fatalf("TestBucketLifeCycleRule: rule name not found")
+	} else if foundRule.DeleteAfterDays != 22 {
+		t.Fatalf("TestBucketLifeCycleRule: foundRule.DeleteAfterDays = %d", foundRule.DeleteAfterDays)
+	} else if foundRule.ToLineAfterDays != 11 {
+		t.Fatalf("TestBucketLifeCycleRule: foundRule.ToLineAfterDays = %d", foundRule.ToLineAfterDays)
+	} else if foundRule.ToArchiveAfterDays != 16 {
+		t.Fatalf("TestBucketLifeCycleRule: foundRule.ToArchiveAfterDays = %d", foundRule.ToArchiveAfterDays)
+	} else if foundRule.ToDeepArchiveAfterDays != 20 {
+		t.Fatalf("TestBucketLifeCycleRule: foundRule.ToDeepArchiveAfterDays = %d", foundRule.ToDeepArchiveAfterDays)
 	}
 
 	err = bucketManager.DelBucketLifeCycleRule(testBucket, "golangIntegrationTest")

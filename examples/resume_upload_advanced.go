@@ -11,7 +11,9 @@ import (
 	"sync"
 
 	"context"
+
 	"github.com/qiniu/go-sdk/v7/auth"
+	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
 	"github.com/qiniu/go-sdk/v7/storage"
 )
 
@@ -76,7 +78,7 @@ func main() {
 	// 尝试从旧的进度文件中读取进度
 	recordFp, openErr := os.Open(recordPath)
 	if openErr == nil {
-		progressBytes, readErr := ioutil.ReadAll(recordFp)
+		progressBytes, readErr := internal_io.ReadAll(recordFp)
 		if readErr == nil {
 			mErr := json.Unmarshal(progressBytes, &progressRecord)
 			if mErr == nil {

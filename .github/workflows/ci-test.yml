@@ -13,19 +13,18 @@ jobs:
         with:
           path: src/github.com/qiniu/go-sdk
           ref: ${{ github.ref }}
+          submodules: recursive
       - name: Install Go
         uses: actions/setup-go@v2
         with:
           go-version: '1.10.x'
-      - name: Format
-        run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
-        working-directory: src/github.com/qiniu/go-sdk
       - name: Run unit cases
         run: |
           set -e
           rm -rf $GITHUB_WORKSPACE/src/github.com/qiniu/x && git clone -b v1.12.21 --depth 1 https://github.com/qiniu/x.git $GITHUB_WORKSPACE/src/github.com/qiniu/x
           GOPATH=$GITHUB_WORKSPACE go get golang.org/x/sync/singleflight
           GOPATH=$GITHUB_WORKSPACE go get github.com/qiniu/dyn
+          GOPATH=$GITHUB_WORKSPACE go get github.com/gofrs/flock
 
           # FIXME special package
           # github.com/go-playground/validator/v10
@@ -34,15 +33,20 @@ jobs:
           # new package name don't work in non-module mode
           rm -rf $GITHUB_WORKSPACE/src/github.com/go-playground/validator/v10 && git clone -b v10.9.0 --depth 1 https://github.com/go-playground/validator.git $GITHUB_WORKSPACE/src/github.com/go-playground/validator/v10
           rm -rf $GITHUB_WORKSPACE/src/github.com/universal-translator && git clone -b v0.18.0 --depth 1 https://github.com/go-playground/universal-translator.git $GITHUB_WORKSPACE/src/github.com/go-playground/universal-translator
-          
+
           rm -rf $GITHUB_WORKSPACE/src/golang.org/x/crypto && git clone -b v0.10.0 --depth 1 https://go.googlesource.com/crypto $GITHUB_WORKSPACE/src/golang.org/x/crypto
           # GOPATH=$GITHUB_WORKSPACE go get golang.org/x/crypto/sha3
-          
+
           rm -rf $GITHUB_WORKSPACE/src/golang.org/x/text && git clone -b v0.10.0 --depth 1 https://github.com/golang/text $GITHUB_WORKSPACE/src/golang.org/x/text
           # GOPATH=$GITHUB_WORKSPACE go get golang.org/x/text/language
-          
+
           GOPATH=$GITHUB_WORKSPACE go get github.com/leodido/go-urn
           GOPATH=$GITHUB_WORKSPACE go get github.com/go-playground/locales
+
+          rm -rf $GITHUB_WORKSPACE/src/github.com/dave/jennifer && git clone -b v1.6.1 --depth 1 https://github.com/dave/jennifer $GITHUB_WORKSPACE/src/github.com/dave/jennifer
+          # GOPATH=$GITHUB_WORKSPACE go get github.com/dave/jennifer
+
+          GOPATH=$GITHUB_WORKSPACE go get github.com/iancoleman/strcase
 
           # github.com/stretchr/testify
           # newer version require newer go feature
@@ -50,7 +54,7 @@ jobs:
           GOPATH=$GITHUB_WORKSPACE go get github.com/davecgh/go-spew/spew
           GOPATH=$GITHUB_WORKSPACE go get github.com/pmezard/go-difflib/difflib
           GOPATH=$GITHUB_WORKSPACE go get gopkg.in/yaml.v3
-  
+
           GOPATH=$GITHUB_WORKSPACE make unittest
         working-directory: src/github.com/qiniu/go-sdk
   go-mod-test:
@@ -59,7 +63,7 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        go_version: ['1.11.x', '1.12.x', '1.13.x', '1.14.x', '1.15.x', '1.16.x', '1.17.x', '1.18.x', '1.19.x', '1.20.x']
+        go_version: ['1.11.x', '1.12.x', '1.13.x', '1.14.x', '1.15.x', '1.16.x', '1.17.x', '1.18.x', '1.19.x', '1.20.x', '1.21.x']
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -70,15 +74,21 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: ${{ github.ref }}
+          submodules: recursive
       - name: Install Go
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go_version }}
       - name: Format
-        run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
+        run: |
+          if [ "${{ matrix.go_version }}" = "1.21.x" ]; then
+            if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+              exit 1
+            fi
+          fi
       - name: Golint
         run: |
-          if [ "${{ matrix.go_version }}" = "1.20.x" ]; then
+          if [ "${{ matrix.go_version }}" = "1.21.x" ]; then
             set -e
             go install honnef.co/go/tools/cmd/staticcheck@latest
             make staticcheck

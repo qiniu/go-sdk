@@ -16,12 +16,17 @@ import (
 
 	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/conf"
+	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
 	"github.com/qiniu/go-sdk/v7/internal/log"
 	"github.com/qiniu/go-sdk/v7/reqid"
 )
 
 var UserAgent = getUserAgentWithAppName("default")
-var DefaultClient = Client{&http.Client{Transport: http.DefaultTransport}}
+var DefaultClient = Client{
+	&http.Client{
+		Transport: http.DefaultTransport,
+	},
+}
 
 // 用来打印调试信息
 var DebugMode = false
@@ -144,7 +149,7 @@ func (r Client) DoRequestWithForm(ctx context.Context, method, reqUrl string, he
 	if headers == nil {
 		headers = http.Header{}
 	}
-	headers.Add("Content-Type", "application/x-www-form-urlencoded")
+	headers.Set("Content-Type", conf.CONTENT_TYPE_FORM)
 
 	requestData := url.Values(data).Encode()
 	if method == "GET" || method == "HEAD" || method == "DELETE" {
@@ -170,7 +175,7 @@ func (r Client) DoRequestWithJson(ctx context.Context, method, reqUrl string, he
 	if headers == nil {
 		headers = http.Header{}
 	}
-	headers.Add("Content-Type", "application/json")
+	headers.Set("Content-Type", conf.CONTENT_TYPE_JSON)
 	return r.DoRequestWith(ctx, method, reqUrl, headers, bytes.NewReader(reqBody), len(reqBody))
 }
 
@@ -194,11 +199,12 @@ func (r Client) Do(ctx context.Context, req *http.Request) (resp *http.Response,
 // --------------------------------------------------------------------
 
 type ErrorInfo struct {
-	Err   string `json:"error,omitempty"`
-	Key   string `json:"key,omitempty"`
-	Reqid string `json:"reqid,omitempty"`
-	Errno int    `json:"errno,omitempty"`
-	Code  int    `json:"code"`
+	Err       string `json:"error,omitempty"`
+	ErrorCode string `json:"error_code,omitempty"`
+	Key       string `json:"key,omitempty"`
+	Reqid     string `json:"reqid,omitempty"`
+	Errno     int    `json:"errno,omitempty"`
+	Code      int    `json:"code"`
 }
 
 func (r *ErrorInfo) ErrorDetail() string {
@@ -226,20 +232,21 @@ func (r *ErrorInfo) HttpCode() int {
 
 func parseError(e *ErrorInfo, r io.Reader) {
 
-	body, err1 := ioutil.ReadAll(r)
+	body, err1 := internal_io.ReadAll(r)
 	if err1 != nil {
 		e.Err = err1.Error()
 		return
 	}
 
 	var ret struct {
-		Err   string `json:"error"`
-		Key   string `json:"key"`
-		Errno int    `json:"errno"`
+		Err       string `json:"error"`
+		Key       string `json:"key"`
+		Errno     int    `json:"errno"`
+		ErrorCode string `json:"error_code,omitempty"`
 	}
 	if decodeJsonFromData(body, &ret) == nil && ret.Err != "" {
 		// qiniu error msg style returns here
-		e.Err, e.Key, e.Errno = ret.Err, ret.Key, ret.Errno
+		e.Err, e.Key, e.Errno, e.ErrorCode = ret.Err, ret.Key, ret.Errno, ret.ErrorCode
 		return
 	}
 	e.Err = string(body)
@@ -264,7 +271,7 @@ func ResponseError(resp *http.Response) error {
 			if ok && strings.HasPrefix(ct[0], "application/json") {
 				parseError(e, resp.Body)
 			} else {
-				bs, err := ioutil.ReadAll(resp.Body)
+				bs, err := internal_io.ReadAll(resp.Body)
 				if err != nil {
 					e.Err = fmt.Sprintf("failed to read from response body: %s", err)
 				} else {
@@ -279,7 +286,7 @@ func ResponseError(resp *http.Response) error {
 func CallRet(ctx context.Context, ret interface{}, resp *http.Response) (err error) {
 
 	defer func() {
-		io.Copy(ioutil.Discard, resp.Body)
+		_ = internal_io.SinkAll(resp.Body)
 		resp.Body.Close()
 	}()
 
