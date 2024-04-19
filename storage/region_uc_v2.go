@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -318,5 +319,5 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 
 func makeRegionCacheKey(ak, bucket string, ucHosts []string) string {
 	hostStrings := fmt.Sprintf("%v", ucHosts)
-	return fmt.Sprintf("%s:%s:%x", ak, bucket, hostStrings)
+	return fmt.Sprintf("%s:%s:%x", ak, bucket, md5.Sum([]byte(hostStrings)))
 }
