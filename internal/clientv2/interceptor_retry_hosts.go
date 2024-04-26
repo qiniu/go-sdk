@@ -131,30 +131,5 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 }
 
 func isHostRetryable(req *http.Request, resp *http.Response, err error) bool {
-	return isRequestRetryable(req) && (isResponseHostRetryable(resp) || IsErrorRetryable(err))
-}
-
-func isResponseHostRetryable(resp *http.Response) bool {
-	if resp == nil {
-		return false
-	}
-
-	statusCode := resp.StatusCode
-
-	// 2xx
-	if statusCode < 300 {
-		return false
-	}
-
-	// 3xx
-	if statusCode < 400 {
-		return true
-	}
-
-	// 4xx
-	if statusCode < 500 {
-		return statusCode == 404
-	}
-
-	return isStatusCodeRetryable(statusCode)
+	return isRequestRetryable(req) && (isResponseRetryable(resp) || IsErrorRetryable(err))
 }
