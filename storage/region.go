@@ -290,18 +290,21 @@ func getUcBackupHosts() []string {
 	return hosts
 }
 
-func getUcEndpoint(useHttps bool) region_v2.EndpointsProvider {
-	ucHosts := make([]string, 0, 1+len(ucHosts))
-	if len(UcHost) > 0 {
-		ucHosts = append(ucHosts, endpoint(useHttps, UcHost))
-	}
-	for _, host := range ucHosts {
-		if len(host) > 0 {
-			ucHosts = append(ucHosts, endpoint(useHttps, host))
+func getUcEndpoint(useHttps bool, hosts []string) region_v2.EndpointsProvider {
+	if len(hosts) == 0 {
+		if len(UcHost) > 0 {
+			hosts = append(hosts, endpoint(useHttps, UcHost))
+		}
+
+		for _, host := range ucHosts {
+			if len(host) > 0 {
+				hosts = append(hosts, endpoint(useHttps, host))
+			}
 		}
 	}
-	if len(ucHosts) > 0 {
-		return region_v2.Endpoints{Preferred: ucHosts}
+
+	if len(hosts) > 0 {
+		return region_v2.Endpoints{Preferred: hosts}
 	} else {
 		return nil
 	}
@@ -347,7 +350,12 @@ func GetRegionsInfo(mac *auth.Credentials) ([]RegionInfo, error) {
 }
 
 func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]RegionInfo, error) {
+	var httpClient clientv2.Client
+	if options.Client != nil {
+		httpClient = options.Client.Client
+	}
 	response, err := apis.NewStorage(&http_client.Options{
+		BasicHTTPClient:    httpClient,
 		HostFreezeDuration: options.HostFreezeDuration,
 		HostRetryConfig: &clientv2.RetryConfig{
 			RetryMax: options.RetryMax,
@@ -355,11 +363,12 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]R
 	}).GetRegions(
 		context.Background(),
 		&apis.GetRegionsRequest{Credentials: mac},
-		&apis.Options{OverwrittenBucketHosts: getUcEndpoint(options.UseHttps)},
+		&apis.Options{OverwrittenBucketHosts: getUcEndpoint(options.UseHttps, options.Hosts)},
 	)
 	if err != nil {
 		return nil, err
 	}
+
 	regions := make([]RegionInfo, 0, len(response.Regions))
 	for _, region := range response.Regions {
 		regions = append(regions, RegionInfo{
@@ -377,6 +386,9 @@ type ucClientConfig struct {
 	// 单域名重试次数
 	RetryMax int
 
+	// 请求的域名
+	Hosts []string
+
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
 
@@ -384,7 +396,11 @@ type ucClientConfig struct {
 }
 
 func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
-	allHosts := getUcBackupHosts()
+	allHosts := config.Hosts
+	if len(allHosts) == 0 {
+		allHosts = getUcBackupHosts()
+	}
+
 	var hosts []string = nil
 	if !config.IsUcQueryApi {
 		// 非 uc query api 去除 defaultApiHost

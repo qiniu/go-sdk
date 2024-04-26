@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/sync/singleflight"
 
+	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 )
 
@@ -209,9 +210,28 @@ func storeRegionV2Cache() {
 
 type UCApiOptions struct {
 	UseHttps bool //
-	RetryMax int  // 单域名重试次数
+
+	RetryMax int // 单域名重试次数
+
+	Hosts []string // api 请求的域名
+
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
+
+	Client *client.Client // api 请求使用的 client
+}
+
+func (o *UCApiOptions) init() {
+	if len(o.Hosts) == 0 {
+		o.Hosts = getUcBackupHosts()
+	}
+}
+
+func (o *UCApiOptions) firstHost() string {
+	if len(o.Hosts) == 0 {
+		return ""
+	}
+	return o.Hosts[0]
 }
 
 func DefaultUCApiOptions() UCApiOptions {
@@ -223,6 +243,7 @@ func DefaultUCApiOptions() UCApiOptions {
 }
 
 func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
+	options.init()
 
 	regionV2CacheLock.RLock()
 	if regionV2CacheLoaded {
@@ -240,20 +261,22 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 		}()
 	}
 
-	regionCacheKey := makeRegionCacheKey(ak, bucket)
+	regionCacheKey := makeRegionCacheKey(ak, bucket, options.Hosts)
 	//check from cache
 	if v, ok := regionV2Cache.Load(regionCacheKey); ok && time.Now().Before(v.(regionV2CacheValue).Deadline) {
 		return v.(regionV2CacheValue).Region, nil
 	}
 
 	newRegion, err, _ := ucQueryV2Group.Do(regionCacheKey, func() (interface{}, error) {
-		reqURL := fmt.Sprintf("%s/v2/query?ak=%s&bucket=%s", getUcHost(options.UseHttps), ak, bucket)
+		reqURL := fmt.Sprintf("%s/v2/query?ak=%s&bucket=%s", endpoint(options.UseHttps, options.firstHost()), ak, bucket)
 
 		var ret UcQueryRet
 		c := getUCClient(ucClientConfig{
 			IsUcQueryApi:       true,
 			RetryMax:           options.RetryMax,
+			Hosts:              options.Hosts,
 			HostFreezeDuration: options.HostFreezeDuration,
+			Client:             options.Client,
 		}, nil)
 		err := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
 			Context: context.Background(),
@@ -294,6 +317,7 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 	return newRegion.(*Region), err
 }
 
-func makeRegionCacheKey(ak, bucket string) string {
-	return fmt.Sprintf("%s:%s:%x", ak, bucket, md5.Sum([]byte(getUcHost(false))))
+func makeRegionCacheKey(ak, bucket string, ucHosts []string) string {
+	hostStrings := fmt.Sprintf("%v", ucHosts)
+	return fmt.Sprintf("%s:%s:%x", ak, bucket, md5.Sum([]byte(hostStrings)))
 }
