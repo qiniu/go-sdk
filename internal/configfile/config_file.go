@@ -4,6 +4,7 @@ import (
 	"errors"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/BurntSushi/toml"
 	"github.com/qiniu/go-sdk/v7/internal/env"
@@ -18,6 +19,8 @@ type profileConfig struct {
 
 var (
 	profileConfigs      map[string]*profileConfig
+	profileConfigsError error
+	profileConfigsOnce  sync.Once
 	ErrInvalidBucketUrl = errors.New("invalid bucket url")
 )
 
@@ -79,9 +82,13 @@ func getProfile() (*profileConfig, error) {
 }
 
 func load() error {
-	if profileConfigs != nil {
-		return nil
-	}
+	profileConfigsOnce.Do(func() {
+		profileConfigsError = _load()
+	})
+	return profileConfigsError
+}
+
+func _load() error {
 	configFilePath := env.ConfigFileFromEnvironment()
 	if configFilePath == "" {
 		configFilePath = getDefaultConfigFilePath()
