@@ -1,4 +1,9 @@
 # Changelog
+## 7.20.1
+* 新增
+  * 获取区域 API 支持单独配置 UC 域名
+  * BucketManager List Bucket 接口支持返回文件的 parts
+  
 ## 7.20.0
 * 新增
   * 新版存储客户端库 storagev2 包，包含
