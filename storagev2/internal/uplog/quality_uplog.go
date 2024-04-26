@@ -41,10 +41,6 @@ func WithQuality(ctx context.Context, upType UpType, fileSize uint64, targetBuck
 	if !IsUplogEnabled() {
 		return handle(ctx, func() {})
 	}
-	osVersion, err := getOsVersion()
-	if err != nil {
-		return err
-	}
 	uplog := qualityUplog{
 		LogType:           LogTypeQuality,
 		UpType:            upType,
@@ -53,7 +49,7 @@ func WithQuality(ctx context.Context, upType UpType, fileSize uint64, targetBuck
 		TargetKey:         truncate(targetKey, maxFieldValueLength),
 		APIType:           APITypeKodo,
 		OSName:            truncate(runtime.GOOS, maxFieldValueLength),
-		OSVersion:         truncate(osVersion, maxFieldValueLength),
+		OSVersion:         truncate(getOsVersion(), maxFieldValueLength),
 		OSArch:            truncate(runtime.GOARCH, maxFieldValueLength),
 		SDKName:           "go",
 		SDKVersion:        truncate(conf.Version, maxFieldValueLength),
@@ -64,7 +60,7 @@ func WithQuality(ctx context.Context, upType UpType, fileSize uint64, targetBuck
 	bytesReceivedTotal, ctx := withBytesReceivedTotalContext(ctx, false)
 	requestsCount, ctx := withRequestsCountContext(ctx, false)
 	beginAt := time.Now()
-	err = handle(ctx, func() {
+	err := handle(ctx, func() {
 		atomic.AddUint64(&uplog.RegionsCount, 1)
 	})
 	uplog.TotalElapsedTime = getElapsedTime(beginAt)

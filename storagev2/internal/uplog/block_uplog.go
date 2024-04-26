@@ -40,10 +40,6 @@ func WithBlock(ctx context.Context, upApiVersion UpApiVersion, fileSize, recover
 		return handle(ctx)
 	}
 
-	osVersion, err := getOsVersion()
-	if err != nil {
-		return err
-	}
 	uplog := blockUplog{
 		LogType:           LogTypeBlock,
 		UpApiVersion:      upApiVersion,
@@ -53,7 +49,7 @@ func WithBlock(ctx context.Context, upApiVersion UpApiVersion, fileSize, recover
 		TargetKey:         truncate(targetKey, maxFieldValueLength),
 		APIType:           APITypeKodo,
 		OSName:            truncate(runtime.GOOS, maxFieldValueLength),
-		OSVersion:         truncate(osVersion, maxFieldValueLength),
+		OSVersion:         truncate(getOsVersion(), maxFieldValueLength),
 		OSArch:            truncate(runtime.GOARCH, maxFieldValueLength),
 		SDKName:           "go",
 		SDKVersion:        truncate(conf.Version, maxFieldValueLength),
@@ -64,7 +60,7 @@ func WithBlock(ctx context.Context, upApiVersion UpApiVersion, fileSize, recover
 	bytesReceivedTotal, ctx := withBytesReceivedTotalContext(ctx, true)
 	requestsCount, ctx := withRequestsCountContext(ctx, true)
 	beginAt := time.Now()
-	err = handle(ctx)
+	err := handle(ctx)
 	uplog.TotalElapsedTime = getElapsedTime(beginAt)
 	if err != nil {
 		uplog.ErrorType = detectErrorType(err)

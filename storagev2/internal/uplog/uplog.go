@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/matishsiao/goInfo"
@@ -58,17 +59,18 @@ const (
 	LogResultUnexpectedSyscallError LogResult    = "unexpected_syscall_error"
 )
 
-var osVersion string
+var (
+	osVersion     string
+	osVersionOnce sync.Once
+)
 
-func getOsVersion() (string, error) {
-	if osVersion == "" {
-		osInfo, err := goInfo.GetInfo()
-		if err != nil {
-			return "", err
+func getOsVersion() string {
+	osVersionOnce.Do(func() {
+		if osInfo, err := goInfo.GetInfo(); err == nil {
+			osVersion = osInfo.Core
 		}
-		osVersion = osInfo.Core
-	}
-	return osVersion, nil
+	})
+	return osVersion
 }
 
 func detectErrorType(err error) ErrorType {

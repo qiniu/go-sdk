@@ -62,15 +62,11 @@ type (
 )
 
 func NewRequestUplog(apiName, targetBucket, targetKey string, getUpToken GetUpToken) (*RequestUplog, error) {
-	osVersion, err := getOsVersion()
-	if err != nil {
-		return nil, err
-	}
 	return &RequestUplog{
 		LogType:           LogTypeRequest,
 		APIType:           APITypeKodo,
 		OSName:            truncate(runtime.GOOS, maxFieldValueLength),
-		OSVersion:         truncate(osVersion, maxFieldValueLength),
+		OSVersion:         truncate(getOsVersion(), maxFieldValueLength),
 		OSArch:            truncate(runtime.GOARCH, maxFieldValueLength),
 		SDKName:           "go",
 		SDKVersion:        truncate(conf.Version, maxFieldValueLength),
