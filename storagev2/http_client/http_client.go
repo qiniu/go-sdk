@@ -174,6 +174,9 @@ type (
 
 		// 拦截器追加列表
 		Interceptors []Interceptor
+
+		// 请求进度回调函数
+		OnRequestProgress func(context.Context, *http.Request, int64, int64)
 	}
 )
 
@@ -382,12 +385,13 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 		))
 	}
 	req, err := clientv2.NewRequest(clientv2.RequestParams{
-		Context:        ctx,
-		Method:         request.Method,
-		Url:            url,
-		Header:         request.Header,
-		GetBody:        request.RequestBody,
-		BufferResponse: request.BufferResponse,
+		Context:           ctx,
+		Method:            request.Method,
+		Url:               url,
+		Header:            request.Header,
+		GetBody:           request.RequestBody,
+		BufferResponse:    request.BufferResponse,
+		OnRequestProgress: request.OnRequestProgress,
 	})
 	if err != nil {
 		return nil, err

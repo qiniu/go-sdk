@@ -3,8 +3,10 @@
 package apis
 
 import (
+	"context"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
+	"net/http"
 )
 
 // API 客户端
@@ -23,4 +25,5 @@ type Options struct {
 	OverwrittenBucketName  string
 	OverwrittenEndpoints   region.EndpointsProvider
 	OverwrittenRegion      region.RegionsProvider
+	OnRequestProgress      func(context.Context, *http.Request, int64, int64)
 }

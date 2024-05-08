@@ -3,9 +3,9 @@ package storage
 import (
 	"bytes"
 	"context"
-	"errors"
 	"hash/crc32"
 	"io"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -200,16 +200,11 @@ func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upT
 	if fileName == "" {
 		fileName = "Untitled"
 	}
-	var fileReader io.Reader = data
-	if extra.OnProgress != nil {
-		fileReader = &readerWithProgress{reader: data, fsize: dataSize, onProgress: extra.OnProgress}
-	}
-
 	request := apis.PostObjectRequest{
 		ObjectName:  makeKeyForUploading(key, hasKey),
 		UploadToken: uptoken.NewParser(upToken),
 		File: http_client.MultipartFormBinaryData{
-			Data:        internal_io.MakeReadSeekCloserFromLimitedReader(fileReader, dataSize),
+			Data:        internal_io.MakeReadSeekCloserFromLimitedReader(data, dataSize),
 			Name:        fileName,
 			ContentType: extra.MimeType,
 		},
@@ -221,46 +216,25 @@ func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upT
 	} else if ok {
 		request.Crc32 = int64(crc32)
 	}
-	_, err := p.storage.PostObject(ctx, &request, makeApiOptionsFromUpHost(extra.UpHost))
+	options := makeApiOptionsFromUpHost(extra.UpHost)
+	if extra.OnProgress != nil {
+		if options == nil {
+			options = &apis.Options{}
+		}
+		options.OnRequestProgress = func(_ context.Context, _ *http.Request, uploaded int64, _ int64) {
+			if uploaded > dataSize {
+				uploaded = dataSize
+			}
+			extra.OnProgress(dataSize, uploaded)
+		}
+	}
+	_, err := p.storage.PostObject(ctx, &request, options)
 	return err
 }
 
 // Deprecated
 func (p *FormUploader) UpHost(ak, bucket string) (upHost string, err error) {
 	return getUpHost(p.Cfg, 0, 0, ak, bucket)
-}
-
-type readerWithProgress struct {
-	reader     io.Reader
-	uploaded   int64
-	fsize      int64
-	onProgress func(fsize, uploaded int64)
-}
-
-func (p *readerWithProgress) Read(b []byte) (n int, err error) {
-	if p.uploaded > 0 {
-		p.onProgress(p.fsize, p.uploaded)
-	}
-
-	n, err = p.reader.Read(b)
-	p.uploaded += int64(n)
-	if p.fsize > 0 && p.uploaded > p.fsize {
-		p.uploaded = p.fsize
-	}
-	return
-}
-
-func (p *readerWithProgress) Seek(offset int64, whence int) (int64, error) {
-	if seeker, ok := p.reader.(io.Seeker); ok {
-		pos, err := seeker.Seek(offset, whence)
-		if err != nil {
-			return pos, err
-		}
-		p.uploaded = pos
-		p.onProgress(p.fsize, p.uploaded)
-		return pos, nil
-	}
-	return 0, errors.New("resource not support seek")
 }
 
 func makeCustomData(params map[string]string) map[string]string {

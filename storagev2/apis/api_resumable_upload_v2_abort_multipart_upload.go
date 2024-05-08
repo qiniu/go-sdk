@@ -87,7 +87,7 @@ func (storage *Storage) ResumableUploadV2AbortMultipartUpload(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "DELETE", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, UpToken: innerRequest.UpToken}
+	req := httpclient.Request{Method: "DELETE", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, UpToken: innerRequest.UpToken, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
 		query := storage.client.GetBucketQuery()
 		if query == nil {

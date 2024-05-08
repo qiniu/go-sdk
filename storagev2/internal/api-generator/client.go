@@ -406,6 +406,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 									)
 								}
 							}
+							group.Add(jen.Id("OnRequestProgress").Op(":").Id("options").Dot("OnRequestProgress"))
 						}),
 				)
 				group.Add(
