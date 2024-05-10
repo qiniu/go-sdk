@@ -205,9 +205,9 @@ func NewReadCloserSource(r io.ReadCloser, sourceKey string) Source {
 }
 
 func (rcs *readCloseSource) Slice(n uint64) (Part, error) {
-	buf := make([]byte, 0, n)
-	haveRead, err := rcs.r.Read(buf)
-	if err != nil {
+	buf := make([]byte, n)
+	haveRead, err := io.ReadFull(rcs.r, buf)
+	if err != nil && err != io.ErrUnexpectedEOF {
 		return nil, err
 	}
 	return &unseekablePart{
@@ -255,7 +255,7 @@ func NewFileSource(filePath string) (Source, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := file.Seek(0, io.SeekCurrent); err != nil {
+	if !canSeekReally(file) {
 		return NewReadCloserSource(file, ""), nil
 	} else if fileInfo, err := file.Stat(); err != nil {
 		return nil, err
@@ -264,4 +264,9 @@ func NewFileSource(filePath string) (Source, error) {
 	} else {
 		return NewReadAtCloserSource(file, fileInfo.Size(), absFilePath), nil
 	}
+}
+
+func canSeekReally(seeker io.Seeker) bool {
+	_, err := seeker.Seek(0, io.SeekCurrent)
+	return err == nil
 }

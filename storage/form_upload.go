@@ -1,21 +1,17 @@
 package storage
 
 import (
-	"bytes"
 	"context"
-	"hash/crc32"
 	"io"
-	"net/http"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/client"
-	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
-	"github.com/qiniu/go-sdk/v7/storagev2/apis"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	"github.com/qiniu/go-sdk/v7/storagev2/region"
+	"github.com/qiniu/go-sdk/v7/storagev2/uploader"
 	"github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
 
@@ -62,8 +58,8 @@ type FormUploader struct {
 	// Deprecated
 	Client *client.Client
 	// Deprecated
-	Cfg     *Config
-	storage *apis.Storage
+	Cfg      *Config
+	uploader uploader.Uploader
 }
 
 // NewFormUploader 用来构建一个表单上传的对象
@@ -89,9 +85,9 @@ func NewFormUploaderEx(cfg *Config, clt *client.Client) *FormUploader {
 	}
 
 	return &FormUploader{
-		Client:  clt,
-		Cfg:     cfg,
-		storage: apis.NewStorage(&opts),
+		Client:   clt,
+		Cfg:      cfg,
+		uploader: uploader.NewFormUploader(&opts),
 	}
 }
 
@@ -124,21 +120,15 @@ func (p *FormUploader) PutFileWithoutKey(
 
 func (p *FormUploader) putFile(
 	ctx context.Context, ret interface{}, upToken string,
-	key string, hasKey bool, localFile string, extra *PutExtra) (err error) {
-
-	f, err := os.Open(localFile)
-	if err != nil {
-		return
+	key string, hasKey bool, localFile string, extra *PutExtra) error {
+	if extra == nil {
+		extra = &PutExtra{}
 	}
-	defer f.Close()
+	extra.init()
 
-	fi, err := f.Stat()
-	if err != nil {
-		return
-	}
-	fsize := fi.Size()
-
-	return p.put(ctx, ret, upToken, key, hasKey, f, fsize, extra, filepath.Base(localFile))
+	objectParams := p.newObjectParams(upToken, key, hasKey, extra)
+	objectParams.FileName = filepath.Base(localFile)
+	return p.uploader.UploadPath(ctx, localFile, objectParams, ret)
 }
 
 // Put 用来以表单方式上传一个文件。
@@ -174,62 +164,43 @@ func (p *FormUploader) PutWithoutKey(
 func (p *FormUploader) put(
 	ctx context.Context, ret interface{}, upToken string,
 	key string, hasKey bool, data io.Reader, size int64, extra *PutExtra, fileName string) error {
-
 	if extra == nil {
 		extra = &PutExtra{}
 	}
 	extra.init()
 
-	seekableData, ok := data.(io.ReadSeeker)
-	if !ok {
-		dataBytes, rErr := internal_io.ReadAll(data)
-		if rErr != nil {
-			return rErr
-		}
-		if size <= 0 {
-			size = int64(len(dataBytes))
-		}
-		seekableData = bytes.NewReader(dataBytes)
-	}
+	objectParams := p.newObjectParams(upToken, key, hasKey, extra)
+	objectParams.FileName = "Untitled"
 
-	return p.putSeekableData(ctx, ret, upToken, key, hasKey, seekableData, size, extra, fileName)
+	return p.uploader.UploadReader(ctx, data, objectParams, ret)
 }
 
-func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upToken string,
-	key string, hasKey bool, data io.ReadSeeker, dataSize int64, extra *PutExtra, fileName string) error {
-	if fileName == "" {
-		fileName = "Untitled"
+func (p *FormUploader) newObjectParams(upToken string, key string, hasKey bool, extra *PutExtra) *uploader.ObjectParams {
+	objectParams := uploader.ObjectParams{
+		ContentType: extra.MimeType,
+		UpToken:     uptoken.NewParser(upToken),
 	}
-	request := apis.PostObjectRequest{
-		ObjectName:  makeKeyForUploading(key, hasKey),
-		UploadToken: uptoken.NewParser(upToken),
-		File: http_client.MultipartFormBinaryData{
-			Data:        internal_io.MakeReadSeekCloserFromLimitedReader(data, dataSize),
-			Name:        fileName,
-			ContentType: extra.MimeType,
-		},
-		CustomData:   makeCustomData(extra.Params),
-		ResponseBody: ret,
+	if hasKey {
+		objectParams.ObjectName = &key
 	}
-	if crc32, ok, err := crc32FromReader(data); err != nil {
-		return err
-	} else if ok {
-		request.Crc32 = int64(crc32)
+	if extra.UpHost != "" {
+		objectParams.RegionsProvider = &region.Region{
+			Up: region.Endpoints{Preferred: []string{extra.UpHost}},
+		}
+	} else if p.Cfg.UpHost != "" {
+		objectParams.RegionsProvider = &region.Region{
+			Up: region.Endpoints{Preferred: []string{p.Cfg.UpHost}},
+		}
+	} else if region := p.Cfg.GetRegion(); region != nil {
+		objectParams.RegionsProvider = region
 	}
-	options := makeApiOptionsFromUpHost(extra.UpHost)
+	objectParams.Metadata, objectParams.CustomVars = splitParams(extra.Params)
 	if extra.OnProgress != nil {
-		if options == nil {
-			options = &apis.Options{}
-		}
-		options.OnRequestProgress = func(_ context.Context, _ *http.Request, uploaded int64, _ int64) {
-			if uploaded > dataSize {
-				uploaded = dataSize
-			}
-			extra.OnProgress(dataSize, uploaded)
+		objectParams.OnUploadingProgress = func(uploaded, fileSize uint64) {
+			extra.OnProgress(int64(fileSize), int64(uploaded))
 		}
 	}
-	_, err := p.storage.PostObject(ctx, &request, options)
-	return err
+	return &objectParams
 }
 
 // Deprecated
@@ -247,20 +218,18 @@ func makeCustomData(params map[string]string) map[string]string {
 	return customData
 }
 
-func crc32FromReader(r io.Reader) (uint32, bool, error) {
-	if readSeeker, ok := r.(io.ReadSeeker); ok {
-		_, err := readSeeker.Seek(0, io.SeekStart)
-		if err != nil {
-			return 0, false, err
+func splitParams(params map[string]string) (metadata, customVars map[string]string) {
+	metadata = make(map[string]string)
+	customVars = make(map[string]string)
+	for k, v := range params {
+		if v == "" {
+			continue
 		}
-		hasher := crc32.NewIEEE()
-		if _, err = io.Copy(hasher, readSeeker); err != nil {
-			return 0, false, err
+		if strings.HasPrefix(k, "x:") {
+			customVars[k] = v
+		} else if strings.HasPrefix(k, "x-qn-meta-") {
+			metadata[k] = v
 		}
-		if _, err = readSeeker.Seek(0, io.SeekStart); err != nil {
-			return 0, false, err
-		}
-		return hasher.Sum32(), true, nil
 	}
-	return 0, false, nil
+	return metadata, customVars
 }

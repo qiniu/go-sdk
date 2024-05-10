@@ -11,7 +11,7 @@ import (
 type (
 	Uploader interface {
 		UploadPath(ctx context.Context, path string, objectParams *ObjectParams, returnValue interface{}) error
-		UploadReader(ctx context.Context, reader io.ReadCloser, objectParams *ObjectParams, returnValue interface{}) error
+		UploadReader(ctx context.Context, reader io.Reader, objectParams *ObjectParams, returnValue interface{}) error
 	}
 
 	MultiPartsUploader interface {
