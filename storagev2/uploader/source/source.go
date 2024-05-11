@@ -90,6 +90,13 @@ func (rscs *readSeekCloseSource) Slice(n uint64) (Part, error) {
 	defer rscs.m.Unlock()
 
 	offset := rscs.off
+	if totalSize, err := rscs.TotalSize(); err != nil {
+		return nil, err
+	} else if offset >= totalSize {
+		return nil, nil
+	} else if n > totalSize-offset {
+		n = totalSize - offset
+	}
 	rscs.off += n
 	rscs.partNumber += 1
 	return seekablePart{
@@ -170,6 +177,13 @@ func (racs *readAtCloseSource) Slice(n uint64) (Part, error) {
 	defer racs.m.Unlock()
 
 	offset := racs.off
+	if totalSize, err := racs.TotalSize(); err != nil {
+		return nil, err
+	} else if offset >= totalSize {
+		return nil, nil
+	} else if n > totalSize-offset {
+		n = totalSize - offset
+	}
 	racs.off += n
 	racs.partNumber += 1
 	return seekablePart{
