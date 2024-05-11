@@ -2,6 +2,7 @@ package clientv2
 
 import (
 	"context"
+	"io"
 	"math/rand"
 	"net"
 	"net/http"
@@ -16,7 +17,7 @@ import (
 )
 
 type (
-	contextKeyBufferResponse struct{}
+	bufferResponseContextKey struct{}
 
 	SimpleRetryConfig struct {
 		RetryMax      int                  // 最大重试次数
@@ -117,6 +118,15 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 
 		if retryDecision == retrier.TryNextHost || i >= interceptor.config.RetryMax {
 			break
+		}
+
+		if req.Body != nil && req.GetBody != nil {
+			if closer, ok := req.Body.(io.Closer); ok {
+				closer.Close()
+			}
+			if req.Body, err = req.GetBody(); err != nil {
+				return
+			}
 		}
 
 		if resp != nil && resp.Body != nil {

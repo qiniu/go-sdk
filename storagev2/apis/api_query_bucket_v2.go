@@ -98,6 +98,7 @@ func (storage *Storage) QueryBucketV2(ctx context.Context, request *QueryBucketV
 			}
 		}
 	}
+	ctx = httpclient.WithoutSignature(ctx)
 	var respBody QueryBucketV2Response
 	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err

@@ -139,6 +139,7 @@ func (storage *Storage) PostObject(ctx context.Context, request *PostObjectReque
 			}
 		}
 	}
+	ctx = httpclient.WithoutSignature(ctx)
 	respBody := PostObjectResponse{Body: innerRequest.ResponseBody}
 	if err := storage.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err

@@ -30,7 +30,7 @@ func NewConcurrentMultiPartsUploaderScheduler(uploader MultiPartsUploader, partS
 	return concurrentMultiPartsUploaderScheduler{uploader, partSize, concurrency}
 }
 
-func (scheduler serialMultiPartsUploaderScheduler) UploadParts(ctx context.Context, initialized InitializedParts, src source.Source, objectParams *ObjectParams) ([]UploadedPart, error) {
+func (scheduler serialMultiPartsUploaderScheduler) UploadParts(ctx context.Context, initialized InitializedParts, src source.Source) ([]UploadedPart, error) {
 	parts := make([]UploadedPart, 0)
 	for {
 		part, err := src.Slice(scheduler.partSize)
@@ -53,7 +53,7 @@ func (scheduler serialMultiPartsUploaderScheduler) MultiPartsUploader() MultiPar
 	return scheduler.uploader
 }
 
-func (scheduler concurrentMultiPartsUploaderScheduler) UploadParts(ctx context.Context, initialized InitializedParts, src source.Source, objectParams *ObjectParams) ([]UploadedPart, error) {
+func (scheduler concurrentMultiPartsUploaderScheduler) UploadParts(ctx context.Context, initialized InitializedParts, src source.Source) ([]UploadedPart, error) {
 	var (
 		parts     []UploadedPart
 		partsLock sync.Mutex

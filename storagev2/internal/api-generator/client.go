@@ -328,7 +328,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 					getUpTokenFunc = jen.Func().Params().Params(jen.String(), jen.Error()).BlockFunc(func(group *jen.Group) {
 						group.Return(jen.Id("innerRequest").Dot("UpToken").Dot("GetUpToken").Call(jen.Id("ctx")))
 					})
-				default:
+				case AuthorizationNone:
 					getUpTokenFunc = jen.Nil()
 				}
 
@@ -526,6 +526,9 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							)
 						}),
 				)
+				if description.Request.Authorization.ToAuthorization() == AuthorizationNone {
+					group.Add(jen.Id("ctx").Op("=").Qual(PackageNameHTTPClient, "WithoutSignature").Call(jen.Id("ctx")))
+				}
 				if body := description.Response.Body; body != nil {
 					if json := body.Json; json != nil {
 						if description.Request.responseTypeRequired {

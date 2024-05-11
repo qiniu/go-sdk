@@ -30,7 +30,7 @@ type (
 	}
 
 	MultiPartsUploaderScheduler interface {
-		UploadParts(context.Context, InitializedParts, source.Source, *ObjectParams) ([]UploadedPart, error)
+		UploadParts(context.Context, InitializedParts, source.Source) ([]UploadedPart, error)
 		MultiPartsUploader() MultiPartsUploader
 	}
 )

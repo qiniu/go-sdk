@@ -231,28 +231,31 @@ func (httpClient *Client) Do(ctx context.Context, request *Request) (*http.Respo
 	if err != nil {
 		return nil, err
 	}
-	if upTokenProvider := request.UpToken; upTokenProvider != nil {
-		if upToken, err := upTokenProvider.GetUpToken(ctx); err != nil {
-			return nil, err
-		} else {
-			req.Header.Set("Authorization", "UpToken "+upToken)
-		}
-	} else {
-		credentialsProvider := request.Credentials
-		if credentialsProvider == nil {
-			credentialsProvider = httpClient.credentials
-		}
-		if credentialsProvider != nil {
-			if credentials, err := credentialsProvider.Get(ctx); err != nil {
+	if !isSignatureDisabled(ctx) {
+		if upTokenProvider := request.UpToken; upTokenProvider != nil {
+			// TODO: 这里需要改造成 interceptor
+			if upToken, err := upTokenProvider.GetUpToken(ctx); err != nil {
 				return nil, err
 			} else {
-				req = clientv2.WithInterceptors(req, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
-					Credentials: credentials,
-					TokenType:   request.AuthType,
-					BeforeSign:  httpClient.beforeSign,
-					AfterSign:   httpClient.afterSign,
-					SignError:   httpClient.signError,
-				}))
+				req.Header.Set("Authorization", "UpToken "+upToken)
+			}
+		} else {
+			credentialsProvider := request.Credentials
+			if credentialsProvider == nil {
+				credentialsProvider = httpClient.credentials
+			}
+			if credentialsProvider != nil {
+				if credentials, err := credentialsProvider.Get(ctx); err != nil {
+					return nil, err
+				} else {
+					req = clientv2.WithInterceptors(req, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
+						Credentials: credentials,
+						TokenType:   request.AuthType,
+						BeforeSign:  httpClient.beforeSign,
+						AfterSign:   httpClient.afterSign,
+						SignError:   httpClient.signError,
+					}))
+				}
 			}
 		}
 	}
@@ -345,6 +348,13 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 			RetryMax: len(endpoints.Preferred) + len(endpoints.Alternative),
 		}
 	}
+	hostRetryConfig := httpClient.hostRetryConfig
+	if hostRetryConfig == nil {
+		hostRetryConfig = &RetryConfig{
+			RetryMax: 3,
+			Retrier:  retrier.NewErrorRetrier(),
+		}
+	}
 	r := httpClient.resolver
 	if r == nil {
 		if r, err = resolver.NewCacheResolver(nil, nil); err != nil {
@@ -361,29 +371,27 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 		ShouldRetry:        hostsRetryConfig.ShouldRetry,
 		Retrier:            hostsRetryConfig.Retrier,
 		HostFreezeDuration: httpClient.hostFreezeDuration,
-		HostProvider:       hostProvider,
 		ShouldFreezeHost:   httpClient.shouldFreezeHost,
+		HostProvider:       hostProvider,
 	}))
-	if httpClient.hostRetryConfig != nil {
-		interceptors = append(interceptors, clientv2.NewSimpleRetryInterceptor(
-			clientv2.SimpleRetryConfig{
-				RetryMax:      httpClient.hostRetryConfig.RetryMax,
-				RetryInterval: httpClient.hostRetryConfig.RetryInterval,
-				Backoff:       httpClient.hostRetryConfig.Backoff,
-				ShouldRetry:   httpClient.hostRetryConfig.ShouldRetry,
-				Resolver:      r,
-				Chooser:       cs,
-				Retrier:       httpClient.hostRetryConfig.Retrier,
-				BeforeResolve: httpClient.beforeResolve,
-				AfterResolve:  httpClient.afterResolve,
-				ResolveError:  httpClient.resolveError,
-				BeforeBackoff: httpClient.beforeBackoff,
-				AfterBackoff:  httpClient.afterBackoff,
-				BeforeRequest: httpClient.beforeRequest,
-				AfterResponse: httpClient.afterResponse,
-			},
-		))
-	}
+	interceptors = append(interceptors, clientv2.NewSimpleRetryInterceptor(
+		clientv2.SimpleRetryConfig{
+			RetryMax:      hostRetryConfig.RetryMax,
+			RetryInterval: hostRetryConfig.RetryInterval,
+			Backoff:       hostRetryConfig.Backoff,
+			ShouldRetry:   hostRetryConfig.ShouldRetry,
+			Retrier:       hostRetryConfig.Retrier,
+			Resolver:      r,
+			Chooser:       cs,
+			BeforeResolve: httpClient.beforeResolve,
+			AfterResolve:  httpClient.afterResolve,
+			ResolveError:  httpClient.resolveError,
+			BeforeBackoff: httpClient.beforeBackoff,
+			AfterBackoff:  httpClient.afterBackoff,
+			BeforeRequest: httpClient.beforeRequest,
+			AfterResponse: httpClient.afterResponse,
+		},
+	))
 	req, err := clientv2.NewRequest(clientv2.RequestParams{
 		Context:           ctx,
 		Method:            request.Method,

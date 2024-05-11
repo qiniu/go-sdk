@@ -66,7 +66,7 @@ func (uploader formUploader) UploadPath(ctx context.Context, path string, object
 	if err != nil {
 		return err
 	}
-	return uploader.upload(ctx, file, fileSize, upToken, objectParams.ObjectName, objectParams.FileName,
+	return uploader.upload(ctx, file, fileSize, upToken, objectParams.ObjectName, objectParams.FileName, objectParams.ContentType,
 		crc32, mergeCustomVarsAndMetadata(objectParams.Metadata, objectParams.CustomVars), objectParams.OnUploadingProgress, returnValue)
 }
 
@@ -99,17 +99,17 @@ func (uploader formUploader) UploadReader(ctx context.Context, reader io.Reader,
 	if err != nil {
 		return err
 	}
-	return uploader.upload(ctx, rsc, size, upToken, objectParams.ObjectName, objectParams.FileName,
+	return uploader.upload(ctx, rsc, size, upToken, objectParams.ObjectName, objectParams.FileName, objectParams.ContentType,
 		crc32, mergeCustomVarsAndMetadata(objectParams.Metadata, objectParams.CustomVars), objectParams.OnUploadingProgress, returnValue)
 }
 
 func (uploader formUploader) upload(
 	ctx context.Context, reader io.ReadSeeker, size uint64, upToken uptoken.Provider,
-	objectName *string, fileName string, crc32 uint32, customData map[string]string,
+	objectName *string, fileName, contentType string, crc32 uint32, customData map[string]string,
 	onRequestProgress func(uint64, uint64), returnValue interface{},
 ) error {
 	return forEachRegion(ctx, upToken, uploader.options, func(region *region.Region) (bool, error) {
-		err := uploader.uploadToRegion(ctx, region, reader, size, upToken, objectName, fileName,
+		err := uploader.uploadToRegion(ctx, region, reader, size, upToken, objectName, fileName, contentType,
 			crc32, customData, onRequestProgress, returnValue)
 		return true, err
 	})
@@ -117,7 +117,7 @@ func (uploader formUploader) upload(
 
 func (uploader formUploader) uploadToRegion(
 	ctx context.Context, region *region.Region, reader io.ReadSeeker, size uint64, upToken uptoken.Provider,
-	objectName *string, fileName string, crc32 uint32, customData map[string]string,
+	objectName *string, fileName, contentType string, crc32 uint32, customData map[string]string,
 	onRequestProgress func(uint64, uint64), returnValue interface{},
 ) error {
 	options := apis.Options{OverwrittenRegion: region}
@@ -126,8 +126,9 @@ func (uploader formUploader) uploadToRegion(
 		UploadToken: upToken,
 		Crc32:       int64(crc32),
 		File: httpclient.MultipartFormBinaryData{
-			Data: internal_io.NewReadSeekableNopCloser(reader),
-			Name: fileName,
+			Data:        internal_io.NewReadSeekableNopCloser(reader),
+			Name:        fileName,
+			ContentType: contentType,
 		},
 		CustomData:   customData,
 		ResponseBody: returnValue,
@@ -247,7 +248,7 @@ func (uploader multipartsUploader) tryToUploadToEachRegion(ctx context.Context, 
 }
 
 func (uploader multipartsUploader) uploadPartsAndComplete(ctx context.Context, src source.Source, initializedParts InitializedParts, objectParams *ObjectParams, returnValue interface{}) error {
-	uploadParts, err := uploader.scheduler.UploadParts(ctx, initializedParts, src, objectParams)
+	uploadParts, err := uploader.scheduler.UploadParts(ctx, initializedParts, src)
 	if err != nil {
 		return err
 	}

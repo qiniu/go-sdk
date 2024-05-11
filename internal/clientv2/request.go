@@ -112,7 +112,7 @@ func NewRequest(options RequestParams) (req *http.Request, err error) {
 		req = req.WithContext(options.Context)
 	}
 	if options.BufferResponse {
-		req = req.WithContext(context.WithValue(options.Context, contextKeyBufferResponse{}, struct{}{}))
+		req = req.WithContext(context.WithValue(options.Context, bufferResponseContextKey{}, struct{}{}))
 	}
 	req.Header = options.Header
 	if options.GetBody != nil && body != nil && body != http.NoBody {
