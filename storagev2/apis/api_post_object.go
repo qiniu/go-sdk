@@ -43,7 +43,7 @@ func (form *innerPostObjectRequest) build(ctx context.Context) (*httpclient.Mult
 		if form.File.Name == "" {
 			return nil, errors.MissingRequiredFieldError{Name: "File.Name"}
 		}
-		multipartForm.SetFile("file", form.File.Name, form.File.Data)
+		multipartForm.SetFile("file", form.File.Name, form.File.ContentType, form.File.Data)
 	} else {
 		return nil, errors.MissingRequiredFieldError{Name: "File"}
 	}

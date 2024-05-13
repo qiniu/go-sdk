@@ -26,8 +26,8 @@ func TestMultipart(t *testing.T) {
 	form := new(MultipartForm).
 		SetValue("test-1", "value-1").
 		SetValue("test-2", "value-2").
-		SetFile("test-file-1", "test-file-name-1", file1).
-		SetFile("test-file-2", "test-file-name-2", file2)
+		SetFile("test-file-1", "test-file-name-1", "application/json", file1).
+		SetFile("test-file-2", "test-file-name-2", "application/x-www-form-urlencoded", file2)
 	getRequestBody := GetMultipartFormRequestBody(form)
 
 	for i := 0; i < 5; i++ {
@@ -55,7 +55,7 @@ func TestMultipart(t *testing.T) {
 		} else if f, err := os.Open(file1.Name()); err != nil {
 			t.Fatal(err)
 		} else {
-			assertPartFile(t, part, "test-file-1", "test-file-name-1", f)
+			assertPartFile(t, part, "test-file-1", "test-file-name-1", "application/json", f)
 			f.Close()
 		}
 		if part, err := reader.NextPart(); err != nil {
@@ -63,7 +63,7 @@ func TestMultipart(t *testing.T) {
 		} else if f, err := os.Open(file2.Name()); err != nil {
 			t.Fatal(err)
 		} else {
-			assertPartFile(t, part, "test-file-2", "test-file-name-2", f)
+			assertPartFile(t, part, "test-file-2", "test-file-name-2", "application/x-www-form-urlencoded", f)
 			f.Close()
 		}
 		if _, err = reader.NextPart(); err != io.EOF {
@@ -109,12 +109,15 @@ func assertPartValue(t *testing.T, part *multipart.Part, key, value string) {
 	}
 }
 
-func assertPartFile(t *testing.T, part *multipart.Part, key, fileName string, value io.Reader) {
+func assertPartFile(t *testing.T, part *multipart.Part, key, fileName, contentType string, value io.Reader) {
 	if part.FormName() != key {
 		t.Fatalf("unexpected form name: %s != %s", part.FormName(), key)
 	}
 	if part.FileName() != fileName {
 		t.Fatalf("unexpected file name: %s != %s", part.FileName(), fileName)
+	}
+	if acutalContentType := part.Header.Get("Content-Type"); acutalContentType != contentType {
+		t.Fatalf("unexpected content type: %s != %s", acutalContentType, contentType)
 	}
 	md5Hasher := md5.New()
 	if _, err := io.Copy(md5Hasher, part); err != nil {

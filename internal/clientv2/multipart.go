@@ -1,8 +1,11 @@
 package clientv2
 
 import (
+	"fmt"
 	"io"
 	"mime/multipart"
+	"net/textproto"
+	"strings"
 
 	"github.com/qiniu/go-sdk/v7/internal/context"
 	compatible_io "github.com/qiniu/go-sdk/v7/internal/io"
@@ -13,8 +16,8 @@ type (
 		key, value string
 	}
 	keyFilePair struct {
-		key, fileName string
-		stream        compatible_io.ReadSeekCloser
+		key, fileName, contentType string
+		stream                     compatible_io.ReadSeekCloser
 	}
 
 	MultipartForm struct {
@@ -29,16 +32,17 @@ type (
 		multipartWriter *multipart.Writer
 		form            *MultipartForm
 		r               *io.PipeReader
+		closed          bool
 	}
 )
 
 func (f *MultipartForm) SetValue(key, value string) *MultipartForm {
-	f.values = append(f.values, keyValuePair{key: key, value: value})
+	f.values = append(f.values, keyValuePair{key, value})
 	return f
 }
 
-func (f *MultipartForm) SetFile(key, fileName string, stream compatible_io.ReadSeekCloser) *MultipartForm {
-	f.files = append(f.files, keyFilePair{key: key, fileName: fileName, stream: stream})
+func (f *MultipartForm) SetFile(key, fileName, contentType string, stream compatible_io.ReadSeekCloser) *MultipartForm {
+	f.files = append(f.files, keyFilePair{key, fileName, contentType, stream})
 	return f
 }
 
@@ -67,7 +71,7 @@ func newMultipartFormReader(form *MultipartForm) *multipartFormReader {
 			case <-ctx.Done():
 				return
 			default:
-				if err := reader.createFormFile(pair.key, pair.fileName, pair.stream); err != nil {
+				if err := reader.createFormFile(pair.key, pair.fileName, pair.contentType, pair.stream); err != nil {
 					cancel(err)
 					return
 				}
@@ -88,6 +92,10 @@ func (r *multipartFormReader) Read(p []byte) (int, error) {
 }
 
 func (r *multipartFormReader) Close() (err error) {
+	if r.closed {
+		return nil
+	}
+	r.closed = true
 	r.form.cancel(io.ErrClosedPipe)
 	err = r.r.Close()
 	for _, pair := range r.form.files {
@@ -102,8 +110,11 @@ func (r *multipartFormReader) formDataContentType() string {
 	return r.multipartWriter.FormDataContentType()
 }
 
-func (r *multipartFormReader) createFormFile(fieldName, fileName string, stream compatible_io.ReadSeekCloser) error {
-	if w, err := r.multipartWriter.CreateFormFile(fieldName, fileName); err != nil {
+func (r *multipartFormReader) createFormFile(fieldName, fileName, contentType string, stream compatible_io.ReadSeekCloser) error {
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, escapeQuotes(fieldName), escapeQuotes(fileName)))
+	h.Set("Content-Type", contentType)
+	if w, err := r.multipartWriter.CreatePart(h); err != nil {
 		return err
 	} else if _, err := io.Copy(w, stream); err != nil {
 		return err
@@ -132,4 +143,10 @@ func GetMultipartFormRequestBody(info *MultipartForm) GetRequestBody {
 		o.Header.Add("Content-Type", r.formDataContentType())
 		return r, nil
 	}
+}
+
+var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
+
+func escapeQuotes(s string) string {
+	return quoteEscaper.Replace(s)
 }
