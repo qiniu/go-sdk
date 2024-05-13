@@ -16,8 +16,8 @@ type (
 
 	MultiPartsUploader interface {
 		InitializeParts(context.Context, source.Source, *ObjectParams) (InitializedParts, error)
-		TryToResume(context.Context, source.Source, *ObjectParams) (InitializedParts, error)
-		UploadPart(context.Context, InitializedParts, source.Part) (UploadedPart, error)
+		TryToResume(context.Context, source.Source, *ObjectParams) (ResumedInitializedParts, error)
+		UploadPart(context.Context, InitializedParts, source.Part, *UploadPartParams) (UploadedPart, error)
 		CompleteParts(context.Context, InitializedParts, []UploadedPart, interface{}) error
 		HttpClientOptions() *httpclient.Options
 	}
@@ -25,12 +25,17 @@ type (
 	InitializedParts interface {
 	}
 
+	ResumedInitializedParts interface {
+		InitializedParts
+		ResumedBytes() uint64
+	}
+
 	UploadedPart interface {
 		Offset() uint64
 	}
 
 	MultiPartsUploaderScheduler interface {
-		UploadParts(context.Context, InitializedParts, source.Source) ([]UploadedPart, error)
+		UploadParts(context.Context, InitializedParts, source.Source, *UploadPartsParams) ([]UploadedPart, error)
 		MultiPartsUploader() MultiPartsUploader
 	}
 )

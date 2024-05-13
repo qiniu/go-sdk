@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
@@ -28,7 +29,7 @@ type (
 		options *httpclient.Options
 	}
 
-	multipartsUploader struct {
+	multiPartsUploader struct {
 		scheduler MultiPartsUploaderScheduler
 	}
 )
@@ -146,11 +147,11 @@ func (uploader formUploader) uploadToRegion(
 	return err
 }
 
-func NewMultipartsUploader(scheduler MultiPartsUploaderScheduler) Uploader {
-	return multipartsUploader{scheduler}
+func NewMultiPartsUploader(scheduler MultiPartsUploaderScheduler) Uploader {
+	return multiPartsUploader{scheduler}
 }
 
-func (uploader multipartsUploader) UploadPath(ctx context.Context, path string, objectParams *ObjectParams, returnValue interface{}) error {
+func (uploader multiPartsUploader) UploadPath(ctx context.Context, path string, objectParams *ObjectParams, returnValue interface{}) error {
 	if objectParams == nil {
 		objectParams = &ObjectParams{}
 	}
@@ -173,7 +174,7 @@ func (uploader multipartsUploader) UploadPath(ctx context.Context, path string, 
 	return uploader.upload(ctx, src, upToken, httpClientOptions, objectParams, returnValue)
 }
 
-func (uploader multipartsUploader) UploadReader(ctx context.Context, reader io.Reader, objectParams *ObjectParams, returnValue interface{}) error {
+func (uploader multiPartsUploader) UploadReader(ctx context.Context, reader io.Reader, objectParams *ObjectParams, returnValue interface{}) error {
 	if objectParams == nil {
 		objectParams = &ObjectParams{}
 	}
@@ -198,7 +199,7 @@ func (uploader multipartsUploader) UploadReader(ctx context.Context, reader io.R
 	return uploader.upload(ctx, src, upToken, httpClientOptions, objectParams, returnValue)
 }
 
-func (uploader multipartsUploader) upload(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectParams *ObjectParams, returnValue interface{}) error {
+func (uploader multiPartsUploader) upload(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectParams *ObjectParams, returnValue interface{}) error {
 	resumed, err := uploader.uploadResumedParts(ctx, src, upToken, httpClientOptions, objectParams, returnValue)
 	if err == nil {
 		if resumed {
@@ -217,24 +218,38 @@ func (uploader multipartsUploader) upload(ctx context.Context, src source.Source
 	return uploader.tryToUploadToEachRegion(ctx, src, upToken, httpClientOptions, objectParams, returnValue)
 }
 
-func (uploader multipartsUploader) uploadResumedParts(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectParams *ObjectParams, returnValue interface{}) (bool, error) {
+func (uploader multiPartsUploader) uploadResumedParts(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectParams *ObjectParams, returnValue interface{}) (bool, error) {
 	if initializedParts, err := uploader.scheduler.MultiPartsUploader().TryToResume(ctx, src, objectParams); err != nil {
 		return false, err
 	} else if initializedParts == nil {
 		return false, nil
-	} else if err = uploader.uploadPartsAndComplete(ctx, src, initializedParts, objectParams, returnValue); err != nil {
-		return true, err
 	} else {
-		return true, nil
+		var size uint64
+		if ssrc, ok := src.(source.SizedSource); ok {
+			if totalSize, sizeErr := ssrc.TotalSize(); sizeErr == nil {
+				size = totalSize
+			}
+		}
+		if err = uploader.uploadPartsAndComplete(ctx, src, size, initializedParts, objectParams, returnValue); err != nil {
+			return true, err
+		} else {
+			return true, nil
+		}
 	}
 }
 
-func (uploader multipartsUploader) tryToUploadToEachRegion(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectParams *ObjectParams, returnValue interface{}) error {
+func (uploader multiPartsUploader) tryToUploadToEachRegion(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectParams *ObjectParams, returnValue interface{}) error {
 	return forEachRegion(ctx, upToken, httpClientOptions, func(region *region.Region) (bool, error) {
 		objectParams.RegionsProvider = region
 		initializedParts, err := uploader.scheduler.MultiPartsUploader().InitializeParts(ctx, src, objectParams)
+		var size uint64
+		if ssrc, ok := src.(source.SizedSource); ok {
+			if totalSize, sizeErr := ssrc.TotalSize(); sizeErr == nil {
+				size = totalSize
+			}
+		}
 		if err == nil {
-			if err = uploader.uploadPartsAndComplete(ctx, src, initializedParts, objectParams, returnValue); err == nil {
+			if err = uploader.uploadPartsAndComplete(ctx, src, size, initializedParts, objectParams, returnValue); err == nil {
 				return true, nil
 			}
 		}
@@ -247,8 +262,24 @@ func (uploader multipartsUploader) tryToUploadToEachRegion(ctx context.Context, 
 	})
 }
 
-func (uploader multipartsUploader) uploadPartsAndComplete(ctx context.Context, src source.Source, initializedParts InitializedParts, objectParams *ObjectParams, returnValue interface{}) error {
-	uploadParts, err := uploader.scheduler.UploadParts(ctx, initializedParts, src)
+func (uploader multiPartsUploader) uploadPartsAndComplete(ctx context.Context, src source.Source, size uint64, initializedParts InitializedParts, objectParams *ObjectParams, returnValue interface{}) error {
+	var uploadPartsParams UploadPartsParams
+	if objectParams.OnUploadingProgress != nil {
+		var resumedBytes uint64
+		if resumedInitializedParts, ok := initializedParts.(ResumedInitializedParts); ok {
+			resumedBytes = resumedInitializedParts.ResumedBytes()
+		}
+		progress := newUploadingPartsProgress(resumedBytes)
+		uploadPartsParams.OnUploadingProgress = func(partNumber uint32, uploaded, _ uint64) {
+			progress.setPartUploadingProgress(partNumber, uploaded)
+			objectParams.OnUploadingProgress(progress.totalUploaded(), size)
+		}
+		uploadPartsParams.OnPartUploaded = func(partNumber uint32, partSize uint64) {
+			progress.partUploaded(partNumber, partSize)
+			objectParams.OnUploadingProgress(progress.totalUploaded(), size)
+		}
+	}
+	uploadParts, err := uploader.scheduler.UploadParts(ctx, initializedParts, src, &uploadPartsParams)
 	if err != nil {
 		return err
 	}
@@ -366,4 +397,43 @@ func forEachRegion(ctx context.Context, upToken uptoken.Provider, options *httpc
 		}
 	}
 	return
+}
+
+type uploadingPartsProgress struct {
+	uploaded  uint64
+	uploading map[uint32]uint64
+	lock      sync.Mutex
+}
+
+func newUploadingPartsProgress(uploaded uint64) *uploadingPartsProgress {
+	return &uploadingPartsProgress{
+		uploaded:  uploaded,
+		uploading: make(map[uint32]uint64),
+	}
+}
+
+func (progress *uploadingPartsProgress) setPartUploadingProgress(partNumber uint32, uploaded uint64) {
+	progress.lock.Lock()
+	defer progress.lock.Unlock()
+
+	progress.uploading[partNumber] = uploaded
+}
+
+func (progress *uploadingPartsProgress) partUploaded(partNumber uint32, partSize uint64) {
+	progress.lock.Lock()
+	defer progress.lock.Unlock()
+
+	delete(progress.uploading, partNumber)
+	progress.uploaded += partSize
+}
+
+func (progress *uploadingPartsProgress) totalUploaded() uint64 {
+	progress.lock.Lock()
+	defer progress.lock.Unlock()
+
+	uploaded := progress.uploaded
+	for _, b := range progress.uploading {
+		uploaded += b
+	}
+	return uploaded
 }
