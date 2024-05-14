@@ -15,12 +15,19 @@ type (
 		ContentType         string
 		Metadata            map[string]string
 		CustomVars          map[string]string
-		OnUploadingProgress func(uploaded, partSize uint64)
+		OnUploadingProgress func(uploaded, totalSize uint64)
 	}
+
+	ResumableObjectParams struct {
+		*ObjectParams
+		PartSize uint64
+	}
+
 	UploadPartsParams struct {
-		OnUploadingProgress func(partNumber uint32, uploaded, partSize uint64)
-		OnPartUploaded      func(partNumber uint32, partSize uint64)
+		OnUploadingProgress func(partNumber, uploaded, partSize uint64)
+		OnPartUploaded      func(partNumber, partSize uint64)
 	}
+
 	UploadPartParams struct {
 		OnUploadingProgress func(uploaded, partSize uint64)
 	}

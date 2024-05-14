@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
 	uploader "github.com/qiniu/go-sdk/v7/storagev2/uploader/source"
 )
 
@@ -59,7 +60,7 @@ func testSource(t *testing.T, source uploader.Source, originalFile *os.File) {
 		parts = append(parts, part)
 	}
 	for i, part := range parts {
-		if part.PartNumber() != uint32(i+1) {
+		if part.PartNumber() != uint64(i+1) {
 			t.Fatalf("Unexpected part number: %d", part.PartNumber())
 		}
 	}
@@ -75,7 +76,7 @@ func testSource(t *testing.T, source uploader.Source, originalFile *os.File) {
 }
 
 func testPart(t *testing.T, part uploader.Part, offset int64, originalFile *os.File) {
-	partData, err := io.ReadAll(part)
+	partData, err := internal_io.ReadAll(part)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +86,7 @@ func testPart(t *testing.T, part uploader.Part, offset int64, originalFile *os.F
 		t.Fatal(err)
 	}
 
-	partData, err = io.ReadAll(part)
+	partData, err = internal_io.ReadAll(part)
 	if err != nil {
 		t.Fatal(err)
 	}

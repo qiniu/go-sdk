@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 
-	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	"github.com/qiniu/go-sdk/v7/storagev2/uploader/source"
 )
 
@@ -15,19 +14,15 @@ type (
 	}
 
 	MultiPartsUploader interface {
-		InitializeParts(context.Context, source.Source, *ObjectParams) (InitializedParts, error)
-		TryToResume(context.Context, source.Source, *ObjectParams) (ResumedInitializedParts, error)
+		InitializeParts(context.Context, source.Source, ResumableObjectParams) (InitializedParts, error)
+		TryToResume(context.Context, source.Source, ResumableObjectParams) InitializedParts
 		UploadPart(context.Context, InitializedParts, source.Part, *UploadPartParams) (UploadedPart, error)
 		CompleteParts(context.Context, InitializedParts, []UploadedPart, interface{}) error
-		HttpClientOptions() *httpclient.Options
+		MultiPartsUploaderOptions() *MultiPartsUploaderOptions
 	}
 
 	InitializedParts interface {
-	}
-
-	ResumedInitializedParts interface {
-		InitializedParts
-		ResumedBytes() uint64
+		io.Closer
 	}
 
 	UploadedPart interface {
@@ -37,5 +32,6 @@ type (
 	MultiPartsUploaderScheduler interface {
 		UploadParts(context.Context, InitializedParts, source.Source, *UploadPartsParams) ([]UploadedPart, error)
 		MultiPartsUploader() MultiPartsUploader
+		PartSize() uint64
 	}
 )

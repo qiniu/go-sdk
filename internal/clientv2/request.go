@@ -85,7 +85,7 @@ func (o *RequestParams) init() {
 func NewRequest(options RequestParams) (req *http.Request, err error) {
 	var (
 		bodyWrapper   *requestBodyWrapperWithProgress = nil
-		contentLength int64
+		contentLength uint64
 	)
 
 	options.init()
@@ -96,17 +96,17 @@ func NewRequest(options RequestParams) (req *http.Request, err error) {
 	}
 	if options.OnRequestProgress != nil && body != nil {
 		if contentLengthHeaderValue := options.Header.Get("Content-Length"); contentLengthHeaderValue != "" {
-			contentLength, _ = strconv.ParseInt(contentLengthHeaderValue, 10, 64)
+			contentLength, _ = strconv.ParseUint(contentLengthHeaderValue, 10, 64)
 		}
-		bodyWrapper = &requestBodyWrapperWithProgress{ctx: options.Context, body: body, expectedSize: contentLength, callback: options.OnRequestProgress}
-	}
-	req, err = http.NewRequest(options.Method, options.Url, body)
-	if err != nil {
-		return
+		bodyWrapper = &requestBodyWrapperWithProgress{body: body, expectedSize: contentLength, callback: options.OnRequestProgress}
 	}
 	if bodyWrapper != nil {
-		bodyWrapper.req = req
-		req.Body = bodyWrapper
+		req, err = http.NewRequest(options.Method, options.Url, bodyWrapper)
+	} else {
+		req, err = http.NewRequest(options.Method, options.Url, body)
+	}
+	if err != nil {
+		return
 	}
 	if options.Context != nil {
 		req = req.WithContext(options.Context)
@@ -123,8 +123,6 @@ func NewRequest(options RequestParams) (req *http.Request, err error) {
 			}
 			if bodyWrapper != nil {
 				return &requestBodyWrapperWithProgress{
-					ctx:          options.Context,
-					req:          req,
 					body:         reqBody,
 					expectedSize: contentLength,
 					callback:     options.OnRequestProgress,
@@ -138,12 +136,10 @@ func NewRequest(options RequestParams) (req *http.Request, err error) {
 }
 
 type (
-	RequestBodyProgress            func(context.Context, *http.Request, int64, int64)
+	RequestBodyProgress            func(uint64, uint64)
 	requestBodyWrapperWithProgress struct {
-		ctx                        context.Context
-		req                        *http.Request
 		body                       io.ReadCloser
-		haveReadSize, expectedSize int64
+		haveReadSize, expectedSize uint64
 		callback                   RequestBodyProgress
 	}
 )
@@ -151,8 +147,8 @@ type (
 func (wrapper *requestBodyWrapperWithProgress) Read(p []byte) (n int, err error) {
 	n, err = wrapper.body.Read(p)
 	if callback := wrapper.callback; callback != nil && n > 0 {
-		wrapper.haveReadSize += int64(n)
-		callback(wrapper.ctx, wrapper.req, wrapper.haveReadSize, wrapper.expectedSize)
+		wrapper.haveReadSize += uint64(n)
+		callback(wrapper.haveReadSize, wrapper.expectedSize)
 	}
 	return
 }

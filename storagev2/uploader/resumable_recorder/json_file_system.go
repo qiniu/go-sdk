@@ -34,6 +34,13 @@ func NewJsonFileSystemResumableRecorder(dirPath string) ResumableRecorder {
 }
 
 func (frr jsonFileSystemResumableRecorder) OpenForReading(options *ResumableRecorderOpenOptions) ReadableResumableRecorderMedium {
+	if options == nil {
+		options = &ResumableRecorderOpenOptions{}
+	}
+	if options.SourceKey == "" {
+		return nil
+	}
+
 	file, err := os.Open(frr.getFilePath(options))
 	if err != nil {
 		return nil
@@ -46,6 +53,13 @@ func (frr jsonFileSystemResumableRecorder) OpenForReading(options *ResumableReco
 }
 
 func (frr jsonFileSystemResumableRecorder) OpenForAppending(options *ResumableRecorderOpenOptions) WriteableResumableRecorderMedium {
+	if options == nil {
+		options = &ResumableRecorderOpenOptions{}
+	}
+	if options.SourceKey == "" {
+		return nil
+	}
+
 	file, err := os.OpenFile(frr.getFilePath(options), os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		return nil
@@ -54,6 +68,13 @@ func (frr jsonFileSystemResumableRecorder) OpenForAppending(options *ResumableRe
 }
 
 func (frr jsonFileSystemResumableRecorder) OpenForCreatingNew(options *ResumableRecorderOpenOptions) WriteableResumableRecorderMedium {
+	if options == nil {
+		options = &ResumableRecorderOpenOptions{}
+	}
+	if options.SourceKey == "" {
+		return nil
+	}
+
 	file, err := os.OpenFile(frr.getFilePath(options), os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return nil
@@ -155,7 +176,7 @@ func (medium jsonFileSystemResumableRecorderReadableMedium) Next(rr *ResumableRe
 	for {
 		if err := medium.decoder.Decode(&jrr); err != nil {
 			return err
-		} else if time.Now().Before(time.UnixMicro(jrr.ExpiredAt)) {
+		} else if time.Now().Before(time.Unix(jrr.ExpiredAt, 0)) {
 			break
 		}
 	}
@@ -172,7 +193,7 @@ func (medium jsonFileSystemResumableRecorderReadableMedium) Next(rr *ResumableRe
 		Offset:     jrr.Offset,
 		PartNumber: jrr.PartNumber,
 		PartSize:   jrr.PartSize,
-		ExpiredAt:  time.UnixMicro(jrr.ExpiredAt),
+		ExpiredAt:  time.Unix(jrr.ExpiredAt, 0),
 		Crc32:      jrr.Crc32,
 	}
 	copy(rr.MD5[:], md5Bytes)
@@ -190,7 +211,7 @@ func (medium jsonFileSystemResumableRecorderWritableMedium) Write(rr *ResumableR
 		Offset:     rr.Offset,
 		PartNumber: rr.PartNumber,
 		PartSize:   rr.PartSize,
-		ExpiredAt:  rr.ExpiredAt.UnixMicro(),
+		ExpiredAt:  rr.ExpiredAt.Unix(),
 		Crc32:      rr.Crc32,
 		MD5:        hex.EncodeToString(rr.MD5[:]),
 	}

@@ -43,12 +43,15 @@ func (scheduler serialMultiPartsUploaderScheduler) UploadParts(ctx context.Conte
 		var uploadPartParam UploadPartParams
 		if params != nil && params.OnUploadingProgress != nil {
 			uploadPartParam.OnUploadingProgress = func(uploaded, partSize uint64) {
-				params.OnUploadingProgress(part.PartNumber(), uploaded, scheduler.partSize)
+				params.OnUploadingProgress(part.PartNumber(), uploaded, part.Size())
 			}
 		}
 		uploadedPart, err := scheduler.uploader.UploadPart(ctx, initialized, part, &uploadPartParam)
 		if err != nil {
 			return nil, err
+		}
+		if params != nil && params.OnPartUploaded != nil {
+			params.OnPartUploaded(part.PartNumber(), part.Size())
 		}
 		parts = append(parts, uploadedPart)
 	}
@@ -57,6 +60,10 @@ func (scheduler serialMultiPartsUploaderScheduler) UploadParts(ctx context.Conte
 
 func (scheduler serialMultiPartsUploaderScheduler) MultiPartsUploader() MultiPartsUploader {
 	return scheduler.uploader
+}
+
+func (scheduler serialMultiPartsUploaderScheduler) PartSize() uint64 {
+	return scheduler.partSize
 }
 
 func (scheduler concurrentMultiPartsUploaderScheduler) UploadParts(ctx context.Context, initialized InitializedParts, src source.Source, params *UploadPartsParams) ([]UploadedPart, error) {
@@ -86,13 +93,17 @@ func (scheduler concurrentMultiPartsUploaderScheduler) UploadParts(ctx context.C
 			var uploadPartParam UploadPartParams
 			if params != nil && params.OnUploadingProgress != nil {
 				uploadPartParam.OnUploadingProgress = func(uploaded, partSize uint64) {
-					params.OnUploadingProgress(part.PartNumber(), uploaded, scheduler.partSize)
+					params.OnUploadingProgress(part.PartNumber(), uploaded, partSize)
 				}
 			}
 			uploadedPart, err := scheduler.uploader.UploadPart(ctx, initialized, part, &uploadPartParam)
 			if err != nil {
 				return err
 			}
+			if params != nil && params.OnPartUploaded != nil {
+				params.OnPartUploaded(part.PartNumber(), part.Size())
+			}
+
 			partsLock.Lock()
 			defer partsLock.Unlock()
 			parts = append(parts, uploadedPart)
@@ -110,4 +121,8 @@ func (scheduler concurrentMultiPartsUploaderScheduler) UploadParts(ctx context.C
 
 func (scheduler concurrentMultiPartsUploaderScheduler) MultiPartsUploader() MultiPartsUploader {
 	return scheduler.uploader
+}
+
+func (scheduler concurrentMultiPartsUploaderScheduler) PartSize() uint64 {
+	return scheduler.partSize
 }

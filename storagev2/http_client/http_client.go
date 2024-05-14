@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -176,7 +177,7 @@ type (
 		Interceptors []Interceptor
 
 		// 请求进度回调函数
-		OnRequestProgress func(context.Context, *http.Request, int64, int64)
+		OnRequestProgress func(uint64, uint64)
 	}
 )
 
@@ -459,8 +460,14 @@ func GetMultipartFormRequestBody(info *MultipartForm) GetRequestBody {
 
 // GetMultipartFormRequestBody 将二进制数据请求 Body 发送
 func GetRequestBodyFromReadSeekCloser(r compatible_io.ReadSeekCloser) GetRequestBody {
-	return func(*clientv2.RequestParams) (io.ReadCloser, error) {
-		_, err := r.Seek(0, io.SeekStart)
+	return func(params *clientv2.RequestParams) (io.ReadCloser, error) {
+		params.Header.Set("Content-Type", "application/octet-stream")
+		totalSize, err := r.Seek(0, io.SeekEnd)
+		if err != nil {
+			return r, err
+		}
+		params.Header.Set("Content-Length", strconv.FormatInt(totalSize, 10))
+		_, err = r.Seek(0, io.SeekStart)
 		return r, err
 	}
 }

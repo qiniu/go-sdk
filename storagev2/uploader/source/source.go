@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+
+	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
 )
 
 type (
@@ -30,40 +32,37 @@ type (
 		io.ReadSeeker
 		Offset() uint64
 		Size() uint64
-		PartNumber() uint32
+		PartNumber() uint64
 	}
 
 	seekablePart struct {
 		*io.SectionReader
-		partNumber uint32
-		offset     uint64
+		partNumber, offset uint64
 	}
 
 	unseekablePart struct {
 		*bytes.Reader
-		partNumber   uint32
-		offset, size uint64
+		partNumber, offset, size uint64
 	}
 
 	readSeekCloseSource struct {
 		rscra      *readSeekCloseReaderAt
 		off        uint64
 		sourceKey  string
-		partNumber uint32
+		partNumber uint64
 		m          sync.Mutex
 	}
 
 	readSeekCloseReaderAt struct {
-		r   io.ReadSeekCloser
+		r   internal_io.ReadSeekCloser
 		off int64
 		m   sync.Mutex
 	}
 
 	readCloseSource struct {
-		r          io.ReadCloser
-		sourceKey  string
-		offset     uint64
-		partNumber uint32
+		r                  io.ReadCloser
+		sourceKey          string
+		offset, partNumber uint64
 	}
 
 	readAtCloser interface {
@@ -76,12 +75,12 @@ type (
 		off        uint64
 		n          int64
 		sourceKey  string
-		partNumber uint32
+		partNumber uint64
 		m          sync.Mutex
 	}
 )
 
-func NewReadSeekCloserSource(r io.ReadSeekCloser, sourceKey string) Source {
+func NewReadSeekCloserSource(r internal_io.ReadSeekCloser, sourceKey string) Source {
 	return &readSeekCloseSource{rscra: newReadSeekCloseReaderAt(r), sourceKey: sourceKey}
 }
 
@@ -127,7 +126,7 @@ func (rscs *readSeekCloseSource) Reset() error {
 	return nil
 }
 
-func newReadSeekCloseReaderAt(r io.ReadSeekCloser) *readSeekCloseReaderAt {
+func newReadSeekCloseReaderAt(r internal_io.ReadSeekCloser) *readSeekCloseReaderAt {
 	return &readSeekCloseReaderAt{r: r, off: -1}
 }
 
@@ -226,7 +225,7 @@ func (rcs *readCloseSource) Slice(n uint64) (Part, error) {
 	}
 	return &unseekablePart{
 		bytes.NewReader(buf[:haveRead]),
-		atomic.AddUint32(&rcs.partNumber, 1),
+		atomic.AddUint64(&rcs.partNumber, 1),
 		atomic.AddUint64(&rcs.offset, uint64(haveRead)) - uint64(haveRead),
 		uint64(haveRead),
 	}, nil
@@ -240,7 +239,7 @@ func (rcs *readCloseSource) Close() error {
 	return rcs.r.Close()
 }
 
-func (p seekablePart) PartNumber() uint32 {
+func (p seekablePart) PartNumber() uint64 {
 	return p.partNumber
 }
 
@@ -252,7 +251,7 @@ func (p seekablePart) Size() uint64 {
 	return uint64(p.SectionReader.Size())
 }
 
-func (p unseekablePart) PartNumber() uint32 {
+func (p unseekablePart) PartNumber() uint64 {
 	return p.partNumber
 }
 

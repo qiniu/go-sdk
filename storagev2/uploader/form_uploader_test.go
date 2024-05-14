@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -29,6 +30,9 @@ func TestFormUploader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	hasher := md5.New()
 	if _, err = io.CopyN(tmpFile, io.TeeReader(r, hasher), 1024*1024); err != nil {
@@ -86,9 +90,11 @@ func TestFormUploader(t *testing.T) {
 	server := httptest.NewServer(serveMux)
 	defer server.Close()
 
-	formUploader := uploader.NewFormUploader(&httpclient.Options{
-		Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
-		Credentials: credentials.NewCredentials("testak", "testsk"),
+	formUploader := uploader.NewFormUploader(&uploader.FormUploaderOptions{
+		Options: &httpclient.Options{
+			Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
+			Credentials: credentials.NewCredentials("testak", "testsk"),
+		},
 	})
 	var (
 		returnValue struct {
@@ -98,13 +104,12 @@ func TestFormUploader(t *testing.T) {
 		lastUploaded uint64
 	)
 	if err = formUploader.UploadPath(context.Background(), tmpFile.Name(), &uploader.ObjectParams{
-		RegionsProvider: nil,
-		BucketName:      "testbucket",
-		ObjectName:      &key,
-		FileName:        "testfilename",
-		ContentType:     "application/json",
-		Metadata:        map[string]string{"a": "b", "c": "d"},
-		CustomVars:      map[string]string{"a": "b", "c": "d"},
+		BucketName:  "testbucket",
+		ObjectName:  &key,
+		FileName:    "testfilename",
+		ContentType: "application/json",
+		Metadata:    map[string]string{"a": "b", "c": "d"},
+		CustomVars:  map[string]string{"a": "b", "c": "d"},
 		OnUploadingProgress: func(uploaded, fileSize uint64) {
 			if fileSize != 1024*1024 {
 				t.Fatalf("unexpected file size")
@@ -127,6 +132,9 @@ func TestFormUploaderRetry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	hasher := md5.New()
 	if _, err = io.CopyN(tmpFile, io.TeeReader(r, hasher), 1024*1024); err != nil {
@@ -137,7 +145,8 @@ func TestFormUploaderRetry(t *testing.T) {
 	}
 	expectedMd5 := hasher.Sum(nil)
 
-	handlerCalled_1 := uint64(0)
+	var handlerCalled_1, handlerCalled_2, handlerCalled_3 uint64
+
 	serveMux_1 := http.NewServeMux()
 	serveMux_1.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddUint64(&handlerCalled_1, 1)
@@ -186,7 +195,6 @@ func TestFormUploaderRetry(t *testing.T) {
 	server_1 := httptest.NewServer(serveMux_1)
 	defer server_1.Close()
 
-	handlerCalled_2 := uint64(0)
 	serveMux_2 := http.NewServeMux()
 	serveMux_2.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddUint64(&handlerCalled_2, 1)
@@ -198,7 +206,6 @@ func TestFormUploaderRetry(t *testing.T) {
 	server_2 := httptest.NewServer(serveMux_2)
 	defer server_2.Close()
 
-	handlerCalled_3 := uint64(0)
 	serveMux_3 := http.NewServeMux()
 	serveMux_3.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddUint64(&handlerCalled_3, 1)
@@ -229,22 +236,23 @@ func TestFormUploaderRetry(t *testing.T) {
 		key = "testkey"
 	)
 
-	formUploader := uploader.NewFormUploader(&httpclient.Options{
-		Regions: regions{[]*region.Region{
-			{Up: region.Endpoints{Preferred: []string{server_3.URL}}},
-			{Up: region.Endpoints{Preferred: []string{server_2.URL}}},
-			{Up: region.Endpoints{Preferred: []string{server_1.URL}}},
-		}},
-		Credentials: credentials.NewCredentials("testak", "testsk"),
+	formUploader := uploader.NewFormUploader(&uploader.FormUploaderOptions{
+		Options: &httpclient.Options{
+			Regions: regions{[]*region.Region{
+				{Up: region.Endpoints{Preferred: []string{server_3.URL}}},
+				{Up: region.Endpoints{Preferred: []string{server_2.URL}}},
+				{Up: region.Endpoints{Preferred: []string{server_1.URL}}},
+			}},
+			Credentials: credentials.NewCredentials("testak", "testsk"),
+		},
 	})
 	if err = formUploader.UploadPath(context.Background(), tmpFile.Name(), &uploader.ObjectParams{
-		RegionsProvider: nil,
-		BucketName:      "testbucket",
-		ObjectName:      &key,
-		FileName:        "testfilename",
-		ContentType:     "application/json",
-		Metadata:        map[string]string{"a": "b", "c": "d"},
-		CustomVars:      map[string]string{"a": "b", "c": "d"},
+		BucketName:  "testbucket",
+		ObjectName:  &key,
+		FileName:    "testfilename",
+		ContentType: "application/json",
+		Metadata:    map[string]string{"a": "b", "c": "d"},
+		CustomVars:  map[string]string{"a": "b", "c": "d"},
 	}, &returnValue); err != nil {
 		t.Fatal(err)
 	}
@@ -264,13 +272,15 @@ func TestFormUploaderRetry(t *testing.T) {
 	atomic.StoreUint64(&handlerCalled_2, 0)
 	atomic.StoreUint64(&handlerCalled_3, 0)
 
-	formUploader = uploader.NewFormUploader(&httpclient.Options{
-		Regions: regions{[]*region.Region{
-			{Up: region.Endpoints{Preferred: []string{server_3.URL}}},
-			{Up: region.Endpoints{Preferred: []string{server_2.URL}}},
-			{Up: region.Endpoints{Preferred: []string{server_4.URL}}},
-		}},
-		Credentials: credentials.NewCredentials("testak", "testsk"),
+	formUploader = uploader.NewFormUploader(&uploader.FormUploaderOptions{
+		Options: &httpclient.Options{
+			Regions: regions{[]*region.Region{
+				{Up: region.Endpoints{Preferred: []string{server_3.URL}}},
+				{Up: region.Endpoints{Preferred: []string{server_2.URL}}},
+				{Up: region.Endpoints{Preferred: []string{server_4.URL}}},
+			}},
+			Credentials: credentials.NewCredentials("testak", "testsk"),
+		},
 	})
 	if err = formUploader.UploadPath(context.Background(), tmpFile.Name(), &uploader.ObjectParams{
 		RegionsProvider: nil,

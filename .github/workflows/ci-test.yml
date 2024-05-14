@@ -22,11 +22,11 @@ jobs:
         run: |
           set -e
           rm -rf $GITHUB_WORKSPACE/src/github.com/qiniu/x && git clone -b v1.12.21 --depth 1 https://github.com/qiniu/x.git $GITHUB_WORKSPACE/src/github.com/qiniu/x
-          GOPATH=$GITHUB_WORKSPACE go get golang.org/x/sync/singleflight
           GOPATH=$GITHUB_WORKSPACE go get github.com/qiniu/dyn
           GOPATH=$GITHUB_WORKSPACE go get github.com/gofrs/flock
           GOPATH=$GITHUB_WORKSPACE go get github.com/alex-ant/gomath/rational
           GOPATH=$GITHUB_WORKSPACE go get github.com/matishsiao/goInfo
+          GOPATH=$GITHUB_WORKSPACE go get github.com/gorilla/mux
 
           # FIXME special package
           # github.com/go-playground/validator/v10
@@ -42,11 +42,17 @@ jobs:
           rm -rf $GITHUB_WORKSPACE/src/golang.org/x/text && git clone -b v0.10.0 --depth 1 https://github.com/golang/text $GITHUB_WORKSPACE/src/golang.org/x/text
           # GOPATH=$GITHUB_WORKSPACE go get golang.org/x/text/language
 
+          rm -rf $GITHUB_WORKSPACE/src/golang.org/x/sync && git clone -b v0.3.0 --depth 1 https://github.com/golang/sync $GITHUB_WORKSPACE/src/golang.org/x/sync
+          # GOPATH=$GITHUB_WORKSPACE go get golang.org/x/sync
+
           GOPATH=$GITHUB_WORKSPACE go get github.com/leodido/go-urn
           GOPATH=$GITHUB_WORKSPACE go get github.com/go-playground/locales
 
           rm -rf $GITHUB_WORKSPACE/src/github.com/dave/jennifer && git clone -b v1.6.1 --depth 1 https://github.com/dave/jennifer $GITHUB_WORKSPACE/src/github.com/dave/jennifer
           # GOPATH=$GITHUB_WORKSPACE go get github.com/dave/jennifer
+
+          rm -rf $GITHUB_WORKSPACE/src/modernc.org/fileutil && git clone -b v1.0.0 --depth 1 https://gitlab.com/cznic/fileutil.git $GITHUB_WORKSPACE/src/modernc.org/fileutil
+          # GOPATH=$GITHUB_WORKSPACE go get modernc.org/fileutil
 
           GOPATH=$GITHUB_WORKSPACE go get github.com/iancoleman/strcase
 
@@ -99,6 +105,9 @@ jobs:
       - name: Run unit cases
         run: |
           set -e
+          if [ "${{ matrix.go_version }}" = "1.11.x" ] || [ "${{ matrix.go_version }}" = "1.12.x" ] || [ "${{ matrix.go_version }}" = "1.13.x" ] || [ "${{ matrix.go_version }}" = "1.14.x" ] || [ "${{ matrix.go_version }}" = "1.15.x" ]; then
+            go get modernc.org/fileutil@v1.0.0
+          fi
           make unittest
         env:
           GO111MODULE: 'on'
