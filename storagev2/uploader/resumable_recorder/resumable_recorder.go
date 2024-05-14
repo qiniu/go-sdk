@@ -36,6 +36,7 @@ type (
 		UploadId   string
 		PartId     string
 		Offset     uint64
+		PartSize   uint64
 		PartNumber uint64
 		ExpiredAt  time.Time
 		Crc32      uint32

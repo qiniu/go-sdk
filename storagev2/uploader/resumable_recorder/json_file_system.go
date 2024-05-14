@@ -112,6 +112,7 @@ type (
 		PartId     string `json:"p,omitempty"`
 		Offset     uint64 `json:"o,omitempty"`
 		PartNumber uint64 `json:"n,omitempty"`
+		PartSize   uint64 `json:"s,omitempty"`
 		ExpiredAt  int64  `json:"e,omitempty"`
 		Crc32      uint32 `json:"c,omitempty"`
 		MD5        string `json:"m,omitempty"`
@@ -170,6 +171,7 @@ func (medium jsonFileSystemResumableRecorderReadableMedium) Next(rr *ResumableRe
 		PartId:     jrr.PartId,
 		Offset:     jrr.Offset,
 		PartNumber: jrr.PartNumber,
+		PartSize:   jrr.PartSize,
 		ExpiredAt:  time.UnixMicro(jrr.ExpiredAt),
 		Crc32:      jrr.Crc32,
 	}
@@ -187,6 +189,7 @@ func (medium jsonFileSystemResumableRecorderWritableMedium) Write(rr *ResumableR
 		PartId:     rr.PartId,
 		Offset:     rr.Offset,
 		PartNumber: rr.PartNumber,
+		PartSize:   rr.PartSize,
 		ExpiredAt:  rr.ExpiredAt.UnixMicro(),
 		Crc32:      rr.Crc32,
 		MD5:        hex.EncodeToString(rr.MD5[:]),
