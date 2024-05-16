@@ -176,6 +176,10 @@ func (uploader multiPartsUploader) UploadPath(ctx context.Context, path string, 
 	}
 	defer src.Close()
 
+	if file := src.GetFile(); file != nil {
+		_ = fileutil.Fadvise(file, 0, 0, fileutil.POSIX_FADV_SEQUENTIAL)
+	}
+
 	return uploader.upload(ctx, src, upToken, options.Options, objectParams, returnValue)
 }
 
@@ -314,18 +318,26 @@ func crc32FromReadSeeker(r io.ReadSeeker) (uint32, error) {
 func mergeCustomVarsAndMetadata(metadata, customVars map[string]string) map[string]string {
 	result := make(map[string]string, len(metadata)+len(customVars))
 	for k, v := range metadata {
-		if !strings.HasPrefix(k, "x-qn-meta-") {
-			k = "x-qn-meta-" + k
-		}
-		result[k] = v
+		result[normalizeMetadataKey(k)] = v
 	}
 	for k, v := range customVars {
-		if !strings.HasPrefix(k, "x:") {
-			k = "x:" + k
-		}
-		result[k] = v
+		result[normalizeCustomVarKey(k)] = v
 	}
 	return result
+}
+
+func normalizeMetadataKey(k string) string {
+	if !strings.HasPrefix(k, "x-qn-meta-") {
+		k = "x-qn-meta-" + k
+	}
+	return k
+}
+
+func normalizeCustomVarKey(k string) string {
+	if !strings.HasPrefix(k, "x:") {
+		k = "x:" + k
+	}
+	return k
 }
 
 func canSeekReally(seeker io.Seeker) bool {
@@ -395,7 +407,7 @@ func forEachRegion(ctx context.Context, upToken uptoken.Provider, bucketName str
 
 	regions, err = getRegions(ctx, upToken, bucketName, options)
 	if err != nil {
-		return err
+		return
 	}
 	if len(regions) == 0 {
 		err = stderrors.New("none of regions got")
@@ -410,7 +422,7 @@ func forEachRegion(ctx context.Context, upToken uptoken.Provider, bucketName str
 			break
 		}
 	}
-	return nil
+	return
 }
 
 type uploadingPartsProgress struct {

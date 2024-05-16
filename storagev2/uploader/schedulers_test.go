@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"hash/crc32"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -47,9 +48,7 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 	var server *httptest.Server
 	serveMux := mux.NewRouter()
 	serveMux.HandleFunc("/mkblk/4194304", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			t.Fatalf("unexpected method")
-		} else if !strings.HasPrefix(r.Header.Get("Authorization"), "UpToken testak:") {
+		if !strings.HasPrefix(r.Header.Get("Authorization"), "UpToken testak:") {
 			t.Fatalf("unexpected authorization")
 		}
 		actualBody, err := internal_io.ReadAll(r.Body)
@@ -66,7 +65,7 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 		jsonBody, err := json.Marshal(&apis.ResumableUploadV1MakeBlockResponse{
 			Ctx:       "testctx1",
 			Checksum:  "testchecksum1",
-			Crc32:     1,
+			Crc32:     int64(crc32.ChecksumIEEE(actualBody)),
 			Host:      server.URL,
 			ExpiredAt: time.Now().Add(1 * time.Hour).Unix(),
 		})
@@ -74,11 +73,9 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 			t.Fatal(err)
 		}
 		w.Write(jsonBody)
-	})
+	}).Methods(http.MethodPost)
 	serveMux.HandleFunc("/mkblk/1048576", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			t.Fatalf("unexpected method")
-		} else if !strings.HasPrefix(r.Header.Get("Authorization"), "UpToken testak:") {
+		if !strings.HasPrefix(r.Header.Get("Authorization"), "UpToken testak:") {
 			t.Fatalf("unexpected authorization")
 		}
 		actualBody, err := internal_io.ReadAll(r.Body)
@@ -95,7 +92,7 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 		jsonBody, err := json.Marshal(&apis.ResumableUploadV1MakeBlockResponse{
 			Ctx:       "testctx2",
 			Checksum:  "testchecksum2",
-			Crc32:     2,
+			Crc32:     int64(crc32.ChecksumIEEE(actualBody)),
 			Host:      server.URL,
 			ExpiredAt: time.Now().Add(1 * time.Hour).Unix(),
 		})
@@ -103,11 +100,9 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 			t.Fatal(err)
 		}
 		w.Write(jsonBody)
-	})
+	}).Methods(http.MethodPost)
 	serveMux.PathPrefix("/mkfile/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			t.Fatalf("unexpected method")
-		} else if !strings.HasPrefix(r.Header.Get("Authorization"), "UpToken testak:") {
+		if !strings.HasPrefix(r.Header.Get("Authorization"), "UpToken testak:") {
 			t.Fatalf("unexpected authorization")
 		}
 		components := strings.Split(strings.TrimPrefix(r.URL.Path, "/mkfile/"), "/")
@@ -193,7 +188,7 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 			t.Fatalf("unexpected body")
 		}
 		w.Write([]byte(`{"ok":true}`))
-	})
+	}).Methods(http.MethodPost)
 	server = httptest.NewServer(serveMux)
 	defer server.Close()
 

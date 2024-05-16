@@ -16,6 +16,7 @@ type (
 		io.Closer
 		Slice(uint64) (Part, error)
 		SourceKey() (string, error)
+		GetFile() *os.File
 	}
 
 	SizedSource interface {
@@ -126,6 +127,10 @@ func (rscs *readSeekCloseSource) Reset() error {
 	return nil
 }
 
+func (rscs *readSeekCloseSource) GetFile() *os.File {
+	return rscs.rscra.GetFile()
+}
+
 func newReadSeekCloseReaderAt(r internal_io.ReadSeekCloser) *readSeekCloseReaderAt {
 	return &readSeekCloseReaderAt{r: r, off: -1}
 }
@@ -165,6 +170,14 @@ func (rscra *readSeekCloseReaderAt) TotalSize() (uint64, error) {
 
 func (rscra *readSeekCloseReaderAt) Close() error {
 	return rscra.r.Close()
+}
+
+func (rscra *readSeekCloseReaderAt) GetFile() *os.File {
+	if file, ok := rscra.r.(*os.File); ok {
+		return file
+	} else {
+		return nil
+	}
 }
 
 func NewReadAtCloserSource(r readAtCloser, n int64, sourceKey string) Source {
@@ -213,6 +226,14 @@ func (racs *readAtCloseSource) Reset() error {
 	return nil
 }
 
+func (racs *readAtCloseSource) GetFile() *os.File {
+	if file, ok := racs.r.(*os.File); ok {
+		return file
+	} else {
+		return nil
+	}
+}
+
 func NewReadCloserSource(r io.ReadCloser, sourceKey string) Source {
 	return &readCloseSource{r: r, sourceKey: sourceKey}
 }
@@ -237,6 +258,14 @@ func (rcs *readCloseSource) SourceKey() (string, error) {
 
 func (rcs *readCloseSource) Close() error {
 	return rcs.r.Close()
+}
+
+func (racs *readCloseSource) GetFile() *os.File {
+	if file, ok := racs.r.(*os.File); ok {
+		return file
+	} else {
+		return nil
+	}
 }
 
 func (p seekablePart) PartNumber() uint64 {

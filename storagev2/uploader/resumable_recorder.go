@@ -39,17 +39,6 @@ func tryToDeleteResumableRecorderMedium(ctx context.Context, src source.Source, 
 }
 
 func makeResumableRecorderOpenOptions(ctx context.Context, src source.Source, resumableObjectParams ResumableObjectParams, multiPartsUploaderOptions *MultiPartsUploaderOptions) *resumablerecorder.ResumableRecorderOpenOptions {
-	guessBucketName := func(ctx context.Context, bucketName string, upTokenProvider uptoken.Provider) (string, error) {
-		if bucketName == "" {
-			if putPolicy, err := upTokenProvider.GetPutPolicy(ctx); err != nil {
-				return "", err
-			} else if bucketName, err = putPolicy.GetBucketName(); err != nil {
-				return "", err
-			}
-		}
-		return bucketName, nil
-	}
-
 	sourceKey, err := src.SourceKey()
 	if err != nil || sourceKey == "" {
 		return nil
@@ -90,4 +79,15 @@ func makeResumableRecorderOpenOptions(ctx context.Context, src source.Source, re
 		TotalSize:   totalSize,
 		UpEndpoints: regions[0].Up,
 	}
+}
+
+func guessBucketName(ctx context.Context, bucketName string, upTokenProvider uptoken.Provider) (string, error) {
+	if bucketName == "" {
+		if putPolicy, err := upTokenProvider.GetPutPolicy(ctx); err != nil {
+			return "", err
+		} else if bucketName, err = putPolicy.GetBucketName(); err != nil {
+			return "", err
+		}
+	}
+	return bucketName, nil
 }

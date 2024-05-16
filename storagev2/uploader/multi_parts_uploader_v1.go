@@ -2,7 +2,8 @@ package uploader
 
 import (
 	"context"
-	stderrors "errors"
+	"errors"
+	"io"
 	"strings"
 	"time"
 
@@ -29,18 +30,16 @@ type (
 	}
 
 	multiPartsUploaderV1UploadedPart struct {
-		ctx    string
-		crc32  uint32
-		offset uint64
-		size   uint64
+		ctx          string
+		crc32        uint32
+		offset, size uint64
 	}
 
 	resumedMultiPartsUploaderV1Record struct {
-		ctx       string
-		crc32     uint32
-		offset    uint64
-		size      uint64
-		expiredAt time.Time
+		ctx          string
+		crc32        uint32
+		offset, size uint64
+		expiredAt    time.Time
 	}
 
 	MultiPartsUploaderOptions struct {
@@ -66,7 +65,6 @@ func (uploader *multiPartsUploaderV1) InitializeParts(ctx context.Context, src s
 }
 
 func (uploader *multiPartsUploaderV1) TryToResume(ctx context.Context, src source.Source, resumableObjectParams ResumableObjectParams) InitializedParts {
-	var records map[uint64]resumedMultiPartsUploaderV1Record
 	if resumableObjectParams.ObjectParams == nil {
 		resumableObjectParams.ObjectParams = &ObjectParams{}
 	}
@@ -77,7 +75,7 @@ func (uploader *multiPartsUploaderV1) TryToResume(ctx context.Context, src sourc
 	}
 	defer readableMedium.Close()
 
-	records = make(map[uint64]resumedMultiPartsUploaderV1Record)
+	records := make(map[uint64]resumedMultiPartsUploaderV1Record)
 	for {
 		var record resumablerecorder.ResumableRecord
 		if err := readableMedium.Next(&record); err != nil {
@@ -100,7 +98,7 @@ func (uploader *multiPartsUploaderV1) TryToResume(ctx context.Context, src sourc
 func (uploader *multiPartsUploaderV1) UploadPart(ctx context.Context, initialized InitializedParts, part source.Part, params *UploadPartParams) (UploadedPart, error) {
 	initializedParts, ok := initialized.(*multiPartsUploaderV1InitializedParts)
 	if !ok {
-		return nil, stderrors.New("unrecognized initialized parts")
+		return nil, errors.New("unrecognized initialized parts")
 	}
 	if len(initializedParts.records) > 0 {
 		if record, ok := initializedParts.records[part.PartNumber()]; ok {
@@ -131,6 +129,7 @@ func (uploader *multiPartsUploaderV1) uploadPart(ctx context.Context, initialize
 	if err != nil {
 		return nil, err
 	}
+
 	response, err := uploader.storage.ResumableUploadV1MakeBlock(ctx, &apis.ResumableUploadV1MakeBlockRequest{
 		BlockSize: int64(part.Size()),
 		UpToken:   upToken,
@@ -138,17 +137,30 @@ func (uploader *multiPartsUploaderV1) uploadPart(ctx context.Context, initialize
 	}, &options)
 	if err != nil {
 		return nil, err
+	} else if response.Crc32 > 0 {
+		if _, err = part.Seek(0, io.SeekStart); err != nil {
+			return nil, err
+		}
+		crc32, err := crc32FromReadSeeker(part)
+		if err != nil {
+			return nil, err
+		}
+		if crc32 != uint32(response.Crc32) {
+			return nil, errors.New("unexpected crc32")
+		}
 	}
+
 	if medium := initialized.medium; medium != nil {
 		medium.Write(&resumablerecorder.ResumableRecord{
 			PartId:     response.Ctx,
-			Offset:     uint64(response.Offset),
+			Offset:     part.Offset(),
 			PartSize:   part.Size(),
 			PartNumber: part.PartNumber(),
 			ExpiredAt:  time.Unix(response.ExpiredAt, 0),
 			Crc32:      uint32(response.Crc32),
 		})
 	}
+
 	return multiPartsUploaderV1UploadedPart{
 		ctx:    response.Ctx,
 		crc32:  uint32(response.Crc32),
@@ -160,7 +172,7 @@ func (uploader *multiPartsUploaderV1) uploadPart(ctx context.Context, initialize
 func (uploader *multiPartsUploaderV1) CompleteParts(ctx context.Context, initialized InitializedParts, parts []UploadedPart, returnValue interface{}) error {
 	initializedParts, ok := initialized.(*multiPartsUploaderV1InitializedParts)
 	if !ok {
-		return stderrors.New("unrecognized initialized parts")
+		return errors.New("unrecognized initialized parts")
 	}
 	options := apis.Options{
 		OverwrittenRegion: initializedParts.resumableObjectParams.RegionsProvider,
@@ -177,7 +189,7 @@ func (uploader *multiPartsUploaderV1) CompleteParts(ctx context.Context, initial
 	for _, part := range parts {
 		uploadedPart, ok := part.(multiPartsUploaderV1UploadedPart)
 		if !ok {
-			return stderrors.New("unrecognized uploaded part")
+			return errors.New("unrecognized uploaded part")
 		}
 		ctxs = append(ctxs, uploadedPart.ctx)
 		size += uploadedPart.size
