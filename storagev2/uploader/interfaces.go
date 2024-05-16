@@ -9,7 +9,7 @@ import (
 
 type (
 	Uploader interface {
-		UploadPath(context.Context, string, *ObjectParams, interface{}) error
+		UploadFile(context.Context, string, *ObjectParams, interface{}) error
 		UploadReader(context.Context, io.Reader, *ObjectParams, interface{}) error
 	}
 

@@ -103,7 +103,7 @@ func TestFormUploader(t *testing.T) {
 		key          = "testkey"
 		lastUploaded uint64
 	)
-	if err = formUploader.UploadPath(context.Background(), tmpFile.Name(), &uploader.ObjectParams{
+	if err = formUploader.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectParams{
 		BucketName:  "testbucket",
 		ObjectName:  &key,
 		FileName:    "testfilename",
@@ -246,7 +246,7 @@ func TestFormUploaderRetry(t *testing.T) {
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 		},
 	})
-	if err = formUploader.UploadPath(context.Background(), tmpFile.Name(), &uploader.ObjectParams{
+	if err = formUploader.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectParams{
 		BucketName:  "testbucket",
 		ObjectName:  &key,
 		FileName:    "testfilename",
@@ -282,7 +282,7 @@ func TestFormUploaderRetry(t *testing.T) {
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 		},
 	})
-	if err = formUploader.UploadPath(context.Background(), tmpFile.Name(), &uploader.ObjectParams{
+	if err = formUploader.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectParams{
 		RegionsProvider: nil,
 		BucketName:      "testbucket",
 		ObjectName:      &key,

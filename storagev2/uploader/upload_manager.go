@@ -55,7 +55,7 @@ func NewUploadManager(options *UploadManagerOptions) Uploader {
 	return &uploadManager{options}
 }
 
-func (uploadManager *uploadManager) UploadPath(ctx context.Context, path string, objectParams *ObjectParams, returnValue interface{}) error {
+func (uploadManager *uploadManager) UploadFile(ctx context.Context, path string, objectParams *ObjectParams, returnValue interface{}) error {
 	fileInfo, err := os.Stat(path)
 	if err != nil {
 		return err
@@ -68,7 +68,7 @@ func (uploadManager *uploadManager) UploadPath(ctx context.Context, path string,
 		uploader = uploadManager.getFormUploader()
 	}
 
-	return uploader.UploadPath(ctx, path, objectParams, returnValue)
+	return uploader.UploadFile(ctx, path, objectParams, returnValue)
 }
 
 func (uploadManager *uploadManager) UploadReader(ctx context.Context, reader io.Reader, objectParams *ObjectParams, returnValue interface{}) error {

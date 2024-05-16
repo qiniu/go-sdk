@@ -47,7 +47,7 @@ func NewFormUploader(options *FormUploaderOptions) Uploader {
 	return formUploader{apis.NewStorage(options.Options), options}
 }
 
-func (uploader formUploader) UploadPath(ctx context.Context, path string, objectParams *ObjectParams, returnValue interface{}) error {
+func (uploader formUploader) UploadFile(ctx context.Context, path string, objectParams *ObjectParams, returnValue interface{}) error {
 	if objectParams == nil {
 		objectParams = &ObjectParams{}
 	}
@@ -156,7 +156,7 @@ func NewMultiPartsUploader(scheduler MultiPartsUploaderScheduler) Uploader {
 	return multiPartsUploader{scheduler}
 }
 
-func (uploader multiPartsUploader) UploadPath(ctx context.Context, path string, objectParams *ObjectParams, returnValue interface{}) error {
+func (uploader multiPartsUploader) UploadFile(ctx context.Context, path string, objectParams *ObjectParams, returnValue interface{}) error {
 	if objectParams == nil {
 		objectParams = &ObjectParams{}
 	}
