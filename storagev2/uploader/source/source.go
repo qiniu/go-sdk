@@ -241,8 +241,10 @@ func NewReadCloserSource(r io.ReadCloser, sourceKey string) Source {
 func (rcs *readCloseSource) Slice(n uint64) (Part, error) {
 	buf := make([]byte, n)
 	haveRead, err := io.ReadFull(rcs.r, buf)
-	if err != nil && err != io.ErrUnexpectedEOF {
+	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 		return nil, err
+	} else if haveRead == 0 {
+		return nil, nil
 	}
 	return &unseekablePart{
 		bytes.NewReader(buf[:haveRead]),

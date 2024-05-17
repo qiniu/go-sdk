@@ -130,7 +130,7 @@ func (p *FormUploader) putFile(
 
 	objectParams := p.newObjectParams(upToken, key, hasKey, extra)
 	objectParams.FileName = filepath.Base(localFile)
-	return p.uploader.UploadPath(ctx, localFile, objectParams, ret)
+	return p.uploader.UploadFile(ctx, localFile, objectParams, ret)
 }
 
 // Put 用来以表单方式上传一个文件。

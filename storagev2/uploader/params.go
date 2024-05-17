@@ -31,4 +31,17 @@ type (
 	UploadPartParams struct {
 		OnUploadingProgress func(uploaded, partSize uint64)
 	}
+
+	DirectoryParams struct {
+		RegionsProvider       region.RegionsProvider
+		UpToken               uptoken.Provider
+		BucketName            string
+		ObjectPrefix          string
+		FileConcurrency       int
+		BeforeFileUpload      func(filePath string, objectParams *ObjectParams)
+		OnUploadingProgress   func(filePath string, uploaded, totalSize uint64)
+		OnFileUploaded        func(filePath string, size uint64)
+		ShouldCreateDirectory bool
+		ShouldUploadFile      func(filePath string) bool
+	}
 )
