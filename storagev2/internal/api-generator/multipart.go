@@ -195,6 +195,7 @@ func (mff *MultipartFormFields) addBuildFunc(group *jen.Group, structName string
 							group.Add(jen.Id("multipartForm").Dot("SetFile").Call(
 								jen.Lit(named.Key),
 								jen.Id("form").Dot(fieldName).Dot("Name"),
+								jen.Id("form").Dot(fieldName).Dot("ContentType"),
 								jen.Id("form").Dot(fieldName).Dot("Data"),
 							))
 						}

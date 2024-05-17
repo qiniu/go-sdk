@@ -207,8 +207,9 @@ func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upT
 		ObjectName:  makeKeyForUploading(key, hasKey),
 		UploadToken: uptoken.NewParser(upToken),
 		File: http_client.MultipartFormBinaryData{
-			Data: internal_io.MakeReadSeekCloserFromLimitedReader(fileReader, dataSize),
-			Name: fileName,
+			Data:        internal_io.MakeReadSeekCloserFromLimitedReader(fileReader, dataSize),
+			Name:        fileName,
+			ContentType: extra.MimeType,
 		},
 		CustomData:   makeCustomData(extra.Params),
 		ResponseBody: ret,
