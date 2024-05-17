@@ -5,6 +5,8 @@ package clientv2
 
 import (
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -157,19 +159,28 @@ func TestHostsNotRetryInterceptor(t *testing.T) {
 }
 
 func TestHostsRetryInterceptorByRequest(t *testing.T) {
-	clientV1.DebugMode = true
-	defer func() {
-		clientV1.DebugMode = false
-	}()
+	serveMux_1 := http.NewServeMux()
+	serveMux_1.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(599)
+		w.Write([]byte(`{"error":"test error"}`))
+	})
+	server_1 := httptest.NewServer(serveMux_1)
+	defer server_1.Close()
 
-	hostA := "aaa.aa.com"
-	hostB := "www.qiniu.com"
+	serveMux_2 := http.NewServeMux()
+	serveMux_2.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	server_2 := httptest.NewServer(serveMux_2)
+	defer server_2.Close()
+
 	hRetryMax := 30
 	hRetryInterceptor := NewHostsRetryInterceptor(HostsRetryConfig{
-		RetryMax:           hRetryMax,
-		ShouldFreezeHost:   nil,
-		HostFreezeDuration: 0,
-		HostProvider:       hostprovider.NewWithHosts([]string{hostA, hostB}),
+		RetryMax: hRetryMax,
+		HostProvider: hostprovider.NewWithHosts([]string{
+			strings.TrimPrefix(server_1.URL, "http://"),
+			strings.TrimPrefix(server_2.URL, "http://"),
+		}),
 	})
 
 	retryMax := 1
@@ -203,7 +214,7 @@ func TestHostsRetryInterceptorByRequest(t *testing.T) {
 	resp, err := Do(c, RequestParams{
 		Context: nil,
 		Method:  RequestMethodGet,
-		Url:     "https://" + hostA,
+		Url:     server_1.URL,
 		Header:  nil,
 		GetBody: nil,
 	})
@@ -221,7 +232,7 @@ func TestHostsRetryInterceptorByRequest(t *testing.T) {
 		t.Fatalf("retry flow error")
 	}
 
-	if resp.Request.Host != hostB {
+	if resp.Request.Host != strings.TrimPrefix(server_2.URL, "http://") {
 		t.Fatalf("retry host set error")
 	}
 }
