@@ -22,10 +22,12 @@ type (
 	}
 )
 
+// 创建串行分片上传调度器
 func NewSerialMultiPartsUploaderScheduler(uploader MultiPartsUploader, partSize uint64) MultiPartsUploaderScheduler {
 	return serialMultiPartsUploaderScheduler{uploader, partSize}
 }
 
+// 创建并行分片上传调度器
 func NewConcurrentMultiPartsUploaderScheduler(uploader MultiPartsUploader, partSize uint64, concurrency int) MultiPartsUploaderScheduler {
 	return concurrentMultiPartsUploaderScheduler{uploader, partSize, concurrency}
 }

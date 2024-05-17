@@ -6,20 +6,42 @@ import (
 )
 
 type (
+	// 对象上传选项
 	ObjectParams struct {
-		RegionsProvider     region.RegionsProvider
-		UpToken             uptoken.Provider
-		BucketName          string
-		ObjectName          *string
-		FileName            string
-		ContentType         string
-		Metadata            map[string]string
-		CustomVars          map[string]string
+		// 区域提供者，可选
+		RegionsProvider region.RegionsProvider
+
+		// 上传凭证接口，可选
+		UpToken uptoken.Provider
+
+		// 空间名称，可选
+		BucketName string
+
+		// 对象名称
+		ObjectName *string
+
+		// 文件名称
+		FileName string
+
+		// 文件 MIME 类型
+		ContentType string
+
+		// 自定义元数据
+		Metadata map[string]string
+
+		// 自定义变量
+		CustomVars map[string]string
+
+		// 对象上传进度
 		OnUploadingProgress func(uploaded, totalSize uint64)
 	}
 
-	ResumableObjectParams struct {
+	// 分片上传对象上传选项
+	MultiPartsObjectParams struct {
+		// 对象上传选项
 		*ObjectParams
+
+		// 分片大小，如果不填写，默认为 4 MB
 		PartSize uint64
 	}
 

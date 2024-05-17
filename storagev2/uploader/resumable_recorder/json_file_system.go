@@ -29,6 +29,7 @@ type (
 	}
 )
 
+// 创建记录文件系统的可恢复记录仪
 func NewJsonFileSystemResumableRecorder(dirPath string) ResumableRecorder {
 	return jsonFileSystemResumableRecorder{dirPath}
 }

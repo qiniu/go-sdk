@@ -200,7 +200,7 @@ func TestMultiPartsUploaderV2(t *testing.T) {
 		t.Fatal(err)
 	}
 	key := "testkey"
-	initializedPart, err := multiPartsUploaderV2.InitializeParts(context.Background(), src, uploader.ResumableObjectParams{
+	initializedPart, err := multiPartsUploaderV2.InitializeParts(context.Background(), src, &uploader.MultiPartsObjectParams{
 		&uploader.ObjectParams{
 			BucketName:  "testbucket",
 			ObjectName:  &key,
@@ -393,7 +393,7 @@ func TestMultiPartsUploaderV2Resuming(t *testing.T) {
 		t.Fatal(err)
 	}
 	key := "testkey"
-	initializedPart := multiPartsUploaderV2.TryToResume(context.Background(), src, uploader.ResumableObjectParams{
+	initializedPart := multiPartsUploaderV2.TryToResume(context.Background(), src, &uploader.MultiPartsObjectParams{
 		&uploader.ObjectParams{
 			BucketName:  "testbucket",
 			ObjectName:  &key,

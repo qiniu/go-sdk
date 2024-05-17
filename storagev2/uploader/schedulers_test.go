@@ -212,7 +212,7 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		initializedPart, err := scheduler.MultiPartsUploader().InitializeParts(context.Background(), src, uploader.ResumableObjectParams{
+		initializedPart, err := scheduler.MultiPartsUploader().InitializeParts(context.Background(), src, &uploader.MultiPartsObjectParams{
 			&uploader.ObjectParams{
 				BucketName:  "testbucket",
 				ObjectName:  &key,

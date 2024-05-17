@@ -18,35 +18,56 @@ import (
 )
 
 type (
+	// 上传器
 	UploadManager struct {
 		options     *UploadManagerOptions
 		optionsInit sync.Once
 	}
 
+	// 上传器选项
 	UploadManagerOptions struct {
+		// HTTP 客户端选项
 		*httpclient.Options
-		UpTokenProvider           uptoken.Provider
-		ResumableRecorder         resumablerecorder.ResumableRecorder
-		PartSize                  uint64
-		MultiPartsThreshold       uint64
-		Concurrency               int
+
+		// HTTP 客户端选项
+		UpTokenProvider uptoken.Provider
+
+		// 可恢复记录，如果不设置，则无法进行断点续传
+		ResumableRecorder resumablerecorder.ResumableRecorder
+
+		// 分片大小，如果不填写，默认为 4 MB
+		PartSize uint64
+
+		// 分片上传阈值，如果不填写，默认为 4 MB
+		MultiPartsThreshold uint64
+
+		// 分片上传并行度，如果不填写，默认为 1
+		Concurrency int
+
+		// 分片上传版本，如果不填写，默认为 V2
 		MultiPartsUploaderVersion MultiPartsUploaderVersion
 	}
 
+	// 分片上传版本
 	MultiPartsUploaderVersion uint8
 )
 
 const (
+	// 分片上传 V1
 	MultiPartsUploaderVersionV1 MultiPartsUploaderVersion = 1
+
+	// 分片上传 V2
 	MultiPartsUploaderVersionV2 MultiPartsUploaderVersion = 2
 )
 
+// 创建上传器
 func NewUploadManager(options *UploadManagerOptions) *UploadManager {
 	uploadManager := UploadManager{options: options}
 	uploadManager.init()
 	return &uploadManager
 }
 
+// 上传目录
 func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directoryPath string, directoryParams *DirectoryParams) error {
 	uploadManager.init()
 
@@ -113,6 +134,7 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 
 }
 
+// 上传文件
 func (uploadManager *UploadManager) UploadFile(ctx context.Context, path string, objectParams *ObjectParams, returnValue interface{}) error {
 	uploadManager.init()
 
@@ -135,6 +157,7 @@ func (uploadManager *UploadManager) UploadFile(ctx context.Context, path string,
 	return uploader.UploadFile(ctx, path, objectParams, returnValue)
 }
 
+// 上传 io.Reader
 func (uploadManager *UploadManager) UploadReader(ctx context.Context, reader io.Reader, objectParams *ObjectParams, returnValue interface{}) error {
 	var uploader Uploader
 

@@ -167,7 +167,7 @@ type (
 		// 授权类型
 		AuthType auth.TokenType
 
-		// 上传凭证提供者
+		// 上传凭证接口
 		UpToken uptoken.UpTokenProvider
 
 		// 是否缓存响应

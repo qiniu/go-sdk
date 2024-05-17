@@ -229,8 +229,8 @@ func (uploader multiPartsUploader) upload(ctx context.Context, src source.Source
 }
 
 func (uploader multiPartsUploader) uploadResumedParts(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectParams *ObjectParams, returnValue interface{}) (bool, error) {
-	resumableObjectParams := ResumableObjectParams{objectParams, uploader.scheduler.PartSize()}
-	if initializedParts := uploader.scheduler.MultiPartsUploader().TryToResume(ctx, src, resumableObjectParams); initializedParts == nil {
+	multiPartsObjectParams := MultiPartsObjectParams{objectParams, uploader.scheduler.PartSize()}
+	if initializedParts := uploader.scheduler.MultiPartsUploader().TryToResume(ctx, src, &multiPartsObjectParams); initializedParts == nil {
 		return false, nil
 	} else {
 		defer initializedParts.Close()
@@ -251,8 +251,8 @@ func (uploader multiPartsUploader) uploadResumedParts(ctx context.Context, src s
 func (uploader multiPartsUploader) tryToUploadToEachRegion(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectParams *ObjectParams, returnValue interface{}) error {
 	return forEachRegion(ctx, upToken, objectParams.BucketName, httpClientOptions, func(region *region.Region) (bool, error) {
 		objectParams.RegionsProvider = region
-		resumableObjectParams := ResumableObjectParams{objectParams, uploader.scheduler.PartSize()}
-		initializedParts, err := uploader.scheduler.MultiPartsUploader().InitializeParts(ctx, src, resumableObjectParams)
+		multiPartsObjectParams := MultiPartsObjectParams{objectParams, uploader.scheduler.PartSize()}
+		initializedParts, err := uploader.scheduler.MultiPartsUploader().InitializeParts(ctx, src, &multiPartsObjectParams)
 		var size uint64
 		if ssrc, ok := src.(source.SizedSource); ok {
 			if totalSize, sizeErr := ssrc.TotalSize(); sizeErr == nil {

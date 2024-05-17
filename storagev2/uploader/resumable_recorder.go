@@ -8,8 +8,8 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
 
-func tryToOpenResumableRecorderForReading(ctx context.Context, src source.Source, resumableObjectParams ResumableObjectParams, multiPartsUploaderOptions *MultiPartsUploaderOptions) resumablerecorder.ReadableResumableRecorderMedium {
-	if options := makeResumableRecorderOpenOptions(ctx, src, resumableObjectParams, multiPartsUploaderOptions); options != nil {
+func tryToOpenResumableRecorderForReading(ctx context.Context, src source.Source, multiPartsObjectParams *MultiPartsObjectParams, multiPartsUploaderOptions *MultiPartsUploaderOptions) resumablerecorder.ReadableResumableRecorderMedium {
+	if options := makeResumableRecorderOpenOptions(ctx, src, multiPartsObjectParams, multiPartsUploaderOptions); options != nil {
 		if resumableRecorder := multiPartsUploaderOptions.ResumableRecorder; resumableRecorder != nil {
 			return resumableRecorder.OpenForReading(options)
 		}
@@ -17,8 +17,8 @@ func tryToOpenResumableRecorderForReading(ctx context.Context, src source.Source
 	return nil
 }
 
-func tryToOpenResumableRecorderForAppending(ctx context.Context, src source.Source, resumableObjectParams ResumableObjectParams, multiPartsUploaderOptions *MultiPartsUploaderOptions) resumablerecorder.WriteableResumableRecorderMedium {
-	if options := makeResumableRecorderOpenOptions(ctx, src, resumableObjectParams, multiPartsUploaderOptions); options != nil {
+func tryToOpenResumableRecorderForAppending(ctx context.Context, src source.Source, multiPartsObjectParams *MultiPartsObjectParams, multiPartsUploaderOptions *MultiPartsUploaderOptions) resumablerecorder.WriteableResumableRecorderMedium {
+	if options := makeResumableRecorderOpenOptions(ctx, src, multiPartsObjectParams, multiPartsUploaderOptions); options != nil {
 		if resumableRecorder := multiPartsUploaderOptions.ResumableRecorder; resumableRecorder != nil {
 			medium := resumableRecorder.OpenForAppending(options)
 			if medium == nil {
@@ -30,33 +30,33 @@ func tryToOpenResumableRecorderForAppending(ctx context.Context, src source.Sour
 	return nil
 }
 
-func tryToDeleteResumableRecorderMedium(ctx context.Context, src source.Source, resumableObjectParams ResumableObjectParams, multiPartsUploaderOptions *MultiPartsUploaderOptions) {
-	if options := makeResumableRecorderOpenOptions(ctx, src, resumableObjectParams, multiPartsUploaderOptions); options != nil {
+func tryToDeleteResumableRecorderMedium(ctx context.Context, src source.Source, multiPartsObjectParams *MultiPartsObjectParams, multiPartsUploaderOptions *MultiPartsUploaderOptions) {
+	if options := makeResumableRecorderOpenOptions(ctx, src, multiPartsObjectParams, multiPartsUploaderOptions); options != nil {
 		if resumableRecorder := multiPartsUploaderOptions.ResumableRecorder; resumableRecorder != nil {
 			resumableRecorder.Delete(options)
 		}
 	}
 }
 
-func makeResumableRecorderOpenOptions(ctx context.Context, src source.Source, resumableObjectParams ResumableObjectParams, multiPartsUploaderOptions *MultiPartsUploaderOptions) *resumablerecorder.ResumableRecorderOpenOptions {
+func makeResumableRecorderOpenOptions(ctx context.Context, src source.Source, multiPartsObjectParams *MultiPartsObjectParams, multiPartsUploaderOptions *MultiPartsUploaderOptions) *resumablerecorder.ResumableRecorderOpenOptions {
 	sourceKey, err := src.SourceKey()
 	if err != nil || sourceKey == "" {
 		return nil
 	}
 
-	upToken, err := getUpToken(multiPartsUploaderOptions.Credentials, resumableObjectParams.ObjectParams, multiPartsUploaderOptions.UpTokenProvider)
+	upToken, err := getUpToken(multiPartsUploaderOptions.Credentials, multiPartsObjectParams.ObjectParams, multiPartsUploaderOptions.UpTokenProvider)
 	if err != nil {
 		return nil
 	}
 
-	bucketName, err := guessBucketName(ctx, resumableObjectParams.BucketName, upToken)
+	bucketName, err := guessBucketName(ctx, multiPartsObjectParams.BucketName, upToken)
 	if err != nil {
 		return nil
 	}
 
 	var objectName string
-	if resumableObjectParams.ObjectName != nil {
-		objectName = *resumableObjectParams.ObjectName
+	if multiPartsObjectParams.ObjectName != nil {
+		objectName = *multiPartsObjectParams.ObjectName
 	}
 
 	var totalSize uint64
@@ -75,7 +75,7 @@ func makeResumableRecorderOpenOptions(ctx context.Context, src source.Source, re
 		BucketName:  bucketName,
 		ObjectName:  objectName,
 		SourceKey:   sourceKey,
-		PartSize:    resumableObjectParams.PartSize,
+		PartSize:    multiPartsObjectParams.PartSize,
 		TotalSize:   totalSize,
 		UpEndpoints: regions[0].Up,
 	}

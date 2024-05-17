@@ -12,27 +12,47 @@ import (
 )
 
 type (
+	// 数据源
 	Source interface {
 		io.Closer
+
+		// 切片
 		Slice(uint64) (Part, error)
+
+		// 数据源 KEY
 		SourceKey() (string, error)
+
+		// 获取文件，如果数据源不是文件，则返回 nil
 		GetFile() *os.File
 	}
 
+	// 预知大小的数据源
 	SizedSource interface {
 		Source
+
+		// 获取数据源大小
 		TotalSize() (uint64, error)
 	}
 
+	// 可重置的数据源
 	ResetableSource interface {
 		Source
+
+		// 重置数据源
 		Reset() error
 	}
 
+	// 分片
 	Part interface {
 		io.ReadSeeker
+
+		// 分片偏移量
 		Offset() uint64
+
+		// 分片大小
 		Size() uint64
+
+		// 分片编号，从 1 开始
 		PartNumber() uint64
 	}
 
