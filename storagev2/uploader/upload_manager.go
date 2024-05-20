@@ -29,7 +29,7 @@ type (
 		// HTTP 客户端选项
 		*httpclient.Options
 
-		// HTTP 客户端选项
+		// 上传凭证接口
 		UpTokenProvider uptoken.Provider
 
 		// 可恢复记录，如果不设置，则无法进行断点续传

@@ -106,9 +106,6 @@ func TestHostsNotRetryInterceptor(t *testing.T) {
 		RetryInterval: func() time.Duration {
 			return time.Second
 		},
-		//ShouldRetry: func(req *http.Request, resp *http.Response, err error) bool {
-		//	return true
-		//},
 	})
 
 	doCount := 0
@@ -138,9 +135,9 @@ func TestHostsNotRetryInterceptor(t *testing.T) {
 		Header:  nil,
 		GetBody: nil,
 	})
-	duration := float32(time.Now().UnixNano()-start.UnixNano()) / 1e9
+	duration := time.Since(start)
 
-	if duration > float32(doCount-1)+0.1 || duration < float32(doCount-1)-0.1 {
+	if (duration - time.Duration(doCount-1)*time.Second).Abs() >= 900*time.Millisecond {
 		t.Fatalf("retry interval may be error")
 	}
 

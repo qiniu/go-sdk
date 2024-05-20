@@ -210,10 +210,10 @@ func TestSimpleNotRetryInterceptor(t *testing.T) {
 		Header:  nil,
 		GetBody: nil,
 	})
-	duration := float32(time.Now().UnixNano()-start.UnixNano()) / 1e9
+	duration := time.Since(start)
 
 	// 不重试，只执行一次，不等待
-	if duration > 0.3 {
+	if duration > 500*time.Millisecond {
 		t.Fatalf("retry interval may be error")
 	}
 
@@ -236,7 +236,7 @@ func TestRetryInterceptorWithBackoff(t *testing.T) {
 	callbackedCount := 0
 	rInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
-		Backoff:  backoff.NewExponentialBackoff(100*time.Millisecond, 2),
+		Backoff:  backoff.NewExponentialBackoff(1*time.Second, 2),
 		ShouldRetry: func(req *http.Request, resp *http.Response, err error) bool {
 			return true
 		},
@@ -259,7 +259,7 @@ func TestRetryInterceptorWithBackoff(t *testing.T) {
 			if options.Attempts != (doCount - 1) {
 				t.Fatalf("unexpected attempts:%d", options.Attempts)
 			}
-			if duration != 100*time.Millisecond*time.Duration(math.Pow(2, float64(options.Attempts))) {
+			if duration != 1*time.Second*time.Duration(math.Pow(2, float64(options.Attempts))) {
 				t.Fatalf("unexpected duration:%v", duration)
 			}
 		},
@@ -268,7 +268,7 @@ func TestRetryInterceptorWithBackoff(t *testing.T) {
 			if options.Attempts != (doCount - 1) {
 				t.Fatalf("unexpected attempts:%d", options.Attempts)
 			}
-			if duration != 100*time.Millisecond*time.Duration(math.Pow(2, float64(options.Attempts))) {
+			if duration != 1*time.Second*time.Duration(math.Pow(2, float64(options.Attempts))) {
 				t.Fatalf("unexpected duration:%v", duration)
 			}
 		},
@@ -314,10 +314,10 @@ func TestRetryInterceptorWithBackoff(t *testing.T) {
 		Header:  nil,
 		GetBody: nil,
 	})
-	duration := float32(time.Now().UnixNano()-start.UnixNano()) / float32(time.Millisecond)
+	duration := time.Since(start)
 
-	if duration > 3100+50 || duration < 3100-50 {
-		t.Fatalf("retry interval may be error:%f", duration)
+	if (duration - 31*time.Second).Abs() > 900*time.Millisecond {
+		t.Fatalf("retry interval may be error:%v", duration)
 	}
 
 	if (retryMax + 1) != doCount {

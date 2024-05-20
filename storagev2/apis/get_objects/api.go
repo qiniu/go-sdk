@@ -35,35 +35,39 @@ type PartSizes = []int64
 
 // 对象条目，包含对象的元信息
 type ListedObjectEntry struct {
-	Key             string    // 对象名称
-	PutTime         int64     // 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
-	Hash            string    // 文件的哈希值
-	Size            int64     // 对象大小，单位为字节
-	MimeType        string    // 对象 MIME 类型
-	Type            int64     // 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
-	EndUser         string    // 资源内容的唯一属主标识
-	RestoringStatus int64     // 文件的存储状态，即禁用状态和启用状态间的的互相转换，`0` 表示启用，`1`表示禁用
-	Md5             string    // 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
-	Parts           PartSizes // 每个分片的大小，如没有指定 need_parts 参数则不返回
+	Key             string            // 对象名称
+	PutTime         int64             // 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
+	Hash            string            // 文件的哈希值
+	Size            int64             // 对象大小，单位为字节
+	MimeType        string            // 对象 MIME 类型
+	Type            int64             // 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
+	EndUser         string            // 资源内容的唯一属主标识
+	RestoringStatus int64             // 归档存储文件的解冻状态，`2` 表示解冻完成，`1` 表示解冻中；归档文件冻结时，不返回该字段，仅对 stat 指令才有效
+	Status          int64             // 文件的存储状态，即禁用状态和启用状态间的的互相转换，`0` 表示启用，`1`表示禁用
+	Md5             string            // 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
+	Metadata        map[string]string // 对象存储元信息
+	Parts           PartSizes         // 每个分片的大小，如没有指定 need_parts 参数则不返回
 }
 type jsonListedObjectEntry struct {
-	Key             string    `json:"key"`               // 对象名称
-	PutTime         int64     `json:"putTime"`           // 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
-	Hash            string    `json:"hash"`              // 文件的哈希值
-	Size            int64     `json:"fsize,omitempty"`   // 对象大小，单位为字节
-	MimeType        string    `json:"mimeType"`          // 对象 MIME 类型
-	Type            int64     `json:"type,omitempty"`    // 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
-	EndUser         string    `json:"endUser,omitempty"` // 资源内容的唯一属主标识
-	RestoringStatus int64     `json:"status,omitempty"`  // 文件的存储状态，即禁用状态和启用状态间的的互相转换，`0` 表示启用，`1`表示禁用
-	Md5             string    `json:"md5,omitempty"`     // 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
-	Parts           PartSizes `json:"parts,omitempty"`   // 每个分片的大小，如没有指定 need_parts 参数则不返回
+	Key             string            `json:"key"`                     // 对象名称
+	PutTime         int64             `json:"putTime"`                 // 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
+	Hash            string            `json:"hash"`                    // 文件的哈希值
+	Size            int64             `json:"fsize,omitempty"`         // 对象大小，单位为字节
+	MimeType        string            `json:"mimeType"`                // 对象 MIME 类型
+	Type            int64             `json:"type,omitempty"`          // 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
+	EndUser         string            `json:"endUser,omitempty"`       // 资源内容的唯一属主标识
+	RestoringStatus int64             `json:"restoreStatus,omitempty"` // 归档存储文件的解冻状态，`2` 表示解冻完成，`1` 表示解冻中；归档文件冻结时，不返回该字段，仅对 stat 指令才有效
+	Status          int64             `json:"status,omitempty"`        // 文件的存储状态，即禁用状态和启用状态间的的互相转换，`0` 表示启用，`1`表示禁用
+	Md5             string            `json:"md5,omitempty"`           // 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
+	Metadata        map[string]string `json:"x-qn-meta,omitempty"`     // 对象存储元信息
+	Parts           PartSizes         `json:"parts,omitempty"`         // 每个分片的大小，如没有指定 need_parts 参数则不返回
 }
 
 func (j *ListedObjectEntry) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(&jsonListedObjectEntry{Key: j.Key, PutTime: j.PutTime, Hash: j.Hash, Size: j.Size, MimeType: j.MimeType, Type: j.Type, EndUser: j.EndUser, RestoringStatus: j.RestoringStatus, Md5: j.Md5, Parts: j.Parts})
+	return json.Marshal(&jsonListedObjectEntry{Key: j.Key, PutTime: j.PutTime, Hash: j.Hash, Size: j.Size, MimeType: j.MimeType, Type: j.Type, EndUser: j.EndUser, RestoringStatus: j.RestoringStatus, Status: j.Status, Md5: j.Md5, Metadata: j.Metadata, Parts: j.Parts})
 }
 func (j *ListedObjectEntry) UnmarshalJSON(data []byte) error {
 	var nj jsonListedObjectEntry
@@ -78,7 +82,9 @@ func (j *ListedObjectEntry) UnmarshalJSON(data []byte) error {
 	j.Type = nj.Type
 	j.EndUser = nj.EndUser
 	j.RestoringStatus = nj.RestoringStatus
+	j.Status = nj.Status
 	j.Md5 = nj.Md5
+	j.Metadata = nj.Metadata
 	j.Parts = nj.Parts
 	return nil
 }
