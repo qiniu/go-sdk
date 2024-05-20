@@ -24,9 +24,12 @@ func NewManager(mac *auth.Credentials) (manager *Manager) {
 
 	manager = &Manager{}
 
+	if mac == nil {
+		mac = auth.Default()
+	}
 	mac1 := &client.Mac{
 		AccessKey: mac.AccessKey,
-		SecretKey: []byte(mac.SecretKey),
+		SecretKey: mac.SecretKey,
 	}
 
 	transport := client.NewTransport(mac1, nil)

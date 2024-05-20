@@ -8,6 +8,7 @@ import (
 	resumableuploadv2uploadpart "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v2_upload_part"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	uplog "github.com/qiniu/go-sdk/v7/storagev2/internal/uplog"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"net/http"
 	"strconv"
@@ -94,12 +95,25 @@ func (storage *Storage) ResumableUploadV2UploadPart(ctx context.Context, request
 	if body == nil {
 		return nil, errors.MissingRequiredFieldError{Name: "Body"}
 	}
-	req := httpclient.Request{Method: "PUT", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Header: headers, UpToken: innerRequest.UpToken, BufferResponse: true, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(body)}
+	bucketName := options.OverwrittenBucketName
+	if bucketName == "" {
+		var err error
+		if bucketName, err = innerRequest.getBucketName(ctx); err != nil {
+			return nil, err
+		}
+	}
+	var objectName string
+	uplogInterceptor, err := uplog.NewRequestUplog("resumableUploadV2UploadPart", bucketName, objectName, func() (string, error) {
+		return innerRequest.UpToken.GetUpToken(ctx)
+	})
+	if err != nil {
+		return nil, err
+	}
+	req := httpclient.Request{Method: "PUT", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, UpToken: innerRequest.UpToken, BufferResponse: true, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(body)}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
 		query := storage.client.GetBucketQuery()
 		if query == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
-			var err error
 			if options.OverwrittenBucketHosts != nil {
 				if bucketHosts, err = options.OverwrittenBucketHosts.GetEndpoints(ctx); err != nil {
 					return nil, err
@@ -114,14 +128,8 @@ func (storage *Storage) ResumableUploadV2UploadPart(ctx context.Context, request
 			}
 		}
 		if query != nil {
-			bucketName := options.OverwrittenBucketName
 			var accessKey string
 			var err error
-			if bucketName == "" {
-				if bucketName, err = innerRequest.getBucketName(ctx); err != nil {
-					return nil, err
-				}
-			}
 			if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 				return nil, err
 			}

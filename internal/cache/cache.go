@@ -117,6 +117,10 @@ func (cache *Cache) Get(key string, fallback func() (CacheValue, error)) (CacheV
 	value, ok := cache.cacheMap[key]
 	cache.cacheMapMutex.Unlock()
 
+	defer func() {
+		go cache.flush()
+	}()
+
 	if ok && value.Value.IsValid() {
 		return value.Value, GetResultFromCache
 	}
@@ -129,7 +133,7 @@ func (cache *Cache) Get(key string, fallback func() (CacheValue, error)) (CacheV
 			return nil, NoResultGot
 		}
 	}
-	cache.Set(key, newValue)
+	cache.set(key, newValue, false)
 	return newValue, GetResultFromFallback
 }
 
@@ -142,6 +146,10 @@ func (cache *Cache) doFallback(key string, fallback func() (CacheValue, error)) 
 }
 
 func (cache *Cache) Set(key string, value CacheValue) {
+	cache.set(key, value, true)
+}
+
+func (cache *Cache) set(key string, value CacheValue, willFlushAsync bool) {
 	if value.IsValid() {
 		cache.checkType(value)
 
@@ -150,7 +158,9 @@ func (cache *Cache) Set(key string, value CacheValue) {
 		cache.cacheMap[key] = cacheValue{Value: value, CreatedAt: now}
 		cache.cacheMapMutex.Unlock()
 
-		go cache.flush()
+		if willFlushAsync {
+			go cache.flush()
+		}
 	}
 }
 

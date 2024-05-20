@@ -1,0 +1,248 @@
+method: get
+service_names:
+  - uc
+base_path: /v2/query
+documentation: 查询存储空间服务域名
+request:
+  query_names:
+    - field_name: bucket
+      query_name: bucket
+      query_type: string
+      documentation: 存储空间名称
+      service_bucket: plain_text
+    - field_name: access_key
+      query_name: ak
+      query_type: string
+      documentation: Access Key
+response:
+  body:
+    json:
+      struct:
+        name: BucketQueryResult
+        documentation: 存储空间服务域名查询结果
+        fields:
+          - field_name: region_id
+            key: region
+            type: string
+            documentation: 区域 ID
+          - field_name: time_to_live
+            key: ttl
+            type: integer
+            documentation: 查询结果的 TTL
+          - field_name: up_domains
+            key: up
+            documentation: 上传域名
+            type:
+              struct:
+                name: UpDomains
+                documentation: 上传域名
+                fields:
+                  - field_name: accelerated_up_domains
+                    key: acc
+                    documentation: 加速上传域名
+                    type:
+                      struct:
+                        name: AcceleratedUpDomains
+                        documentation: 加速上传域名
+                        fields:
+                          - field_name: main_accelerated_up_domains
+                            key: main
+                            documentation: 主加速上传域名列表
+                            type:
+                              array:
+                                name: MainAcceleratedUpDomains
+                                documentation: 主加速上传域名列表
+                                type: string
+                          - field_name: backup_accelerated_up_domains
+                            key: backup
+                            documentation: 备用加速上传域名列表
+                            type:
+                              array:
+                                name: BackupAcceleratedUpDomains
+                                documentation: 备用加速上传域名列表
+                                type: string
+                  - field_name: source_up_domains
+                    key: src
+                    documentation: 源站上传域名
+                    type:
+                      struct:
+                        name: SourceUpDomains
+                        documentation: 源站上传域名
+                        fields:
+                          - field_name: main_source_up_domains
+                            key: main
+                            documentation: 主源站上传域名列表
+                            type:
+                              array:
+                                name: MainSourceUpDomains
+                                documentation: 主源站上传域名列表
+                                type: string
+                          - field_name: backup_source_up_domains
+                            key: backup
+                            documentation: 备用源站上传域名列表
+                            type:
+                              array:
+                                name: BackupSourceUpDomains
+                                documentation: 备用源站上传域名列表
+                                type: string
+                  - field_name: old_accelerated_domains
+                    key: old_acc
+                    documentation: 已经过时的加速上传域名
+                    type:
+                      struct:
+                        name: OldAcceleratedUpDomains
+                        documentation: 已经过时的加速上传域名
+                        fields:
+                          - field_name: old_main_accelerated_up_domains
+                            key: main
+                            documentation: 主加速上传域名列表
+                            type:
+                              array:
+                                name: OldMainAcceleratedUpDomains
+                                documentation: 已经过时的主加速上传域名列表
+                                type: string
+                          - field_name: info
+                            key: info
+                            type: string
+                            documentation: 描述信息
+                  - field_name: old_source_domains
+                    key: old_src
+                    documentation: 已经过时的源站上传域名
+                    type:
+                      struct:
+                        name: OldSourceUpDomains
+                        documentation: 已经过时的源站上传域名
+                        fields:
+                          - field_name: old_main_source_up_domains
+                            key: main
+                            documentation: 主源站上传域名列表
+                            type:
+                              array:
+                                name: OldMainSourceUpDomains
+                                documentation: 已经过时的主源站上传域名列表
+                                type: string
+                          - field_name: info
+                            key: info
+                            type: string
+                            documentation: 描述信息
+          - field_name: io_domains
+            key: io
+            documentation: 下载域名
+            type:
+              struct:
+                name: IoDomains
+                documentation: 下载域名
+                fields:
+                  - field_name: source_io_domains
+                    key: src
+                    documentation: 源站下载域名
+                    type:
+                      struct:
+                        name: SourceIoDomains
+                        documentation: 源站下载域名
+                        fields:
+                          - field_name: main_source_io_domains
+                            key: main
+                            documentation: 主源站下载域名列表
+                            type:
+                              array:
+                                name: MainSourceIoDomains
+                                documentation: 主源站下载域名列表
+                                type: string
+          - field_name: io_src_domains
+            key: io_src
+            documentation: 源站下载域名
+            optional: omitempty
+            type:
+              struct:
+                name: IoSrcDomains
+                documentation: 源站下载域名
+                fields:
+                  - field_name: source_io_src_domains
+                    key: src
+                    documentation: 源站下载域名
+                    type:
+                      struct:
+                        name: SourceIoSrcDomains
+                        documentation: 源站下载域名
+                        fields:
+                          - field_name: main_source_io_src_domains
+                            key: main
+                            documentation: 主源站下载域名列表
+                            type:
+                              array:
+                                name: MainSourceIoSrcDomains
+                                documentation: 主源站下载域名列表
+                                type: string
+          - field_name: rs_domains
+            key: rs
+            documentation: 对象管理域名
+            type:
+              struct:
+                name: RsDomains
+                documentation: 对象管理域名
+                fields:
+                  - field_name: accelerated_rs_domains
+                    key: acc
+                    documentation: 加速对象管理域名
+                    type:
+                      struct:
+                        name: AcceleratedRsDomains
+                        documentation: 加速对象管理域名
+                        fields:
+                          - field_name: main_accelerated_rs_domains
+                            key: main
+                            documentation: 主加速对象管理域名列表
+                            type:
+                              array:
+                                name: MainAcceleratedRsDomains
+                                documentation: 主加速对象管理域名列表
+                                type: string
+          - field_name: rsf_domains
+            key: rsf
+            documentation: 对象列举域名
+            type:
+              struct:
+                name: RsfDomains
+                documentation: 对象列举域名
+                fields:
+                  - field_name: accelerated_rsf_domains
+                    key: acc
+                    documentation: 加速对象列举域名
+                    type:
+                      struct:
+                        name: AcceleratedRsfDomains
+                        documentation: 加速对象列举域名
+                        fields:
+                          - field_name: main_accelerated_rsf_domains
+                            key: main
+                            documentation: 主加速对象列举域名列表
+                            type:
+                              array:
+                                name: MainAcceleratedRsfDomains
+                                documentation: 主加速对象列举域名列表
+                                type: string
+          - field_name: api_domains
+            key: api
+            documentation:  API 域名
+            type:
+              struct:
+                name: ApiDomains
+                documentation:  API 域名
+                fields:
+                  - field_name: accelerated_api_domains
+                    key: acc
+                    documentation: 加速 API 域名
+                    type:
+                      struct:
+                        name: AcceleratedApiDomains
+                        documentation: 加速 API 域名
+                        fields:
+                          - field_name: main_accelerated_api_domains
+                            key: main
+                            documentation: 主加速 API 域名列表
+                            type:
+                              array:
+                                name: MainAcceleratedApiDomains
+                                documentation: 主加速 API 域名列表
+                                type: string

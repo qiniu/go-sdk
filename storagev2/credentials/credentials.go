@@ -18,6 +18,11 @@ func NewCredentials(accessKey, secretKey string) *Credentials {
 	return auth.New(accessKey, secretKey)
 }
 
+// Default 构建一个 Credentials 对象
+func Default() *Credentials {
+	return auth.Default()
+}
+
 // CredentialsProvider 获取 Credentials 对象的接口
 type CredentialsProvider interface {
 	Get(context.Context) (*Credentials, error)

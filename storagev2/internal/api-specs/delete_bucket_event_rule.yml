@@ -1,0 +1,17 @@
+method: post
+service_names:
+  - uc
+base_path: /events/delete
+documentation: 删除存储空间事件通知规则
+request:
+  authorization: qiniu
+  query_names:
+    - field_name: bucket
+      query_name: bucket
+      query_type: string
+      documentation: 存储空间名称
+      service_bucket: plain_text
+    - field_name: name
+      query_name: name
+      query_type: string
+      documentation: 规则名称

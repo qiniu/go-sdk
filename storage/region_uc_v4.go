@@ -12,38 +12,9 @@ import (
 
 	"golang.org/x/sync/singleflight"
 
-	"github.com/qiniu/go-sdk/v7/internal/clientv2"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/query_bucket_v4"
 )
-
-type ucQueryV4Ret struct {
-	Hosts []ucQueryV4Region `json:"hosts"`
-}
-
-type ucQueryV4Region struct {
-	RegionId string          `json:"region"`
-	TTL      int             `json:"ttl"`
-	Io       ucQueryV4Server `json:"io"`
-	IoSrc    ucQueryV4Server `json:"io_src"`
-	Up       ucQueryV4Server `json:"up"`
-	Rs       ucQueryV4Server `json:"rs"`
-	Rsf      ucQueryV4Server `json:"rsf"`
-	Api      ucQueryV4Server `json:"api"`
-}
-
-type ucQueryV4Server struct {
-	Domains []string `json:"domains"`
-	Old     []string `json:"old"`
-}
-
-func (s *ucQueryV4Server) getOneServer() string {
-	if len(s.Domains) > 0 {
-		return s.Domains[0]
-	}
-	if len(s.Old) > 0 {
-		return s.Old[0]
-	}
-	return ""
-}
 
 var ucQueryV4Group singleflight.Group
 
@@ -123,8 +94,6 @@ func storeRegionV4Cache() {
 }
 
 func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error) {
-	options.init()
-
 	regionV4CacheLock.RLock()
 	if regionV4CacheLoaded {
 		regionV4CacheLock.RUnlock()
@@ -142,51 +111,17 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 	}
 
 	regionCacheKey := makeRegionCacheKey(ak, bucket, options.Hosts)
-	//check from cache
+	// check from cache
 	if v, ok := regionV4Cache.Load(regionCacheKey); ok && time.Now().Before(v.(regionV4CacheValue).Deadline) {
 		cacheValue, _ := v.(regionV4CacheValue)
 		return NewRegionGroup(cacheValue.getRegions()...), nil
 	}
 
 	newRegion, err, _ := ucQueryV4Group.Do(regionCacheKey, func() (interface{}, error) {
-		reqURL := fmt.Sprintf("%s/v4/query?ak=%s&bucket=%s", endpoint(options.UseHttps, options.firstHost()), ak, bucket)
-
-		var ret ucQueryV4Ret
-		c := getUCClient(ucClientConfig{
-			IsUcQueryApi:       true,
-			RetryMax:           options.RetryMax,
-			Hosts:              options.Hosts,
-			HostFreezeDuration: options.HostFreezeDuration,
-			Client:             options.Client,
-		}, nil)
-		err := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
-			Context: context.Background(),
-			Method:  clientv2.RequestMethodGet,
-			Url:     reqURL,
-			Header:  nil,
-			GetBody: nil,
-		}, &ret)
+		regions, ttl, err := _getRegionByV4WithoutCache(ak, bucket, options)
 		if err != nil {
 			return nil, fmt.Errorf("query region error, %s", err.Error())
 		}
-
-		ttl := math.MaxInt32
-		regions := make([]*Region, 0)
-		for _, host := range ret.Hosts {
-			if ttl > host.TTL {
-				ttl = host.TTL
-			}
-			regions = append(regions, &Region{
-				SrcUpHosts: host.Up.Domains,
-				CdnUpHosts: host.Up.Domains,
-				RsHost:     host.Rs.getOneServer(),
-				RsfHost:    host.Rsf.getOneServer(),
-				ApiHost:    host.Api.getOneServer(),
-				IovipHost:  host.Io.getOneServer(),
-				IoSrcHost:  host.IoSrc.getOneServer(),
-			})
-		}
-
 		regionV4Cache.Store(regionCacheKey, regionV4CacheValue{
 			Regions:  regions,
 			Deadline: time.Now().Add(time.Duration(ttl) * time.Second),
@@ -205,4 +140,55 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 	}
 
 	return newRegion.(*RegionGroup), err
+}
+
+func _getRegionByV4WithoutCache(ak, bucket string, options UCApiOptions) ([]*Region, int64, error) {
+	toRegion := func(r *query_bucket_v4.BucketQueryHost) *Region {
+		var rsHost, rsfHost, apiHost, ioVipHost, ioSrcHost string
+		upDomains := append(r.UpDomains.PreferedUpDomains, r.UpDomains.AlternativeUpDomains...)
+		if len(r.RsDomains.PreferedRsDomains) > 0 {
+			rsHost = r.RsDomains.PreferedRsDomains[0]
+		}
+		if len(r.RsfDomains.PreferedRsfDomains) > 0 {
+			rsfHost = r.RsfDomains.PreferedRsfDomains[0]
+		}
+		if len(r.ApiDomains.PreferedApiDomains) > 0 {
+			apiHost = r.ApiDomains.PreferedApiDomains[0]
+		}
+		if len(r.IoDomains.PreferedIoDomains) > 0 {
+			ioVipHost = r.IoDomains.PreferedIoDomains[0]
+		}
+		if len(r.IoSrcDomains.PreferedIoSrcDomains) > 0 {
+			ioSrcHost = r.IoSrcDomains.PreferedIoSrcDomains[0]
+		}
+		return &Region{
+			SrcUpHosts: upDomains,
+			CdnUpHosts: upDomains,
+			RsHost:     rsHost,
+			RsfHost:    rsfHost,
+			ApiHost:    apiHost,
+			IovipHost:  ioVipHost,
+			IoSrcHost:  ioSrcHost,
+		}
+	}
+	response, err := options.getApiStorageClient().QueryBucketV4(
+		context.Background(),
+		&apis.QueryBucketV4Request{
+			Bucket:    bucket,
+			AccessKey: ak,
+		},
+		options.getApiOptions(),
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	regions := make([]*Region, 0, len(response.Hosts))
+	var ttl int64 = math.MaxInt64
+	for _, host := range response.Hosts {
+		regions = append(regions, toRegion(&host))
+		if ttl > host.TimeToLive {
+			ttl = host.TimeToLive
+		}
+	}
+	return regions, ttl, nil
 }

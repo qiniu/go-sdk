@@ -3,18 +3,17 @@ package storage
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_event_rules"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_info"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_infos"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_cors_rules"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_taggings"
-
-	"github.com/qiniu/go-sdk/v7/auth"
 )
 
 // BucketSummary 存储空间信息
@@ -226,16 +225,46 @@ func (b *BucketInfo) TokenAntiLeechModeOn() bool {
 }
 
 // GetBucketInfo 返回BucketInfo结构
-func (m *BucketManager) GetBucketInfo(bucketName string) (bucketInfo BucketInfo, err error) {
-	reqURL := fmt.Sprintf("%s/v2/bucketInfo?bucket=%s", getUcHost(m.Cfg.UseHTTPS), bucketName)
-	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, &bucketInfo)
-	return bucketInfo, err
+func (m *BucketManager) GetBucketInfo(bucketName string) (BucketInfo, error) {
+	toBucketInfo := func(bucketInfo *get_bucket_info.Response) (BucketInfo, error) {
+		ctime, err := time.Parse(time.RFC3339, bucketInfo.CreatedAt)
+		if err != nil {
+			return BucketInfo{}, err
+		}
+		return BucketInfo{
+			Source:             bucketInfo.Source,
+			Host:               bucketInfo.Host,
+			Expires:            int(bucketInfo.Expires),
+			Protected:          int(bucketInfo.Protected),
+			Private:            int(bucketInfo.Private),
+			NoIndexPage:        int(bucketInfo.NoIndexPage),
+			MaxAge:             int(bucketInfo.MaxAge),
+			Separator:          bucketInfo.Separator,
+			Styles:             bucketInfo.Styles,
+			AntiLeechMode:      int(bucketInfo.AntiLeechMode),
+			TokenAntiLeechMode: int(bucketInfo.TokenAntiLeech),
+			ReferWl:            bucketInfo.ReferWl,
+			ReferBl:            bucketInfo.ReferBl,
+			EnableSource:       bucketInfo.SourceEnabled,
+			NoRefer:            bucketInfo.NoReferer,
+			MacKey:             bucketInfo.MacKey,
+			MacKey2:            bucketInfo.MacKey2,
+			Zone:               bucketInfo.Zone,
+			Region:             bucketInfo.Region,
+			Remark:             bucketInfo.Remark,
+			Ctime:              ctime,
+		}, nil
+	}
+	response, err := m.apiClient.GetBucketInfo(
+		context.Background(),
+		&apis.GetBucketInfoRequest{
+			Bucket: bucketName,
+		},
+		m.makeRequestOptions())
+	if err != nil {
+		return BucketInfo{}, err
+	}
+	return toBucketInfo(response)
 }
 
 // SetRemark 设置空间备注信息
@@ -253,22 +282,81 @@ func (m *BucketManager) SetRemark(bucketName, remark string) error {
 
 // BucketInfosForRegion 获取指定区域的该用户的所有bucketInfo信息
 func (m *BucketManager) BucketInfosInRegion(region RegionID, statistics bool) (bucketInfos []BucketSummary, err error) {
-	reqURL := fmt.Sprintf("%s/v2/bucketInfos?region=%s&fs=%t", getUcHost(m.Cfg.UseHTTPS), string(region), statistics)
-	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, &bucketInfos)
-	return bucketInfos, err
+	toBucketInfo := func(bucketInfo *get_bucket_infos.BucketInfoV2) (BucketInfo, error) {
+		ctime, err := time.Parse(time.RFC3339, bucketInfo.CreatedAt)
+		if err != nil {
+			return BucketInfo{}, err
+		}
+		return BucketInfo{
+			Source:             bucketInfo.Source,
+			Host:               bucketInfo.Host,
+			Expires:            int(bucketInfo.Expires),
+			Protected:          int(bucketInfo.Protected),
+			Private:            int(bucketInfo.Private),
+			NoIndexPage:        int(bucketInfo.NoIndexPage),
+			MaxAge:             int(bucketInfo.MaxAge),
+			Separator:          bucketInfo.Separator,
+			Styles:             bucketInfo.Styles,
+			AntiLeechMode:      int(bucketInfo.AntiLeechMode),
+			TokenAntiLeechMode: int(bucketInfo.TokenAntiLeech),
+			ReferWl:            bucketInfo.ReferWl,
+			ReferBl:            bucketInfo.ReferBl,
+			EnableSource:       bucketInfo.SourceEnabled,
+			NoRefer:            bucketInfo.NoReferer,
+			MacKey:             bucketInfo.MacKey,
+			MacKey2:            bucketInfo.MacKey2,
+			Zone:               bucketInfo.Zone,
+			Region:             bucketInfo.Region,
+			Remark:             bucketInfo.Remark,
+			Ctime:              ctime,
+		}, nil
+	}
+	response, err := m.apiClient.GetBucketInfos(
+		context.Background(),
+		&apis.GetBucketInfosRequest{
+			Region:     string(region),
+			Statistics: statistics,
+		},
+		m.makeRequestOptions(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	summaries := make([]BucketSummary, 0, len(response.AllBucketInfosV2))
+	for _, b := range response.AllBucketInfosV2 {
+		bucketInfo, err := toBucketInfo(&b.BucketInfo)
+		if err != nil {
+			return nil, err
+		}
+		summaries = append(summaries, BucketSummary{
+			Name: b.Name,
+			Info: bucketInfo,
+		})
+	}
+	return summaries, nil
 }
 
 // SetReferAntiLeechMode 配置存储空间referer防盗链模式
-func (m *BucketManager) SetReferAntiLeechMode(bucketName string, refererAntiLeechConfig *ReferAntiLeechConfig) (err error) {
-	reqURL := fmt.Sprintf("%s/referAntiLeech?bucket=%s&%s", getUcHost(m.Cfg.UseHTTPS), bucketName, refererAntiLeechConfig.AsQueryString())
-	err = m.Client.CredentialedCall(context.Background(), m.Mac, auth.TokenQiniu, nil, "POST", reqURL, nil)
-	return
+func (m *BucketManager) SetReferAntiLeechMode(bucketName string, refererAntiLeechConfig *ReferAntiLeechConfig) error {
+	var allowEmptyReferer, enableSource int64
+	if refererAntiLeechConfig.AllowEmptyReferer {
+		allowEmptyReferer = 1
+	}
+	if refererAntiLeechConfig.EnableSource {
+		enableSource = 1
+	}
+	_, err := m.apiClient.SetBucketReferAntiLeech(
+		context.Background(),
+		&apis.SetBucketReferAntiLeechRequest{
+			Bucket:            bucketName,
+			Mode:              int64(refererAntiLeechConfig.Mode),
+			Pattern:           refererAntiLeechConfig.Pattern,
+			AllowEmptyReferer: allowEmptyReferer,
+			SourceEnabled:     enableSource,
+		},
+		m.makeRequestOptions(),
+	)
+	return err
 }
 
 // BucketLifeCycleRule 定义了关于七牛存储空间关于生命周期的一些配置，规则。
@@ -437,58 +525,84 @@ func (r *BucketEventRule) Params(bucket string) map[string][]string {
 }
 
 // AddBucketEvent 增加存储空间事件通知规则
-func (m *BucketManager) AddBucketEvent(bucket string, rule *BucketEventRule) (err error) {
-	params := rule.Params(bucket)
-	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/add"
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: clientv2.GetFormRequestBody(params),
-	}, nil)
+func (m *BucketManager) AddBucketEvent(bucket string, rule *BucketEventRule) error {
+	_, err := m.apiClient.AddBucketEventRule(
+		context.Background(),
+		&apis.AddBucketEventRuleRequest{
+			Bucket:       bucket,
+			Name:         rule.Name,
+			Prefix:       rule.Prefix,
+			Suffix:       rule.Suffix,
+			EventTypes:   rule.Event,
+			CallbackUrls: rule.CallbackURL,
+			AccessKey:    rule.AccessKey,
+			Host:         rule.Host,
+		},
+		m.makeRequestOptions(),
+	)
+	return err
 }
 
 // DelBucketEvent 删除指定存储空间的通知事件规则
-func (m *BucketManager) DelBucketEvent(bucket, ruleName string) (err error) {
-	params := make(map[string][]string)
-	params["bucket"] = []string{bucket}
-	params["name"] = []string{ruleName}
-
-	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/delete"
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: clientv2.GetFormRequestBody(params),
-	}, nil)
+func (m *BucketManager) DelBucketEvent(bucket, ruleName string) error {
+	_, err := m.apiClient.DeleteBucketEventRule(
+		context.Background(),
+		&apis.DeleteBucketEventRuleRequest{
+			Bucket: bucket,
+			Name:   ruleName,
+		},
+		m.makeRequestOptions(),
+	)
+	return err
 }
 
 // UpdateBucketEnvent 更新指定存储空间的事件通知规则
-func (m *BucketManager) UpdateBucketEnvent(bucket string, rule *BucketEventRule) (err error) {
-	params := rule.Params(bucket)
-	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/update"
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: clientv2.GetFormRequestBody(params),
-	}, nil)
+func (m *BucketManager) UpdateBucketEnvent(bucket string, rule *BucketEventRule) error {
+	_, err := m.apiClient.UpdateBucketEventRule(
+		context.Background(),
+		&apis.UpdateBucketEventRuleRequest{
+			Bucket:       bucket,
+			Name:         rule.Name,
+			Prefix:       rule.Prefix,
+			Suffix:       rule.Suffix,
+			EventTypes:   rule.Event,
+			CallbackUrls: rule.CallbackURL,
+			AccessKey:    rule.AccessKey,
+			Host:         rule.Host,
+		},
+		m.makeRequestOptions(),
+	)
+	return err
 }
 
 // GetBucketEvent 获取指定存储空间的事件通知规则
-func (m *BucketManager) GetBucketEvent(bucket string) (rule []BucketEventRule, err error) {
-	reqURL := getUcHost(m.Cfg.UseHTTPS) + "/events/get?bucket=" + bucket
-	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodGet,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, &rule)
-	return rule, err
+func (m *BucketManager) GetBucketEvent(bucket string) ([]BucketEventRule, error) {
+	toBucketEventRule := func(rule *get_bucket_event_rules.BucketEventRule) BucketEventRule {
+		return BucketEventRule{
+			Name:        rule.Name,
+			Prefix:      rule.Prefix,
+			Suffix:      rule.Suffix,
+			Event:       rule.EventTypes,
+			CallbackURL: rule.CallbackUrls,
+			AccessKey:   rule.AccessKey,
+			Host:        rule.Host,
+		}
+	}
+	response, err := m.apiClient.GetBucketEventRules(
+		context.Background(),
+		&apis.GetBucketEventRulesRequest{
+			Bucket: bucket,
+		},
+		m.makeRequestOptions(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	rules := make([]BucketEventRule, 0, len(response.BucketEventRules))
+	for _, r := range response.BucketEventRules {
+		rules = append(rules, toBucketEventRule(&r))
+	}
+	return rules, err
 }
 
 // CorsRule 是关于存储的跨域规则
@@ -690,14 +804,15 @@ func (m *BucketManager) TurnOffIndexPage(bucket string) error {
 }
 
 func (m *BucketManager) setIndexPage(bucket string, noIndexPage int) error {
-	reqURL := fmt.Sprintf("%s/noIndexPage?bucket=%s&noIndexPage=%d", getUcHost(m.Cfg.UseHTTPS), bucket, noIndexPage)
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: nil,
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, nil)
+	_, err := m.apiClient.DisableBucketIndexPage(
+		context.Background(),
+		&apis.DisableBucketIndexPageRequest{
+			Bucket:      bucket,
+			NoIndexPage: int64(noIndexPage),
+		},
+		m.makeRequestOptions(),
+	)
+	return err
 }
 
 // BucketTagging 为 Bucket 设置标签
@@ -759,13 +874,4 @@ func (m *BucketManager) GetTagging(bucket string) (map[string]string, error) {
 		tags[tag.Key] = tag.Value
 	}
 	return tags, nil
-}
-
-func (m *BucketManager) getUCClient() clientv2.Client {
-	return getUCClient(ucClientConfig{
-		IsUcQueryApi:       false,
-		RetryMax:           m.options.RetryMax,
-		HostFreezeDuration: m.options.HostFreezeDuration,
-		Client:             m.Client,
-	}, m.Mac)
 }

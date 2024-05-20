@@ -7,9 +7,10 @@ package storage
 
 import (
 	"fmt"
+	"runtime"
+
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/conf"
-	"runtime"
 )
 
 var DefaultClient = client.DefaultClient

@@ -29,6 +29,7 @@ func main() {
 	param := storage.AsyncFetchParam{
 		Url:    "http://devtools.qiniu.com/qiniu.png",
 		Bucket: bucket,
+		Key:    "qiniu.png",
 	}
 
 	// 指定保存的key

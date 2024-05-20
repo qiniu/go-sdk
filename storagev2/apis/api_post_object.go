@@ -7,6 +7,7 @@ import (
 	postobject "github.com/qiniu/go-sdk/v7/storagev2/apis/post_object"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	uplog "github.com/qiniu/go-sdk/v7/storagev2/internal/uplog"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"strconv"
 	"strings"
@@ -21,6 +22,13 @@ func (form *innerPostObjectRequest) getBucketName(ctx context.Context) (string, 
 	} else {
 		return putPolicy.GetBucketName()
 	}
+}
+func (form *innerPostObjectRequest) getObjectName() string {
+	var objectName string
+	if form.ObjectName != nil {
+		objectName = *form.ObjectName
+	}
+	return objectName
 }
 func (form *innerPostObjectRequest) build(ctx context.Context) (*httpclient.MultipartForm, error) {
 	multipartForm := new(httpclient.MultipartForm)
@@ -81,12 +89,23 @@ func (storage *Storage) PostObject(ctx context.Context, request *PostObjectReque
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, BufferResponse: true, RequestBody: httpclient.GetMultipartFormRequestBody(body)}
+	bucketName := options.OverwrittenBucketName
+	if bucketName == "" {
+		var err error
+		if bucketName, err = innerRequest.getBucketName(ctx); err != nil {
+			return nil, err
+		}
+	}
+	objectName := innerRequest.getObjectName()
+	uplogInterceptor, err := uplog.NewRequestUplog("postObject", bucketName, objectName, nil)
+	if err != nil {
+		return nil, err
+	}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, BufferResponse: true, RequestBody: httpclient.GetMultipartFormRequestBody(body)}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
 		query := storage.client.GetBucketQuery()
 		if query == nil {
 			bucketHosts := httpclient.DefaultBucketHosts()
-			var err error
 			if options.OverwrittenBucketHosts != nil {
 				if bucketHosts, err = options.OverwrittenBucketHosts.GetEndpoints(ctx); err != nil {
 					return nil, err
@@ -101,14 +120,8 @@ func (storage *Storage) PostObject(ctx context.Context, request *PostObjectReque
 			}
 		}
 		if query != nil {
-			bucketName := options.OverwrittenBucketName
 			var accessKey string
 			var err error
-			if bucketName == "" {
-				if bucketName, err = innerRequest.getBucketName(ctx); err != nil {
-					return nil, err
-				}
-			}
 			if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
 				return nil, err
 			}

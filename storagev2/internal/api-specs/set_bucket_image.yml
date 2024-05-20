@@ -1,0 +1,23 @@
+method: post
+service_names:
+  - uc
+base_path: /image
+documentation: 设置源站镜像回源
+request:
+  authorization: qiniu
+  path_params:
+    named:
+      - field_name: bucket
+        type: string
+        documentation: 存储空间名称
+        service_bucket: plain_text
+      - path_segment: from
+        field_name: url
+        type: string
+        documentation: 回源 URL
+        encode: url_safe_base64
+      - path_segment: host
+        field_name: host
+        type: string
+        documentation: 从指定源站下载数据时使用的 Host
+        optional: omitempty

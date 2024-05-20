@@ -21,13 +21,7 @@ type client struct {
 
 func NewClient(cli Client, interceptors ...Interceptor) Client {
 	if cli == nil {
-		if clientV1.DefaultClient.Client != nil {
-			cli = NewClientWithClientV1(&clientV1.DefaultClient)
-		} else if http.DefaultClient != nil {
-			cli = http.DefaultClient
-		} else {
-			cli = &http.Client{}
-		}
+		cli = NewClientWithClientV1(&clientV1.DefaultClient)
 	}
 
 	var is interceptorList = interceptors
@@ -130,15 +124,6 @@ func NewClientWithClientV1(c *clientV1.Client) Client {
 	if c == nil {
 		c = &clientV1.DefaultClient
 	}
-
-	if c.Client == nil {
-		if clientV1.DefaultClient.Client != nil {
-			c.Client = clientV1.DefaultClient.Client
-		} else {
-			c.Client = &http.Client{}
-		}
-	}
-
 	return &clientV1Wrapper{
 		c: c,
 	}

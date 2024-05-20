@@ -5,13 +5,15 @@ import (
 )
 
 const (
-	InterceptorPriorityDefault     InterceptorPriority = 100
-	InterceptorPriorityRetryHosts  InterceptorPriority = 200
-	InterceptorPriorityRetrySimple InterceptorPriority = 300
-	InterceptorPrioritySetHeader   InterceptorPriority = 400
-	InterceptorPriorityNormal      InterceptorPriority = 500
-	InterceptorPriorityAuth        InterceptorPriority = 600
-	InterceptorPriorityDebug       InterceptorPriority = 700
+	InterceptorPriorityDefault        InterceptorPriority = 100
+	InterceptorPriorityRetryHosts     InterceptorPriority = 200
+	InterceptorPriorityRetrySimple    InterceptorPriority = 300
+	InterceptorPriorityUplog          InterceptorPriority = 310
+	InterceptorPriorityBufferResponse InterceptorPriority = 320
+	InterceptorPrioritySetHeader      InterceptorPriority = 400
+	InterceptorPriorityNormal         InterceptorPriority = 500
+	InterceptorPriorityAuth           InterceptorPriority = 600
+	InterceptorPriorityDebug          InterceptorPriority = 700
 )
 
 type InterceptorPriority int

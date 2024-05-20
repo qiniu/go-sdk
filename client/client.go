@@ -21,16 +21,14 @@ import (
 	"github.com/qiniu/go-sdk/v7/reqid"
 )
 
-var UserAgent = getUserAgentWithAppName("default")
-var DefaultClient = Client{
-	&http.Client{
-		Transport: http.DefaultTransport,
-	},
-}
+var (
+	UserAgent     = getUserAgentWithAppName("default")
+	DefaultClient = Client{&http.Client{Transport: DefaultTransport}}
 
-// 用来打印调试信息
-var DebugMode = false
-var DeepDebugInfo = false
+	// 用来打印调试信息
+	DebugMode     = false
+	DeepDebugInfo = false
+)
 
 // --------------------------------------------------------------------
 
@@ -51,8 +49,12 @@ func SetAppName(userApp string) error {
 }
 
 func getUserAgentWithAppName(userApp string) string {
-	return fmt.Sprintf("QiniuGo/%s (%s; %s; %s) %s",
-		conf.Version, runtime.GOOS, runtime.GOARCH, userApp, runtime.Version())
+	userAgentPrefix := "QiniuGo/"
+	if testRuntime {
+		userAgentPrefix = "QiniuGo_Debug/"
+	}
+	return fmt.Sprintf("%s%s (%s; %s; %s) %s",
+		userAgentPrefix, conf.Version, runtime.GOOS, runtime.GOARCH, userApp, runtime.Version())
 }
 
 // --------------------------------------------------------------------

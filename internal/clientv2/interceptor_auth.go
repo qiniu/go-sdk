@@ -7,8 +7,16 @@ import (
 )
 
 type AuthConfig struct {
-	Credentials *auth.Credentials //
-	TokenType   auth.TokenType    // 不包含上传
+	// 鉴权参数
+	Credentials *auth.Credentials
+	// 鉴权类型，不包含上传
+	TokenType auth.TokenType
+	// 签名前回调函数
+	BeforeSign func(*http.Request)
+	// 签名后回调函数
+	AfterSign func(*http.Request)
+	// 签名失败回调函数
+	SignError func(*http.Request, error)
 }
 
 type authInterceptor struct {
@@ -31,9 +39,16 @@ func (interceptor *authInterceptor) Intercept(req *http.Request, handler Handler
 	}
 
 	if credentials := interceptor.config.Credentials; credentials != nil {
-		err := credentials.AddToken(interceptor.config.TokenType, req)
-		if err != nil {
+		if interceptor.config.BeforeSign != nil {
+			interceptor.config.BeforeSign(req)
+		}
+		if err := credentials.AddToken(interceptor.config.TokenType, req); err != nil {
+			if interceptor.config.SignError != nil {
+				interceptor.config.SignError(req, err)
+			}
 			return nil, err
+		} else if interceptor.config.AfterSign != nil {
+			interceptor.config.AfterSign(req)
 		}
 	}
 

@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/qiniu/go-sdk/v7/auth"
-	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
-	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis"
+	"github.com/qiniu/go-sdk/v7/storagev2/defaults"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region_v2 "github.com/qiniu/go-sdk/v7/storagev2/region"
 )
@@ -241,6 +239,12 @@ var UcHost = ""
 // 用户配置时，不能配置 api 域名
 var ucHosts = []string{defaultUcHost0, defaultUcHost1, defaultApiHost}
 
+func init() {
+	if defaultUcHosts, err := defaults.BucketURLs(); err == nil && len(defaultUcHosts) > 0 {
+		ucHosts = defaultUcHosts
+	}
+}
+
 // SetUcHost
 // Deprecated 使用 SetUcHosts 替换
 func SetUcHost(host string, useHttps bool) {
@@ -260,34 +264,6 @@ func SetUcHosts(hosts ...string) {
 		}
 	}
 	ucHosts = newHosts
-}
-
-func getUcHost(useHttps bool) string {
-	// 兼容老版本，优先使用 UcHost
-	host := ""
-	if len(UcHost) > 0 {
-		host = UcHost
-	} else if len(ucHosts) > 0 {
-		host = ucHosts[0]
-	}
-	return endpoint(useHttps, host)
-}
-
-// 不带 scheme
-func getUcBackupHosts() []string {
-	var hosts []string
-	if len(UcHost) > 0 {
-		hosts = append(hosts, removeHostScheme(UcHost))
-	}
-
-	for _, host := range ucHosts {
-		if len(host) > 0 {
-			hosts = append(hosts, removeHostScheme(host))
-		}
-	}
-
-	hosts = removeRepeatStringItem(hosts)
-	return hosts
 }
 
 func getUcEndpoint(useHttps bool, hosts []string) region_v2.EndpointsProvider {
@@ -354,6 +330,11 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]R
 	if options.Client != nil {
 		httpClient = options.Client.Client
 	}
+
+	if mac == nil {
+		mac = auth.Default()
+	}
+
 	response, err := apis.NewStorage(&http_client.Options{
 		BasicHTTPClient:    httpClient,
 		HostFreezeDuration: options.HostFreezeDuration,
@@ -377,66 +358,4 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]R
 		})
 	}
 	return regions, nil
-}
-
-type ucClientConfig struct {
-	// 非 uc query api 需要去除默认域名 defaultApiHost
-	IsUcQueryApi bool
-
-	// 单域名重试次数
-	RetryMax int
-
-	// 请求的域名
-	Hosts []string
-
-	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
-	HostFreezeDuration time.Duration
-
-	Client *client.Client
-}
-
-func getUCClient(config ucClientConfig, mac *auth.Credentials) clientv2.Client {
-	allHosts := config.Hosts
-	if len(allHosts) == 0 {
-		allHosts = getUcBackupHosts()
-	}
-
-	var hosts []string = nil
-	if !config.IsUcQueryApi {
-		// 非 uc query api 去除 defaultApiHost
-		for _, host := range allHosts {
-			if host != defaultApiHost {
-				hosts = append(hosts, host)
-			}
-		}
-	} else {
-		hosts = allHosts
-	}
-
-	is := []clientv2.Interceptor{
-		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
-			RetryConfig: clientv2.RetryConfig{
-				RetryMax:      len(hosts),
-				RetryInterval: nil,
-				ShouldRetry:   nil,
-			},
-			ShouldFreezeHost:   nil,
-			HostFreezeDuration: config.HostFreezeDuration,
-			HostProvider:       hostprovider.NewWithHosts(hosts),
-		}),
-		clientv2.NewSimpleRetryInterceptor(clientv2.RetryConfig{
-			RetryMax:      config.RetryMax,
-			RetryInterval: nil,
-			ShouldRetry:   nil,
-		}),
-	}
-
-	if mac != nil {
-		is = append(is, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
-			Credentials: mac,
-			TokenType:   auth.TokenQiniu,
-		}))
-	}
-
-	return clientv2.NewClient(clientv2.NewClientWithClientV1(config.Client), is...)
 }

@@ -59,7 +59,9 @@ type PutRet struct {
 
 // FormUploader 表示一个表单上传的对象
 type FormUploader struct {
-	Client  *client.Client
+	// Deprecated
+	Client *client.Client
+	// Deprecated
 	Cfg     *Config
 	storage *apis.Storage
 }
@@ -72,7 +74,7 @@ func NewFormUploader(cfg *Config) *FormUploader {
 // NewFormUploaderEx 用来构建一个表单上传的对象
 func NewFormUploaderEx(cfg *Config, clt *client.Client) *FormUploader {
 	if cfg == nil {
-		cfg = &Config{}
+		cfg = NewConfig()
 	}
 
 	if clt == nil {
@@ -223,6 +225,7 @@ func (p *FormUploader) putSeekableData(ctx context.Context, ret interface{}, upT
 	return err
 }
 
+// Deprecated
 func (p *FormUploader) UpHost(ak, bucket string) (upHost string, err error) {
 	return getUpHost(p.Cfg, 0, 0, ak, bucket)
 }

@@ -127,6 +127,48 @@ func (pp *PathParams) addGetBucketNameFunc(group *jen.Group, structName string) 
 	return true, nil
 }
 
+func (pp *PathParams) addGetObjectNameFunc(group *jen.Group, structName string) (bool, error) {
+	field := pp.getServiceObjectField()
+	if field == nil || field.ServiceObject.ToServiceObjectType() == ServiceObjectTypeNone {
+		return false, nil
+	} else if field.Type.ToStringLikeType() != StringLikeTypeString {
+		panic(fmt.Sprintf("service object field must be string: %s", field.FieldName))
+	}
+	group.Add(jen.Func().
+		Params(jen.Id("pp").Op("*").Id(structName)).
+		Id("getObjectName").
+		Params().
+		Params(jen.String()).
+		BlockFunc(func(group *jen.Group) {
+			fieldName := field.camelCaseName()
+			switch field.ServiceObject.ToServiceObjectType() {
+			case ServiceObjectTypePlainText:
+				if field.Optional.ToOptionalType() == OptionalTypeNullable {
+					group.Add(jen.Var().Id("objectName").String())
+					group.Add(jen.If(jen.Id("pp").Dot(fieldName).Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+						group.Add(jen.Id("objectName").Op("=").Op("*").Id("pp").Dot(fieldName))
+					}))
+					group.Add(jen.Return(jen.Id("objectName")))
+				} else {
+					group.Return(jen.Id("pp").Dot(fieldName))
+				}
+			case ServiceObjectTypeEntry:
+				group.Add(
+					jen.Id("parts").
+						Op(":=").
+						Qual("strings", "SplitN").
+						Call(jen.Id("pp").Dot(fieldName), jen.Lit(":"), jen.Lit(2)))
+				group.Add(jen.If(jen.Len(jen.Id("parts")).Op(">").Lit(1)), jen.BlockFunc(func(group *jen.Group) {
+					group.Return(jen.Id("parts").Index(jen.Lit(1)))
+				}))
+				group.Add(jen.Return(jen.Lit("")))
+			default:
+				panic("unknown ServiceObjectType")
+			}
+		}))
+	return true, nil
+}
+
 func (pp *PathParams) addBuildFunc(group *jen.Group, structName string) error {
 	var err error
 	group.Add(
@@ -281,4 +323,19 @@ func (pp *PathParams) getServiceBucketField() *NamedPathParam {
 		}
 	}
 	return serviceBucketField
+}
+
+func (pp *PathParams) getServiceObjectField() *NamedPathParam {
+	var serviceObjectField *NamedPathParam
+
+	for i := range pp.Named {
+		if pp.Named[i].ServiceObject.ToServiceObjectType() != ServiceObjectTypeNone {
+			if serviceObjectField == nil {
+				serviceObjectField = &pp.Named[i]
+			} else {
+				panic(fmt.Sprintf("multiple service object fields: %s & %s", pp.Named[i].FieldName, serviceObjectField.FieldName))
+			}
+		}
+	}
+	return serviceObjectField
 }

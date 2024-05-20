@@ -1,0 +1,112 @@
+method: post
+service_names:
+  - uc
+base_path: /v2/bucketInfo
+documentation: 获取存储空间信息
+request:
+  authorization: qiniu
+  query_names:
+    - field_name: bucket
+      query_name: bucket
+      query_type: string
+      documentation: 存储空间名称
+      service_bucket: plain_text
+response:
+  body:
+    json:
+      struct:
+        name: BucketInfoV2
+        documentation: 存储空间信息
+        fields:
+          - field_name: source
+            key: source
+            type: string
+            documentation: 镜像回源地址，可以有多个，以 `;` 分隔
+          - field_name: host
+            key: host
+            type: string
+            documentation: 请求镜像地址时携带的 `Host` 头部
+          - field_name: expires
+            key: expires
+            type: integer
+            documentation: 镜像回源地址过期时长
+          - field_name: protected
+            key: protected
+            type: integer
+            documentation: 是否开启了原图保护
+          - field_name: private
+            key: private
+            type: integer
+            documentation: 是否是私有空间
+          - field_name: no_index_page
+            key: no_index_page
+            type: integer
+            documentation: 是否禁用 index.html（或 index.htm） 页面
+          - field_name: max_age
+            key: max_age
+            type: integer
+            documentation: 客户端缓存过期时长
+          - field_name: separator
+            key: separator
+            type: string
+            documentation: 图片样式分隔符，可能返回多个
+          - field_name: styles
+            key: styles
+            type: string_map
+            documentation: 图片样式，键表示图片样式命令名字，值表示图片样式命令内容
+          - field_name: anti_leech_mode
+            key: anti_leech_mode
+            type: integer
+            documentation: 防盗链模式，1：表示设置 Referer 白名单; 2：表示设置 Referer 黑名单
+          - field_name: token_anti_leech
+            key: token_anti_leech_mode
+            type: integer
+            documentation: Token 防盗链模式, 0：表示关闭，1：表示打开
+          - field_name: refer_wl
+            key: refer_wl
+            documentation: 防盗链 Referer 白名单列表
+            type:
+              array:
+                type: string
+                name: AllowedReferer
+                documentation: 防盗链 Referer 白名单
+          - field_name: refer_bl
+            key: refer_bl
+            documentation: 防盗链 Referer 黑名单列表
+            type:
+              array:
+                type: string
+                name: BlockedReferer
+                documentation: 防盗链 Referer 黑名单
+          - field_name: source_enabled
+            key: source_enabled
+            type: boolean
+            documentation: 在源站支持的情况下是否开启源站的 Referer 防盗链
+          - field_name: no_referer
+            key: allow_empty_referer
+            type: boolean
+            documentation: 0：表示不允许空 Refer 访问; 1：表示允许空 Refer 访问
+          - field_name: mac_key
+            key: mac_key
+            type: string
+            documentation: 第一个 MacKey，Index 为 1，用于防盗链 Token 的生成
+          - field_name: mac_key2
+            key: mac_key2
+            type: string
+            documentation: 第二个 MacKey，Index 为 2，用于防盗链 Token 的生成
+          - field_name: zone
+            key: zone
+            type: string
+            documentation: 存储区域，兼容保留
+          - field_name: region
+            key: region
+            type: string
+            documentation: 存储区域
+          - field_name: remark
+            key: remark
+            type: string
+            documentation: 空间备注信息
+          - field_name: created_at
+            key: ctime
+            type: string
+            documentation: 空间创建时间

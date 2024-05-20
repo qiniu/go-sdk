@@ -5,6 +5,8 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -14,6 +16,12 @@ import (
 
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis"
+	"github.com/qiniu/go-sdk/v7/storagev2/backoff"
+	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
+	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
+	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 )
 
 // 此处废弃，但为了兼容老版本，单独放置一个文件
@@ -64,54 +72,6 @@ func (uc *UcQueryRet) setup() {
 	if len(ioOldSrc) > 0 {
 		uc.Io["old_src"] = ioOldSrc
 	}
-}
-
-func (uc *UcQueryRet) getOneHostFromInfo(info map[string]UcQueryIo) string {
-	hosts := uc.getSrcHostsFromInfo(info)
-	if len(hosts) > 0 {
-		return hosts[0]
-	}
-
-	hosts = uc.getAccHostsFromInfo(info)
-	if len(hosts) > 0 {
-		return hosts[0]
-	}
-
-	return ""
-}
-
-func (uc *UcQueryRet) getSrcHostsFromInfo(info map[string]UcQueryIo) []string {
-	ret := make([]string, 0)
-	if info == nil {
-		return ret
-	}
-
-	if len(info["src"].Main) > 0 {
-		ret = append(ret, info["src"].Main...)
-	}
-
-	if len(info["src"].Backup) > 0 {
-		ret = append(ret, info["src"].Backup...)
-	}
-
-	return ret
-}
-
-func (uc *UcQueryRet) getAccHostsFromInfo(info map[string]UcQueryIo) []string {
-	ret := make([]string, 0)
-	if info == nil {
-		return ret
-	}
-
-	if len(info["acc"].Main) > 0 {
-		ret = append(ret, info["acc"].Main...)
-	}
-
-	if len(info["acc"].Backup) > 0 {
-		ret = append(ret, info["acc"].Backup...)
-	}
-
-	return ret
 }
 
 type UcQueryUp = UcQueryServerInfo
@@ -209,42 +169,97 @@ func storeRegionV2Cache() {
 }
 
 type UCApiOptions struct {
-	UseHttps bool //
+	// 是否使用 HTTPS 协议
+	UseHttps bool
 
-	RetryMax int // 单域名重试次数
+	// 单域名重试次数
+	RetryMax int
 
-	Hosts []string // api 请求的域名
+	// api 请求的域名
+	Hosts []string
 
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
 
-	Client *client.Client // api 请求使用的 client
+	// api 请求使用的 client
+	Client *client.Client
+
+	// api 使用的域名解析器
+	Resolver resolver.Resolver
+
+	// api 使用的 IP 选择器
+	Chooser chooser.Chooser
+
+	// api 使用的退避器
+	Backoff backoff.Backoff
+
+	// api 使用的重试器
+	Retrier retrier.Retrier
+
+	// 签名前回调函数
+	BeforeSign func(*http.Request)
+
+	// 签名后回调函数
+	AfterSign func(*http.Request)
+
+	// 签名失败回调函数
+	SignError func(*http.Request, error)
+
+	// 域名解析前回调函数
+	BeforeResolve func(*http.Request)
+
+	// 域名解析后回调函数
+	AfterResolve func(*http.Request, []net.IP)
+
+	// 域名解析错误回调函数
+	ResolveError func(*http.Request, error)
+
+	// 退避前回调函数
+	BeforeBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
+
+	// 退避后回调函数
+	AfterBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
+
+	// 请求前回调函数
+	BeforeRequest func(*http.Request, *retrier.RetrierOptions)
+
+	// 请求后回调函数
+	AfterResponse func(*http.Response, *retrier.RetrierOptions, error)
 }
 
-func (o *UCApiOptions) init() {
-	if len(o.Hosts) == 0 {
-		o.Hosts = getUcBackupHosts()
-	}
+func (options *UCApiOptions) getApiStorageClient() *apis.Storage {
+	return apis.NewStorage(&http_client.Options{
+		Interceptors:        []clientv2.Interceptor{},
+		UseInsecureProtocol: !options.UseHttps,
+		Resolver:            options.Resolver,
+		Chooser:             options.Chooser,
+		HostRetryConfig:     &clientv2.RetryConfig{RetryMax: options.RetryMax, Retrier: options.Retrier},
+		HostsRetryConfig:    &clientv2.RetryConfig{Retrier: options.Retrier},
+		HostFreezeDuration:  options.HostFreezeDuration,
+		BeforeSign:          options.BeforeSign,
+		AfterSign:           options.AfterSign,
+		SignError:           options.SignError,
+		BeforeResolve:       options.BeforeResolve,
+		AfterResolve:        options.AfterResolve,
+		ResolveError:        options.ResolveError,
+		BeforeBackoff:       options.BeforeBackoff,
+		AfterBackoff:        options.AfterBackoff,
+		BeforeRequest:       options.BeforeRequest,
+		AfterResponse:       options.AfterResponse,
+	})
 }
 
-func (o *UCApiOptions) firstHost() string {
-	if len(o.Hosts) == 0 {
-		return ""
-	}
-	return o.Hosts[0]
+func (options *UCApiOptions) getApiOptions() *apis.Options {
+	return &apis.Options{OverwrittenBucketHosts: getUcEndpoint(options.UseHttps, options.Hosts)}
 }
 
 func DefaultUCApiOptions() UCApiOptions {
 	return UCApiOptions{
-		UseHttps:           true,
-		RetryMax:           0,
-		HostFreezeDuration: 0,
+		UseHttps: true,
 	}
 }
 
 func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
-	options.init()
-
 	regionV2CacheLock.RLock()
 	if regionV2CacheLoaded {
 		regionV2CacheLock.RUnlock()
@@ -262,46 +277,20 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 	}
 
 	regionCacheKey := makeRegionCacheKey(ak, bucket, options.Hosts)
-	//check from cache
+	// check from cache
 	if v, ok := regionV2Cache.Load(regionCacheKey); ok && time.Now().Before(v.(regionV2CacheValue).Deadline) {
 		return v.(regionV2CacheValue).Region, nil
 	}
 
 	newRegion, err, _ := ucQueryV2Group.Do(regionCacheKey, func() (interface{}, error) {
-		reqURL := fmt.Sprintf("%s/v2/query?ak=%s&bucket=%s", endpoint(options.UseHttps, options.firstHost()), ak, bucket)
-
-		var ret UcQueryRet
-		c := getUCClient(ucClientConfig{
-			IsUcQueryApi:       true,
-			RetryMax:           options.RetryMax,
-			Hosts:              options.Hosts,
-			HostFreezeDuration: options.HostFreezeDuration,
-			Client:             options.Client,
-		}, nil)
-		err := clientv2.DoAndDecodeJsonResponse(c, clientv2.RequestParams{
-			Context: context.Background(),
-			Method:  clientv2.RequestMethodGet,
-			Url:     reqURL,
-			Header:  nil,
-			GetBody: nil,
-		}, &ret)
+		region, ttl, err := _getRegionByV2WithoutCache(ak, bucket, options)
 		if err != nil {
 			return nil, fmt.Errorf("query region error, %s", err.Error())
 		}
 
-		region := &Region{
-			SrcUpHosts: ret.getSrcHostsFromInfo(ret.Up),
-			CdnUpHosts: ret.getAccHostsFromInfo(ret.Up),
-			IovipHost:  ret.getOneHostFromInfo(ret.IoInfo),
-			RsHost:     ret.getOneHostFromInfo(ret.RsInfo),
-			RsfHost:    ret.getOneHostFromInfo(ret.RsfInfo),
-			ApiHost:    ret.getOneHostFromInfo(ret.ApiInfo),
-			IoSrcHost:  ret.getOneHostFromInfo(ret.IoSrcInfo),
-		}
-
 		regionV2Cache.Store(regionCacheKey, regionV2CacheValue{
 			Region:   region,
-			Deadline: time.Now().Add(time.Duration(ret.TTL) * time.Second),
+			Deadline: time.Now().Add(time.Duration(ttl) * time.Second),
 		})
 
 		regionV2CacheSyncLock.Lock()
@@ -320,4 +309,47 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 func makeRegionCacheKey(ak, bucket string, ucHosts []string) string {
 	hostStrings := fmt.Sprintf("%v", ucHosts)
 	return fmt.Sprintf("%s:%s:%x", ak, bucket, md5.Sum([]byte(hostStrings)))
+}
+
+func _getRegionByV2WithoutCache(ak, bucket string, options UCApiOptions) (*Region, int64, error) {
+	response, err := options.getApiStorageClient().QueryBucketV2(
+		context.Background(),
+		&apis.QueryBucketV2Request{
+			Bucket:    bucket,
+			AccessKey: ak,
+		},
+		options.getApiOptions(),
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	var rsHost, rsfHost, apiHost, ioVipHost, ioSrcHost string
+	srcUpHosts := append(response.UpDomains.SourceUpDomains.MainSourceUpDomains, response.UpDomains.SourceUpDomains.BackupSourceUpDomains...)
+	srcUpHosts = append(srcUpHosts, response.UpDomains.OldSourceDomains.OldMainSourceUpDomains...)
+	cdnUpHosts := append(response.UpDomains.AcceleratedUpDomains.MainAcceleratedUpDomains, response.UpDomains.AcceleratedUpDomains.BackupAcceleratedUpDomains...)
+	cdnUpHosts = append(cdnUpHosts, response.UpDomains.OldAcceleratedDomains.OldMainAcceleratedUpDomains...)
+	if len(response.RsDomains.AcceleratedRsDomains.MainAcceleratedRsDomains) > 0 {
+		rsHost = response.RsDomains.AcceleratedRsDomains.MainAcceleratedRsDomains[0]
+	}
+	if len(response.RsfDomains.AcceleratedRsfDomains.MainAcceleratedRsfDomains) > 0 {
+		rsfHost = response.RsfDomains.AcceleratedRsfDomains.MainAcceleratedRsfDomains[0]
+	}
+	if len(response.ApiDomains.AcceleratedApiDomains.MainAcceleratedApiDomains) > 0 {
+		apiHost = response.ApiDomains.AcceleratedApiDomains.MainAcceleratedApiDomains[0]
+	}
+	if len(response.IoDomains.SourceIoDomains.MainSourceIoDomains) > 0 {
+		ioVipHost = response.IoDomains.SourceIoDomains.MainSourceIoDomains[0]
+	}
+	if len(response.IoSrcDomains.SourceIoSrcDomains.MainSourceIoSrcDomains) > 0 {
+		ioSrcHost = response.IoSrcDomains.SourceIoSrcDomains.MainSourceIoSrcDomains[0]
+	}
+	return &Region{
+		SrcUpHosts: srcUpHosts,
+		CdnUpHosts: cdnUpHosts,
+		RsHost:     rsHost,
+		RsfHost:    rsfHost,
+		ApiHost:    apiHost,
+		IovipHost:  ioVipHost,
+		IoSrcHost:  ioSrcHost,
+	}, response.TimeToLive, nil
 }

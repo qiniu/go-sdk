@@ -10,14 +10,22 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/batch_ops"
+	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_domains_v3"
+	"github.com/qiniu/go-sdk/v7/storagev2/backoff"
+	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
+	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
@@ -284,9 +292,53 @@ type BatchOpRet struct {
 }
 
 type BucketManagerOptions struct {
-	RetryMax int // 单域名重试次数，当前只有 uc 相关的服务有多域名
+	// 单域名重试次数，当前只有 uc 相关的服务有多域名
+	RetryMax int
+
 	// 主备域名冻结时间（默认：600s），当一个域名请求失败（单个域名会被重试 TryTimes 次），会被冻结一段时间，使用备用域名进行重试，在冻结时间内，域名不能被使用，当一个操作中所有域名竣备冻结操作不在进行重试，返回最后一次操作的错误。
 	HostFreezeDuration time.Duration
+
+	// 域名解析器
+	Resolver resolver.Resolver
+
+	// 域名选择器
+	Chooser chooser.Chooser
+
+	// 退避器
+	Backoff backoff.Backoff
+
+	// 重试器
+	Retrier retrier.Retrier
+
+	// 签名前回调函数
+	BeforeSign func(*http.Request)
+
+	// 签名后回调函数
+	AfterSign func(*http.Request)
+
+	// 签名失败回调函数
+	SignError func(*http.Request, error)
+
+	// 域名解析前回调函数
+	BeforeResolve func(*http.Request)
+
+	// 域名解析后回调函数
+	AfterResolve func(*http.Request, []net.IP)
+
+	// 域名解析错误回调函数
+	ResolveError func(*http.Request, error)
+
+	// 退避前回调函数
+	BeforeBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
+
+	// 退避后回调函数
+	AfterBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration)
+
+	// 请求前回调函数
+	BeforeRequest func(*http.Request, *retrier.RetrierOptions)
+
+	// 请求后回调函数
+	AfterResponse func(*http.Response, *retrier.RetrierOptions, error)
 }
 
 // BucketManager 提供了对资源进行管理的操作
@@ -310,7 +362,10 @@ func NewBucketManagerEx(mac *auth.Credentials, cfg *Config, clt *clientv1.Client
 
 func NewBucketManagerExWithOptions(mac *auth.Credentials, cfg *Config, clt *clientv1.Client, options BucketManagerOptions) *BucketManager {
 	if cfg == nil {
-		cfg = &Config{}
+		cfg = NewConfig()
+	}
+	if mac == nil {
+		mac = auth.Default()
 	}
 
 	if clt == nil {
@@ -321,13 +376,25 @@ func NewBucketManagerExWithOptions(mac *auth.Credentials, cfg *Config, clt *clie
 	}
 
 	opts := http_client.Options{
-		HostFreezeDuration: options.HostFreezeDuration,
-		HostRetryConfig: &clientv2.RetryConfig{
-			RetryMax: options.RetryMax,
-		},
-		Credentials:         mac,
 		BasicHTTPClient:     clt.Client,
+		Credentials:         mac,
+		Interceptors:        []clientv2.Interceptor{},
 		UseInsecureProtocol: !cfg.UseHTTPS,
+		Resolver:            options.Resolver,
+		Chooser:             options.Chooser,
+		HostRetryConfig:     &clientv2.RetryConfig{RetryMax: options.RetryMax, Retrier: options.Retrier},
+		HostsRetryConfig:    &clientv2.RetryConfig{Retrier: options.Retrier},
+		HostFreezeDuration:  options.HostFreezeDuration,
+		BeforeSign:          options.BeforeSign,
+		AfterSign:           options.AfterSign,
+		SignError:           options.SignError,
+		BeforeResolve:       options.BeforeResolve,
+		AfterResolve:        options.AfterResolve,
+		ResolveError:        options.ResolveError,
+		BeforeBackoff:       options.BeforeBackoff,
+		AfterBackoff:        options.AfterBackoff,
+		BeforeRequest:       options.BeforeRequest,
+		AfterResponse:       options.AfterResponse,
 	}
 	if region := cfg.GetRegion(); region != nil {
 		opts.Regions = region
@@ -851,15 +918,31 @@ type DomainInfo struct {
 
 // ListBucketDomains 返回绑定在存储空间中的域名信息
 func (m *BucketManager) ListBucketDomains(bucket string) (info []DomainInfo, err error) {
-	reqURL := fmt.Sprintf("%s/v3/domains?tbl=%s", getUcHost(m.Cfg.UseHTTPS), bucket)
-	err = clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodGet,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, &info)
-	return info, err
+	toDomainInfo := func(info *get_bucket_domains_v3.DomainInfo) DomainInfo {
+		return DomainInfo{
+			Domain:  info.Domain,
+			Tbl:     info.Bucket,
+			Owner:   int(info.OwnerId),
+			Refresh: info.AutoRefresh,
+			Ctime:   int(info.CreatedTime),
+			Utime:   int(info.UpdatedTime),
+		}
+	}
+	response, err := m.apiClient.GetBucketDomainsV3(
+		context.Background(),
+		&apis.GetBucketDomainsV3Request{
+			BucketName: bucket,
+		},
+		m.makeRequestOptions(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	domainInfos := make([]DomainInfo, 0, len(response.DomainInfos))
+	for _, domainInfo := range response.DomainInfos {
+		domainInfos = append(domainInfos, toDomainInfo(&domainInfo))
+	}
+	return domainInfos, nil
 }
 
 // Prefetch 用来同步镜像空间的资源和镜像源资源内容
@@ -875,40 +958,42 @@ func (m *BucketManager) Prefetch(bucket, key string) error {
 }
 
 // SetImage 用来设置空间镜像源
-func (m *BucketManager) SetImage(siteURL, bucket string) (err error) {
-	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriSetImage(siteURL, bucket))
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, nil)
+func (m *BucketManager) SetImage(siteURL, bucket string) error {
+	_, err := m.apiClient.SetBucketImage(
+		context.Background(),
+		&apis.SetBucketImageRequest{
+			Bucket: bucket,
+			Url:    siteURL,
+		},
+		m.makeRequestOptions(),
+	)
+	return err
 }
 
 // SetImageWithHost 用来设置空间镜像源，额外添加回源Host头部
-func (m *BucketManager) SetImageWithHost(siteURL, bucket, host string) (err error) {
-	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS),
-		uriSetImageWithHost(siteURL, bucket, host))
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, nil)
+func (m *BucketManager) SetImageWithHost(siteURL, bucket, host string) error {
+	_, err := m.apiClient.SetBucketImage(
+		context.Background(),
+		&apis.SetBucketImageRequest{
+			Bucket: bucket,
+			Url:    siteURL,
+			Host:   host,
+		},
+		m.makeRequestOptions(),
+	)
+	return err
 }
 
 // UnsetImage 用来取消空间镜像源设置
-func (m *BucketManager) UnsetImage(bucket string) (err error) {
-	reqURL := fmt.Sprintf("%s%s", getUcHost(m.Cfg.UseHTTPS), uriUnsetImage(bucket))
-	return clientv2.DoAndDecodeJsonResponse(m.getUCClient(), clientv2.RequestParams{
-		Context: context.Background(),
-		Method:  clientv2.RequestMethodPost,
-		Url:     reqURL,
-		Header:  nil,
-		GetBody: nil,
-	}, nil)
+func (m *BucketManager) UnsetImage(bucket string) error {
+	_, err := m.apiClient.UnsetBucketImage(
+		context.Background(),
+		&apis.UnsetBucketImageRequest{
+			Bucket: bucket,
+		},
+		m.makeRequestOptions(),
+	)
+	return err
 }
 
 type AsyncFetchParam struct {
@@ -1026,6 +1111,58 @@ func (m *BucketManager) makeRequestOptions() *apis.Options {
 	return &apis.Options{OverwrittenBucketHosts: getUcEndpoint(m.Cfg.UseHTTPS, nil)}
 }
 
+var (
+	defaultResolver      resolver.Resolver
+	defaultResolverMutex sync.Mutex
+)
+
+func (m *BucketManager) resolver() (resolver.Resolver, error) {
+	var err error
+
+	if m.options.Resolver != nil {
+		return m.options.Resolver, nil
+	}
+	defaultResolverMutex.Lock()
+	defer defaultResolverMutex.Unlock()
+
+	if defaultResolver != nil {
+		return defaultResolver, nil
+	}
+
+	if defaultResolver, err = resolver.NewCacheResolver(nil, nil); err != nil {
+		return nil, err
+	} else {
+		return defaultResolver, nil
+	}
+}
+
+var (
+	defaultChooser      chooser.Chooser
+	defaultChooserMutex sync.Mutex
+)
+
+func (m *BucketManager) chooser() chooser.Chooser {
+	if m.options.Chooser != nil {
+		return m.options.Chooser
+	}
+	defaultChooserMutex.Lock()
+	defer defaultChooserMutex.Unlock()
+
+	if defaultChooser != nil {
+		return defaultChooser
+	}
+	defaultChooser = chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil))
+	return defaultChooser
+}
+
+func (m *BucketManager) backoff() backoff.Backoff {
+	return m.options.Backoff
+}
+
+func (m *BucketManager) retrier() retrier.Retrier {
+	return m.options.Retrier
+}
+
 // 构建op的方法，导出的方法支持在Batch操作中使用
 
 // URIStat 构建 stat 接口的请求命令
@@ -1118,21 +1255,6 @@ func URIChangeType(bucket, key string, fileType int) string {
 // URIRestoreAr 构建 restoreAr 接口的请求命令
 func URIRestoreAr(bucket, key string, afterDay int) string {
 	return fmt.Sprintf("/restoreAr/%s/freezeAfterDays/%d", EncodedEntry(bucket, key), afterDay)
-}
-
-func uriSetImage(siteURL, bucket string) string {
-	return fmt.Sprintf("/image/%s/from/%s", bucket,
-		base64.URLEncoding.EncodeToString([]byte(siteURL)))
-}
-
-func uriSetImageWithHost(siteURL, bucket, host string) string {
-	return fmt.Sprintf("/image/%s/from/%s/host/%s", bucket,
-		base64.URLEncoding.EncodeToString([]byte(siteURL)),
-		base64.URLEncoding.EncodeToString([]byte(host)))
-}
-
-func uriUnsetImage(bucket string) string {
-	return fmt.Sprintf("/unimage/%s", bucket)
 }
 
 // EncodedEntry 生成URL Safe Base64编码的 Entry

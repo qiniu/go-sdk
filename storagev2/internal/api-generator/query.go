@@ -15,8 +15,10 @@ type (
 		FieldSnakeCaseName string             `yaml:"field_snake_case_name,omitempty"`
 		QueryName          string             `yaml:"query_name,omitempty"`
 		Documentation      string             `yaml:"documentation,omitempty"`
+		Multiple           bool               `yaml:"multiple,omitempty"`
 		QueryType          *StringLikeType    `yaml:"query_type,omitempty"`
 		ServiceBucket      *ServiceBucketType `yaml:"service_bucket,omitempty"`
+		ServiceObject      *ServiceObjectType `yaml:"service_object,omitempty"`
 		Optional           *OptionalType      `yaml:"optional,omitempty"`
 	}
 	QueryNames []QueryName
@@ -31,7 +33,11 @@ func (name *QueryName) camelCaseName() string {
 
 func (names QueryNames) addFields(group *jen.Group) error {
 	for _, queryName := range names {
-		code, err := queryName.QueryType.AddTypeToStatement(jen.Id(queryName.camelCaseName()), false)
+		code := jen.Id(queryName.camelCaseName())
+		if queryName.Multiple {
+			code = code.Index()
+		}
+		code, err := queryName.QueryType.AddTypeToStatement(code, false)
 		if err != nil {
 			return err
 		}
@@ -47,6 +53,8 @@ func (names QueryNames) addGetBucketNameFunc(group *jen.Group, structName string
 	field := names.getServiceBucketField()
 	if field == nil || field.ServiceBucket.ToServiceBucketType() == ServiceBucketTypeNone {
 		return false, nil
+	} else if field.Multiple {
+		panic(fmt.Sprintf("multiple service bucket fields: %s", field.FieldName))
 	} else if field.QueryType.ToStringLikeType() != StringLikeTypeString {
 		panic(fmt.Sprintf("service bucket field must be string: %s", field.FieldName))
 	}
@@ -96,6 +104,50 @@ func (names QueryNames) addGetBucketNameFunc(group *jen.Group, structName string
 	return true, nil
 }
 
+func (names QueryNames) addGetObjectNameFunc(group *jen.Group, structName string) (bool, error) {
+	field := names.getServiceObjectField()
+	if field == nil || field.ServiceObject.ToServiceObjectType() == ServiceObjectTypeNone {
+		return false, nil
+	} else if field.Multiple {
+		panic(fmt.Sprintf("multiple service object fields: %s", field.FieldName))
+	} else if field.QueryType.ToStringLikeType() != StringLikeTypeString {
+		panic(fmt.Sprintf("service object field must be string: %s", field.FieldName))
+	}
+	group.Add(jen.Func().
+		Params(jen.Id("query").Op("*").Id(structName)).
+		Id("getObjectName").
+		Params().
+		Params(jen.String()).
+		BlockFunc(func(group *jen.Group) {
+			fieldName := field.camelCaseName()
+			switch field.ServiceObject.ToServiceObjectType() {
+			case ServiceObjectTypePlainText:
+				if field.Optional.ToOptionalType() == OptionalTypeNullable {
+					group.Add(jen.Var().Id("objectName").String())
+					group.Add(jen.If(jen.Id("query").Dot(fieldName).Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+						group.Add(jen.Id("objectName").Op("=").Op("*").Id("query").Dot(fieldName))
+					}))
+					group.Add(jen.Return(jen.Id("objectName")))
+				} else {
+					group.Return(jen.Id("query").Dot(fieldName))
+				}
+			case ServiceObjectTypeEntry:
+				group.Add(
+					jen.Id("parts").
+						Op(":=").
+						Qual("strings", "SplitN").
+						Call(jen.Id("query").Dot(fieldName), jen.Lit(":"), jen.Lit(2)))
+				group.Add(jen.If(jen.Len(jen.Id("parts")).Op(">").Lit(1)), jen.BlockFunc(func(group *jen.Group) {
+					group.Return(jen.Id("parts").Index(jen.Lit(1)))
+				}))
+				group.Add(jen.Return(jen.Lit("")))
+			default:
+				panic("unknown ServiceObjectType")
+			}
+		}))
+	return true, nil
+}
+
 func (names QueryNames) addBuildFunc(group *jen.Group, structName string) error {
 	var err error
 	group.Add(
@@ -109,7 +161,7 @@ func (names QueryNames) addBuildFunc(group *jen.Group, structName string) error 
 					jen.Id("allQuery").Op(":=").Make(jen.Qual("net/url", "Values")),
 				)
 				for _, queryName := range names {
-					if e := names.generateSetCall(group, queryName); e != nil {
+					if e := names.generateSetCall(group, queryName, "allQuery"); e != nil {
 						err = e
 						return
 					}
@@ -120,61 +172,81 @@ func (names QueryNames) addBuildFunc(group *jen.Group, structName string) error 
 	return err
 }
 
-func (names QueryNames) generateSetCall(group *jen.Group, queryName QueryName) error {
+func (names QueryNames) generateSetCall(group *jen.Group, queryName QueryName, queryVarName string) error {
 	var (
-		valueConvertCode *jen.Statement
-		err              error
+		valueConvertCode                    *jen.Statement
+		err                                 error
+		appendMissingRequiredFieldErrorFunc = func(fieldName string) func(group *jen.Group) {
+			return func(group *jen.Group) {
+				group.Return(
+					jen.Nil(),
+					jen.Qual(PackageNameErrors, "MissingRequiredFieldError").
+						ValuesFunc(func(group *jen.Group) {
+							group.Add(jen.Id("Name").Op(":").Lit(fieldName))
+						}),
+				)
+			}
+		}
 	)
 	fieldName := queryName.camelCaseName()
 	field := jen.Id("query").Dot(fieldName)
-	if queryName.Optional.ToOptionalType() == OptionalTypeNullable {
-		valueConvertCode, err = queryName.QueryType.GenerateConvertCodeToString(jen.Op("*").Add(field))
-	} else {
-		valueConvertCode, err = queryName.QueryType.GenerateConvertCodeToString(field)
-	}
-	if err != nil {
-		return err
-	}
-	zeroValue, err := queryName.QueryType.ZeroValue()
-	if err != nil {
-		return err
-	}
-
-	condition := field.Clone()
-	if queryName.Optional.ToOptionalType() == OptionalTypeNullable {
-		condition = condition.Op("!=").Nil()
-	} else if v, ok := zeroValue.(bool); !ok || v {
-		condition = condition.Op("!=").Lit(zeroValue)
-	}
-	setQueryFunc := func(queryName string, value jen.Code) func(group *jen.Group) {
-		return func(group *jen.Group) {
-			group.Id("allQuery").Dot("Set").Call(jen.Lit(queryName), value)
+	if queryName.Multiple {
+		if queryName.Optional.ToOptionalType() != OptionalTypeRequired {
+			return errors.New("multiple field must be required")
 		}
-	}
-	appendMissingRequiredFieldErrorFunc := func(fieldName string) func(group *jen.Group) {
-		return func(group *jen.Group) {
-			group.Return(
-				jen.Nil(),
-				jen.Qual(PackageNameErrors, "MissingRequiredFieldError").
-					ValuesFunc(func(group *jen.Group) {
-						group.Add(jen.Id("Name").Op(":").Lit(fieldName))
+		valueConvertCode, err = queryName.QueryType.GenerateConvertCodeToString(jen.Id("value"))
+		if err != nil {
+			return err
+		}
+		group.Add(jen.If(jen.Len(jen.Id("query").Dot(fieldName)).Op(">").Lit(0)).
+			BlockFunc(func(group *jen.Group) {
+				group.Add(
+					jen.For(jen.List(jen.Id("_"), jen.Id("value")).Op(":=").Range().Add(jen.Id("query").Dot(fieldName))).BlockFunc(func(group *jen.Group) {
+						group.Add(jen.Id(queryVarName).Dot("Add").Call(jen.Lit(queryName.QueryName), valueConvertCode))
 					}),
-			)
-		}
-	}
-	switch queryName.Optional.ToOptionalType() {
-	case OptionalTypeRequired:
-		group.Add(jen.If(condition).
-			BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)).
+				)
+			}).
 			Else().
 			BlockFunc(appendMissingRequiredFieldErrorFunc(fieldName)))
-	case OptionalTypeOmitEmpty, OptionalTypeNullable:
-		group.Add(jen.If(condition).
-			BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)))
-	case OptionalTypeKeepEmpty:
-		setQueryFunc(queryName.QueryName, valueConvertCode)(group)
-	default:
-		return errors.New("unknown OptionalType")
+	} else {
+		if queryName.Optional.ToOptionalType() == OptionalTypeNullable {
+			valueConvertCode, err = queryName.QueryType.GenerateConvertCodeToString(jen.Op("*").Add(field))
+		} else {
+			valueConvertCode, err = queryName.QueryType.GenerateConvertCodeToString(field)
+		}
+		if err != nil {
+			return err
+		}
+		zeroValue, err := queryName.QueryType.ZeroValue()
+		if err != nil {
+			return err
+		}
+
+		condition := field.Clone()
+		if queryName.Optional.ToOptionalType() == OptionalTypeNullable {
+			condition = condition.Op("!=").Nil()
+		} else if v, ok := zeroValue.(bool); !ok || v {
+			condition = condition.Op("!=").Lit(zeroValue)
+		}
+		setQueryFunc := func(queryName string, value jen.Code) func(group *jen.Group) {
+			return func(group *jen.Group) {
+				group.Id(queryVarName).Dot("Set").Call(jen.Lit(queryName), value)
+			}
+		}
+		switch queryName.Optional.ToOptionalType() {
+		case OptionalTypeRequired:
+			group.Add(jen.If(condition).
+				BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)).
+				Else().
+				BlockFunc(appendMissingRequiredFieldErrorFunc(fieldName)))
+		case OptionalTypeOmitEmpty, OptionalTypeNullable:
+			group.Add(jen.If(condition).
+				BlockFunc(setQueryFunc(queryName.QueryName, valueConvertCode)))
+		case OptionalTypeKeepEmpty:
+			setQueryFunc(queryName.QueryName, valueConvertCode)(group)
+		default:
+			return errors.New("unknown OptionalType")
+		}
 	}
 	return nil
 }
@@ -192,4 +264,19 @@ func (names QueryNames) getServiceBucketField() *QueryName {
 		}
 	}
 	return serviceBucketField
+}
+
+func (names QueryNames) getServiceObjectField() *QueryName {
+	var serviceObjectField *QueryName
+
+	for i := range names {
+		if names[i].ServiceObject.ToServiceObjectType() != ServiceObjectTypeNone {
+			if serviceObjectField == nil {
+				serviceObjectField = &names[i]
+			} else {
+				panic(fmt.Sprintf("multiple service object fields: %s & %s", names[i].FieldName, serviceObjectField.FieldName))
+			}
+		}
+	}
+	return serviceObjectField
 }

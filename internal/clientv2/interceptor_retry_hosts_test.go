@@ -22,14 +22,9 @@ func TestHostsAlwaysRetryInterceptor(t *testing.T) {
 	hostB := "bbb.bb.com"
 	hRetryMax := 2
 	hRetryInterceptor := NewHostsRetryInterceptor(HostsRetryConfig{
-		RetryConfig: RetryConfig{
-			RetryMax: hRetryMax,
-			RetryInterval: func() time.Duration {
-				return time.Second
-			},
-			ShouldRetry: func(req *http.Request, resp *http.Response, err error) bool {
-				return true
-			},
+		RetryMax: hRetryMax,
+		ShouldRetry: func(req *http.Request, resp *http.Response, err error) bool {
+			return true
 		},
 		ShouldFreezeHost:   nil,
 		HostFreezeDuration: 0,
@@ -37,7 +32,7 @@ func TestHostsAlwaysRetryInterceptor(t *testing.T) {
 	})
 
 	retryMax := 1
-	sRetryInterceptor := NewSimpleRetryInterceptor(RetryConfig{
+	sRetryInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
 		RetryInterval: func() time.Duration {
 			return time.Second
@@ -65,8 +60,6 @@ func TestHostsAlwaysRetryInterceptor(t *testing.T) {
 
 	c := NewClient(&testClient{}, interceptor, hRetryInterceptor, sRetryInterceptor)
 
-	start := time.Now()
-
 	resp, _ := Do(c, RequestParams{
 		Context: nil,
 		Method:  RequestMethodGet,
@@ -74,14 +67,9 @@ func TestHostsAlwaysRetryInterceptor(t *testing.T) {
 		Header:  nil,
 		GetBody: nil,
 	})
-	duration := float32(time.Now().UnixNano()-start.UnixNano()) / 1e9
 
 	if (retryMax+1)*2 != doCount {
 		t.Fatalf("retry count is not error:%d", doCount)
-	}
-
-	if duration > float32(doCount-1)+0.3 || duration < float32(doCount-1)-0.3 {
-		t.Fatalf("retry interval may be error:%f", duration)
 	}
 
 	value := resp.Header.Get(headerKey)
@@ -104,22 +92,14 @@ func TestHostsNotRetryInterceptor(t *testing.T) {
 	hostB := "bbb.bb.com"
 	hRetryMax := 2
 	hRetryInterceptor := NewHostsRetryInterceptor(HostsRetryConfig{
-		RetryConfig: RetryConfig{
-			RetryMax: hRetryMax,
-			RetryInterval: func() time.Duration {
-				return time.Second
-			},
-			//ShouldRetry: func(req *http.Request, resp *http.Response, err error) bool {
-			//	return true
-			//},
-		},
+		RetryMax:           hRetryMax,
 		ShouldFreezeHost:   nil,
 		HostFreezeDuration: 0,
 		HostProvider:       hostprovider.NewWithHosts([]string{hostA, hostB}),
 	})
 
 	retryMax := 1
-	sRetryInterceptor := NewSimpleRetryInterceptor(RetryConfig{
+	sRetryInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
 		RetryInterval: func() time.Duration {
 			return time.Second
@@ -186,19 +166,14 @@ func TestHostsRetryInterceptorByRequest(t *testing.T) {
 	hostB := "www.qiniu.com"
 	hRetryMax := 30
 	hRetryInterceptor := NewHostsRetryInterceptor(HostsRetryConfig{
-		RetryConfig: RetryConfig{
-			RetryMax: hRetryMax,
-			RetryInterval: func() time.Duration {
-				return time.Second
-			},
-		},
+		RetryMax:           hRetryMax,
 		ShouldFreezeHost:   nil,
 		HostFreezeDuration: 0,
 		HostProvider:       hostprovider.NewWithHosts([]string{hostA, hostB}),
 	})
 
 	retryMax := 1
-	sRetryInterceptor := NewSimpleRetryInterceptor(RetryConfig{
+	sRetryInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
 		RetryMax: retryMax,
 		RetryInterval: func() time.Duration {
 			return time.Second

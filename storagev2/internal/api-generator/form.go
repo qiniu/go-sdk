@@ -23,6 +23,7 @@ type (
 		Multiple           bool               `yaml:"multiple,omitempty"`
 		Optional           *OptionalType      `yaml:"optional,omitempty"`
 		ServiceBucket      *ServiceBucketType `yaml:"service_bucket,omitempty"`
+		ServiceObject      *ServiceObjectType `yaml:"service_object,omitempty"`
 	}
 )
 
@@ -97,6 +98,50 @@ func (form *FormUrlencodedRequestStruct) addGetBucketNameFunc(group *jen.Group, 
 	return true, nil
 }
 
+func (form *FormUrlencodedRequestStruct) addGetObjectNameFunc(group *jen.Group, structName string) (bool, error) {
+	field := form.getServiceObjectField()
+	if field == nil || field.ServiceObject.ToServiceObjectType() == ServiceObjectTypeNone {
+		return false, nil
+	} else if field.Multiple {
+		panic(fmt.Sprintf("multiple service object fields: %s", field.FieldName))
+	} else if t := field.Type.ToStringLikeType(); t != StringLikeTypeString {
+		panic(fmt.Sprintf("service object field must be string: %s", t))
+	}
+	group.Add(jen.Func().
+		Params(jen.Id("form").Op("*").Id(structName)).
+		Id("getObjectName").
+		Params().
+		Params(jen.String()).
+		BlockFunc(func(group *jen.Group) {
+			fieldName := field.camelCaseName()
+			switch field.ServiceObject.ToServiceObjectType() {
+			case ServiceObjectTypePlainText:
+				if field.Optional.ToOptionalType() == OptionalTypeNullable {
+					group.Add(jen.Var().Id("objectName").String())
+					group.Add(jen.If(jen.Id("form").Dot(fieldName).Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+						group.Add(jen.Id("objectName").Op("=").Op("*").Id("form").Dot(fieldName))
+					}))
+					group.Add(jen.Return(jen.Id("objectName")))
+				} else {
+					group.Return(jen.Id("form").Dot(fieldName))
+				}
+			case ServiceObjectTypeEntry:
+				group.Add(
+					jen.Id("parts").
+						Op(":=").
+						Qual("strings", "SplitN").
+						Call(jen.Id("form").Dot(fieldName), jen.Lit(":"), jen.Lit(2)))
+				group.Add(jen.If(jen.Len(jen.Id("parts")).Op(">").Lit(1)), jen.BlockFunc(func(group *jen.Group) {
+					group.Return(jen.Id("parts").Index(jen.Lit(1)))
+				}))
+				group.Add(jen.Return(jen.Lit("")))
+			default:
+				panic("unknown ServiceObjectType")
+			}
+		}))
+	return true, nil
+}
+
 func (form *FormUrlencodedRequestStruct) addBuildFunc(group *jen.Group, structName string) error {
 	var finalErr error = nil
 	group.Add(
@@ -132,6 +177,21 @@ func (form *FormUrlencodedRequestStruct) getServiceBucketField() *FormUrlencoded
 		}
 	}
 	return serviceBucketField
+}
+
+func (form *FormUrlencodedRequestStruct) getServiceObjectField() *FormUrlencodedRequestField {
+	var serviceObjectField *FormUrlencodedRequestField
+
+	for i := range form.Fields {
+		if form.Fields[i].ServiceObject.ToServiceObjectType() != ServiceBucketTypeNone {
+			if serviceObjectField == nil {
+				serviceObjectField = &form.Fields[i]
+			} else {
+				panic(fmt.Sprintf("multiple service object fields: %s & %s", form.Fields[i].FieldName, serviceObjectField.FieldName))
+			}
+		}
+	}
+	return serviceObjectField
 }
 
 func (form *FormUrlencodedRequestStruct) generateField(group *jen.Group, field FormUrlencodedRequestField) error {
