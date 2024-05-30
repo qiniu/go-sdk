@@ -278,7 +278,7 @@ func TestObjectSetMetadata(t *testing.T) {
 		case http.MethodPost:
 			if r.URL.RequestURI() != "/chgm/"+base64.URLEncoding.EncodeToString([]byte("bucket1:testobject"))+
 				"/mime/"+base64.URLEncoding.EncodeToString([]byte("application/json"))+
-				"/cond/"+base64.URLEncoding.EncodeToString([]byte("fsize=1&hash=testhash"))+
+				"/cond/"+base64.URLEncoding.EncodeToString([]byte("fsize=1"))+
 				"/x-qn-meta-a/"+base64.URLEncoding.EncodeToString([]byte("b")) {
 				t.Fatalf("unexpected path: %s", r.URL.RequestURI())
 			}
@@ -300,7 +300,7 @@ func TestObjectSetMetadata(t *testing.T) {
 	bucket := objectsManager.Bucket("bucket1")
 	if err := bucket.Object("testobject").SetMetadata("application/json").
 		Metadata(map[string]string{"a": "b"}).
-		Conditions(map[string]string{"fsize": "1", "hash": "testhash"}).
+		Conditions(map[string]string{"fsize": "1"}).
 		Call(context.Background()); err != nil {
 		t.Fatal(err)
 	}

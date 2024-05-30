@@ -1,18 +1,14 @@
 package resumablerecorder
 
 import (
-	"crypto/md5"
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
-	"time"
 
-	"github.com/qiniu/go-sdk/v7/storagev2/region"
 	"modernc.org/fileutil"
 )
 
@@ -39,7 +35,7 @@ func (frr jsonFileSystemResumableRecorder) OpenForReading(options *ResumableReco
 	if options == nil {
 		options = &ResumableRecorderOpenOptions{}
 	}
-	if options.SourceKey == "" {
+	if options.DestinationKey == "" {
 		return nil
 	}
 
@@ -59,7 +55,7 @@ func (frr jsonFileSystemResumableRecorder) OpenForAppending(options *ResumableRe
 	if options == nil {
 		options = &ResumableRecorderOpenOptions{}
 	}
-	if options.SourceKey == "" {
+	if options.DestinationKey == "" {
 		return nil
 	}
 
@@ -74,7 +70,7 @@ func (frr jsonFileSystemResumableRecorder) OpenForCreatingNew(options *Resumable
 	if options == nil {
 		options = &ResumableRecorderOpenOptions{}
 	}
-	if options.SourceKey == "" {
+	if options.DestinationKey == "" {
 		return nil
 	}
 
@@ -95,21 +91,12 @@ func (frr jsonFileSystemResumableRecorder) Delete(options *ResumableRecorderOpen
 
 func (frr jsonFileSystemResumableRecorder) fileName(options *ResumableRecorderOpenOptions) string {
 	hasher := sha1.New()
-	hasher.Write([]byte(options.SourceKey))
+	hasher.Write([]byte(options.DestinationKey))
 	hasher.Write([]byte{0})
-	hasher.Write([]byte(options.AccessKey))
+	hasher.Write([]byte(options.ETag))
 	hasher.Write([]byte{0})
-	hasher.Write([]byte(options.BucketName))
-	hasher.Write([]byte{0})
-	hasher.Write([]byte(options.ObjectName))
-	hasher.Write([]byte{0})
-	for _, endpoint := range options.UpEndpoints.Preferred {
-		hasher.Write([]byte(endpoint))
-		hasher.Write([]byte{1})
-	}
-	hasher.Write([]byte{0})
-	for _, endpoint := range options.UpEndpoints.Alternative {
-		hasher.Write([]byte(endpoint))
+	for _, downloadURL := range options.DownloadURLs {
+		hasher.Write([]byte(downloadURL))
 		hasher.Write([]byte{1})
 	}
 	hasher.Write([]byte{0})
@@ -124,25 +111,18 @@ func (frr jsonFileSystemResumableRecorder) getFilePath(options *ResumableRecorde
 
 type (
 	jsonBasedResumableRecorderOpenOptions struct {
-		AccessKey   string           `json:"a,omitempty"`
-		BucketName  string           `json:"b,omitempty"`
-		ObjectName  string           `json:"o,omitempty"`
-		SourceKey   string           `json:"s,omitempty"`
-		PartSize    uint64           `json:"p,omitempty"`
-		TotalSize   uint64           `json:"t,omitempty"`
-		UpEndpoints region.Endpoints `json:"u,omitempty"`
-		Version     uint32           `json:"v,omitempty"`
+		ETag           string   `json:"e,omitempty"`
+		DestinationKey string   `json:"d,omitempty"`
+		PartSize       uint64   `json:"p,omitempty"`
+		TotalSize      uint64   `json:"t,omitempty"`
+		DownloadURLs   []string `json:"u,omitempty"`
+		Version        uint32   `json:"v,omitempty"`
 	}
 
 	jsonBasedResumableRecord struct {
-		UploadId   string `json:"u,omitempty"`
-		PartId     string `json:"p,omitempty"`
-		Offset     uint64 `json:"o,omitempty"`
-		PartNumber uint64 `json:"n,omitempty"`
-		PartSize   uint64 `json:"s,omitempty"`
-		ExpiredAt  int64  `json:"e,omitempty"`
-		Crc32      uint32 `json:"c,omitempty"`
-		MD5        string `json:"m,omitempty"`
+		Offset      uint64 `json:"o,omitempty"`
+		PartSize    uint64 `json:"s,omitempty"`
+		PartWritten uint64 `json:"w,omitempty"`
 	}
 )
 
@@ -150,14 +130,12 @@ const fileSystemResumableRecorderVersion uint32 = 1
 
 func jsonFileSystemResumableRecorderWriteHeaderLine(encoder *json.Encoder, options *ResumableRecorderOpenOptions) error {
 	return encoder.Encode(&jsonBasedResumableRecorderOpenOptions{
-		AccessKey:   options.AccessKey,
-		BucketName:  options.BucketName,
-		ObjectName:  options.ObjectName,
-		SourceKey:   options.SourceKey,
-		PartSize:    options.PartSize,
-		TotalSize:   options.TotalSize,
-		UpEndpoints: options.UpEndpoints,
-		Version:     fileSystemResumableRecorderVersion,
+		ETag:           options.ETag,
+		DestinationKey: options.DestinationKey,
+		PartSize:       options.PartSize,
+		TotalSize:      options.TotalSize,
+		DownloadURLs:   options.DownloadURLs,
+		Version:        fileSystemResumableRecorderVersion,
 	})
 }
 
@@ -168,14 +146,12 @@ func jsonFileSystemResumableRecorderVerifyHeaderLine(decoder *json.Decoder, opti
 		return false, err
 	}
 	return reflect.DeepEqual(lineOptions, jsonBasedResumableRecorderOpenOptions{
-		AccessKey:   options.AccessKey,
-		BucketName:  options.BucketName,
-		ObjectName:  options.ObjectName,
-		SourceKey:   options.SourceKey,
-		PartSize:    options.PartSize,
-		TotalSize:   options.TotalSize,
-		UpEndpoints: options.UpEndpoints,
-		Version:     fileSystemResumableRecorderVersion,
+		ETag:           options.ETag,
+		DestinationKey: options.DestinationKey,
+		PartSize:       options.PartSize,
+		TotalSize:      options.TotalSize,
+		DownloadURLs:   options.DownloadURLs,
+		Version:        fileSystemResumableRecorderVersion,
 	}), nil
 }
 
@@ -184,27 +160,12 @@ func (medium jsonFileSystemResumableRecorderReadableMedium) Next(rr *ResumableRe
 	for {
 		if err := medium.decoder.Decode(&jrr); err != nil {
 			return err
-		} else if time.Now().Before(time.Unix(jrr.ExpiredAt, 0)) {
+		} else {
 			break
 		}
 	}
-	md5Bytes, err := hex.DecodeString(jrr.MD5)
-	if err != nil {
-		return err
-	} else if len(md5Bytes) != md5.Size {
-		return errors.New("invalid md5 bytes")
-	}
 
-	*rr = ResumableRecord{
-		UploadId:   jrr.UploadId,
-		PartId:     jrr.PartId,
-		Offset:     jrr.Offset,
-		PartNumber: jrr.PartNumber,
-		PartSize:   jrr.PartSize,
-		ExpiredAt:  time.Unix(jrr.ExpiredAt, 0),
-		Crc32:      jrr.Crc32,
-	}
-	copy(rr.MD5[:], md5Bytes)
+	*rr = ResumableRecord(jrr)
 	return nil
 }
 
@@ -213,17 +174,7 @@ func (medium jsonFileSystemResumableRecorderReadableMedium) Close() error {
 }
 
 func (medium jsonFileSystemResumableRecorderWritableMedium) Write(rr *ResumableRecord) error {
-	jrr := jsonBasedResumableRecord{
-		UploadId:   rr.UploadId,
-		PartId:     rr.PartId,
-		Offset:     rr.Offset,
-		PartNumber: rr.PartNumber,
-		PartSize:   rr.PartSize,
-		ExpiredAt:  rr.ExpiredAt.Unix(),
-		Crc32:      rr.Crc32,
-		MD5:        hex.EncodeToString(rr.MD5[:]),
-	}
-	return medium.encoder.Encode(&jrr)
+	return medium.encoder.Encode(jsonBasedResumableRecord(*rr))
 }
 
 func (medium jsonFileSystemResumableRecorderWritableMedium) Close() error {

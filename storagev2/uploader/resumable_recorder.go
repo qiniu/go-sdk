@@ -48,6 +48,10 @@ func makeResumableRecorderOpenOptions(ctx context.Context, src source.Source, mu
 	if err != nil {
 		return nil
 	}
+	accessKey, err := upToken.GetAccessKey(ctx)
+	if err != nil {
+		return nil
+	}
 
 	bucketName, err := guessBucketName(ctx, multiPartsObjectOptions.BucketName, upToken)
 	if err != nil {
@@ -72,6 +76,7 @@ func makeResumableRecorderOpenOptions(ctx context.Context, src source.Source, mu
 	}
 
 	return &resumablerecorder.ResumableRecorderOpenOptions{
+		AccessKey:   accessKey,
 		BucketName:  bucketName,
 		ObjectName:  objectName,
 		SourceKey:   sourceKey,

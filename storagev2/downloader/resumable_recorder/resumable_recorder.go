@@ -1,27 +1,15 @@
 package resumablerecorder
 
-import (
-	"crypto/md5"
-	"io"
-	"time"
-
-	"github.com/qiniu/go-sdk/v7/storagev2/region"
-)
+import "io"
 
 type (
 	// 可恢复记录仪选项
 	ResumableRecorderOpenOptions struct {
-		// AccessKey
-		AccessKey string
+		// 数据源 ETag
+		ETag string
 
-		// 空间名称
-		BucketName string
-
-		// 对象名称
-		ObjectName string
-
-		// 数据源 KEY
-		SourceKey string
+		// 数据目标 KEY
+		DestinationKey string
 
 		// 分片大小
 		PartSize uint64
@@ -29,8 +17,8 @@ type (
 		// 数据源大小
 		TotalSize uint64
 
-		// 上传服务 URL
-		UpEndpoints region.Endpoints
+		// 下载服务 URL
+		DownloadURLs []string
 	}
 
 	// 可恢复记录仪接口
@@ -66,28 +54,13 @@ type (
 
 	// 可恢复记录
 	ResumableRecord struct {
-		// 上传对象 ID
-		UploadId string
-
-		// 上传分片 ID
-		PartId string
-
 		// 分片偏移量
 		Offset uint64
 
 		// 分片大小
 		PartSize uint64
 
-		// 分片编号
-		PartNumber uint64
-
-		// 分片过期时间
-		ExpiredAt time.Time
-
-		// 分片内容 CRC32
-		Crc32 uint32
-
-		// 分片内容 MD5
-		MD5 [md5.Size]byte
+		// 分片写入量
+		PartWritten uint64
 	}
 )

@@ -22,6 +22,8 @@ type client struct {
 func NewClient(cli Client, interceptors ...Interceptor) Client {
 	if cli == nil {
 		cli = NewClientWithClientV1(&clientV1.DefaultClient)
+	} else if c, ok := cli.(*client); ok {
+		return c
 	}
 
 	var is interceptorList = interceptors
