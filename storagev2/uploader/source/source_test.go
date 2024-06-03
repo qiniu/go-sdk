@@ -34,7 +34,7 @@ func TestSeekableSource(t *testing.T) {
 
 	source := uploader.NewReadSeekCloserSource(tmpFile, tmpFile.Name())
 	testSource(t, source, tmpFile)
-	source = uploader.NewReadAtCloserSource(tmpFile, 4096, tmpFile.Name())
+	source = uploader.NewReadAtSeekCloserSource(tmpFile, tmpFile.Name())
 	testSource(t, source, tmpFile)
 }
 

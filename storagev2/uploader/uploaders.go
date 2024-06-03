@@ -199,8 +199,14 @@ func (uploader multiPartsUploader) UploadReader(ctx context.Context, reader io.R
 	}
 
 	var src source.Source
-	if rscs, ok := reader.(io.ReadSeeker); ok && canSeekReally(rscs) {
-		src = source.NewReadSeekCloserSource(internal_io.MakeReadSeekCloserFromReader(reader), "")
+	if rss, ok := reader.(io.ReadSeeker); ok && canSeekReally(rss) {
+		if rasc, ok := rss.(source.ReadAtSeekCloser); ok {
+			src = source.NewReadAtSeekCloserSource(rasc, "")
+		} else if rscs, ok := rss.(internal_io.ReadSeekCloser); ok {
+			src = source.NewReadSeekCloserSource(rscs, "")
+		} else {
+			src = source.NewReadSeekCloserSource(internal_io.MakeReadSeekCloserFromReader(rss), "")
+		}
 	} else {
 		src = source.NewReadCloserSource(ioutil.NopCloser(reader), "")
 	}

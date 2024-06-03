@@ -66,15 +66,15 @@ type (
 		offset, partNumber uint64
 	}
 
-	readAtCloser interface {
+	ReadAtSeekCloser interface {
 		io.ReaderAt
+		io.Seeker
 		io.Closer
 	}
 
-	readAtCloseSource struct {
-		r          readAtCloser
+	readAtSeekCloseSource struct {
+		r          ReadAtSeekCloser
 		off        uint64
-		n          int64
 		sourceKey  string
 		partNumber uint64
 		m          sync.Mutex
@@ -180,11 +180,11 @@ func (rscra *readSeekCloseReaderAt) GetFile() *os.File {
 	}
 }
 
-func NewReadAtCloserSource(r readAtCloser, n int64, sourceKey string) Source {
-	return &readAtCloseSource{r: r, n: n, sourceKey: sourceKey}
+func NewReadAtSeekCloserSource(r ReadAtSeekCloser, sourceKey string) Source {
+	return &readAtSeekCloseSource{r: r, sourceKey: sourceKey}
 }
 
-func (racs *readAtCloseSource) Slice(n uint64) (Part, error) {
+func (racs *readAtSeekCloseSource) Slice(n uint64) (Part, error) {
 	racs.m.Lock()
 	defer racs.m.Unlock()
 
@@ -205,19 +205,30 @@ func (racs *readAtCloseSource) Slice(n uint64) (Part, error) {
 	}, nil
 }
 
-func (racs *readAtCloseSource) TotalSize() (uint64, error) {
-	return uint64(racs.n), nil
+func (racs *readAtSeekCloseSource) TotalSize() (uint64, error) {
+	curPos, err := racs.r.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return 0, err
+	}
+	totalSize, err := racs.r.Seek(0, io.SeekEnd)
+	if err != nil {
+		return 0, err
+	}
+	if _, err = racs.r.Seek(curPos, io.SeekStart); err != nil {
+		return 0, err
+	}
+	return uint64(totalSize), nil
 }
 
-func (racs *readAtCloseSource) SourceKey() (string, error) {
+func (racs *readAtSeekCloseSource) SourceKey() (string, error) {
 	return racs.sourceKey, nil
 }
 
-func (racs *readAtCloseSource) Close() error {
+func (racs *readAtSeekCloseSource) Close() error {
 	return racs.r.Close()
 }
 
-func (racs *readAtCloseSource) Reset() error {
+func (racs *readAtSeekCloseSource) Reset() error {
 	racs.m.Lock()
 	defer racs.m.Unlock()
 
@@ -226,7 +237,7 @@ func (racs *readAtCloseSource) Reset() error {
 	return nil
 }
 
-func (racs *readAtCloseSource) GetFile() *os.File {
+func (racs *readAtSeekCloseSource) GetFile() *os.File {
 	if file, ok := racs.r.(*os.File); ok {
 		return file
 	} else {
@@ -301,12 +312,10 @@ func NewFileSource(filePath string) (Source, error) {
 	}
 	if !canSeekReally(file) {
 		return NewReadCloserSource(file, ""), nil
-	} else if fileInfo, err := file.Stat(); err != nil {
-		return nil, err
 	} else if absFilePath, err := filepath.Abs(filePath); err != nil {
 		return nil, err
 	} else {
-		return NewReadAtCloserSource(file, fileInfo.Size(), absFilePath), nil
+		return NewReadAtSeekCloserSource(file, absFilePath), nil
 	}
 }
 
