@@ -1,5 +1,9 @@
 # Changelog
 
+## 7.21.1
+* 修复
+  * 修复通过 ResumeUploaderV2 上传的文件无法正确设置 Content-Type 的问题
+
 ## 7.21.0
 * 新增
   * 统一环境变量和配置文件
