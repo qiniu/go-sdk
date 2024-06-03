@@ -66,7 +66,7 @@ type ObjectInfo = Request
 type jsonRequest struct {
 	Parts      Parts             `json:"parts"`                // 已经上传的分片列表
 	FileName   string            `json:"fname,omitempty"`      // 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
-	MimeType   string            `json:"mime_type,omitempty"`  // 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
+	MimeType   string            `json:"mimeType,omitempty"`   // 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
 	Metadata   map[string]string `json:"metadata,omitempty"`   // 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
 	CustomVars map[string]string `json:"customVars,omitempty"` // 用户自定义变量
 }
