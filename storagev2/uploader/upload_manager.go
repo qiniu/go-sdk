@@ -68,14 +68,14 @@ func NewUploadManager(options *UploadManagerOptions) *UploadManager {
 }
 
 // 上传目录
-func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directoryPath string, directoryParams *DirectoryParams) error {
+func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directoryPath string, directoryOptions *DirectoryOptions) error {
 	uploadManager.init()
 
-	if directoryParams == nil {
-		directoryParams = &DirectoryParams{}
+	if directoryOptions == nil {
+		directoryOptions = &DirectoryOptions{}
 	}
-	if directoryParams.FileConcurrency == 0 {
-		directoryParams.FileConcurrency = 1
+	if directoryOptions.FileConcurrency == 0 {
+		directoryOptions.FileConcurrency = 1
 	}
 
 	if !strings.HasSuffix(directoryPath, "/") {
@@ -83,46 +83,46 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(directoryParams.FileConcurrency)
+	g.SetLimit(directoryOptions.FileConcurrency)
 
 	err := filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		objectName := filepath.Join(directoryParams.ObjectPrefix, strings.TrimPrefix(path, directoryPath))
+		objectName := filepath.Join(directoryOptions.ObjectPrefix, strings.TrimPrefix(path, directoryPath))
 		if info.Mode().IsRegular() {
-			objectParams := ObjectParams{
-				RegionsProvider: directoryParams.RegionsProvider,
-				UpToken:         directoryParams.UpToken,
-				BucketName:      directoryParams.BucketName,
+			objectOptions := ObjectOptions{
+				RegionsProvider: directoryOptions.RegionsProvider,
+				UpToken:         directoryOptions.UpToken,
+				BucketName:      directoryOptions.BucketName,
 				ObjectName:      &objectName,
 				FileName:        filepath.Base(path),
 			}
-			if directoryParams.ShouldUploadFile != nil && !directoryParams.ShouldUploadFile(path) {
+			if directoryOptions.ShouldUploadFile != nil && !directoryOptions.ShouldUploadFile(path) {
 				return nil
 			}
-			if directoryParams.BeforeFileUpload != nil {
-				directoryParams.BeforeFileUpload(path, &objectParams)
+			if directoryOptions.BeforeFileUpload != nil {
+				directoryOptions.BeforeFileUpload(path, &objectOptions)
 			}
-			if directoryParams.OnUploadingProgress != nil {
-				objectParams.OnUploadingProgress = func(uploaded, totalSize uint64) {
-					directoryParams.OnUploadingProgress(path, uploaded, totalSize)
+			if directoryOptions.OnUploadingProgress != nil {
+				objectOptions.OnUploadingProgress = func(uploaded, totalSize uint64) {
+					directoryOptions.OnUploadingProgress(path, uploaded, totalSize)
 				}
 			}
-			err = uploadManager.UploadFile(ctx, path, &objectParams, nil)
-			if err == nil && directoryParams.OnFileUploaded != nil {
-				directoryParams.OnFileUploaded(path, uint64(info.Size()))
+			err = uploadManager.UploadFile(ctx, path, &objectOptions, nil)
+			if err == nil && directoryOptions.OnFileUploaded != nil {
+				directoryOptions.OnFileUploaded(path, uint64(info.Size()))
 			}
-		} else if directoryParams.ShouldCreateDirectory && info.IsDir() {
+		} else if directoryOptions.ShouldCreateDirectory && info.IsDir() {
 			objectName += string(os.PathSeparator)
-			objectParams := ObjectParams{
-				RegionsProvider: directoryParams.RegionsProvider,
-				UpToken:         directoryParams.UpToken,
-				BucketName:      directoryParams.BucketName,
+			objectOptions := ObjectOptions{
+				RegionsProvider: directoryOptions.RegionsProvider,
+				UpToken:         directoryOptions.UpToken,
+				BucketName:      directoryOptions.BucketName,
 				ObjectName:      &objectName,
 				FileName:        filepath.Base(path),
 			}
-			err = uploadManager.UploadReader(ctx, http.NoBody, &objectParams, nil)
+			err = uploadManager.UploadReader(ctx, http.NoBody, &objectOptions, nil)
 		}
 		return err
 	})
@@ -135,11 +135,11 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 }
 
 // 上传文件
-func (uploadManager *UploadManager) UploadFile(ctx context.Context, path string, objectParams *ObjectParams, returnValue interface{}) error {
+func (uploadManager *UploadManager) UploadFile(ctx context.Context, path string, objectOptions *ObjectOptions, returnValue interface{}) error {
 	uploadManager.init()
 
-	if objectParams == nil {
-		objectParams = &ObjectParams{}
+	if objectOptions == nil {
+		objectOptions = &ObjectOptions{}
 	}
 
 	fileInfo, err := os.Stat(path)
@@ -154,17 +154,17 @@ func (uploadManager *UploadManager) UploadFile(ctx context.Context, path string,
 		uploader = uploadManager.getFormUploader()
 	}
 
-	return uploader.UploadFile(ctx, path, objectParams, returnValue)
+	return uploader.UploadFile(ctx, path, objectOptions, returnValue)
 }
 
 // 上传 io.Reader
-func (uploadManager *UploadManager) UploadReader(ctx context.Context, reader io.Reader, objectParams *ObjectParams, returnValue interface{}) error {
+func (uploadManager *UploadManager) UploadReader(ctx context.Context, reader io.Reader, objectOptions *ObjectOptions, returnValue interface{}) error {
 	var uploader Uploader
 
 	uploadManager.init()
 
-	if objectParams == nil {
-		objectParams = &ObjectParams{}
+	if objectOptions == nil {
+		objectOptions = &ObjectOptions{}
 	}
 
 	if rscs, ok := reader.(io.ReadSeeker); ok && canSeekReally(rscs) {
@@ -186,7 +186,7 @@ func (uploadManager *UploadManager) UploadReader(ctx context.Context, reader io.
 		}
 	}
 
-	return uploader.UploadReader(ctx, reader, objectParams, returnValue)
+	return uploader.UploadReader(ctx, reader, objectOptions, returnValue)
 }
 
 func (uploadManager *UploadManager) getScheduler() MultiPartsUploaderScheduler {

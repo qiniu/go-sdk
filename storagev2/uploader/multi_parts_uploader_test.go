@@ -209,7 +209,7 @@ func TestMultiPartsUploader(t *testing.T) {
 		}
 		lastUploaded uint64
 	)
-	if err = multiPartsUploader.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectParams{
+	if err = multiPartsUploader.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectOptions{
 		BucketName:  "testbucket",
 		ObjectName:  &key,
 		FileName:    "testfilename",
@@ -394,7 +394,7 @@ func TestMultiPartsUploaderResuming(t *testing.T) {
 		}
 		lastUploaded uint64
 	)
-	if err = multiPartsUploader.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectParams{
+	if err = multiPartsUploader.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectOptions{
 		BucketName:  "testbucket",
 		ObjectName:  &key,
 		FileName:    "testfilename",
@@ -619,7 +619,7 @@ func TestMultiPartsUploaderRetry(t *testing.T) {
 		}
 		lastUploaded uint64
 	)
-	if err = multiPartsUploader.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectParams{
+	if err = multiPartsUploader.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectOptions{
 		BucketName:  "testbucket",
 		ObjectName:  &key,
 		FileName:    "testfilename",

@@ -212,8 +212,8 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		initializedPart, err := scheduler.MultiPartsUploader().InitializeParts(context.Background(), src, &uploader.MultiPartsObjectParams{
-			&uploader.ObjectParams{
+		initializedPart, err := scheduler.MultiPartsUploader().InitializeParts(context.Background(), src, &uploader.MultiPartsObjectOptions{
+			&uploader.ObjectOptions{
 				BucketName:  "testbucket",
 				ObjectName:  &key,
 				FileName:    "testfilename",
@@ -230,7 +230,7 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 
 		var lastUploaded [2]uint64
 		var uploadedPartSizes [2]uint64
-		uploadedParts, err := scheduler.UploadParts(context.Background(), initializedPart, src, &uploader.UploadPartsParams{
+		uploadedParts, err := scheduler.UploadParts(context.Background(), initializedPart, src, &uploader.UploadPartsOptions{
 			OnUploadingProgress: func(partNumber uint64, uploaded uint64, partSize uint64) {
 				if partNumber == 1 && partSize != 4*1024*1024 {
 					t.Fatalf("unexpected partSize")

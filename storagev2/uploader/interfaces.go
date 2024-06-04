@@ -11,22 +11,22 @@ type (
 	// 上传对象接口
 	Uploader interface {
 		// 上传文件
-		UploadFile(context.Context, string, *ObjectParams, interface{}) error
+		UploadFile(context.Context, string, *ObjectOptions, interface{}) error
 
 		// 上传 io.Reader
-		UploadReader(context.Context, io.Reader, *ObjectParams, interface{}) error
+		UploadReader(context.Context, io.Reader, *ObjectOptions, interface{}) error
 	}
 
 	// 分片上传器接口
 	MultiPartsUploader interface {
 		// 初始化分片上传
-		InitializeParts(context.Context, source.Source, *MultiPartsObjectParams) (InitializedParts, error)
+		InitializeParts(context.Context, source.Source, *MultiPartsObjectOptions) (InitializedParts, error)
 
 		// 尝试恢复分片，如果返回 nil 表示恢复失败
-		TryToResume(context.Context, source.Source, *MultiPartsObjectParams) InitializedParts
+		TryToResume(context.Context, source.Source, *MultiPartsObjectOptions) InitializedParts
 
 		// 上传分片
-		UploadPart(context.Context, InitializedParts, source.Part, *UploadPartParams) (UploadedPart, error)
+		UploadPart(context.Context, InitializedParts, source.Part, *UploadPartOptions) (UploadedPart, error)
 
 		// 完成分片上传，生成对象
 		CompleteParts(context.Context, InitializedParts, []UploadedPart, interface{}) error
@@ -50,7 +50,7 @@ type (
 	// 分片上传调度器
 	MultiPartsUploaderScheduler interface {
 		// 上传数据源的全部分片
-		UploadParts(context.Context, InitializedParts, source.Source, *UploadPartsParams) ([]UploadedPart, error)
+		UploadParts(context.Context, InitializedParts, source.Source, *UploadPartsOptions) ([]UploadedPart, error)
 
 		// 获取分片上传器实例
 		MultiPartsUploader() MultiPartsUploader

@@ -7,7 +7,7 @@ import (
 
 type (
 	// 对象上传选项
-	ObjectParams struct {
+	ObjectOptions struct {
 		// 区域提供者，可选
 		RegionsProvider region.RegionsProvider
 
@@ -37,30 +37,30 @@ type (
 	}
 
 	// 分片上传对象上传选项
-	MultiPartsObjectParams struct {
+	MultiPartsObjectOptions struct {
 		// 对象上传选项
-		*ObjectParams
+		*ObjectOptions
 
 		// 分片大小，如果不填写，默认为 4 MB
 		PartSize uint64
 	}
 
-	UploadPartsParams struct {
+	UploadPartsOptions struct {
 		OnUploadingProgress func(partNumber, uploaded, partSize uint64)
 		OnPartUploaded      func(partNumber, partSize uint64)
 	}
 
-	UploadPartParams struct {
+	UploadPartOptions struct {
 		OnUploadingProgress func(uploaded, partSize uint64)
 	}
 
-	DirectoryParams struct {
+	DirectoryOptions struct {
 		RegionsProvider       region.RegionsProvider
 		UpToken               uptoken.Provider
 		BucketName            string
 		ObjectPrefix          string
 		FileConcurrency       int
-		BeforeFileUpload      func(filePath string, objectParams *ObjectParams)
+		BeforeFileUpload      func(filePath string, objectOptions *ObjectOptions)
 		OnUploadingProgress   func(filePath string, uploaded, totalSize uint64)
 		OnFileUploaded        func(filePath string, size uint64)
 		ShouldCreateDirectory bool

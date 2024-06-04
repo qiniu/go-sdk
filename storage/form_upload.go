@@ -177,8 +177,8 @@ func (p *FormUploader) put(
 	return p.uploader.UploadReader(ctx, data, objectParams, ret)
 }
 
-func (p *FormUploader) newObjectParams(upToken string, key string, hasKey bool, extra *PutExtra) *uploader.ObjectParams {
-	objectParams := uploader.ObjectParams{
+func (p *FormUploader) newObjectParams(upToken string, key string, hasKey bool, extra *PutExtra) *uploader.ObjectOptions {
+	objectParams := uploader.ObjectOptions{
 		ContentType: extra.MimeType,
 		UpToken:     uptoken.NewParser(upToken),
 	}

@@ -202,7 +202,7 @@ func TestUploadManagerUploadFile(t *testing.T) {
 		key = "testkey"
 	)
 
-	err = uploadManager.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectParams{
+	err = uploadManager.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectOptions{
 		BucketName:  "testbucket",
 		ObjectName:  &key,
 		FileName:    "testfilename",
@@ -400,7 +400,7 @@ func TestUploadManagerUploadReader(t *testing.T) {
 		}
 	}(t, pipeW)
 
-	err = uploadManager.UploadReader(context.Background(), pipeR, &uploader.ObjectParams{
+	err = uploadManager.UploadReader(context.Background(), pipeR, &uploader.ObjectOptions{
 		BucketName:  "testbucket",
 		ObjectName:  &key,
 		FileName:    "testfilename",
@@ -563,10 +563,10 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 		},
 	})
 
-	err = uploadManager.UploadDirectory(context.Background(), tmpDir_1, &uploader.DirectoryParams{
+	err = uploadManager.UploadDirectory(context.Background(), tmpDir_1, &uploader.DirectoryOptions{
 		BucketName:   "testbucket",
 		ObjectPrefix: objectPrefix,
-		BeforeFileUpload: func(filePath string, _ *uploader.ObjectParams) {
+		BeforeFileUpload: func(filePath string, _ *uploader.ObjectOptions) {
 			if _, ok := localFiles[filePath]; !ok {
 				t.Fatalf("unexpected filePath")
 			}

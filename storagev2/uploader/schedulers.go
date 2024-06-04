@@ -32,7 +32,7 @@ func NewConcurrentMultiPartsUploaderScheduler(uploader MultiPartsUploader, partS
 	return concurrentMultiPartsUploaderScheduler{uploader, partSize, concurrency}
 }
 
-func (scheduler serialMultiPartsUploaderScheduler) UploadParts(ctx context.Context, initialized InitializedParts, src source.Source, params *UploadPartsParams) ([]UploadedPart, error) {
+func (scheduler serialMultiPartsUploaderScheduler) UploadParts(ctx context.Context, initialized InitializedParts, src source.Source, options *UploadPartsOptions) ([]UploadedPart, error) {
 	parts := make([]UploadedPart, 0)
 	for {
 		part, err := src.Slice(scheduler.partSize)
@@ -42,18 +42,18 @@ func (scheduler serialMultiPartsUploaderScheduler) UploadParts(ctx context.Conte
 		if part == nil {
 			break
 		}
-		var uploadPartParam UploadPartParams
-		if params != nil && params.OnUploadingProgress != nil {
+		var uploadPartParam UploadPartOptions
+		if options != nil && options.OnUploadingProgress != nil {
 			uploadPartParam.OnUploadingProgress = func(uploaded, partSize uint64) {
-				params.OnUploadingProgress(part.PartNumber(), uploaded, part.Size())
+				options.OnUploadingProgress(part.PartNumber(), uploaded, part.Size())
 			}
 		}
 		uploadedPart, err := scheduler.uploader.UploadPart(ctx, initialized, part, &uploadPartParam)
 		if err != nil {
 			return nil, err
 		}
-		if params != nil && params.OnPartUploaded != nil {
-			params.OnPartUploaded(part.PartNumber(), part.Size())
+		if options != nil && options.OnPartUploaded != nil {
+			options.OnPartUploaded(part.PartNumber(), part.Size())
 		}
 		parts = append(parts, uploadedPart)
 	}
@@ -68,7 +68,7 @@ func (scheduler serialMultiPartsUploaderScheduler) PartSize() uint64 {
 	return scheduler.partSize
 }
 
-func (scheduler concurrentMultiPartsUploaderScheduler) UploadParts(ctx context.Context, initialized InitializedParts, src source.Source, params *UploadPartsParams) ([]UploadedPart, error) {
+func (scheduler concurrentMultiPartsUploaderScheduler) UploadParts(ctx context.Context, initialized InitializedParts, src source.Source, options *UploadPartsOptions) ([]UploadedPart, error) {
 	var (
 		parts     []UploadedPart
 		partsLock sync.Mutex
@@ -92,18 +92,18 @@ func (scheduler concurrentMultiPartsUploaderScheduler) UploadParts(ctx context.C
 			break
 		}
 		g.Go(func() error {
-			var uploadPartParam UploadPartParams
-			if params != nil && params.OnUploadingProgress != nil {
+			var uploadPartParam UploadPartOptions
+			if options != nil && options.OnUploadingProgress != nil {
 				uploadPartParam.OnUploadingProgress = func(uploaded, partSize uint64) {
-					params.OnUploadingProgress(part.PartNumber(), uploaded, partSize)
+					options.OnUploadingProgress(part.PartNumber(), uploaded, partSize)
 				}
 			}
 			uploadedPart, err := scheduler.uploader.UploadPart(ctx, initialized, part, &uploadPartParam)
 			if err != nil {
 				return err
 			}
-			if params != nil && params.OnPartUploaded != nil {
-				params.OnPartUploaded(part.PartNumber(), part.Size())
+			if options != nil && options.OnPartUploaded != nil {
+				options.OnPartUploaded(part.PartNumber(), part.Size())
 			}
 
 			partsLock.Lock()

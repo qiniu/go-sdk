@@ -23,10 +23,10 @@ type (
 	}
 
 	multiPartsUploaderV1InitializedParts struct {
-		multiPartsObjectParams *MultiPartsObjectParams
-		records                map[uint64]resumedMultiPartsUploaderV1Record
-		medium                 resumablerecorder.WriteableResumableRecorderMedium
-		src                    source.Source
+		multiPartsObjectOptions *MultiPartsObjectOptions
+		records                 map[uint64]resumedMultiPartsUploaderV1Record
+		medium                  resumablerecorder.WriteableResumableRecorderMedium
+		src                     source.Source
 	}
 
 	multiPartsUploaderV1UploadedPart struct {
@@ -63,32 +63,32 @@ func NewMultiPartsUploaderV1(options *MultiPartsUploaderOptions) MultiPartsUploa
 	return &multiPartsUploaderV1{apis.NewStorage(options.Options), options}
 }
 
-func (uploader *multiPartsUploaderV1) InitializeParts(ctx context.Context, src source.Source, multiPartsObjectParams *MultiPartsObjectParams) (InitializedParts, error) {
-	if multiPartsObjectParams == nil {
-		multiPartsObjectParams = &MultiPartsObjectParams{}
+func (uploader *multiPartsUploaderV1) InitializeParts(ctx context.Context, src source.Source, multiPartsObjectOptions *MultiPartsObjectOptions) (InitializedParts, error) {
+	if multiPartsObjectOptions == nil {
+		multiPartsObjectOptions = &MultiPartsObjectOptions{}
 	}
-	if multiPartsObjectParams.ObjectParams == nil {
-		multiPartsObjectParams.ObjectParams = &ObjectParams{}
+	if multiPartsObjectOptions.ObjectOptions == nil {
+		multiPartsObjectOptions.ObjectOptions = &ObjectOptions{}
 	}
-	if multiPartsObjectParams.PartSize == 0 {
-		multiPartsObjectParams.PartSize = 1 << 22
+	if multiPartsObjectOptions.PartSize == 0 {
+		multiPartsObjectOptions.PartSize = 1 << 22
 	}
-	medium := tryToOpenResumableRecorderForAppending(ctx, src, multiPartsObjectParams, uploader.options)
-	return &multiPartsUploaderV1InitializedParts{multiPartsObjectParams, nil, medium, src}, nil
+	medium := tryToOpenResumableRecorderForAppending(ctx, src, multiPartsObjectOptions, uploader.options)
+	return &multiPartsUploaderV1InitializedParts{multiPartsObjectOptions, nil, medium, src}, nil
 }
 
-func (uploader *multiPartsUploaderV1) TryToResume(ctx context.Context, src source.Source, multiPartsObjectParams *MultiPartsObjectParams) InitializedParts {
-	if multiPartsObjectParams == nil {
-		multiPartsObjectParams = &MultiPartsObjectParams{}
+func (uploader *multiPartsUploaderV1) TryToResume(ctx context.Context, src source.Source, multiPartsObjectOptions *MultiPartsObjectOptions) InitializedParts {
+	if multiPartsObjectOptions == nil {
+		multiPartsObjectOptions = &MultiPartsObjectOptions{}
 	}
-	if multiPartsObjectParams.ObjectParams == nil {
-		multiPartsObjectParams.ObjectParams = &ObjectParams{}
+	if multiPartsObjectOptions.ObjectOptions == nil {
+		multiPartsObjectOptions.ObjectOptions = &ObjectOptions{}
 	}
-	if multiPartsObjectParams.PartSize == 0 {
-		multiPartsObjectParams.PartSize = 1 << 22
+	if multiPartsObjectOptions.PartSize == 0 {
+		multiPartsObjectOptions.PartSize = 1 << 22
 	}
 
-	readableMedium := tryToOpenResumableRecorderForReading(ctx, src, multiPartsObjectParams, uploader.options)
+	readableMedium := tryToOpenResumableRecorderForReading(ctx, src, multiPartsObjectOptions, uploader.options)
 	if readableMedium == nil {
 		return nil
 	}
@@ -110,11 +110,11 @@ func (uploader *multiPartsUploaderV1) TryToResume(ctx context.Context, src sourc
 	}
 	readableMedium.Close()
 
-	medium := tryToOpenResumableRecorderForAppending(ctx, src, multiPartsObjectParams, uploader.options)
-	return &multiPartsUploaderV1InitializedParts{multiPartsObjectParams, records, medium, src}
+	medium := tryToOpenResumableRecorderForAppending(ctx, src, multiPartsObjectOptions, uploader.options)
+	return &multiPartsUploaderV1InitializedParts{multiPartsObjectOptions, records, medium, src}
 }
 
-func (uploader *multiPartsUploaderV1) UploadPart(ctx context.Context, initialized InitializedParts, part source.Part, params *UploadPartParams) (UploadedPart, error) {
+func (uploader *multiPartsUploaderV1) UploadPart(ctx context.Context, initialized InitializedParts, part source.Part, options *UploadPartOptions) (UploadedPart, error) {
 	initializedParts, ok := initialized.(*multiPartsUploaderV1InitializedParts)
 	if !ok {
 		return nil, errors.New("unrecognized initialized parts")
@@ -122,8 +122,8 @@ func (uploader *multiPartsUploaderV1) UploadPart(ctx context.Context, initialize
 	if len(initializedParts.records) > 0 {
 		if record, ok := initializedParts.records[part.PartNumber()]; ok {
 			if record.offset == part.Offset() && record.size == part.Size() {
-				if params != nil && params.OnUploadingProgress != nil {
-					params.OnUploadingProgress(record.size, record.size)
+				if options != nil && options.OnUploadingProgress != nil {
+					options.OnUploadingProgress(record.size, record.size)
 				}
 				return multiPartsUploaderV1UploadedPart{
 					ctx:    record.ctx,
@@ -134,17 +134,17 @@ func (uploader *multiPartsUploaderV1) UploadPart(ctx context.Context, initialize
 			}
 		}
 	}
-	return uploader.uploadPart(ctx, initializedParts, part, params)
+	return uploader.uploadPart(ctx, initializedParts, part, options)
 }
 
-func (uploader *multiPartsUploaderV1) uploadPart(ctx context.Context, initialized *multiPartsUploaderV1InitializedParts, part source.Part, params *UploadPartParams) (UploadedPart, error) {
-	options := apis.Options{
-		OverwrittenRegion: initialized.multiPartsObjectParams.RegionsProvider,
+func (uploader *multiPartsUploaderV1) uploadPart(ctx context.Context, initialized *multiPartsUploaderV1InitializedParts, part source.Part, options *UploadPartOptions) (UploadedPart, error) {
+	apisOptions := apis.Options{
+		OverwrittenRegion: initialized.multiPartsObjectOptions.RegionsProvider,
 	}
-	if params != nil && params.OnUploadingProgress != nil {
-		options.OnRequestProgress = params.OnUploadingProgress
+	if options != nil && options.OnUploadingProgress != nil {
+		apisOptions.OnRequestProgress = options.OnUploadingProgress
 	}
-	upToken, err := getUpToken(uploader.options.Credentials, initialized.multiPartsObjectParams.ObjectParams, uploader.options.UpTokenProvider)
+	upToken, err := getUpToken(uploader.options.Credentials, initialized.multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func (uploader *multiPartsUploaderV1) uploadPart(ctx context.Context, initialize
 		BlockSize: int64(part.Size()),
 		UpToken:   upToken,
 		Body:      internal_io.MakeReadSeekCloserFromReader(part),
-	}, &options)
+	}, &apisOptions)
 	if err != nil {
 		return nil, err
 	} else if response.Crc32 > 0 {
@@ -194,9 +194,9 @@ func (uploader *multiPartsUploaderV1) CompleteParts(ctx context.Context, initial
 		return errors.New("unrecognized initialized parts")
 	}
 	options := apis.Options{
-		OverwrittenRegion: initializedParts.multiPartsObjectParams.RegionsProvider,
+		OverwrittenRegion: initializedParts.multiPartsObjectOptions.RegionsProvider,
 	}
-	upToken, err := getUpToken(uploader.options.Credentials, initializedParts.multiPartsObjectParams.ObjectParams, uploader.options.UpTokenProvider)
+	upToken, err := getUpToken(uploader.options.Credentials, initializedParts.multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
 	if err != nil {
 		return err
 	}
@@ -216,10 +216,10 @@ func (uploader *multiPartsUploaderV1) CompleteParts(ctx context.Context, initial
 
 	_, err = uploader.storage.ResumableUploadV1MakeFile(ctx, &apis.ResumableUploadV1MakeFileRequest{
 		Size:         int64(size),
-		ObjectName:   initializedParts.multiPartsObjectParams.ObjectName,
-		FileName:     initializedParts.multiPartsObjectParams.FileName,
-		MimeType:     initializedParts.multiPartsObjectParams.ContentType,
-		CustomData:   mergeCustomVarsAndMetadata(initializedParts.multiPartsObjectParams.Metadata, initializedParts.multiPartsObjectParams.CustomVars),
+		ObjectName:   initializedParts.multiPartsObjectOptions.ObjectName,
+		FileName:     initializedParts.multiPartsObjectOptions.FileName,
+		MimeType:     initializedParts.multiPartsObjectOptions.ContentType,
+		CustomData:   mergeCustomVarsAndMetadata(initializedParts.multiPartsObjectOptions.Metadata, initializedParts.multiPartsObjectOptions.CustomVars),
 		UpToken:      upToken,
 		Body:         internal_io.NewBytesNopCloser([]byte(strings.Join(ctxs, ","))),
 		ResponseBody: returnValue,
@@ -229,7 +229,7 @@ func (uploader *multiPartsUploaderV1) CompleteParts(ctx context.Context, initial
 			medium.Close()
 		}
 		initializedParts.medium = nil
-		tryToDeleteResumableRecorderMedium(ctx, initializedParts.src, initializedParts.multiPartsObjectParams, uploader.options)
+		tryToDeleteResumableRecorderMedium(ctx, initializedParts.src, initializedParts.multiPartsObjectOptions, uploader.options)
 	}
 	return err
 }

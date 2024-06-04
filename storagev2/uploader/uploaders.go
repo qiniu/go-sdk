@@ -47,11 +47,11 @@ func NewFormUploader(options *FormUploaderOptions) Uploader {
 	return formUploader{apis.NewStorage(options.Options), options}
 }
 
-func (uploader formUploader) UploadFile(ctx context.Context, path string, objectParams *ObjectParams, returnValue interface{}) error {
-	if objectParams == nil {
-		objectParams = &ObjectParams{}
+func (uploader formUploader) UploadFile(ctx context.Context, path string, objectOptions *ObjectOptions, returnValue interface{}) error {
+	if objectOptions == nil {
+		objectOptions = &ObjectOptions{}
 	}
-	upToken, err := getUpToken(uploader.options.Credentials, objectParams, uploader.options.UpTokenProvider)
+	upToken, err := getUpToken(uploader.options.Credentials, objectOptions, uploader.options.UpTokenProvider)
 	if err != nil {
 		return err
 	}
@@ -73,20 +73,20 @@ func (uploader formUploader) UploadFile(ctx context.Context, path string, object
 	if err != nil {
 		return err
 	}
-	return uploader.upload(ctx, file, fileSize, upToken, objectParams.BucketName, objectParams.ObjectName, objectParams.FileName, objectParams.ContentType,
-		crc32, mergeCustomVarsAndMetadata(objectParams.Metadata, objectParams.CustomVars), objectParams.OnUploadingProgress, returnValue)
+	return uploader.upload(ctx, file, fileSize, upToken, objectOptions.BucketName, objectOptions.ObjectName, objectOptions.FileName, objectOptions.ContentType,
+		crc32, mergeCustomVarsAndMetadata(objectOptions.Metadata, objectOptions.CustomVars), objectOptions.OnUploadingProgress, returnValue)
 }
 
-func (uploader formUploader) UploadReader(ctx context.Context, reader io.Reader, objectParams *ObjectParams, returnValue interface{}) error {
+func (uploader formUploader) UploadReader(ctx context.Context, reader io.Reader, objectOptions *ObjectOptions, returnValue interface{}) error {
 	var (
 		rsc  io.ReadSeeker
 		size uint64
 		ok   bool
 	)
-	if objectParams == nil {
-		objectParams = &ObjectParams{}
+	if objectOptions == nil {
+		objectOptions = &ObjectOptions{}
 	}
-	upToken, err := getUpToken(uploader.options.Credentials, objectParams, uploader.options.UpTokenProvider)
+	upToken, err := getUpToken(uploader.options.Credentials, objectOptions, uploader.options.UpTokenProvider)
 	if err != nil {
 		return err
 	}
@@ -106,8 +106,8 @@ func (uploader formUploader) UploadReader(ctx context.Context, reader io.Reader,
 	if err != nil {
 		return err
 	}
-	return uploader.upload(ctx, rsc, size, upToken, objectParams.BucketName, objectParams.ObjectName, objectParams.FileName, objectParams.ContentType,
-		crc32, mergeCustomVarsAndMetadata(objectParams.Metadata, objectParams.CustomVars), objectParams.OnUploadingProgress, returnValue)
+	return uploader.upload(ctx, rsc, size, upToken, objectOptions.BucketName, objectOptions.ObjectName, objectOptions.FileName, objectOptions.ContentType,
+		crc32, mergeCustomVarsAndMetadata(objectOptions.Metadata, objectOptions.CustomVars), objectOptions.OnUploadingProgress, returnValue)
 }
 
 func (uploader formUploader) upload(
@@ -156,16 +156,16 @@ func NewMultiPartsUploader(scheduler MultiPartsUploaderScheduler) Uploader {
 	return multiPartsUploader{scheduler}
 }
 
-func (uploader multiPartsUploader) UploadFile(ctx context.Context, path string, objectParams *ObjectParams, returnValue interface{}) error {
-	if objectParams == nil {
-		objectParams = &ObjectParams{}
+func (uploader multiPartsUploader) UploadFile(ctx context.Context, path string, objectOptions *ObjectOptions, returnValue interface{}) error {
+	if objectOptions == nil {
+		objectOptions = &ObjectOptions{}
 	}
 	options := uploader.scheduler.MultiPartsUploader().MultiPartsUploaderOptions()
 	if options == nil {
 		options = &MultiPartsUploaderOptions{}
 	}
 
-	upToken, err := getUpToken(options.Credentials, objectParams, options.UpTokenProvider)
+	upToken, err := getUpToken(options.Credentials, objectOptions, options.UpTokenProvider)
 	if err != nil {
 		return err
 	}
@@ -180,12 +180,12 @@ func (uploader multiPartsUploader) UploadFile(ctx context.Context, path string, 
 		_ = fileutil.Fadvise(file, 0, 0, fileutil.POSIX_FADV_SEQUENTIAL)
 	}
 
-	return uploader.upload(ctx, src, upToken, options.Options, objectParams, returnValue)
+	return uploader.upload(ctx, src, upToken, options.Options, objectOptions, returnValue)
 }
 
-func (uploader multiPartsUploader) UploadReader(ctx context.Context, reader io.Reader, objectParams *ObjectParams, returnValue interface{}) error {
-	if objectParams == nil {
-		objectParams = &ObjectParams{}
+func (uploader multiPartsUploader) UploadReader(ctx context.Context, reader io.Reader, objectOptions *ObjectOptions, returnValue interface{}) error {
+	if objectOptions == nil {
+		objectOptions = &ObjectOptions{}
 	}
 
 	options := uploader.scheduler.MultiPartsUploader().MultiPartsUploaderOptions()
@@ -193,7 +193,7 @@ func (uploader multiPartsUploader) UploadReader(ctx context.Context, reader io.R
 		options = &MultiPartsUploaderOptions{}
 	}
 
-	upToken, err := getUpToken(options.Credentials, objectParams, options.UpTokenProvider)
+	upToken, err := getUpToken(options.Credentials, objectOptions, options.UpTokenProvider)
 	if err != nil {
 		return err
 	}
@@ -211,11 +211,11 @@ func (uploader multiPartsUploader) UploadReader(ctx context.Context, reader io.R
 		src = source.NewReadCloserSource(ioutil.NopCloser(reader), "")
 	}
 
-	return uploader.upload(ctx, src, upToken, options.Options, objectParams, returnValue)
+	return uploader.upload(ctx, src, upToken, options.Options, objectOptions, returnValue)
 }
 
-func (uploader multiPartsUploader) upload(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectParams *ObjectParams, returnValue interface{}) error {
-	resumed, err := uploader.uploadResumedParts(ctx, src, upToken, httpClientOptions, objectParams, returnValue)
+func (uploader multiPartsUploader) upload(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectOptions *ObjectOptions, returnValue interface{}) error {
+	resumed, err := uploader.uploadResumedParts(ctx, src, upToken, httpClientOptions, objectOptions, returnValue)
 	if err == nil && resumed {
 		return nil
 	} else if resumed {
@@ -225,12 +225,12 @@ func (uploader multiPartsUploader) upload(ctx context.Context, src source.Source
 			}
 		}
 	}
-	return uploader.tryToUploadToEachRegion(ctx, src, upToken, httpClientOptions, objectParams, returnValue)
+	return uploader.tryToUploadToEachRegion(ctx, src, upToken, httpClientOptions, objectOptions, returnValue)
 }
 
-func (uploader multiPartsUploader) uploadResumedParts(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectParams *ObjectParams, returnValue interface{}) (bool, error) {
-	multiPartsObjectParams := MultiPartsObjectParams{objectParams, uploader.scheduler.PartSize()}
-	if initializedParts := uploader.scheduler.MultiPartsUploader().TryToResume(ctx, src, &multiPartsObjectParams); initializedParts == nil {
+func (uploader multiPartsUploader) uploadResumedParts(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectOptions *ObjectOptions, returnValue interface{}) (bool, error) {
+	multiPartsObjectOptions := MultiPartsObjectOptions{objectOptions, uploader.scheduler.PartSize()}
+	if initializedParts := uploader.scheduler.MultiPartsUploader().TryToResume(ctx, src, &multiPartsObjectOptions); initializedParts == nil {
 		return false, nil
 	} else {
 		defer initializedParts.Close()
@@ -240,7 +240,7 @@ func (uploader multiPartsUploader) uploadResumedParts(ctx context.Context, src s
 				size = totalSize
 			}
 		}
-		if err := uploader.uploadPartsAndComplete(ctx, src, size, initializedParts, objectParams, returnValue); err != nil {
+		if err := uploader.uploadPartsAndComplete(ctx, src, size, initializedParts, objectOptions, returnValue); err != nil {
 			return true, err
 		} else {
 			return true, nil
@@ -248,11 +248,11 @@ func (uploader multiPartsUploader) uploadResumedParts(ctx context.Context, src s
 	}
 }
 
-func (uploader multiPartsUploader) tryToUploadToEachRegion(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectParams *ObjectParams, returnValue interface{}) error {
-	return forEachRegion(ctx, upToken, objectParams.BucketName, httpClientOptions, func(region *region.Region) (bool, error) {
-		objectParams.RegionsProvider = region
-		multiPartsObjectParams := MultiPartsObjectParams{objectParams, uploader.scheduler.PartSize()}
-		initializedParts, err := uploader.scheduler.MultiPartsUploader().InitializeParts(ctx, src, &multiPartsObjectParams)
+func (uploader multiPartsUploader) tryToUploadToEachRegion(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectOptions *ObjectOptions, returnValue interface{}) error {
+	return forEachRegion(ctx, upToken, objectOptions.BucketName, httpClientOptions, func(region *region.Region) (bool, error) {
+		objectOptions.RegionsProvider = region
+		multiPartsObjectOptions := MultiPartsObjectOptions{objectOptions, uploader.scheduler.PartSize()}
+		initializedParts, err := uploader.scheduler.MultiPartsUploader().InitializeParts(ctx, src, &multiPartsObjectOptions)
 		var size uint64
 		if ssrc, ok := src.(source.SizedSource); ok {
 			if totalSize, sizeErr := ssrc.TotalSize(); sizeErr == nil {
@@ -261,7 +261,7 @@ func (uploader multiPartsUploader) tryToUploadToEachRegion(ctx context.Context, 
 		}
 		if err == nil {
 			defer initializedParts.Close()
-			if err = uploader.uploadPartsAndComplete(ctx, src, size, initializedParts, objectParams, returnValue); err == nil {
+			if err = uploader.uploadPartsAndComplete(ctx, src, size, initializedParts, objectOptions, returnValue); err == nil {
 				return true, nil
 			}
 		}
@@ -274,33 +274,33 @@ func (uploader multiPartsUploader) tryToUploadToEachRegion(ctx context.Context, 
 	})
 }
 
-func (uploader multiPartsUploader) uploadPartsAndComplete(ctx context.Context, src source.Source, size uint64, initializedParts InitializedParts, objectParams *ObjectParams, returnValue interface{}) error {
-	var uploadPartsParams UploadPartsParams
-	if objectParams.OnUploadingProgress != nil {
+func (uploader multiPartsUploader) uploadPartsAndComplete(ctx context.Context, src source.Source, size uint64, initializedParts InitializedParts, objectOptions *ObjectOptions, returnValue interface{}) error {
+	var uploadPartsOptions UploadPartsOptions
+	if objectOptions.OnUploadingProgress != nil {
 		progress := newUploadingPartsProgress()
-		uploadPartsParams.OnUploadingProgress = func(partNumber, uploaded, _ uint64) {
+		uploadPartsOptions.OnUploadingProgress = func(partNumber, uploaded, _ uint64) {
 			progress.setPartUploadingProgress(partNumber, uploaded)
-			objectParams.OnUploadingProgress(progress.totalUploaded(), size)
+			objectOptions.OnUploadingProgress(progress.totalUploaded(), size)
 		}
-		uploadPartsParams.OnPartUploaded = func(partNumber, partSize uint64) {
+		uploadPartsOptions.OnPartUploaded = func(partNumber, partSize uint64) {
 			progress.partUploaded(partNumber, partSize)
-			objectParams.OnUploadingProgress(progress.totalUploaded(), size)
+			objectOptions.OnUploadingProgress(progress.totalUploaded(), size)
 		}
 	}
-	uploadParts, err := uploader.scheduler.UploadParts(ctx, initializedParts, src, &uploadPartsParams)
+	uploadParts, err := uploader.scheduler.UploadParts(ctx, initializedParts, src, &uploadPartsOptions)
 	if err != nil {
 		return err
 	}
 	return uploader.scheduler.MultiPartsUploader().CompleteParts(ctx, initializedParts, uploadParts, returnValue)
 }
 
-func getUpToken(credentials creds.CredentialsProvider, objectParams *ObjectParams, upTokenProvider uptoken.Provider) (uptoken.Provider, error) {
-	if objectParams.UpToken != nil {
-		return objectParams.UpToken, nil
+func getUpToken(credentials creds.CredentialsProvider, objectOptions *ObjectOptions, upTokenProvider uptoken.Provider) (uptoken.Provider, error) {
+	if objectOptions.UpToken != nil {
+		return objectOptions.UpToken, nil
 	} else if upTokenProvider != nil {
 		return upTokenProvider, nil
-	} else if credentials != nil && objectParams.BucketName != "" {
-		return newCredentialsUpTokenSigner(credentials, objectParams.BucketName, 1*time.Hour, 10*time.Minute), nil
+	} else if credentials != nil && objectOptions.BucketName != "" {
+		return newCredentialsUpTokenSigner(credentials, objectOptions.BucketName, 1*time.Hour, 10*time.Minute), nil
 	} else {
 		return nil, errors.MissingRequiredFieldError{Name: "UpToken"}
 	}
