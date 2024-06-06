@@ -355,16 +355,6 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 			Retrier:  retrier.NewErrorRetrier(),
 		}
 	}
-	r := httpClient.resolver
-	if r == nil {
-		if r, err = resolver.NewCacheResolver(nil, nil); err != nil {
-			return nil, err
-		}
-	}
-	cs := httpClient.chooser
-	if cs == nil {
-		cs = chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil))
-	}
 	interceptors = append(interceptors, clientv2.NewBufferResponseInterceptor())
 	interceptors = append(interceptors, clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
 		RetryMax:           hostsRetryConfig.RetryMax,
@@ -381,8 +371,8 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 			Backoff:       hostRetryConfig.Backoff,
 			ShouldRetry:   hostRetryConfig.ShouldRetry,
 			Retrier:       hostRetryConfig.Retrier,
-			Resolver:      r,
-			Chooser:       cs,
+			Resolver:      httpClient.resolver,
+			Chooser:       httpClient.chooser,
 			BeforeResolve: httpClient.beforeResolve,
 			AfterResolve:  httpClient.afterResolve,
 			ResolveError:  httpClient.resolveError,

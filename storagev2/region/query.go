@@ -133,8 +133,6 @@ const cacheFileName = "query_v4_01.cache.json"
 var (
 	persistentCaches     map[uint64]*cache.Cache
 	persistentCachesLock sync.Mutex
-	defaultResolver      = resolver.NewDefaultResolver()
-	defaultChooser       = chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil))
 )
 
 // NewBucketRegionsQuery 创建空间区域查询器
@@ -160,15 +158,6 @@ func NewBucketRegionsQuery(bucketHosts Endpoints, opts *BucketRegionsQueryOption
 		return nil, err
 	}
 
-	r := opts.Resolver
-	cs := opts.Chooser
-	bf := opts.Backoff
-	if r == nil {
-		r = defaultResolver
-	}
-	if cs == nil {
-		cs = defaultChooser
-	}
 	return &bucketRegionsQuery{
 		bucketHosts: bucketHosts,
 		cache:       persistentCache,
@@ -178,9 +167,9 @@ func NewBucketRegionsQuery(bucketHosts Endpoints, opts *BucketRegionsQueryOption
 			!opts.UseInsecureProtocol,
 			opts.RetryMax,
 			opts.HostFreezeDuration,
-			r,
-			cs,
-			bf,
+			opts.Resolver,
+			opts.Chooser,
+			opts.Backoff,
 			opts.BeforeResolve,
 			opts.AfterResolve,
 			opts.ResolveError,
