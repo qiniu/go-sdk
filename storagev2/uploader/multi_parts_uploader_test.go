@@ -195,7 +195,7 @@ func TestMultiPartsUploader(t *testing.T) {
 
 	multiPartsUploader := uploader.NewMultiPartsUploader(uploader.NewConcurrentMultiPartsUploaderScheduler(
 		uploader.NewMultiPartsUploaderV1(&uploader.MultiPartsUploaderOptions{
-			Options: &http_client.Options{
+			Options: http_client.Options{
 				Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 				Credentials: credentials.NewCredentials("testak", "testsk"),
 			},
@@ -380,7 +380,7 @@ func TestMultiPartsUploaderResuming(t *testing.T) {
 	multiPartsUploader := uploader.NewMultiPartsUploader(uploader.NewConcurrentMultiPartsUploaderScheduler(
 		uploader.NewMultiPartsUploaderV1(&uploader.MultiPartsUploaderOptions{
 			ResumableRecorder: resumableRecorder,
-			Options: &http_client.Options{
+			Options: http_client.Options{
 				Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 				Credentials: credentials.NewCredentials("testak", "testsk"),
 			},
@@ -601,7 +601,7 @@ func TestMultiPartsUploaderRetry(t *testing.T) {
 
 	multiPartsUploader := uploader.NewMultiPartsUploader(uploader.NewSerialMultiPartsUploaderScheduler(
 		uploader.NewMultiPartsUploaderV1(&uploader.MultiPartsUploaderOptions{
-			Options: &http_client.Options{
+			Options: http_client.Options{
 				Regions: regions{[]*region.Region{
 					{Up: region.Endpoints{Preferred: []string{server_1.URL}}},
 					{Up: region.Endpoints{Preferred: []string{server_2.URL}}},

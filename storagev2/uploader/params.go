@@ -39,7 +39,7 @@ type (
 	// 分片上传对象上传选项
 	MultiPartsObjectOptions struct {
 		// 对象上传选项
-		*ObjectOptions
+		ObjectOptions
 
 		// 分片大小，如果不填写，默认为 4 MB
 		PartSize uint64

@@ -89,7 +89,7 @@ func NewFormUploaderEx(cfg *Config, clt *client.Client) *FormUploader {
 	return &FormUploader{
 		Client:   clt,
 		Cfg:      cfg,
-		uploader: uploader.NewFormUploader(&uploader.FormUploaderOptions{Options: &opts}),
+		uploader: uploader.NewFormUploader(&uploader.FormUploaderOptions{Options: opts}),
 	}
 }
 

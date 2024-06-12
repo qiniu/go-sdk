@@ -50,21 +50,18 @@ func NewMultiPartsUploaderV2(options *MultiPartsUploaderOptions) MultiPartsUploa
 	if options == nil {
 		options = &MultiPartsUploaderOptions{}
 	}
-	return &multiPartsUploaderV2{apis.NewStorage(options.Options), options}
+	return &multiPartsUploaderV2{apis.NewStorage(&options.Options), options}
 }
 
 func (uploader *multiPartsUploaderV2) InitializeParts(ctx context.Context, src source.Source, multiPartsObjectOptions *MultiPartsObjectOptions) (InitializedParts, error) {
 	if multiPartsObjectOptions == nil {
 		multiPartsObjectOptions = &MultiPartsObjectOptions{}
 	}
-	if multiPartsObjectOptions.ObjectOptions == nil {
-		multiPartsObjectOptions.ObjectOptions = &ObjectOptions{}
-	}
 	if multiPartsObjectOptions.PartSize == 0 {
 		multiPartsObjectOptions.PartSize = 1 << 22
 	}
 
-	upToken, err := getUpToken(uploader.options.Credentials, multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
+	upToken, err := getUpToken(uploader.options.Credentials, &multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
 	if err != nil {
 		return nil, err
 	}
@@ -102,14 +99,11 @@ func (uploader *multiPartsUploaderV2) TryToResume(ctx context.Context, src sourc
 	if multiPartsObjectOptions == nil {
 		multiPartsObjectOptions = &MultiPartsObjectOptions{}
 	}
-	if multiPartsObjectOptions.ObjectOptions == nil {
-		multiPartsObjectOptions.ObjectOptions = &ObjectOptions{}
-	}
 	if multiPartsObjectOptions.PartSize == 0 {
 		multiPartsObjectOptions.PartSize = 1 << 22
 	}
 
-	upToken, err := getUpToken(uploader.options.Credentials, multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
+	upToken, err := getUpToken(uploader.options.Credentials, &multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
 	if err != nil {
 		return nil
 	}
@@ -199,7 +193,7 @@ func (uploader *multiPartsUploaderV2) uploadPart(ctx context.Context, initialize
 	if options != nil && options.OnUploadingProgress != nil {
 		apisOptions.OnRequestProgress = options.OnUploadingProgress
 	}
-	upToken, err := getUpToken(uploader.options.Credentials, initialized.multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
+	upToken, err := getUpToken(uploader.options.Credentials, &initialized.multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +245,7 @@ func (uploader *multiPartsUploaderV2) CompleteParts(ctx context.Context, initial
 	options := apis.Options{
 		OverwrittenRegion: initializedParts.multiPartsObjectOptions.RegionsProvider,
 	}
-	upToken, err := getUpToken(uploader.options.Credentials, initializedParts.multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
+	upToken, err := getUpToken(uploader.options.Credentials, &initializedParts.multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
 	if err != nil {
 		return err
 	}

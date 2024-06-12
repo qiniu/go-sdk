@@ -59,7 +59,7 @@ func TestObjectStat(t *testing.T) {
 	defer server.Close()
 
 	objectsManager := objects.NewObjectsManager(&objects.ObjectsManagerOptions{
-		Options: &http_client.Options{
+		Options: http_client.Options{
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 			Regions:     &region.Region{Rs: region.Endpoints{Preferred: []string{server.URL}}},
 		},
@@ -121,7 +121,7 @@ func TestObjectMoveTo(t *testing.T) {
 	defer server.Close()
 
 	objectsManager := objects.NewObjectsManager(&objects.ObjectsManagerOptions{
-		Options: &http_client.Options{
+		Options: http_client.Options{
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 			Regions:     &region.Region{Rs: region.Endpoints{Preferred: []string{server.URL}}},
 		},
@@ -149,7 +149,7 @@ func TestObjectCopyTo(t *testing.T) {
 	defer server.Close()
 
 	objectsManager := objects.NewObjectsManager(&objects.ObjectsManagerOptions{
-		Options: &http_client.Options{
+		Options: http_client.Options{
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 			Regions:     &region.Region{Rs: region.Endpoints{Preferred: []string{server.URL}}},
 		},
@@ -177,7 +177,7 @@ func TestObjectDelete(t *testing.T) {
 	defer server.Close()
 
 	objectsManager := objects.NewObjectsManager(&objects.ObjectsManagerOptions{
-		Options: &http_client.Options{
+		Options: http_client.Options{
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 			Regions:     &region.Region{Rs: region.Endpoints{Preferred: []string{server.URL}}},
 		},
@@ -205,7 +205,7 @@ func TestObjectRestore(t *testing.T) {
 	defer server.Close()
 
 	objectsManager := objects.NewObjectsManager(&objects.ObjectsManagerOptions{
-		Options: &http_client.Options{
+		Options: http_client.Options{
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 			Regions:     &region.Region{Rs: region.Endpoints{Preferred: []string{server.URL}}},
 		},
@@ -233,7 +233,7 @@ func TestObjectSetStorageClass(t *testing.T) {
 	defer server.Close()
 
 	objectsManager := objects.NewObjectsManager(&objects.ObjectsManagerOptions{
-		Options: &http_client.Options{
+		Options: http_client.Options{
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 			Regions:     &region.Region{Rs: region.Endpoints{Preferred: []string{server.URL}}},
 		},
@@ -261,7 +261,7 @@ func TestObjectSetStatus(t *testing.T) {
 	defer server.Close()
 
 	objectsManager := objects.NewObjectsManager(&objects.ObjectsManagerOptions{
-		Options: &http_client.Options{
+		Options: http_client.Options{
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 			Regions:     &region.Region{Rs: region.Endpoints{Preferred: []string{server.URL}}},
 		},
@@ -292,7 +292,7 @@ func TestObjectSetMetadata(t *testing.T) {
 	defer server.Close()
 
 	objectsManager := objects.NewObjectsManager(&objects.ObjectsManagerOptions{
-		Options: &http_client.Options{
+		Options: http_client.Options{
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 			Regions:     &region.Region{Rs: region.Endpoints{Preferred: []string{server.URL}}},
 		},
@@ -324,7 +324,7 @@ func TestObjectSetLifeCycle(t *testing.T) {
 	defer server.Close()
 
 	objectsManager := objects.NewObjectsManager(&objects.ObjectsManagerOptions{
-		Options: &http_client.Options{
+		Options: http_client.Options{
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 			Regions:     &region.Region{Rs: region.Endpoints{Preferred: []string{server.URL}}},
 		},

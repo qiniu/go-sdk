@@ -44,7 +44,7 @@ func makeResumableRecorderOpenOptions(ctx context.Context, src source.Source, mu
 		return nil
 	}
 
-	upToken, err := getUpToken(multiPartsUploaderOptions.Credentials, multiPartsObjectOptions.ObjectOptions, multiPartsUploaderOptions.UpTokenProvider)
+	upToken, err := getUpToken(multiPartsUploaderOptions.Credentials, &multiPartsObjectOptions.ObjectOptions, multiPartsUploaderOptions.UpTokenProvider)
 	if err != nil {
 		return nil
 	}
@@ -66,7 +66,7 @@ func makeResumableRecorderOpenOptions(ctx context.Context, src source.Source, mu
 		}
 	}
 
-	regions, err := getRegions(ctx, upToken, bucketName, multiPartsUploaderOptions.Options)
+	regions, err := getRegions(ctx, upToken, bucketName, &multiPartsUploaderOptions.Options)
 	if err != nil || len(regions) == 0 {
 		return nil
 	}

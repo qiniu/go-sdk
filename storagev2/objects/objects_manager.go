@@ -17,7 +17,7 @@ type (
 	// 对象管理器选项
 	ObjectsManagerOptions struct {
 		// HTTP 客户端选项
-		*httpclient.Options
+		httpclient.Options
 
 		// 分片列举版本，如果不填写，默认为 V1
 		ListerVersion ListerVersion
@@ -40,7 +40,7 @@ func NewObjectsManager(options *ObjectsManagerOptions) *ObjectsManager {
 	if options.BatchOpsExecutor == nil {
 		options.BatchOpsExecutor = NewSerialBatchOpsExecutor(nil)
 	}
-	return &ObjectsManager{apis.NewStorage(options.Options), options}
+	return &ObjectsManager{apis.NewStorage(&options.Options), options}
 }
 
 func (objectsManager *ObjectsManager) Bucket(name string) *Bucket {

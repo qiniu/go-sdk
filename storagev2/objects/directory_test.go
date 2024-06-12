@@ -94,7 +94,7 @@ func TestDirectoryListEntriesWithoutRecurse(t *testing.T) {
 	defer server.Close()
 
 	objectsManager := objects.NewObjectsManager(&objects.ObjectsManagerOptions{
-		Options: &http_client.Options{
+		Options: http_client.Options{
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 			Regions:     &region.Region{Rsf: region.Endpoints{Preferred: []string{server.URL}}},
 		},
@@ -245,7 +245,7 @@ func TestDirectoryListEntriesWithRecurse(t *testing.T) {
 	defer server.Close()
 
 	objectsManager := objects.NewObjectsManager(&objects.ObjectsManagerOptions{
-		Options: &http_client.Options{
+		Options: http_client.Options{
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 			Regions:     &region.Region{Rsf: region.Endpoints{Preferred: []string{server.URL}}},
 		},
@@ -388,7 +388,7 @@ func TestDirectoryListEntriesWithSkipDir(t *testing.T) {
 	defer server.Close()
 
 	objectsManager := objects.NewObjectsManager(&objects.ObjectsManagerOptions{
-		Options: &http_client.Options{
+		Options: http_client.Options{
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 			Regions:     &region.Region{Rsf: region.Endpoints{Preferred: []string{server.URL}}},
 		},

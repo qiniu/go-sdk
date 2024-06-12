@@ -194,13 +194,13 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 
 	schedulers := []uploader.MultiPartsUploaderScheduler{
 		uploader.NewSerialMultiPartsUploaderScheduler(uploader.NewMultiPartsUploaderV1(&uploader.MultiPartsUploaderOptions{
-			Options: &http_client.Options{
+			Options: http_client.Options{
 				Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 				Credentials: credentials.NewCredentials("testak", "testsk"),
 			},
 		}), 4*1024*1024),
 		uploader.NewConcurrentMultiPartsUploaderScheduler(uploader.NewMultiPartsUploaderV1(&uploader.MultiPartsUploaderOptions{
-			Options: &http_client.Options{
+			Options: http_client.Options{
 				Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 				Credentials: credentials.NewCredentials("testak", "testsk"),
 			},
@@ -213,7 +213,7 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 			t.Fatal(err)
 		}
 		initializedPart, err := scheduler.MultiPartsUploader().InitializeParts(context.Background(), src, &uploader.MultiPartsObjectOptions{
-			&uploader.ObjectOptions{
+			uploader.ObjectOptions{
 				BucketName:  "testbucket",
 				ObjectName:  &key,
 				FileName:    "testfilename",

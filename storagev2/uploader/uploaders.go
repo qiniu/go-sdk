@@ -26,7 +26,7 @@ import (
 
 type (
 	FormUploaderOptions struct {
-		*httpclient.Options
+		httpclient.Options
 		UpTokenProvider uptoken.Provider
 	}
 
@@ -44,7 +44,7 @@ func NewFormUploader(options *FormUploaderOptions) Uploader {
 	if options == nil {
 		options = &FormUploaderOptions{}
 	}
-	return formUploader{apis.NewStorage(options.Options), options}
+	return formUploader{apis.NewStorage(&options.Options), options}
 }
 
 func (uploader formUploader) UploadFile(ctx context.Context, path string, objectOptions *ObjectOptions, returnValue interface{}) error {
@@ -115,7 +115,7 @@ func (uploader formUploader) upload(
 	objectName *string, fileName, contentType string, crc32 uint32, customData map[string]string,
 	onRequestProgress func(uint64, uint64), returnValue interface{},
 ) error {
-	return forEachRegion(ctx, upToken, bucketName, uploader.options.Options, func(region *region.Region) (bool, error) {
+	return forEachRegion(ctx, upToken, bucketName, &uploader.options.Options, func(region *region.Region) (bool, error) {
 		err := uploader.uploadToRegion(ctx, region, reader, size, upToken, objectName, fileName, contentType,
 			crc32, customData, onRequestProgress, returnValue)
 		return true, err
@@ -180,7 +180,7 @@ func (uploader multiPartsUploader) UploadFile(ctx context.Context, path string, 
 		_ = fileutil.Fadvise(file, 0, 0, fileutil.POSIX_FADV_SEQUENTIAL)
 	}
 
-	return uploader.upload(ctx, src, upToken, options.Options, objectOptions, returnValue)
+	return uploader.upload(ctx, src, upToken, &options.Options, objectOptions, returnValue)
 }
 
 func (uploader multiPartsUploader) UploadReader(ctx context.Context, reader io.Reader, objectOptions *ObjectOptions, returnValue interface{}) error {
@@ -211,7 +211,7 @@ func (uploader multiPartsUploader) UploadReader(ctx context.Context, reader io.R
 		src = source.NewReadCloserSource(ioutil.NopCloser(reader), "")
 	}
 
-	return uploader.upload(ctx, src, upToken, options.Options, objectOptions, returnValue)
+	return uploader.upload(ctx, src, upToken, &options.Options, objectOptions, returnValue)
 }
 
 func (uploader multiPartsUploader) upload(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectOptions *ObjectOptions, returnValue interface{}) error {
@@ -229,7 +229,7 @@ func (uploader multiPartsUploader) upload(ctx context.Context, src source.Source
 }
 
 func (uploader multiPartsUploader) uploadResumedParts(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectOptions *ObjectOptions, returnValue interface{}) (bool, error) {
-	multiPartsObjectOptions := MultiPartsObjectOptions{objectOptions, uploader.scheduler.PartSize()}
+	multiPartsObjectOptions := MultiPartsObjectOptions{*objectOptions, uploader.scheduler.PartSize()}
 	if initializedParts := uploader.scheduler.MultiPartsUploader().TryToResume(ctx, src, &multiPartsObjectOptions); initializedParts == nil {
 		return false, nil
 	} else {
@@ -251,7 +251,7 @@ func (uploader multiPartsUploader) uploadResumedParts(ctx context.Context, src s
 func (uploader multiPartsUploader) tryToUploadToEachRegion(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectOptions *ObjectOptions, returnValue interface{}) error {
 	return forEachRegion(ctx, upToken, objectOptions.BucketName, httpClientOptions, func(region *region.Region) (bool, error) {
 		objectOptions.RegionsProvider = region
-		multiPartsObjectOptions := MultiPartsObjectOptions{objectOptions, uploader.scheduler.PartSize()}
+		multiPartsObjectOptions := MultiPartsObjectOptions{*objectOptions, uploader.scheduler.PartSize()}
 		initializedParts, err := uploader.scheduler.MultiPartsUploader().InitializeParts(ctx, src, &multiPartsObjectOptions)
 		var size uint64
 		if ssrc, ok := src.(source.SizedSource); ok {

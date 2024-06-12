@@ -27,7 +27,7 @@ type (
 	// 上传器选项
 	UploadManagerOptions struct {
 		// HTTP 客户端选项
-		*httpclient.Options
+		httpclient.Options
 
 		// 上传凭证接口
 		UpTokenProvider uptoken.Provider

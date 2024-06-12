@@ -20,7 +20,7 @@ import (
 
 	"github.com/qiniu/go-sdk/v7/client"
 	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
-	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	"github.com/qiniu/go-sdk/v7/storagev2/region"
 	"github.com/qiniu/go-sdk/v7/storagev2/uploader"
 )
@@ -91,7 +91,7 @@ func TestFormUploader(t *testing.T) {
 	defer server.Close()
 
 	formUploader := uploader.NewFormUploader(&uploader.FormUploaderOptions{
-		Options: &httpclient.Options{
+		Options: http_client.Options{
 			Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 		},
@@ -237,7 +237,7 @@ func TestFormUploaderRetry(t *testing.T) {
 	)
 
 	formUploader := uploader.NewFormUploader(&uploader.FormUploaderOptions{
-		Options: &httpclient.Options{
+		Options: http_client.Options{
 			Regions: regions{[]*region.Region{
 				{Up: region.Endpoints{Preferred: []string{server_3.URL}}},
 				{Up: region.Endpoints{Preferred: []string{server_2.URL}}},
@@ -273,7 +273,7 @@ func TestFormUploaderRetry(t *testing.T) {
 	atomic.StoreUint64(&handlerCalled_3, 0)
 
 	formUploader = uploader.NewFormUploader(&uploader.FormUploaderOptions{
-		Options: &httpclient.Options{
+		Options: http_client.Options{
 			Regions: regions{[]*region.Region{
 				{Up: region.Endpoints{Preferred: []string{server_3.URL}}},
 				{Up: region.Endpoints{Preferred: []string{server_2.URL}}},

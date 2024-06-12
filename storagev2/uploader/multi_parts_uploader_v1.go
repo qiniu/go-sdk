@@ -45,7 +45,7 @@ type (
 	// 分片上传器选项
 	MultiPartsUploaderOptions struct {
 		// HTTP 客户端选项
-		*httpclient.Options
+		httpclient.Options
 
 		// 上传凭证接口
 		UpTokenProvider uptoken.Provider
@@ -60,15 +60,12 @@ func NewMultiPartsUploaderV1(options *MultiPartsUploaderOptions) MultiPartsUploa
 	if options == nil {
 		options = &MultiPartsUploaderOptions{}
 	}
-	return &multiPartsUploaderV1{apis.NewStorage(options.Options), options}
+	return &multiPartsUploaderV1{apis.NewStorage(&options.Options), options}
 }
 
 func (uploader *multiPartsUploaderV1) InitializeParts(ctx context.Context, src source.Source, multiPartsObjectOptions *MultiPartsObjectOptions) (InitializedParts, error) {
 	if multiPartsObjectOptions == nil {
 		multiPartsObjectOptions = &MultiPartsObjectOptions{}
-	}
-	if multiPartsObjectOptions.ObjectOptions == nil {
-		multiPartsObjectOptions.ObjectOptions = &ObjectOptions{}
 	}
 	if multiPartsObjectOptions.PartSize == 0 {
 		multiPartsObjectOptions.PartSize = 1 << 22
@@ -80,9 +77,6 @@ func (uploader *multiPartsUploaderV1) InitializeParts(ctx context.Context, src s
 func (uploader *multiPartsUploaderV1) TryToResume(ctx context.Context, src source.Source, multiPartsObjectOptions *MultiPartsObjectOptions) InitializedParts {
 	if multiPartsObjectOptions == nil {
 		multiPartsObjectOptions = &MultiPartsObjectOptions{}
-	}
-	if multiPartsObjectOptions.ObjectOptions == nil {
-		multiPartsObjectOptions.ObjectOptions = &ObjectOptions{}
 	}
 	if multiPartsObjectOptions.PartSize == 0 {
 		multiPartsObjectOptions.PartSize = 1 << 22
@@ -144,7 +138,7 @@ func (uploader *multiPartsUploaderV1) uploadPart(ctx context.Context, initialize
 	if options != nil && options.OnUploadingProgress != nil {
 		apisOptions.OnRequestProgress = options.OnUploadingProgress
 	}
-	upToken, err := getUpToken(uploader.options.Credentials, initialized.multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
+	upToken, err := getUpToken(uploader.options.Credentials, &initialized.multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +190,7 @@ func (uploader *multiPartsUploaderV1) CompleteParts(ctx context.Context, initial
 	options := apis.Options{
 		OverwrittenRegion: initializedParts.multiPartsObjectOptions.RegionsProvider,
 	}
-	upToken, err := getUpToken(uploader.options.Credentials, initializedParts.multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
+	upToken, err := getUpToken(uploader.options.Credentials, &initializedParts.multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
 	if err != nil {
 		return err
 	}

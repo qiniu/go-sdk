@@ -194,7 +194,7 @@ func TestMultiPartsUploaderV1(t *testing.T) {
 	defer server.Close()
 
 	multiPartsUploaderV1 := uploader.NewMultiPartsUploaderV1(&uploader.MultiPartsUploaderOptions{
-		Options: &http_client.Options{
+		Options: http_client.Options{
 			Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 		},
@@ -206,7 +206,7 @@ func TestMultiPartsUploaderV1(t *testing.T) {
 	}
 	key := "testkey"
 	initializedPart, err := multiPartsUploaderV1.InitializeParts(context.Background(), src, &uploader.MultiPartsObjectOptions{
-		&uploader.ObjectOptions{
+		uploader.ObjectOptions{
 			BucketName:  "testbucket",
 			ObjectName:  &key,
 			FileName:    "testfilename",
@@ -419,7 +419,7 @@ func TestMultiPartsUploaderV1Resuming(t *testing.T) {
 
 	multiPartsUploaderV1 := uploader.NewMultiPartsUploaderV1(&uploader.MultiPartsUploaderOptions{
 		ResumableRecorder: resumableRecorder,
-		Options: &http_client.Options{
+		Options: http_client.Options{
 			Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 		},
@@ -431,7 +431,7 @@ func TestMultiPartsUploaderV1Resuming(t *testing.T) {
 	}
 	key := "testkey"
 	initializedPart := multiPartsUploaderV1.TryToResume(context.Background(), src, &uploader.MultiPartsObjectOptions{
-		&uploader.ObjectOptions{
+		uploader.ObjectOptions{
 			BucketName:  "testbucket",
 			ObjectName:  &key,
 			FileName:    "testfilename",
