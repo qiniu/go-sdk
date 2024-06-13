@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
@@ -20,8 +19,13 @@ import (
 type (
 	// 上传器
 	UploadManager struct {
-		options     *UploadManagerOptions
-		optionsInit sync.Once
+		options                   httpclient.Options
+		upTokenProvider           uptoken.Provider
+		resumableRecorder         resumablerecorder.ResumableRecorder
+		partSize                  uint64
+		multiPartsThreshold       uint64
+		concurrency               int
+		multiPartsUploaderVersion MultiPartsUploaderVersion
 	}
 
 	// 上传器选项
@@ -62,15 +66,35 @@ const (
 
 // 创建上传器
 func NewUploadManager(options *UploadManagerOptions) *UploadManager {
-	uploadManager := UploadManager{options: options}
-	uploadManager.init()
+	if options == nil {
+		options = &UploadManagerOptions{}
+	}
+	partSize := options.PartSize
+	if partSize == 0 {
+		partSize = 1 << 22
+	} else if partSize < (1 << 20) {
+		partSize = 1 << 20
+	} else if partSize > (1 << 30) {
+		partSize = 1 << 30
+	}
+	multiPartsThreshold := options.MultiPartsThreshold
+	if multiPartsThreshold == 0 {
+		multiPartsThreshold = partSize
+	}
+	uploadManager := UploadManager{
+		options:                   options.Options,
+		upTokenProvider:           options.UpTokenProvider,
+		resumableRecorder:         options.ResumableRecorder,
+		partSize:                  partSize,
+		multiPartsThreshold:       multiPartsThreshold,
+		concurrency:               options.Concurrency,
+		multiPartsUploaderVersion: options.MultiPartsUploaderVersion,
+	}
 	return &uploadManager
 }
 
 // 上传目录
 func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directoryPath string, directoryOptions *DirectoryOptions) error {
-	uploadManager.init()
-
 	if directoryOptions == nil {
 		directoryOptions = &DirectoryOptions{}
 	}
@@ -136,8 +160,6 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 
 // 上传文件
 func (uploadManager *UploadManager) UploadFile(ctx context.Context, path string, objectOptions *ObjectOptions, returnValue interface{}) error {
-	uploadManager.init()
-
 	if objectOptions == nil {
 		objectOptions = &ObjectOptions{}
 	}
@@ -148,7 +170,7 @@ func (uploadManager *UploadManager) UploadFile(ctx context.Context, path string,
 	}
 
 	var uploader Uploader
-	if fileInfo.Size() > int64(uploadManager.options.MultiPartsThreshold) {
+	if fileInfo.Size() > int64(uploadManager.multiPartsThreshold) {
 		uploader = NewMultiPartsUploader(uploadManager.getScheduler())
 	} else {
 		uploader = uploadManager.getFormUploader()
@@ -161,25 +183,23 @@ func (uploadManager *UploadManager) UploadFile(ctx context.Context, path string,
 func (uploadManager *UploadManager) UploadReader(ctx context.Context, reader io.Reader, objectOptions *ObjectOptions, returnValue interface{}) error {
 	var uploader Uploader
 
-	uploadManager.init()
-
 	if objectOptions == nil {
 		objectOptions = &ObjectOptions{}
 	}
 
 	if rscs, ok := reader.(io.ReadSeeker); ok && canSeekReally(rscs) {
 		size, err := getSeekerSize(rscs)
-		if err == nil && size > uploadManager.options.MultiPartsThreshold {
+		if err == nil && size > uploadManager.multiPartsThreshold {
 			uploader = NewMultiPartsUploader(uploadManager.getScheduler())
 		}
 	}
 	if uploader == nil {
-		firstPartBytes, err := internal_io.ReadAll(io.LimitReader(reader, int64(uploadManager.options.MultiPartsThreshold+1)))
+		firstPartBytes, err := internal_io.ReadAll(io.LimitReader(reader, int64(uploadManager.multiPartsThreshold+1)))
 		if err != nil {
 			return err
 		}
 		reader = io.MultiReader(bytes.NewReader(firstPartBytes), reader)
-		if len(firstPartBytes) > int(uploadManager.options.MultiPartsThreshold) {
+		if len(firstPartBytes) > int(uploadManager.multiPartsThreshold) {
 			uploader = NewMultiPartsUploader(uploadManager.getScheduler())
 		} else {
 			uploader = uploadManager.getFormUploader()
@@ -190,19 +210,19 @@ func (uploadManager *UploadManager) UploadReader(ctx context.Context, reader io.
 }
 
 func (uploadManager *UploadManager) getScheduler() MultiPartsUploaderScheduler {
-	if uploadManager.options.Concurrency > 1 {
-		return NewConcurrentMultiPartsUploaderScheduler(uploadManager.getMultiPartsUploader(), uploadManager.options.PartSize, uploadManager.options.Concurrency)
+	if uploadManager.concurrency > 1 {
+		return NewConcurrentMultiPartsUploaderScheduler(uploadManager.getMultiPartsUploader(), uploadManager.partSize, uploadManager.concurrency)
 	} else {
-		return NewSerialMultiPartsUploaderScheduler(uploadManager.getMultiPartsUploader(), uploadManager.options.PartSize)
+		return NewSerialMultiPartsUploaderScheduler(uploadManager.getMultiPartsUploader(), uploadManager.partSize)
 	}
 }
 
 func (uploadManager *UploadManager) getMultiPartsUploader() MultiPartsUploader {
 	multiPartsUploaderOptions := MultiPartsUploaderOptions{
-		Options:         uploadManager.options.Options,
-		UpTokenProvider: uploadManager.options.UpTokenProvider,
+		Options:         uploadManager.options,
+		UpTokenProvider: uploadManager.upTokenProvider,
 	}
-	if uploadManager.options.MultiPartsUploaderVersion == MultiPartsUploaderVersionV1 {
+	if uploadManager.multiPartsUploaderVersion == MultiPartsUploaderVersionV1 {
 		return NewMultiPartsUploaderV1(&multiPartsUploaderOptions)
 	} else {
 		return NewMultiPartsUploaderV2(&multiPartsUploaderOptions)
@@ -211,25 +231,7 @@ func (uploadManager *UploadManager) getMultiPartsUploader() MultiPartsUploader {
 
 func (uploadManager *UploadManager) getFormUploader() Uploader {
 	return NewFormUploader(&FormUploaderOptions{
-		Options:         uploadManager.options.Options,
-		UpTokenProvider: uploadManager.options.UpTokenProvider,
-	})
-}
-
-func (uploadManager *UploadManager) init() {
-	uploadManager.optionsInit.Do(func() {
-		if uploadManager.options == nil {
-			uploadManager.options = &UploadManagerOptions{}
-		}
-		if uploadManager.options.PartSize == 0 {
-			uploadManager.options.PartSize = 1 << 22
-		} else if uploadManager.options.PartSize < (1 << 20) {
-			uploadManager.options.PartSize = 1 << 20
-		} else if uploadManager.options.PartSize > (1 << 30) {
-			uploadManager.options.PartSize = 1 << 30
-		}
-		if uploadManager.options.MultiPartsThreshold == 0 {
-			uploadManager.options.MultiPartsThreshold = uploadManager.options.PartSize
-		}
+		Options:         uploadManager.options,
+		UpTokenProvider: uploadManager.upTokenProvider,
 	})
 }

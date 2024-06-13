@@ -23,15 +23,16 @@ func (signer credentialsSigner) Sign(ctx context.Context, u *url.URL, options *S
 	if options == nil {
 		options = &SignOptions{}
 	}
-	if options.Ttl == 0 {
-		options.Ttl = 3 * time.Minute
+	ttl := options.Ttl
+	if ttl == 0 {
+		ttl = 3 * time.Minute
 	}
 
 	cred, err := signer.credentials.Get(ctx)
 	if err != nil {
 		return err
 	}
-	u.RawQuery += signURL(u.String(), cred, time.Now().Add(options.Ttl).Unix())
+	u.RawQuery += signURL(u.String(), cred, time.Now().Add(ttl).Unix())
 	return nil
 }
 

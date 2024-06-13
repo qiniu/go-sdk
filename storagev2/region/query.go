@@ -182,14 +182,14 @@ func NewBucketRegionsQuery(bucketHosts Endpoints, opts *BucketRegionsQueryOption
 	}, nil
 }
 
-func getPersistentCache(opts *BucketRegionsQueryOptions) (*cache.Cache, error) {
+func getPersistentCache(persistentFilePath string, compactInterval, persistentDuration time.Duration) (*cache.Cache, error) {
 	var (
 		persistentCache *cache.Cache
 		ok              bool
 		err             error
 	)
 
-	crc64Value := calcPersistentCacheCrc64(opts)
+	crc64Value := calcPersistentCacheCrc64(persistentFilePath, compactInterval, persistentDuration)
 	persistentCachesLock.Lock()
 	defer persistentCachesLock.Unlock()
 
@@ -199,9 +199,9 @@ func getPersistentCache(opts *BucketRegionsQueryOptions) (*cache.Cache, error) {
 	if persistentCache, ok = persistentCaches[crc64Value]; !ok {
 		persistentCache, err = cache.NewPersistentCache(
 			reflect.TypeOf(&v4QueryCacheValue{}),
-			opts.PersistentFilePath,
-			opts.CompactInterval,
-			opts.PersistentDuration,
+			persistentFilePath,
+			compactInterval,
+			persistentDuration,
 			func(err error) {
 				log.Warn(fmt.Sprintf("BucketRegionsQuery persist error: %s", err))
 			})
@@ -354,15 +354,11 @@ func makeBucketQueryClient(
 	return clientv2.NewClient(client, is...)
 }
 
-func (opts *BucketRegionsQueryOptions) toBytes() []byte {
+func calcPersistentCacheCrc64(persistentFilePath string, compactInterval, persistentDuration time.Duration) uint64 {
 	bytes := make([]byte, 0, 1024)
-	bytes = strconv.AppendInt(bytes, int64(opts.CompactInterval), 36)
-	bytes = append(bytes, []byte(opts.PersistentFilePath)...)
+	bytes = strconv.AppendInt(bytes, int64(compactInterval), 36)
+	bytes = append(bytes, []byte(persistentFilePath)...)
 	bytes = append(bytes, byte(0))
-	bytes = strconv.AppendInt(bytes, int64(opts.PersistentDuration), 36)
-	return bytes
-}
-
-func calcPersistentCacheCrc64(opts *BucketRegionsQueryOptions) uint64 {
-	return crc64.Checksum(opts.toBytes(), crc64.MakeTable(crc64.ISO))
+	bytes = strconv.AppendInt(bytes, int64(persistentDuration), 36)
+	return crc64.Checksum(bytes, crc64.MakeTable(crc64.ISO))
 }

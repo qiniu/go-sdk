@@ -154,25 +154,29 @@ func NewDomainsQueryURLsGenerator(options *DomainsQueryURLsGeneratorOptions) (Do
 	if options.Credentials == nil {
 		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
 	}
-	if options.CompactInterval == time.Duration(0) {
-		options.CompactInterval = time.Minute
+	compactInterval := options.CompactInterval
+	if compactInterval == time.Duration(0) {
+		compactInterval = time.Minute
 	}
-	if options.PersistentFilePath == "" {
-		options.PersistentFilePath = filepath.Join(os.TempDir(), "qiniu-golang-sdk", cacheFileName)
+	persistentFilePath := options.PersistentFilePath
+	if persistentFilePath == "" {
+		persistentFilePath = filepath.Join(os.TempDir(), "qiniu-golang-sdk", cacheFileName)
 	}
-	if options.PersistentDuration == time.Duration(0) {
-		options.PersistentDuration = time.Minute
+	persistentDuration := options.PersistentDuration
+	if persistentDuration == time.Duration(0) {
+		persistentDuration = time.Minute
 	}
-	if options.CacheTTL == time.Duration(0) {
-		options.CacheTTL = time.Hour
+	cacheTTL := options.CacheTTL
+	if cacheTTL == time.Duration(0) {
+		cacheTTL = time.Hour
 	}
-	persistentCache, err := getPersistentCache(options)
+	persistentCache, err := getPersistentCache(persistentFilePath, compactInterval, persistentDuration)
 	if err != nil {
 		return nil, err
 	}
 
 	storage := apis.NewStorage(&options.Options)
-	return &domainsQueryURLsGenerator{storage, persistentCache, options.Credentials, options.CacheTTL}, nil
+	return &domainsQueryURLsGenerator{storage, persistentCache, options.Credentials, cacheTTL}, nil
 }
 
 func (g *domainsQueryURLsGenerator) GenerateURLs(ctx context.Context, objectName string, options *GenerateOptions) ([]*url.URL, error) {
@@ -226,14 +230,14 @@ func (left *domainCacheValue) IsValid() bool {
 	return time.Now().Before(left.ExpiredAt)
 }
 
-func getPersistentCache(opts *DomainsQueryURLsGeneratorOptions) (*cache.Cache, error) {
+func getPersistentCache(persistentFilePath string, compactInterval, persistentDuration time.Duration) (*cache.Cache, error) {
 	var (
 		persistentCache *cache.Cache
 		ok              bool
 		err             error
 	)
 
-	crc64Value := calcPersistentCacheCrc64(opts)
+	crc64Value := calcPersistentCacheCrc64(persistentFilePath, compactInterval, persistentDuration)
 	persistentCachesLock.Lock()
 	defer persistentCachesLock.Unlock()
 
@@ -243,9 +247,9 @@ func getPersistentCache(opts *DomainsQueryURLsGeneratorOptions) (*cache.Cache, e
 	if persistentCache, ok = persistentCaches[crc64Value]; !ok {
 		persistentCache, err = cache.NewPersistentCache(
 			reflect.TypeOf(&domainCacheValue{}),
-			opts.PersistentFilePath,
-			opts.CompactInterval,
-			opts.PersistentDuration,
+			persistentFilePath,
+			compactInterval,
+			persistentDuration,
 			func(err error) {
 				log.Warn(fmt.Sprintf("DomainsURLsGenerator persist error: %s", err))
 			})
@@ -257,17 +261,13 @@ func getPersistentCache(opts *DomainsQueryURLsGeneratorOptions) (*cache.Cache, e
 	return persistentCache, nil
 }
 
-func (opts *DomainsQueryURLsGeneratorOptions) toBytes() []byte {
+func calcPersistentCacheCrc64(persistentFilePath string, compactInterval, persistentDuration time.Duration) uint64 {
 	bytes := make([]byte, 0, 1024)
-	bytes = strconv.AppendInt(bytes, int64(opts.CompactInterval), 36)
-	bytes = append(bytes, []byte(opts.PersistentFilePath)...)
+	bytes = strconv.AppendInt(bytes, int64(compactInterval), 36)
+	bytes = append(bytes, []byte(persistentFilePath)...)
 	bytes = append(bytes, byte(0))
-	bytes = strconv.AppendInt(bytes, int64(opts.PersistentDuration), 36)
-	return bytes
-}
-
-func calcPersistentCacheCrc64(opts *DomainsQueryURLsGeneratorOptions) uint64 {
-	return crc64.Checksum(opts.toBytes(), crc64.MakeTable(crc64.ISO))
+	bytes = strconv.AppendInt(bytes, int64(persistentDuration), 36)
+	return crc64.Checksum(bytes, crc64.MakeTable(crc64.ISO))
 }
 
 // 合并多个下载 URL 生成器

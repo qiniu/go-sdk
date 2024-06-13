@@ -96,23 +96,27 @@ func NewCacheResolver(resolver Resolver, opts *CacheResolverConfig) (Resolver, e
 	if opts == nil {
 		opts = &CacheResolverConfig{}
 	}
-	if opts.CompactInterval == time.Duration(0) {
-		opts.CompactInterval = 60 * time.Second
+	compactInterval := opts.CompactInterval
+	if compactInterval == time.Duration(0) {
+		compactInterval = 60 * time.Second
 	}
-	if opts.PersistentFilePath == "" {
-		opts.PersistentFilePath = filepath.Join(os.TempDir(), "qiniu-golang-sdk", cacheFileName)
+	persistentFilePath := opts.PersistentFilePath
+	if persistentFilePath == "" {
+		persistentFilePath = filepath.Join(os.TempDir(), "qiniu-golang-sdk", cacheFileName)
 	}
-	if opts.PersistentDuration == time.Duration(0) {
-		opts.PersistentDuration = 60 * time.Second
+	persistentDuration := opts.PersistentDuration
+	if persistentDuration == time.Duration(0) {
+		persistentDuration = 60 * time.Second
 	}
-	if opts.CacheLifetime == time.Duration(0) {
-		opts.CacheLifetime = 120 * time.Second
+	cacheLifetime := opts.CacheLifetime
+	if cacheLifetime == time.Duration(0) {
+		cacheLifetime = 120 * time.Second
 	}
 	if resolver == nil {
 		resolver = staticDefaultResolver
 	}
 
-	persistentCache, err := getPersistentCache(opts)
+	persistentCache, err := getPersistentCache(persistentFilePath, compactInterval, persistentDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -123,14 +127,14 @@ func NewCacheResolver(resolver Resolver, opts *CacheResolverConfig) (Resolver, e
 	}, nil
 }
 
-func getPersistentCache(opts *CacheResolverConfig) (*cache.Cache, error) {
+func getPersistentCache(persistentFilePath string, compactInterval, persistentDuration time.Duration) (*cache.Cache, error) {
 	var (
 		persistentCache *cache.Cache
 		ok              bool
 		err             error
 	)
 
-	crc64Value := calcPersistentCacheCrc64(opts)
+	crc64Value := calcPersistentCacheCrc64(persistentFilePath, compactInterval, persistentDuration)
 	persistentCachesLock.Lock()
 	defer persistentCachesLock.Unlock()
 
@@ -140,9 +144,9 @@ func getPersistentCache(opts *CacheResolverConfig) (*cache.Cache, error) {
 	if persistentCache, ok = persistentCaches[crc64Value]; !ok {
 		persistentCache, err = cache.NewPersistentCache(
 			reflect.TypeOf(&resolverCacheValue{}),
-			opts.PersistentFilePath,
-			opts.CompactInterval,
-			opts.PersistentDuration,
+			persistentFilePath,
+			compactInterval,
+			persistentDuration,
 			func(err error) {
 				log.Warn(fmt.Sprintf("BucketRegionsQuery persist error: %s", err))
 			})
@@ -202,16 +206,11 @@ func (*cacheResolver) localIp(host string) (string, error) {
 	return conn.LocalAddr().(*net.UDPAddr).IP.String(), nil
 }
 
-func (opts *CacheResolverConfig) toBytes() []byte {
+func calcPersistentCacheCrc64(persistentFilePath string, compactInterval, persistentDuration time.Duration) uint64 {
 	bytes := make([]byte, 0, 1024)
-	bytes = strconv.AppendInt(bytes, int64(opts.CompactInterval), 36)
-	bytes = strconv.AppendInt(bytes, int64(opts.PersistentDuration), 36)
-	bytes = strconv.AppendInt(bytes, int64(opts.CacheLifetime), 36)
-	bytes = append(bytes, []byte(opts.PersistentFilePath)...)
+	bytes = strconv.AppendInt(bytes, int64(compactInterval), 36)
+	bytes = strconv.AppendInt(bytes, int64(persistentDuration), 36)
+	bytes = append(bytes, []byte(persistentFilePath)...)
 	bytes = append(bytes, byte(0))
-	return bytes
-}
-
-func calcPersistentCacheCrc64(opts *CacheResolverConfig) uint64 {
-	return crc64.Checksum(opts.toBytes(), crc64.MakeTable(crc64.ISO))
+	return crc64.Checksum(bytes, crc64.MakeTable(crc64.ISO))
 }

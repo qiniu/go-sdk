@@ -189,15 +189,18 @@ func NewClient(options *Options) *Client {
 			options.UseInsecureProtocol = isDisabled
 		}
 	}
-	if options.HostFreezeDuration < time.Millisecond {
-		options.HostFreezeDuration = 600 * time.Second
+	hostFreezeDuration := options.HostFreezeDuration
+	if hostFreezeDuration < time.Millisecond {
+		hostFreezeDuration = 600 * time.Second
 	}
-	if options.ShouldFreezeHost == nil {
-		options.ShouldFreezeHost = defaultShouldFreezeHost
+	shouldFreezeHost := options.ShouldFreezeHost
+	if shouldFreezeHost == nil {
+		shouldFreezeHost = defaultShouldFreezeHost
 	}
-	if options.Credentials == nil {
+	credentials := options.Credentials
+	if credentials == nil {
 		if defaultAuth := auth.Default(); defaultAuth != nil {
-			options.Credentials = defaultAuth
+			credentials = defaultAuth
 		}
 	}
 
@@ -206,13 +209,13 @@ func NewClient(options *Options) *Client {
 		basicHTTPClient:    clientv2.NewClient(options.BasicHTTPClient, options.Interceptors...),
 		bucketQuery:        options.BucketQuery,
 		regions:            options.Regions,
-		credentials:        options.Credentials,
+		credentials:        credentials,
 		resolver:           options.Resolver,
 		chooser:            options.Chooser,
 		hostRetryConfig:    options.HostRetryConfig,
 		hostsRetryConfig:   options.HostsRetryConfig,
-		hostFreezeDuration: options.HostFreezeDuration,
-		shouldFreezeHost:   options.ShouldFreezeHost,
+		hostFreezeDuration: hostFreezeDuration,
+		shouldFreezeHost:   shouldFreezeHost,
 		beforeSign:         options.BeforeSign,
 		afterSign:          options.AfterSign,
 		signError:          options.SignError,

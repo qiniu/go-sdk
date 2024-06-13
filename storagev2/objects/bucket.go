@@ -42,7 +42,7 @@ func (bucket *Bucket) List(ctx context.Context, options *ListObjectsOptions) Lis
 		options = &ListObjectsOptions{}
 	}
 
-	switch bucket.objectsManager.options.ListerVersion {
+	switch bucket.objectsManager.listerVersion {
 	case ListerVersionV1:
 		fallthrough
 	default:

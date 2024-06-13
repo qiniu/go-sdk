@@ -10,8 +10,10 @@ import (
 type (
 	// 对象管理器
 	ObjectsManager struct {
-		storage *apis.Storage
-		options *ObjectsManagerOptions
+		storage          *apis.Storage
+		options          httpclient.Options
+		listerVersion    ListerVersion
+		batchOpsExecutor BatchOpsExecutor
 	}
 
 	// 对象管理器选项
@@ -37,10 +39,16 @@ func NewObjectsManager(options *ObjectsManagerOptions) *ObjectsManager {
 	if options == nil {
 		options = &ObjectsManagerOptions{}
 	}
-	if options.BatchOpsExecutor == nil {
-		options.BatchOpsExecutor = NewSerialBatchOpsExecutor(nil)
+	batchOpsExecutor := options.BatchOpsExecutor
+	if batchOpsExecutor == nil {
+		batchOpsExecutor = NewSerialBatchOpsExecutor(nil)
 	}
-	return &ObjectsManager{apis.NewStorage(&options.Options), options}
+	return &ObjectsManager{
+		storage:          apis.NewStorage(&options.Options),
+		options:          options.Options,
+		listerVersion:    options.ListerVersion,
+		batchOpsExecutor: batchOpsExecutor,
+	}
 }
 
 func (objectsManager *ObjectsManager) Bucket(name string) *Bucket {
@@ -56,7 +64,7 @@ func (objectsManager *ObjectsManager) Batch(ctx context.Context, operations []Op
 	}
 	batchOpsExecutor := options.BatchOpsExecutor
 	if batchOpsExecutor == nil {
-		batchOpsExecutor = objectsManager.options.BatchOpsExecutor
+		batchOpsExecutor = objectsManager.batchOpsExecutor
 	}
 	return batchOpsExecutor.ExecuteBatchOps(ctx, operations, objectsManager.storage)
 }
