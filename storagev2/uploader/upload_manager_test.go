@@ -566,7 +566,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	err = uploadManager.UploadDirectory(context.Background(), tmpDir_1, &uploader.DirectoryOptions{
 		BucketName:   "testbucket",
 		ObjectPrefix: objectPrefix,
-		BeforeFileUpload: func(filePath string, _ *uploader.ObjectOptions) {
+		BeforeObjectUpload: func(filePath string, _ *uploader.ObjectOptions) {
 			if _, ok := localFiles[filePath]; !ok {
 				t.Fatalf("unexpected filePath")
 			}
@@ -583,7 +583,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 				localFiles[filePath] = uploaded
 			}
 		},
-		OnFileUploaded: func(filePath string, size uint64) {
+		OnObjectUploaded: func(filePath string, size uint64) {
 			if size != 1024*1024 {
 				t.Fatalf("unexpected size")
 			}

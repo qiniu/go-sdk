@@ -271,6 +271,7 @@ func TestConcurrentDownloaderWithMultipleParts(t *testing.T) {
 	n, err := d.Download(context.Background(), []*url.URL{url1}, dest, &downloader.DestinationDownloadOptions{
 		OnDownloadingProgress: func(downloaded, totalSize uint64) {
 			if downloaded < lastDownloaded {
+				fmt.Printf("******* downloaded: %d, lastDownloaded: %d\n", downloaded, lastDownloaded)
 				t.Fatalf("unexpected downloaded progress")
 			}
 			lastDownloaded = downloaded

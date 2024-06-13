@@ -123,7 +123,7 @@ func NewCacheResolver(resolver Resolver, opts *CacheResolverConfig) (Resolver, e
 	return &cacheResolver{
 		cache:         persistentCache,
 		resolver:      resolver,
-		cacheLifetime: opts.CacheLifetime,
+		cacheLifetime: cacheLifetime,
 	}, nil
 }
 

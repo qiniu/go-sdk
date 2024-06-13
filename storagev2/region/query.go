@@ -140,20 +140,24 @@ func NewBucketRegionsQuery(bucketHosts Endpoints, opts *BucketRegionsQueryOption
 	if opts == nil {
 		opts = &BucketRegionsQueryOptions{}
 	}
-	if opts.RetryMax <= 0 {
-		opts.RetryMax = 2
+	retryMax := opts.RetryMax
+	if retryMax <= 0 {
+		retryMax = 2
 	}
-	if opts.CompactInterval == time.Duration(0) {
-		opts.CompactInterval = time.Minute
+	compactInterval := opts.CompactInterval
+	if compactInterval == time.Duration(0) {
+		compactInterval = time.Minute
 	}
-	if opts.PersistentFilePath == "" {
-		opts.PersistentFilePath = filepath.Join(os.TempDir(), "qiniu-golang-sdk", cacheFileName)
+	persistentFilePath := opts.PersistentFilePath
+	if persistentFilePath == "" {
+		persistentFilePath = filepath.Join(os.TempDir(), "qiniu-golang-sdk", cacheFileName)
 	}
-	if opts.PersistentDuration == time.Duration(0) {
-		opts.PersistentDuration = time.Minute
+	persistentDuration := opts.PersistentDuration
+	if persistentDuration == time.Duration(0) {
+		persistentDuration = time.Minute
 	}
 
-	persistentCache, err := getPersistentCache(opts)
+	persistentCache, err := getPersistentCache(persistentFilePath, compactInterval, persistentDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +169,7 @@ func NewBucketRegionsQuery(bucketHosts Endpoints, opts *BucketRegionsQueryOption
 			opts.Client,
 			bucketHosts,
 			!opts.UseInsecureProtocol,
-			opts.RetryMax,
+			retryMax,
 			opts.HostFreezeDuration,
 			opts.Resolver,
 			opts.Chooser,

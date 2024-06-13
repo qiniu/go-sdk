@@ -98,8 +98,9 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 	if directoryOptions == nil {
 		directoryOptions = &DirectoryOptions{}
 	}
-	if directoryOptions.FileConcurrency == 0 {
-		directoryOptions.FileConcurrency = 1
+	objectConcurrency := directoryOptions.ObjectConcurrency
+	if objectConcurrency == 0 {
+		objectConcurrency = 1
 	}
 
 	if !strings.HasSuffix(directoryPath, "/") {
@@ -107,48 +108,51 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(directoryOptions.FileConcurrency)
+	g.SetLimit(objectConcurrency)
 
 	err := filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		objectName := filepath.Join(directoryOptions.ObjectPrefix, strings.TrimPrefix(path, directoryPath))
-		if info.Mode().IsRegular() {
-			objectOptions := ObjectOptions{
-				RegionsProvider: directoryOptions.RegionsProvider,
-				UpToken:         directoryOptions.UpToken,
-				BucketName:      directoryOptions.BucketName,
-				ObjectName:      &objectName,
-				FileName:        filepath.Base(path),
-			}
-			if directoryOptions.ShouldUploadFile != nil && !directoryOptions.ShouldUploadFile(path) {
-				return nil
-			}
-			if directoryOptions.BeforeFileUpload != nil {
-				directoryOptions.BeforeFileUpload(path, &objectOptions)
-			}
-			if directoryOptions.OnUploadingProgress != nil {
-				objectOptions.OnUploadingProgress = func(uploaded, totalSize uint64) {
-					directoryOptions.OnUploadingProgress(path, uploaded, totalSize)
+		g.Go(func() error {
+			objectName := filepath.Join(directoryOptions.ObjectPrefix, strings.TrimPrefix(path, directoryPath))
+			if info.Mode().IsRegular() {
+				objectOptions := ObjectOptions{
+					RegionsProvider: directoryOptions.RegionsProvider,
+					UpToken:         directoryOptions.UpToken,
+					BucketName:      directoryOptions.BucketName,
+					ObjectName:      &objectName,
+					FileName:        filepath.Base(path),
 				}
+				if directoryOptions.ShouldUploadObject != nil && !directoryOptions.ShouldUploadObject(path) {
+					return nil
+				}
+				if directoryOptions.BeforeObjectUpload != nil {
+					directoryOptions.BeforeObjectUpload(path, &objectOptions)
+				}
+				if directoryOptions.OnUploadingProgress != nil {
+					objectOptions.OnUploadingProgress = func(uploaded, totalSize uint64) {
+						directoryOptions.OnUploadingProgress(path, uploaded, totalSize)
+					}
+				}
+				err = uploadManager.UploadFile(ctx, path, &objectOptions, nil)
+				if err == nil && directoryOptions.OnObjectUploaded != nil {
+					directoryOptions.OnObjectUploaded(path, uint64(info.Size()))
+				}
+			} else if directoryOptions.ShouldCreateDirectory && info.IsDir() {
+				objectName += string(os.PathSeparator)
+				objectOptions := ObjectOptions{
+					RegionsProvider: directoryOptions.RegionsProvider,
+					UpToken:         directoryOptions.UpToken,
+					BucketName:      directoryOptions.BucketName,
+					ObjectName:      &objectName,
+					FileName:        filepath.Base(path),
+				}
+				err = uploadManager.UploadReader(ctx, http.NoBody, &objectOptions, nil)
 			}
-			err = uploadManager.UploadFile(ctx, path, &objectOptions, nil)
-			if err == nil && directoryOptions.OnFileUploaded != nil {
-				directoryOptions.OnFileUploaded(path, uint64(info.Size()))
-			}
-		} else if directoryOptions.ShouldCreateDirectory && info.IsDir() {
-			objectName += string(os.PathSeparator)
-			objectOptions := ObjectOptions{
-				RegionsProvider: directoryOptions.RegionsProvider,
-				UpToken:         directoryOptions.UpToken,
-				BucketName:      directoryOptions.BucketName,
-				ObjectName:      &objectName,
-				FileName:        filepath.Base(path),
-			}
-			err = uploadManager.UploadReader(ctx, http.NoBody, &objectOptions, nil)
-		}
-		return err
+			return err
+		})
+		return nil
 	})
 	if err != nil {
 		return err
