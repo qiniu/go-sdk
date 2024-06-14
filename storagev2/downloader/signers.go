@@ -46,14 +46,17 @@ func signURL(url string, cred *credentials.Credentials, deadline int64) string {
 	urlToSign := url
 	if strings.Contains(url, "?") {
 		appendUrl = fmt.Sprintf("&e=%d", deadline)
+		urlToSign += appendUrl
 	} else {
-		appendUrl = fmt.Sprintf("?e=%d", deadline)
+		appendUrl = fmt.Sprintf("e=%d", deadline)
+		urlToSign += "?"
+		urlToSign += appendUrl
 	}
-	token := cred.Sign([]byte(urlToSign + appendUrl))
+	token := cred.Sign([]byte(urlToSign))
 	return fmt.Sprintf("%s&token=%s", appendUrl, token)
 }
 
 func isURLSigned(url string) bool {
 	return (strings.Contains(url, "&e=") || strings.Contains(url, "?e=")) &&
-		(strings.Contains(url, "&token=") || strings.Contains(url, "?token="))
+		strings.Contains(url, "&token=")
 }

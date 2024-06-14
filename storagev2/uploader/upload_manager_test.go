@@ -36,6 +36,9 @@ func TestUploadManagerUploadFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	if _, err = io.CopyN(tmpFile, r, 5*1024*1024); err != nil {
 		t.Fatal(err)
@@ -43,8 +46,6 @@ func TestUploadManagerUploadFile(t *testing.T) {
 	if _, err = tmpFile.Seek(0, io.SeekStart); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
-	defer tmpFile.Close()
 
 	serveMux := mux.NewRouter()
 	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads", func(w http.ResponseWriter, r *http.Request) {
@@ -222,6 +223,9 @@ func TestUploadManagerUploadReader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	if _, err = io.CopyN(tmpFile, r, 5*1024*1024); err != nil {
 		t.Fatal(err)
@@ -229,8 +233,6 @@ func TestUploadManagerUploadReader(t *testing.T) {
 	if _, err = tmpFile.Seek(0, io.SeekStart); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
-	defer tmpFile.Close()
 
 	serveMux := mux.NewRouter()
 	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads", func(w http.ResponseWriter, r *http.Request) {
@@ -441,10 +443,12 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.Remove(tmpFile_1.Name())
+	defer tmpFile_1.Close()
+
 	if _, err = io.CopyN(tmpFile_1, r, 1024*1024); err != nil {
 		t.Fatal(err)
 	}
-	defer tmpFile_1.Close()
 	if relativePath, err := filepath.Rel(tmpDir_1, tmpFile_1.Name()); err != nil {
 		t.Fatal(err)
 	} else {
@@ -466,10 +470,12 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.Remove(tmpDir_2.Name())
+	defer tmpFile_2.Close()
+
 	if _, err = io.CopyN(tmpFile_2, r, 1024*1024); err != nil {
 		t.Fatal(err)
 	}
-	defer tmpFile_2.Close()
 	if relativePath, err := filepath.Rel(tmpDir_1, tmpFile_2.Name()); err != nil {
 		t.Fatal(err)
 	} else {
@@ -491,10 +497,12 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.Remove(tmpFile_3.Name())
+	defer tmpFile_3.Close()
+
 	if _, err = io.CopyN(tmpFile_3, r, 1024*1024); err != nil {
 		t.Fatal(err)
 	}
-	defer tmpFile_3.Close()
 	if relativePath, err := filepath.Rel(tmpDir_1, tmpFile_3.Name()); err != nil {
 		t.Fatal(err)
 	} else {

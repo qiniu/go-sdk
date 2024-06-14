@@ -2,6 +2,7 @@ package downloader
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -130,11 +131,11 @@ func (downloadManager *DownloadManager) downloadToDestination(ctx context.Contex
 	if downloadURLsGenerator == nil {
 		return 0, errors.MissingRequiredFieldError{Name: "DownloadURLsGenerator"}
 	}
-	signer := options.Signer
 	urls, err := downloadURLsGenerator.GenerateURLs(ctx, objectName, &options.GenerateOptions)
 	if err != nil {
 		return 0, err
 	}
+	signer := options.Signer
 	if signer != nil {
 		for _, u := range urls {
 			if err = signer.Sign(ctx, u, &options.SignOptions); err != nil {
@@ -211,6 +212,8 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 				n, err := downloadManager.DownloadToFile(ctx, objectName, fullPath, &objectOptions)
 				if err == nil && options.OnObjectDownloaded != nil {
 					options.OnObjectDownloaded(objectName, n)
+				} else if err != nil {
+					fmt.Printf("******** ObjectName: %s, err: %s\n", objectName, err)
 				}
 				return err
 			})

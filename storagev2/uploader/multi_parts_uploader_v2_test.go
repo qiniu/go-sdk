@@ -36,6 +36,9 @@ func TestMultiPartsUploaderV2(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	if _, err = io.CopyN(tmpFile, r, 5*1024*1024); err != nil {
 		t.Fatal(err)
@@ -43,8 +46,6 @@ func TestMultiPartsUploaderV2(t *testing.T) {
 	if _, err = tmpFile.Seek(0, io.SeekStart); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
-	defer tmpFile.Close()
 
 	serveMux := mux.NewRouter()
 	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads", func(w http.ResponseWriter, r *http.Request) {
@@ -278,6 +279,9 @@ func TestMultiPartsUploaderV2Resuming(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	if _, err = io.CopyN(tmpFile, r, 5*1024*1024); err != nil {
 		t.Fatal(err)
@@ -285,8 +289,6 @@ func TestMultiPartsUploaderV2Resuming(t *testing.T) {
 	if _, err = tmpFile.Seek(0, io.SeekStart); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
-	defer tmpFile.Close()
 
 	serveMux := mux.NewRouter()
 	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadId}", func(w http.ResponseWriter, r *http.Request) {

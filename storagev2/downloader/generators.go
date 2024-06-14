@@ -44,6 +44,15 @@ type (
 		generators []DownloadURLsGenerator
 	}
 
+	// 默认源站域名下载 URL 生成器选项
+	DefaultSrcURLsGeneratorOptions struct {
+		region.BucketRegionsQueryOptions
+		SignOptions
+
+		// Bucket 服务器地址
+		BucketHosts region.Endpoints
+	}
+
 	// 基于域名查询的下载 URL 生成器选项
 	DomainsQueryURLsGeneratorOptions struct {
 		http_client.Options
@@ -99,8 +108,19 @@ func (g *staticDomainBasedURLsGenerator) GenerateURLs(_ context.Context, objectN
 }
 
 // 创建默认源站域名下载 URL 生成器
-func NewDefaultSrcURLsGenerator(credentials credentials.CredentialsProvider, bucketHosts region.Endpoints, ttl time.Duration, options *region.BucketRegionsQueryOptions) (DownloadURLsGenerator, error) {
-	query, err := region.NewBucketRegionsQuery(bucketHosts, options)
+func NewDefaultSrcURLsGenerator(credentials credentials.CredentialsProvider, options *DefaultSrcURLsGeneratorOptions) (DownloadURLsGenerator, error) {
+	if options == nil {
+		options = &DefaultSrcURLsGeneratorOptions{}
+	}
+	bucketHosts := options.BucketHosts
+	if bucketHosts.IsEmpty() {
+		bucketHosts = http_client.DefaultBucketHosts()
+	}
+	ttl := options.Ttl
+	if ttl == 0 {
+		ttl = 3 * time.Minute
+	}
+	query, err := region.NewBucketRegionsQuery(bucketHosts, &options.BucketRegionsQueryOptions)
 	if err != nil {
 		return nil, err
 	}

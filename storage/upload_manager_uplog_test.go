@@ -42,14 +42,14 @@ func TestUploadManagerUplogForm(t *testing.T) {
 
 	data := []byte("hello, 七牛！！！")
 	dataLen := int64(len(data))
+
 	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut-*")
 	if err != nil {
 		t.Fatalf("create temp file error:%v", err)
 	}
-	defer func() {
-		tempFile.Close()
-		os.Remove(tempFile.Name())
-	}()
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
 	tempFile.Write(data)
 
 	uploadManager := getUploadManagerV2([]string{"mock03.qiniu.com", "mock04.qiniu.com"})
