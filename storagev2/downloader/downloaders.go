@@ -93,15 +93,15 @@ func NewConcurrentDownloader(options *ConcurrentDownloaderOptions) DestinationDo
 	if partSize == 0 {
 		partSize = 16 * 1024 * 1024
 	}
-	client := clientv2.NewClient(options.Client, clientv2.NewSimpleRetryInterceptor(options.toSimpleRetryConfig()))
+	client := clientv2.NewClient(options.Client, clientv2.NewSimpleRetryInterceptor(options.toSimpleRetryConfig()), retryWhenTokenOutOfDateInterceptor{})
 	return &concurrentDownloader{concurrency, partSize, client, options.ResumableRecorder}
 }
 
-func (downloader concurrentDownloader) Download(ctx context.Context, urls []*url.URL, destination destination.Destination, options *DestinationDownloadOptions) (uint64, error) {
+func (downloader concurrentDownloader) Download(ctx context.Context, urls []URLProvider, destination destination.Destination, options *DestinationDownloadOptions) (uint64, error) {
 	if options == nil {
 		options = &DestinationDownloadOptions{}
 	}
-	headResponse, err := headRequest(ctx, urls, options.Header, downloader.client)
+	headResponse, err := headRequest(ctx, urls, downloader.client)
 	if err != nil {
 		return 0, err
 	}
@@ -128,7 +128,7 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urls []*url
 				onDownloadingProgress(downloaded, 0)
 			}
 		}
-		return downloadToPartReader(ctx, urls, options.Header, etag, downloader.client, destination, progress)
+		return downloadToPartReader(ctx, urls, etag, downloader.client, destination, progress)
 	}
 	needToDownload := uint64(headResponse.ContentLength)
 
@@ -141,16 +141,11 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urls []*url
 		var destinationKey string
 		destinationKey, err = destination.DestinationKey()
 		if err == nil && destinationKey != "" {
-			downloadURLs := make([]string, len(urls))
-			for i, url := range urls {
-				downloadURLs[i] = url.String()
-			}
 			resumableRecorderOpenOptions = &resumablerecorder.ResumableRecorderOpenOptions{
 				ETag:           etag,
 				DestinationKey: destinationKey,
 				PartSize:       downloader.partSize,
 				TotalSize:      needToDownload,
-				DownloadURLs:   downloadURLs,
 			}
 			readableMedium = resumableRecorder.OpenForReading(resumableRecorderOpenOptions)
 			if readableMedium != nil {
@@ -183,7 +178,7 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urls []*url
 	for _, part := range parts {
 		p := part
 		g.Go(func() error {
-			n, err := downloader.downloadToPart(ctx, urls, options.Header, etag, p, writeableMedium, func(downloaded uint64) {
+			n, err := downloader.downloadToPart(ctx, urls, etag, p, writeableMedium, func(downloaded uint64) {
 				downloadingProgress.setPartDownloadingProgress(p.Offset(), downloaded)
 				if onDownloadingProgress := options.OnDownloadingProgress; onDownloadingProgress != nil {
 					onDownloadingProgress(downloadingProgress.totalDownloaded(), needToDownload)
@@ -210,7 +205,7 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urls []*url
 }
 
 func (downloader concurrentDownloader) downloadToPart(
-	ctx context.Context, urls []*url.URL, headers http.Header, etag string,
+	ctx context.Context, urls []URLProvider, etag string,
 	part destination.Part, writeableMedium resumablerecorder.WriteableResumableRecorderMedium, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
 	var (
 		n        uint64
@@ -220,7 +215,7 @@ func (downloader concurrentDownloader) downloadToPart(
 		haveRead = part.HaveDownloaded()
 	)
 	for size > haveRead {
-		n, err = downloadToPartReaderWithOffsetAndSize(ctx, urls, headers, etag, offset+haveRead, size-haveRead, downloader.client, part, onDownloadingProgress)
+		n, err = downloadToPartReaderWithOffsetAndSize(ctx, urls, etag, offset+haveRead, size-haveRead, downloader.client, part, onDownloadingProgress)
 		if n > 0 {
 			haveRead += n
 			continue
@@ -238,39 +233,44 @@ func (downloader concurrentDownloader) downloadToPart(
 }
 
 func downloadToPartReaderWithOffsetAndSize(
-	ctx context.Context, urls []*url.URL, headers http.Header, etag string, offset, size uint64,
+	ctx context.Context, urls []URLProvider, etag string, offset, size uint64,
 	client clientv2.Client, part destination.PartReader, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
-	headers = cloneHeader(headers)
+	headers := make(http.Header)
 	headers.Set("Range", fmt.Sprintf("bytes=%d-%d", offset, offset+size-1))
 	return _downloadToPartReader(ctx, urls, headers, etag, client, part, onDownloadingProgress)
 }
 
 func downloadToPartReader(
-	ctx context.Context, urls []*url.URL, headers http.Header, etag string,
+	ctx context.Context, urls []URLProvider, etag string,
 	client clientv2.Client, part destination.PartReader, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
-	headers = cloneHeader(headers)
+	headers := make(http.Header)
 	setAcceptGzip(headers)
 	return _downloadToPartReader(ctx, urls, headers, etag, client, part, onDownloadingProgress)
 }
 
 func _downloadToPartReader(
-	ctx context.Context, urls []*url.URL, headers http.Header, etag string,
+	ctx context.Context, urls []URLProvider, headers http.Header, etag string,
 	client clientv2.Client, part destination.PartReader, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
 	var (
 		response *http.Response
+		u        url.URL
 		n        uint64
 		err      error
 	)
 
-	for _, url := range urls {
+	for _, urlProvider := range urls {
+		if getURLErr := urlProvider.GetURL(&u); getURLErr != nil {
+			return 0, getURLErr
+		}
 		req := http.Request{
 			Method: http.MethodGet,
-			URL:    url,
+			URL:    &u,
 			Header: headers,
 			Body:   http.NoBody,
 		}
+		ctx = context.WithValue(ctx, urlProviderContextKey{}, urlProvider)
 		if response, err = client.Do(req.WithContext(ctx)); err != nil {
-			if errorInfo, ok := err.(*clientv1.ErrorInfo); ok && errorInfo.Code < 500 {
+			if isUnretryableStatusCode(err) {
 				return 0, err
 			}
 		} else if response.Header.Get("Etag") == etag {
@@ -302,23 +302,25 @@ func _downloadToPartReader(
 	return 0, err
 }
 
-func headRequest(ctx context.Context, urls []*url.URL, headers http.Header, client clientv2.Client) (response *http.Response, err error) {
-	headers = cloneHeader(headers)
+func headRequest(ctx context.Context, urls []URLProvider, client clientv2.Client) (response *http.Response, err error) {
+	headers := make(http.Header)
 	setAcceptGzip(headers)
 
-	for _, url := range urls {
+	var u url.URL
+	for _, urlProvider := range urls {
+		if getURLErr := urlProvider.GetURL(&u); getURLErr != nil {
+			return nil, getURLErr
+		}
 		req := http.Request{
 			Method: http.MethodHead,
-			URL:    url,
+			URL:    &u,
 			Header: headers,
 			Body:   http.NoBody,
 		}
 		if response, err = client.Do(req.WithContext(ctx)); err != nil {
-			if errorInfo, ok := err.(*clientv1.ErrorInfo); ok && errorInfo.Code < 500 {
+			if isUnretryableStatusCode(err) {
 				return
 			}
-		} else {
-			break
 		}
 	}
 	if response != nil && response.Body != nil {
@@ -327,31 +329,13 @@ func headRequest(ctx context.Context, urls []*url.URL, headers http.Header, clie
 	return
 }
 
-func cloneHeader(h http.Header) http.Header {
-	if h == nil {
-		return make(http.Header)
-	}
-
-	nv := 0
-	for _, vv := range h {
-		nv += len(vv)
-	}
-	sv := make([]string, nv)
-	h2 := make(http.Header, len(h))
-	for k, vv := range h {
-		if vv == nil {
-			h2[k] = nil
-			continue
-		}
-		n := copy(sv, vv)
-		h2[k] = sv[:n:n]
-		sv = sv[n:]
-	}
-	return h2
-}
-
 func setAcceptGzip(headers http.Header) {
 	headers.Set("Accept-Encoding", "gzip, deflate")
+}
+
+func isUnretryableStatusCode(err error) bool {
+	errorInfo, ok := err.(*clientv1.ErrorInfo)
+	return ok && errorInfo.Code < 500
 }
 
 type downloadingPartsProgress struct {

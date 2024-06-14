@@ -22,10 +22,6 @@ func TestJsonFileSystemResumableRecorder(t *testing.T) {
 		DestinationKey: "/tmp/fakeFile",
 		PartSize:       16 * 1024 * 1024,
 		TotalSize:      100 * 1024 * 1024,
-		DownloadURLs: []string{
-			"https://test.com/abc",
-			"https://test2.com/abc",
-		},
 	}
 	fs := resumablerecorder.NewJsonFileSystemResumableRecorder(tmpDir)
 	writableMedium := fs.OpenForCreatingNew(&options)

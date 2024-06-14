@@ -470,7 +470,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpDir_2.Name())
+	defer os.Remove(tmpFile_2.Name())
 	defer tmpFile_2.Close()
 
 	if _, err = io.CopyN(tmpFile_2, r, 1024*1024); err != nil {

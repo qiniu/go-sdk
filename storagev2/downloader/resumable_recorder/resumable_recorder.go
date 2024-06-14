@@ -16,9 +16,6 @@ type (
 
 		// 数据源大小
 		TotalSize uint64
-
-		// 下载服务 URL
-		DownloadURLs []string
 	}
 
 	// 可恢复记录仪接口

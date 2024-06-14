@@ -2,7 +2,6 @@ package downloader
 
 import (
 	"context"
-	"net/http"
 	"net/url"
 	"time"
 
@@ -10,9 +9,14 @@ import (
 )
 
 type (
-	// 生成对象下载 URL 接口
-	DownloadURLsGenerator interface {
-		GenerateURLs(context.Context, string, *GenerateOptions) ([]*url.URL, error)
+	// 获取 URL 接口
+	URLProvider interface {
+		GetURL(*url.URL) error
+	}
+
+	// 获取对象下载 URL 接口
+	DownloadURLsProvider interface {
+		GetURLs(context.Context, string, *GenerateOptions) ([]URLProvider, error)
 	}
 
 	// 对下载 URL 签名
@@ -22,16 +26,13 @@ type (
 
 	// 目标下载选项
 	DestinationDownloadOptions struct {
-		// 对象请求 Header
-		Header http.Header
-
 		// 对象下载进度
 		OnDownloadingProgress func(downloaded, totalSize uint64)
 	}
 
 	// 目标下载器
 	DestinationDownloader interface {
-		Download(context.Context, []*url.URL, destination.Destination, *DestinationDownloadOptions) (uint64, error)
+		Download(context.Context, []URLProvider, destination.Destination, *DestinationDownloadOptions) (uint64, error)
 	}
 
 	// 对象下载 URL 生成选项

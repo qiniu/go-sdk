@@ -23,29 +23,47 @@ import (
 )
 
 type (
-	staticDomainBasedURLsGenerator struct {
+	unsignedURL struct {
+		url *url.URL
+	}
+
+	signedURL struct {
+		ctx     context.Context
+		url     URLProvider
+		signer  Signer
+		options *SignOptions
+		cache   *cache.Cache
+	}
+
+	staticDomainBasedURLsProvider struct {
 		domains []string
 	}
 
-	defaultSrcURLsGenerator struct {
+	defaultSrcURLsProvider struct {
 		credentials credentials.CredentialsProvider
 		query       region.BucketRegionsQuery
 		ttl         time.Duration
 	}
 
-	domainsQueryURLsGenerator struct {
+	domainsQueryURLsProvider struct {
 		storage     *apis.Storage
 		cache       *cache.Cache
 		credentials credentials.CredentialsProvider
 		cacheTTL    time.Duration
 	}
 
-	combinedGenerators struct {
-		generators []DownloadURLsGenerator
+	combinedDownloadURLsProviders struct {
+		providers []DownloadURLsProvider
+	}
+
+	signedDownloadURLsProviders struct {
+		provider DownloadURLsProvider
+		signer   Signer
+		options  *SignOptions
 	}
 
 	// 默认源站域名下载 URL 生成器选项
-	DefaultSrcURLsGeneratorOptions struct {
+	DefaultSrcURLsProviderOptions struct {
 		region.BucketRegionsQueryOptions
 		SignOptions
 
@@ -54,7 +72,7 @@ type (
 	}
 
 	// 基于域名查询的下载 URL 生成器选项
-	DomainsQueryURLsGeneratorOptions struct {
+	DomainsQueryURLsProviderOptions struct {
 		http_client.Options
 
 		// 压缩周期（默认：60s）
@@ -74,18 +92,68 @@ type (
 		Domains   []string  `json:"domains"`
 		ExpiredAt time.Time `json:"expired_at"`
 	}
+
+	signingCacheValue struct {
+		url       *url.URL
+		expiredAt time.Time
+	}
 )
 
-// 创建静态域名下载 URL 生成器
-func NewStaticDomainBasedURLsGenerator(domains []string) DownloadURLsGenerator {
-	return &staticDomainBasedURLsGenerator{domains}
+// 转换 URL
+func NewURLProvider(u *url.URL) URLProvider {
+	return &unsignedURL{u}
 }
 
-func (g *staticDomainBasedURLsGenerator) GenerateURLs(_ context.Context, objectName string, options *GenerateOptions) ([]*url.URL, error) {
+func (uu *unsignedURL) GetURL(u *url.URL) error {
+	*u = *uu.url
+	return nil
+}
+
+// 为 URL 列表签名
+func SignURLs(ctx context.Context, url URLProvider, signer Signer, options *SignOptions) URLProvider {
+	return &signedURL{ctx: ctx, url: url, signer: signer, options: options, cache: cache.NewCache(1 * time.Second)}
+}
+
+func (su *signedURL) GetURL(u *url.URL) error {
+	key := u.String()
+	var err error
+	cacheValue, status := su.cache.Get(key, func() (cache.CacheValue, error) {
+		var (
+			signedURL url.URL
+		)
+		if err = su.url.GetURL(u); err != nil {
+			return nil, err
+		}
+		if err = su.signer.Sign(su.ctx, &signedURL, su.options); err != nil {
+			return nil, err
+		}
+		return signingCacheValue{&signedURL, time.Now().Add(1 * time.Second)}, nil
+	})
+	if status == cache.NoResultGot {
+		return err
+	}
+	*u = *cacheValue.(signingCacheValue).url
+	return nil
+}
+
+func (scv signingCacheValue) IsEqual(cv cache.CacheValue) bool {
+	return scv.url.String() == cv.(signingCacheValue).url.String()
+}
+
+func (scv signingCacheValue) IsValid() bool {
+	return scv.expiredAt.After(time.Now())
+}
+
+// 创建静态域名下载 URL 生成器
+func NewStaticDomainBasedURLsProvider(domains []string) DownloadURLsProvider {
+	return &staticDomainBasedURLsProvider{domains}
+}
+
+func (g *staticDomainBasedURLsProvider) GetURLs(_ context.Context, objectName string, options *GenerateOptions) ([]URLProvider, error) {
 	if options == nil {
 		options = &GenerateOptions{}
 	}
-	urls := make([]*url.URL, 0, len(g.domains))
+	urls := make([]URLProvider, 0, len(g.domains))
 	for _, domain := range g.domains {
 		if !strings.Contains(domain, "://") {
 			if options.UseInsecureProtocol {
@@ -101,16 +169,15 @@ func (g *staticDomainBasedURLsGenerator) GenerateURLs(_ context.Context, objectN
 		u.Path = "/" + objectName
 		u.RawPath = ""
 		u.RawQuery = options.Command
-		u.RawFragment = ""
-		urls = append(urls, u)
+		urls = append(urls, NewURLProvider(u))
 	}
 	return urls, nil
 }
 
 // 创建默认源站域名下载 URL 生成器
-func NewDefaultSrcURLsGenerator(credentials credentials.CredentialsProvider, options *DefaultSrcURLsGeneratorOptions) (DownloadURLsGenerator, error) {
+func NewDefaultSrcURLsProvider(credentials credentials.CredentialsProvider, options *DefaultSrcURLsProviderOptions) (DownloadURLsProvider, error) {
 	if options == nil {
-		options = &DefaultSrcURLsGeneratorOptions{}
+		options = &DefaultSrcURLsProviderOptions{}
 	}
 	bucketHosts := options.BucketHosts
 	if bucketHosts.IsEmpty() {
@@ -124,10 +191,10 @@ func NewDefaultSrcURLsGenerator(credentials credentials.CredentialsProvider, opt
 	if err != nil {
 		return nil, err
 	}
-	return &defaultSrcURLsGenerator{credentials, query, ttl}, nil
+	return &defaultSrcURLsProvider{credentials, query, ttl}, nil
 }
 
-func (g *defaultSrcURLsGenerator) GenerateURLs(ctx context.Context, objectName string, options *GenerateOptions) ([]*url.URL, error) {
+func (g *defaultSrcURLsProvider) GetURLs(ctx context.Context, objectName string, options *GenerateOptions) ([]URLProvider, error) {
 	if options == nil {
 		options = &GenerateOptions{}
 	}
@@ -149,14 +216,7 @@ func (g *defaultSrcURLsGenerator) GenerateURLs(ctx context.Context, objectName s
 	ioSrcDomains := make([]string, 0, len(region.IoSrc.Preferred)+len(region.IoSrc.Alternative))
 	ioSrcDomains = append(ioSrcDomains, region.IoSrc.Preferred...)
 	ioSrcDomains = append(ioSrcDomains, region.IoSrc.Alternative...)
-	urls, err := NewStaticDomainBasedURLsGenerator(ioSrcDomains).GenerateURLs(ctx, objectName, options)
-	if err != nil {
-		return nil, err
-	}
-	for _, u := range urls {
-		u.RawQuery += signURL(u.String(), cred, time.Now().Add(g.ttl).Unix())
-	}
-	return urls, nil
+	return SignURLsProvider(NewStaticDomainBasedURLsProvider(ioSrcDomains), NewCredentialsSigner(g.credentials), &SignOptions{g.ttl}).GetURLs(ctx, objectName, options)
 }
 
 const cacheFileName = "domain_v2_01.cache.json"
@@ -167,9 +227,9 @@ var (
 )
 
 // 创建基于域名查询的下载 URL 生成器
-func NewDomainsQueryURLsGenerator(options *DomainsQueryURLsGeneratorOptions) (DownloadURLsGenerator, error) {
+func NewDomainsQueryURLsProvider(options *DomainsQueryURLsProviderOptions) (DownloadURLsProvider, error) {
 	if options == nil {
-		options = &DomainsQueryURLsGeneratorOptions{}
+		options = &DomainsQueryURLsProviderOptions{}
 	}
 	if options.Credentials == nil {
 		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
@@ -196,10 +256,10 @@ func NewDomainsQueryURLsGenerator(options *DomainsQueryURLsGeneratorOptions) (Do
 	}
 
 	storage := apis.NewStorage(&options.Options)
-	return &domainsQueryURLsGenerator{storage, persistentCache, options.Credentials, cacheTTL}, nil
+	return &domainsQueryURLsProvider{storage, persistentCache, options.Credentials, cacheTTL}, nil
 }
 
-func (g *domainsQueryURLsGenerator) GenerateURLs(ctx context.Context, objectName string, options *GenerateOptions) ([]*url.URL, error) {
+func (g *domainsQueryURLsProvider) GetURLs(ctx context.Context, objectName string, options *GenerateOptions) ([]URLProvider, error) {
 	var (
 		creds *credentials.Credentials
 		err   error
@@ -228,7 +288,7 @@ func (g *domainsQueryURLsGenerator) GenerateURLs(ctx context.Context, objectName
 		return nil, err
 	}
 	domains := cacheValue.(*domainCacheValue).Domains
-	return NewStaticDomainBasedURLsGenerator(domains).GenerateURLs(ctx, objectName, options)
+	return NewStaticDomainBasedURLsProvider(domains).GetURLs(ctx, objectName, options)
 }
 
 func (left *domainCacheValue) IsEqual(rightValue cache.CacheValue) bool {
@@ -271,7 +331,7 @@ func getPersistentCache(persistentFilePath string, compactInterval, persistentDu
 			compactInterval,
 			persistentDuration,
 			func(err error) {
-				log.Warn(fmt.Sprintf("DomainsURLsGenerator persist error: %s", err))
+				log.Warn(fmt.Sprintf("DomainsURLsProvider persist error: %s", err))
 			})
 		if err != nil {
 			return nil, err
@@ -291,18 +351,34 @@ func calcPersistentCacheCrc64(persistentFilePath string, compactInterval, persis
 }
 
 // 合并多个下载 URL 生成器
-func CombineGenerators(generators []DownloadURLsGenerator) DownloadURLsGenerator {
-	return &combinedGenerators{generators}
+func CombineDownloadURLsProviders(providers ...DownloadURLsProvider) DownloadURLsProvider {
+	return combinedDownloadURLsProviders{providers}
 }
 
-func (g *combinedGenerators) GenerateURLs(ctx context.Context, objectName string, options *GenerateOptions) ([]*url.URL, error) {
-	all := make([]*url.URL, 0, 16)
-	for _, generator := range g.generators {
-		urls, err := generator.GenerateURLs(ctx, objectName, options)
+func (g combinedDownloadURLsProviders) GetURLs(ctx context.Context, objectName string, options *GenerateOptions) ([]URLProvider, error) {
+	urlProviders := make([]URLProvider, 0, len(g.providers))
+	for _, downloadURLsProvider := range g.providers {
+		ups, err := downloadURLsProvider.GetURLs(ctx, objectName, options)
 		if err != nil {
 			return nil, err
 		}
-		all = append(all, urls...)
+		urlProviders = append(urlProviders, ups...)
 	}
-	return all, nil
+	return urlProviders, nil
+}
+
+// 为下载 URL 获取结果签名
+func SignURLsProvider(provider DownloadURLsProvider, signer Signer, options *SignOptions) DownloadURLsProvider {
+	return signedDownloadURLsProviders{provider, signer, options}
+}
+
+func (provider signedDownloadURLsProviders) GetURLs(ctx context.Context, objectName string, options *GenerateOptions) ([]URLProvider, error) {
+	urls, err := provider.provider.GetURLs(ctx, objectName, options)
+	if err != nil {
+		return nil, err
+	}
+	for i := range urls {
+		urls[i] = SignURLs(ctx, urls[i], provider.signer, provider.options)
+	}
+	return urls, nil
 }

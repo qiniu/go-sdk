@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -96,17 +97,24 @@ func TestConcurrentDownloaderWithSinglePart(t *testing.T) {
 		buf            closableBuffer
 		lastDownloaded uint64
 	)
-	n, err := d.Download(context.Background(), []*url.URL{url1, url2, url3}, destination.NewWriteCloserDestination(&buf, ""), &downloader.DestinationDownloadOptions{
-		OnDownloadingProgress: func(downloaded, totalSize uint64) {
-			if downloaded < lastDownloaded {
-				t.Fatalf("unexpected downloaded progress")
-			}
-			lastDownloaded = downloaded
-			if totalSize != 1024*1024 {
-				t.Fatalf("unexpected downloaded progress")
-			}
-		},
-	})
+	n, err := d.Download(
+		context.Background(),
+		[]downloader.URLProvider{
+			downloader.NewURLProvider(url1),
+			downloader.NewURLProvider(url2),
+			downloader.NewURLProvider(url3),
+		}, destination.NewWriteCloserDestination(&buf, ""),
+		&downloader.DestinationDownloadOptions{
+			OnDownloadingProgress: func(downloaded, totalSize uint64) {
+				if downloaded < lastDownloaded {
+					t.Fatalf("unexpected downloaded progress")
+				}
+				lastDownloaded = downloaded
+				if totalSize != 1024*1024 {
+					t.Fatalf("unexpected downloaded progress")
+				}
+			},
+		})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,17 +195,20 @@ func TestConcurrentDownloaderWithCompression(t *testing.T) {
 		buf            closableBuffer
 		lastDownloaded uint64
 	)
-	n, err := d.Download(context.Background(), []*url.URL{url1}, destination.NewWriteCloserDestination(&buf, ""), &downloader.DestinationDownloadOptions{
-		OnDownloadingProgress: func(downloaded, totalSize uint64) {
-			if downloaded < lastDownloaded {
-				t.Fatalf("unexpected downloaded progress")
-			}
-			lastDownloaded = downloaded
-			if totalSize != 0 {
-				t.Fatalf("unexpected downloaded progress")
-			}
-		},
-	})
+	n, err := d.Download(
+		context.Background(),
+		[]downloader.URLProvider{downloader.NewURLProvider(url1)},
+		destination.NewWriteCloserDestination(&buf, ""), &downloader.DestinationDownloadOptions{
+			OnDownloadingProgress: func(downloaded, totalSize uint64) {
+				if downloaded < lastDownloaded {
+					t.Fatalf("unexpected downloaded progress")
+				}
+				lastDownloaded = downloaded
+				if totalSize != 0 {
+					t.Fatalf("unexpected downloaded progress")
+				}
+			},
+		})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,18 +279,21 @@ func TestConcurrentDownloaderWithMultipleParts(t *testing.T) {
 		t.Fatal(err)
 	}
 	var lastDownloaded uint64
-	n, err := d.Download(context.Background(), []*url.URL{url1}, dest, &downloader.DestinationDownloadOptions{
-		OnDownloadingProgress: func(downloaded, totalSize uint64) {
-			if downloaded < lastDownloaded {
-				fmt.Printf("******* downloaded: %d, lastDownloaded: %d\n", downloaded, lastDownloaded)
-				t.Fatalf("unexpected downloaded progress")
-			}
-			lastDownloaded = downloaded
-			if totalSize != SIZE {
-				t.Fatalf("unexpected downloaded progress")
-			}
-		},
-	})
+	n, err := d.Download(
+		context.Background(),
+		[]downloader.URLProvider{downloader.NewURLProvider(url1)},
+		dest,
+		&downloader.DestinationDownloadOptions{
+			OnDownloadingProgress: func(downloaded, totalSize uint64) {
+				if downloaded < atomic.LoadUint64(&lastDownloaded) {
+					t.Fatalf("unexpected downloaded progress")
+				}
+				atomic.StoreUint64(&lastDownloaded, downloaded)
+				if totalSize != SIZE {
+					t.Fatalf("unexpected downloaded progress")
+				}
+			},
+		})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -377,7 +391,6 @@ func TestConcurrentDownloaderWithResumableRecorder(t *testing.T) {
 		DestinationKey: dstFile.Name(),
 		PartSize:       1024 * 1024,
 		TotalSize:      10 * 1024 * 1024,
-		DownloadURLs:   []string{url1.String()},
 	}
 	writableMedium := resumableRecorder.OpenForCreatingNew(&options)
 	defer writableMedium.Close()
@@ -415,17 +428,21 @@ func TestConcurrentDownloaderWithResumableRecorder(t *testing.T) {
 		t.Fatal(err)
 	}
 	var lastDownloaded uint64
-	n, err := d.Download(context.Background(), []*url.URL{url1}, dest, &downloader.DestinationDownloadOptions{
-		OnDownloadingProgress: func(downloaded, totalSize uint64) {
-			if downloaded < lastDownloaded {
-				t.Fatalf("unexpected downloaded progress")
-			}
-			lastDownloaded = downloaded
-			if totalSize != 10*1024*1024 {
-				t.Fatalf("unexpected downloaded progress")
-			}
-		},
-	})
+	n, err := d.Download(
+		context.Background(),
+		[]downloader.URLProvider{downloader.NewURLProvider(url1)},
+		dest,
+		&downloader.DestinationDownloadOptions{
+			OnDownloadingProgress: func(downloaded, totalSize uint64) {
+				if downloaded < lastDownloaded {
+					t.Fatalf("unexpected downloaded progress")
+				}
+				lastDownloaded = downloaded
+				if totalSize != 10*1024*1024 {
+					t.Fatalf("unexpected downloaded progress")
+				}
+			},
+		})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -2,13 +2,11 @@ package downloader
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/qiniu/go-sdk/v7/storagev2/downloader/destination"
 	"github.com/qiniu/go-sdk/v7/storagev2/errors"
@@ -38,13 +36,9 @@ type (
 	ObjectOptions struct {
 		DestinationDownloadOptions
 		GenerateOptions
-		SignOptions
 
 		// 下载 URL 生成器
-		DownloadURLsGenerator DownloadURLsGenerator
-
-		// 下载 URL 签名
-		Signer Signer
+		DownloadURLsGenerator DownloadURLsProvider
 	}
 
 	// 目录下载参数
@@ -62,13 +56,7 @@ type (
 		ObjectConcurrency int
 
 		// 下载 URL 生成器
-		DownloadURLsGenerator DownloadURLsGenerator
-
-		// 下载 URL 签名
-		Signer Signer
-
-		// 签名有效期，如果不填写，默认为 3 分钟
-		Ttl time.Duration
+		DownloadURLsGenerator DownloadURLsProvider
 
 		// 下载前回调函数
 		BeforeObjectDownload func(objectName string, objectOptions *ObjectOptions)
@@ -131,17 +119,9 @@ func (downloadManager *DownloadManager) downloadToDestination(ctx context.Contex
 	if downloadURLsGenerator == nil {
 		return 0, errors.MissingRequiredFieldError{Name: "DownloadURLsGenerator"}
 	}
-	urls, err := downloadURLsGenerator.GenerateURLs(ctx, objectName, &options.GenerateOptions)
+	urls, err := downloadURLsGenerator.GetURLs(ctx, objectName, &options.GenerateOptions)
 	if err != nil {
 		return 0, err
-	}
-	signer := options.Signer
-	if signer != nil {
-		for _, u := range urls {
-			if err = signer.Sign(ctx, u, &options.SignOptions); err != nil {
-				return 0, err
-			}
-		}
 	}
 	n, err := downloadManager.destinationDownloader.Download(ctx, urls, dest, &options.DestinationDownloadOptions)
 	return n, err
@@ -159,10 +139,6 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 	objectConcurrency := options.ObjectConcurrency
 	if objectConcurrency == 0 {
 		objectConcurrency = 1
-	}
-	ttl := options.Ttl
-	if ttl == 0 {
-		ttl = 3 * time.Minute
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -199,9 +175,7 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 						BucketName:          options.BucketName,
 						UseInsecureProtocol: options.UseInsecureProtocol,
 					},
-					SignOptions:           SignOptions{ttl},
 					DownloadURLsGenerator: options.DownloadURLsGenerator,
-					Signer:                options.Signer,
 				}
 				if options.ShouldDownloadObject != nil && !options.ShouldDownloadObject(objectName) {
 					return nil
@@ -212,8 +186,6 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 				n, err := downloadManager.DownloadToFile(ctx, objectName, fullPath, &objectOptions)
 				if err == nil && options.OnObjectDownloaded != nil {
 					options.OnObjectDownloaded(objectName, n)
-				} else if err != nil {
-					fmt.Printf("******** ObjectName: %s, err: %s\n", objectName, err)
 				}
 				return err
 			})

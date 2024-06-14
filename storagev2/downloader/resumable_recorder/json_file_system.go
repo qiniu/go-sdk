@@ -95,10 +95,6 @@ func (frr jsonFileSystemResumableRecorder) fileName(options *ResumableRecorderOp
 	hasher.Write([]byte{0})
 	hasher.Write([]byte(options.ETag))
 	hasher.Write([]byte{0})
-	for _, downloadURL := range options.DownloadURLs {
-		hasher.Write([]byte(downloadURL))
-		hasher.Write([]byte{1})
-	}
 	hasher.Write([]byte{0})
 	binary.Write(hasher, binary.LittleEndian, options.PartSize)
 	binary.Write(hasher, binary.LittleEndian, options.TotalSize)
@@ -111,12 +107,11 @@ func (frr jsonFileSystemResumableRecorder) getFilePath(options *ResumableRecorde
 
 type (
 	jsonBasedResumableRecorderOpenOptions struct {
-		ETag           string   `json:"e,omitempty"`
-		DestinationKey string   `json:"d,omitempty"`
-		PartSize       uint64   `json:"p,omitempty"`
-		TotalSize      uint64   `json:"t,omitempty"`
-		DownloadURLs   []string `json:"u,omitempty"`
-		Version        uint32   `json:"v,omitempty"`
+		ETag           string `json:"e,omitempty"`
+		DestinationKey string `json:"d,omitempty"`
+		PartSize       uint64 `json:"p,omitempty"`
+		TotalSize      uint64 `json:"t,omitempty"`
+		Version        uint32 `json:"v,omitempty"`
 	}
 
 	jsonBasedResumableRecord struct {
@@ -134,7 +129,6 @@ func jsonFileSystemResumableRecorderWriteHeaderLine(encoder *json.Encoder, optio
 		DestinationKey: options.DestinationKey,
 		PartSize:       options.PartSize,
 		TotalSize:      options.TotalSize,
-		DownloadURLs:   options.DownloadURLs,
 		Version:        fileSystemResumableRecorderVersion,
 	})
 }
@@ -150,7 +144,6 @@ func jsonFileSystemResumableRecorderVerifyHeaderLine(decoder *json.Decoder, opti
 		DestinationKey: options.DestinationKey,
 		PartSize:       options.PartSize,
 		TotalSize:      options.TotalSize,
-		DownloadURLs:   options.DownloadURLs,
 		Version:        fileSystemResumableRecorderVersion,
 	}), nil
 }
