@@ -121,7 +121,7 @@ func (su *signedURL) GetURL(u *url.URL) error {
 		var (
 			signedURL url.URL
 		)
-		if err = su.url.GetURL(u); err != nil {
+		if err = su.url.GetURL(&signedURL); err != nil {
 			return nil, err
 		}
 		if err = su.signer.Sign(su.ctx, &signedURL, su.options); err != nil {

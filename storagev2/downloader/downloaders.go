@@ -178,7 +178,7 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urls []URLP
 	for _, part := range parts {
 		p := part
 		g.Go(func() error {
-			n, err := downloader.downloadToPart(ctx, urls, etag, p, writeableMedium, func(downloaded uint64) {
+			n, err := downloader.downloadToPart(ctx, urls, etag, needToDownload, p, writeableMedium, func(downloaded uint64) {
 				downloadingProgress.setPartDownloadingProgress(p.Offset(), downloaded)
 				if onDownloadingProgress := options.OnDownloadingProgress; onDownloadingProgress != nil {
 					onDownloadingProgress(downloadingProgress.totalDownloaded(), needToDownload)
@@ -205,7 +205,7 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urls []URLP
 }
 
 func (downloader concurrentDownloader) downloadToPart(
-	ctx context.Context, urls []URLProvider, etag string,
+	ctx context.Context, urls []URLProvider, etag string, totalSize uint64,
 	part destination.Part, writeableMedium resumablerecorder.WriteableResumableRecorderMedium, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
 	var (
 		n        uint64
@@ -215,7 +215,7 @@ func (downloader concurrentDownloader) downloadToPart(
 		haveRead = part.HaveDownloaded()
 	)
 	for size > haveRead {
-		n, err = downloadToPartReaderWithOffsetAndSize(ctx, urls, etag, offset+haveRead, size-haveRead, downloader.client, part, onDownloadingProgress)
+		n, err = downloadToPartReaderWithOffsetAndSize(ctx, urls, etag, offset+haveRead, size-haveRead, totalSize, downloader.client, part, onDownloadingProgress)
 		if n > 0 {
 			haveRead += n
 			continue
@@ -233,7 +233,7 @@ func (downloader concurrentDownloader) downloadToPart(
 }
 
 func downloadToPartReaderWithOffsetAndSize(
-	ctx context.Context, urls []URLProvider, etag string, offset, size uint64,
+	ctx context.Context, urls []URLProvider, etag string, offset, size, totalSize uint64,
 	client clientv2.Client, part destination.PartReader, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
 	headers := make(http.Header)
 	headers.Set("Range", fmt.Sprintf("bytes=%d-%d", offset, offset+size-1))
