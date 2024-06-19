@@ -83,6 +83,7 @@ func (scheduler concurrentMultiPartsUploaderScheduler) UploadParts(ctx context.C
 	}
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(scheduler.concurrency)
+	var onUploadingProgressMutex sync.Mutex
 	for {
 		part, err := src.Slice(scheduler.partSize)
 		if err != nil {
@@ -95,6 +96,8 @@ func (scheduler concurrentMultiPartsUploaderScheduler) UploadParts(ctx context.C
 			var uploadPartParam UploadPartOptions
 			if options != nil && options.OnUploadingProgress != nil {
 				uploadPartParam.OnUploadingProgress = func(uploaded, partSize uint64) {
+					onUploadingProgressMutex.Lock()
+					defer onUploadingProgressMutex.Unlock()
 					options.OnUploadingProgress(part.PartNumber(), uploaded, partSize)
 				}
 			}
