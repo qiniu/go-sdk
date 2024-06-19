@@ -2,6 +2,7 @@ package downloader
 
 import (
 	"context"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -26,6 +27,8 @@ type (
 
 	// 目标下载选项
 	DestinationDownloadOptions struct {
+		// 对象下载附加 HTTP Header
+		Header http.Header
 		// 对象下载进度
 		OnDownloadingProgress func(downloaded, totalSize uint64)
 	}

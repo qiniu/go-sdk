@@ -147,15 +147,17 @@ func TestConcurrentDownloaderWithCompression(t *testing.T) {
 		counts += 1
 		switch id {
 		case 1:
-			if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-				t.Fatalf("unexpected accept-encoding")
-			}
 			switch r.Method {
 			case http.MethodHead:
-				w.Header().Set("Etag", "testetag1.gz")
-				w.Header().Set("Content-Encoding", "gzip")
+				if r.Header.Get("Accept-Encoding") != "" {
+					t.Fatalf("unexpected accept-encoding")
+				}
+				w.Header().Set("Etag", "\"testetag1\"")
 			case http.MethodGet:
-				w.Header().Set("Etag", "testetag1.gz")
+				if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+					t.Fatalf("unexpected accept-encoding")
+				}
+				w.Header().Set("Etag", "\"testetag1.gz\"")
 				w.Header().Set("Content-Encoding", "gzip")
 				var (
 					r   = io.TeeReader(io.LimitReader(rand.New(rand.NewSource(time.Now().UnixNano())), 1024*1024), hasher)
@@ -305,6 +307,104 @@ func TestConcurrentDownloaderWithMultipleParts(t *testing.T) {
 	}
 	hasher := md5.New()
 	if _, err = srcFile.Seek(0, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = io.Copy(hasher, srcFile); err != nil {
+		t.Fatal(err)
+	}
+	serverMD5 := hasher.Sum(nil)
+	hasher.Reset()
+	if _, err = dstFile.Seek(0, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = io.Copy(hasher, dstFile); err != nil {
+		t.Fatal(err)
+	}
+	clientMD5 := hasher.Sum(nil)
+	if !bytes.Equal(serverMD5, clientMD5) {
+		t.Fatalf("unexpected hash")
+	}
+}
+
+func TestConcurrentDownloaderWithMultiplePartsAndRange(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	srcFile, err := ioutil.TempFile(tmpDir, "testfile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srcFile.Close()
+
+	dstFile, err := ioutil.TempFile(tmpDir, "testfile2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dstFile.Close()
+
+	const SIZE = 1024 * 1024 * 127
+	if _, err = io.CopyN(srcFile, rand.New(rand.NewSource(time.Now().UnixNano())), SIZE); err != nil {
+		t.Fatal(err)
+	}
+	const REQUEST_SIZE = 1024 * 1024 * 126
+
+	mux := http.NewServeMux()
+	handler := http.FileServer(http.Dir(tmpDir))
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Etag", "testetag1")
+		handler.ServeHTTP(w, r)
+	})
+	server1 := httptest.NewServer(mux)
+	defer server1.Close()
+	url1, err := url.Parse(server1.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	url1.Path = "/" + filepath.Base(srcFile.Name())
+	d := downloader.NewConcurrentDownloader(&downloader.ConcurrentDownloaderOptions{
+		Concurrency: 16,
+		PartSize:    4 * 1024 * 1024,
+		DownloaderOptions: downloader.DownloaderOptions{
+			Backoff:  backoff.NewFixedBackoff(0),
+			Resolver: resolver.NewDefaultResolver(),
+			Chooser:  chooser.NewDirectChooser(),
+		},
+	})
+	dest, err := destination.NewFileDestination(dstFile.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lastDownloaded uint64
+	n, err := d.Download(
+		context.Background(),
+		[]downloader.URLProvider{downloader.NewURLProvider(url1)},
+		dest,
+		&downloader.DestinationDownloadOptions{
+			Header: http.Header{"Range": []string{fmt.Sprintf("bytes=%d-", SIZE-REQUEST_SIZE)}},
+			OnDownloadingProgress: func(downloaded, totalSize uint64) {
+				if downloaded < atomic.LoadUint64(&lastDownloaded) {
+					t.Fatalf("unexpected downloaded progress")
+				}
+				atomic.StoreUint64(&lastDownloaded, downloaded)
+				if totalSize != REQUEST_SIZE {
+					t.Fatalf("unexpected downloaded progress")
+				}
+			},
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != REQUEST_SIZE {
+		t.Fatalf("unexpected downloaded size")
+	}
+	if lastDownloaded != REQUEST_SIZE {
+		t.Fatalf("unexpected downloaded progress")
+	}
+	hasher := md5.New()
+	if _, err = srcFile.Seek(SIZE-REQUEST_SIZE, io.SeekStart); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = io.Copy(hasher, srcFile); err != nil {

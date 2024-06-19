@@ -16,6 +16,9 @@ type (
 
 		// 数据源大小
 		TotalSize uint64
+
+		// 数据源偏移量
+		Offset uint64
 	}
 
 	// 可恢复记录仪接口

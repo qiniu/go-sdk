@@ -11,13 +11,18 @@ import (
 )
 
 type (
+	SliceOptions struct {
+		// 只读可恢复记录仪介质
+		Medium resumablerecorder.ReadableResumableRecorderMedium
+	}
+
 	// 数据目标
 	Destination interface {
 		PartReader
 		io.Closer
 
 		// 切片
-		Slice(totalSize, partSize uint64, medium resumablerecorder.ReadableResumableRecorderMedium) ([]Part, error)
+		Slice(totalSize, partSize uint64, options *SliceOptions) ([]Part, error)
 
 		// 数据目标 KEY
 		DestinationKey() (string, error)
@@ -78,7 +83,7 @@ func (wcd *writeCloserDestination) CopyFrom(r io.Reader, progress func(uint64)) 
 	return copyBuffer(wcd.wr, r, progress)
 }
 
-func (wcd *writeCloserDestination) Slice(totalSize, _ uint64, _ resumablerecorder.ReadableResumableRecorderMedium) ([]Part, error) {
+func (wcd *writeCloserDestination) Slice(totalSize, _ uint64, _ *SliceOptions) ([]Part, error) {
 	return []Part{&writeCloserPart{wcd.wr, totalSize, totalSize}}, nil
 }
 
@@ -131,14 +136,18 @@ func (wad *writerAtDestination) CopyFrom(r io.Reader, progress func(uint64)) (ui
 	return uint64(n), err
 }
 
-func (wad *writerAtDestination) Slice(totalSize, partSize uint64, medium resumablerecorder.ReadableResumableRecorderMedium) ([]Part, error) {
+func (wad *writerAtDestination) Slice(totalSize, partSize uint64, options *SliceOptions) ([]Part, error) {
 	var (
 		parts           []Part
 		offsetMap       = make(map[uint64]uint64)
 		resumableRecord resumablerecorder.ResumableRecord
 		err             error
 	)
-	if medium != nil {
+	if options == nil {
+		options = &SliceOptions{}
+	}
+
+	if medium := options.Medium; medium != nil {
 		for {
 			if err = medium.Next(&resumableRecord); err != nil {
 				break

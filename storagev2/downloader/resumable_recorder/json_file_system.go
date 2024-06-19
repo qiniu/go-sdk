@@ -96,6 +96,7 @@ func (frr jsonFileSystemResumableRecorder) fileName(options *ResumableRecorderOp
 	hasher.Write([]byte(options.ETag))
 	hasher.Write([]byte{0})
 	hasher.Write([]byte{0})
+	binary.Write(hasher, binary.LittleEndian, options.Offset)
 	binary.Write(hasher, binary.LittleEndian, options.PartSize)
 	binary.Write(hasher, binary.LittleEndian, options.TotalSize)
 	return hex.EncodeToString(hasher.Sum(nil))
@@ -111,6 +112,7 @@ type (
 		DestinationKey string `json:"d,omitempty"`
 		PartSize       uint64 `json:"p,omitempty"`
 		TotalSize      uint64 `json:"t,omitempty"`
+		Offset         uint64 `json:"o,omitempty"`
 		Version        uint32 `json:"v,omitempty"`
 	}
 
@@ -129,6 +131,7 @@ func jsonFileSystemResumableRecorderWriteHeaderLine(encoder *json.Encoder, optio
 		DestinationKey: options.DestinationKey,
 		PartSize:       options.PartSize,
 		TotalSize:      options.TotalSize,
+		Offset:         options.Offset,
 		Version:        fileSystemResumableRecorderVersion,
 	})
 }
@@ -144,6 +147,7 @@ func jsonFileSystemResumableRecorderVerifyHeaderLine(decoder *json.Decoder, opti
 		DestinationKey: options.DestinationKey,
 		PartSize:       options.PartSize,
 		TotalSize:      options.TotalSize,
+		Offset:         options.Offset,
 		Version:        fileSystemResumableRecorderVersion,
 	}), nil
 }
