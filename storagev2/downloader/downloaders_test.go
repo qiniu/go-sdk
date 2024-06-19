@@ -97,7 +97,7 @@ func TestConcurrentDownloaderWithSinglePart(t *testing.T) {
 		buf            closableBuffer
 		lastDownloaded uint64
 	)
-	n, err := d.Download(
+	n, _, err := d.Download(
 		context.Background(),
 		[]downloader.URLProvider{
 			downloader.NewURLProvider(url1),
@@ -197,7 +197,7 @@ func TestConcurrentDownloaderWithCompression(t *testing.T) {
 		buf            closableBuffer
 		lastDownloaded uint64
 	)
-	n, err := d.Download(
+	n, _, err := d.Download(
 		context.Background(),
 		[]downloader.URLProvider{downloader.NewURLProvider(url1)},
 		destination.NewWriteCloserDestination(&buf, ""), &downloader.DestinationDownloadOptions{
@@ -281,7 +281,7 @@ func TestConcurrentDownloaderWithMultipleParts(t *testing.T) {
 		t.Fatal(err)
 	}
 	var lastDownloaded uint64
-	n, err := d.Download(
+	n, _, err := d.Download(
 		context.Background(),
 		[]downloader.URLProvider{downloader.NewURLProvider(url1)},
 		dest,
@@ -378,7 +378,7 @@ func TestConcurrentDownloaderWithMultiplePartsAndRange(t *testing.T) {
 		t.Fatal(err)
 	}
 	var lastDownloaded uint64
-	n, err := d.Download(
+	n, _, err := d.Download(
 		context.Background(),
 		[]downloader.URLProvider{downloader.NewURLProvider(url1)},
 		dest,
@@ -528,7 +528,7 @@ func TestConcurrentDownloaderWithResumableRecorder(t *testing.T) {
 		t.Fatal(err)
 	}
 	var lastDownloaded uint64
-	n, err := d.Download(
+	n, _, err := d.Download(
 		context.Background(),
 		[]downloader.URLProvider{downloader.NewURLProvider(url1)},
 		dest,

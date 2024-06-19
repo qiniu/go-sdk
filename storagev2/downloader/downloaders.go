@@ -98,13 +98,13 @@ func NewConcurrentDownloader(options *ConcurrentDownloaderOptions) DestinationDo
 	return &concurrentDownloader{concurrency, partSize, client, options.ResumableRecorder}
 }
 
-func (downloader concurrentDownloader) Download(ctx context.Context, urls []URLProvider, dest destination.Destination, options *DestinationDownloadOptions) (uint64, error) {
+func (downloader concurrentDownloader) Download(ctx context.Context, urls []URLProvider, dest destination.Destination, options *DestinationDownloadOptions) (uint64, http.Header, error) {
 	if options == nil {
 		options = &DestinationDownloadOptions{}
 	}
 	headResponse, err := headRequest(ctx, urls, options.Header, downloader.client)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	var offset uint64
 	switch headResponse.StatusCode {
@@ -113,10 +113,10 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urls []URLP
 		var unused1, unused2 int64
 		contentRange := headResponse.Header.Get("Content-Range")
 		if _, err = fmt.Sscanf(contentRange, "bytes %d-%d/%d", &offset, &unused1, &unused2); err != nil {
-			return 0, err
+			return 0, headResponse.Header, err
 		}
 	default:
-		return 0, clientv1.ResponseError(headResponse)
+		return 0, headResponse.Header, clientv1.ResponseError(headResponse)
 	}
 	etag := parseEtag(headResponse.Header.Get("Etag"))
 	if headResponse.ContentLength < 0 { // 无法确定文件实际大小，发出一个请求下载整个文件，不再使用并行下载
@@ -155,7 +155,7 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urls []URLP
 
 	parts, err := dest.Slice(needToDownload, downloader.partSize, &destination.SliceOptions{Medium: readableMedium})
 	if err != nil {
-		return 0, err
+		return 0, headResponse.Header, err
 	}
 	if readableMedium != nil {
 		readableMedium.Close()
@@ -200,7 +200,7 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urls []URLP
 	if resumableRecorder := downloader.resumableRecorder; resumableRecorder != nil && resumableRecorderOpenOptions != nil && err == nil {
 		resumableRecorder.Delete(resumableRecorderOpenOptions)
 	}
-	return downloadingProgress.totalDownloaded(), err
+	return downloadingProgress.totalDownloaded(), headResponse.Header, err
 }
 
 func (downloader concurrentDownloader) downloadToPart(
@@ -214,7 +214,7 @@ func (downloader concurrentDownloader) downloadToPart(
 		haveRead = part.HaveDownloaded()
 	)
 	for size > haveRead {
-		n, err = downloadToPartReaderWithOffsetAndSize(ctx, urls, etag, originalOffset+offset+haveRead, size-haveRead, headers, downloader.client, part, onDownloadingProgress)
+		n, _, err = downloadToPartReaderWithOffsetAndSize(ctx, urls, etag, originalOffset+offset+haveRead, size-haveRead, headers, downloader.client, part, onDownloadingProgress)
 		if n > 0 {
 			haveRead += n
 			continue
@@ -233,7 +233,7 @@ func (downloader concurrentDownloader) downloadToPart(
 
 func downloadToPartReaderWithOffsetAndSize(
 	ctx context.Context, urls []URLProvider, etag string, offset, size uint64, headers http.Header,
-	client clientv2.Client, part destination.PartReader, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
+	client clientv2.Client, part destination.PartReader, onDownloadingProgress func(downloaded uint64)) (uint64, http.Header, error) {
 	headers = cloneHeader(headers)
 	setRange(headers, offset, offset+size)
 	return _downloadToPartReader(ctx, urls, headers, etag, client, part, onDownloadingProgress)
@@ -241,7 +241,7 @@ func downloadToPartReaderWithOffsetAndSize(
 
 func downloadToPartReader(
 	ctx context.Context, urls []URLProvider, etag string, headers http.Header,
-	client clientv2.Client, part destination.PartReader, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
+	client clientv2.Client, part destination.PartReader, onDownloadingProgress func(downloaded uint64)) (uint64, http.Header, error) {
 	if headers.Get("Range") == "" {
 		headers = cloneHeader(headers)
 		setAcceptGzip(headers)
@@ -251,7 +251,7 @@ func downloadToPartReader(
 
 func _downloadToPartReader(
 	ctx context.Context, urls []URLProvider, headers http.Header, etag string,
-	client clientv2.Client, part destination.PartReader, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
+	client clientv2.Client, part destination.PartReader, onDownloadingProgress func(downloaded uint64)) (uint64, http.Header, error) {
 	var (
 		response *http.Response
 		u        url.URL
@@ -261,7 +261,7 @@ func _downloadToPartReader(
 
 	for _, urlProvider := range urls {
 		if getURLErr := urlProvider.GetURL(&u); getURLErr != nil {
-			return 0, getURLErr
+			return 0, nil, getURLErr
 		}
 		req := http.Request{
 			Method: http.MethodGet,
@@ -272,7 +272,7 @@ func _downloadToPartReader(
 		ctx = context.WithValue(ctx, urlProviderContextKey{}, urlProvider)
 		if response, err = client.Do(req.WithContext(ctx)); err != nil {
 			if isUnretryableStatusCode(err) {
-				return 0, err
+				return 0, nil, err
 			}
 		}
 		var (
@@ -284,14 +284,14 @@ func _downloadToPartReader(
 			case "gzip":
 				if bodyReader, err = gzip.NewReader(bodyReader); err != nil {
 					bodyCloser.Close()
-					return 0, err
+					return 0, response.Header, err
 				}
 				fallthrough
 			case "":
 				n, err = part.CopyFrom(bodyReader, onDownloadingProgress)
 				bodyCloser.Close()
 				if n > 0 {
-					return n, err
+					return n, response.Header, err
 				}
 			default:
 				bodyCloser.Close()
@@ -302,7 +302,7 @@ func _downloadToPartReader(
 			err = errors.New("etag dismatch")
 		}
 	}
-	return 0, err
+	return 0, response.Header, err
 }
 
 func headRequest(ctx context.Context, urls []URLProvider, headers http.Header, client clientv2.Client) (response *http.Response, err error) {

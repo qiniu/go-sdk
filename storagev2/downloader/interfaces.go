@@ -35,7 +35,7 @@ type (
 
 	// 目标下载器
 	DestinationDownloader interface {
-		Download(context.Context, []URLProvider, destination.Destination, *DestinationDownloadOptions) (uint64, error)
+		Download(context.Context, []URLProvider, destination.Destination, *DestinationDownloadOptions) (uint64, http.Header, error)
 	}
 
 	// 对象下载 URL 生成选项

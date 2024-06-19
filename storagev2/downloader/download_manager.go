@@ -3,6 +3,7 @@ package downloader
 import (
 	"context"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -91,16 +92,16 @@ func NewDownloadManager(options *DownloadManagerOptions) *DownloadManager {
 	return &DownloadManager{destinationDownloader, objectsManager}
 }
 
-func (downloadManager *DownloadManager) DownloadToFile(ctx context.Context, objectName, filePath string, options *ObjectOptions) (uint64, error) {
+func (downloadManager *DownloadManager) DownloadToFile(ctx context.Context, objectName, filePath string, options *ObjectOptions) (uint64, http.Header, error) {
 	dest, err := destination.NewFileDestination(filePath)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	defer dest.Close()
 	return downloadManager.downloadToDestination(ctx, objectName, dest, options)
 }
 
-func (downloadManager *DownloadManager) DownloadToWriter(ctx context.Context, objectName string, writer io.Writer, options *ObjectOptions) (uint64, error) {
+func (downloadManager *DownloadManager) DownloadToWriter(ctx context.Context, objectName string, writer io.Writer, options *ObjectOptions) (uint64, http.Header, error) {
 	var dest destination.Destination
 	if writeAtCloser, ok := writer.(destination.WriteAtCloser); ok {
 		dest = destination.NewWriteAtCloserDestination(writeAtCloser, "")
@@ -111,20 +112,19 @@ func (downloadManager *DownloadManager) DownloadToWriter(ctx context.Context, ob
 	return downloadManager.downloadToDestination(ctx, objectName, dest, options)
 }
 
-func (downloadManager *DownloadManager) downloadToDestination(ctx context.Context, objectName string, dest destination.Destination, options *ObjectOptions) (uint64, error) {
+func (downloadManager *DownloadManager) downloadToDestination(ctx context.Context, objectName string, dest destination.Destination, options *ObjectOptions) (uint64, http.Header, error) {
 	if options == nil {
 		options = &ObjectOptions{}
 	}
 	downloadURLsGenerator := options.DownloadURLsGenerator
 	if downloadURLsGenerator == nil {
-		return 0, errors.MissingRequiredFieldError{Name: "DownloadURLsGenerator"}
+		return 0, nil, errors.MissingRequiredFieldError{Name: "DownloadURLsGenerator"}
 	}
 	urls, err := downloadURLsGenerator.GetURLs(ctx, objectName, &options.GenerateOptions)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
-	n, err := downloadManager.destinationDownloader.Download(ctx, urls, dest, &options.DestinationDownloadOptions)
-	return n, err
+	return downloadManager.destinationDownloader.Download(ctx, urls, dest, &options.DestinationDownloadOptions)
 }
 
 func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, targetDirPath string, options *DirectoryOptions) error {
@@ -183,7 +183,7 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 				if options.BeforeObjectDownload != nil {
 					options.BeforeObjectDownload(objectName, &objectOptions)
 				}
-				n, err := downloadManager.DownloadToFile(ctx, objectName, fullPath, &objectOptions)
+				n, _, err := downloadManager.DownloadToFile(ctx, objectName, fullPath, &objectOptions)
 				if err == nil && options.OnObjectDownloaded != nil {
 					options.OnObjectDownloaded(objectName, n)
 				}
