@@ -177,11 +177,14 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urls []URLP
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(int(downloader.concurrency))
-	downloadingProgress := newDownloadingPartsProgress()
+	var (
+		downloadingProgress      = newDownloadingPartsProgress()
+		downloadingProgressMutex sync.Mutex
+	)
 	for _, part := range parts {
 		p := part
 		g.Go(func() error {
-			n, err := downloader.downloadToPart(ctx, urls, etag, offset, options.Header, p, writeableMedium, func(downloaded uint64) {
+			n, err := downloader.downloadToPart(ctx, urls, etag, offset, options.Header, p, writeableMedium, &downloadingProgressMutex, func(downloaded uint64) {
 				downloadingProgress.setPartDownloadingProgress(p.Offset(), downloaded)
 				if onDownloadingProgress := options.OnDownloadingProgress; onDownloadingProgress != nil {
 					onDownloadingProgress(downloadingProgress.totalDownloaded(), needToDownload)
@@ -209,16 +212,28 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urls []URLP
 
 func (downloader concurrentDownloader) downloadToPart(
 	ctx context.Context, urls []URLProvider, etag string, originalOffset uint64, headers http.Header,
-	part destination.Part, writeableMedium resumablerecorder.WriteableResumableRecorderMedium, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
+	part destination.Part, writeableMedium resumablerecorder.WriteableResumableRecorderMedium,
+	downloadingProgressMutex *sync.Mutex, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
 	var (
-		n        uint64
-		err      error
-		size     = part.Size()
-		offset   = part.Offset()
-		haveRead = part.HaveDownloaded()
+		n                           uint64
+		err                         error
+		size                        = part.Size()
+		offset                      = part.Offset()
+		haveRead                    = part.HaveDownloaded()
+		downloadingProgressCallback func(uint64)
 	)
+	if onDownloadingProgress != nil {
+		downloadingProgressCallback = func(downloaded uint64) {
+			if downloadingProgressMutex != nil {
+				downloadingProgressMutex.Lock()
+				defer downloadingProgressMutex.Unlock()
+			}
+			onDownloadingProgress(downloaded)
+		}
+	}
 	for size > haveRead {
-		n, err = downloadToPartReaderWithOffsetAndSize(ctx, urls, etag, originalOffset+offset+haveRead, size-haveRead, headers, downloader.client, part, onDownloadingProgress)
+		n, err = downloadToPartReaderWithOffsetAndSize(ctx, urls, etag, originalOffset+offset+haveRead, size-haveRead,
+			headers, downloader.client, part, downloadingProgressCallback)
 		if n > 0 {
 			haveRead += n
 			continue
