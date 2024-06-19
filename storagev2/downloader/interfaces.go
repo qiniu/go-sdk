@@ -31,11 +31,13 @@ type (
 		Header http.Header
 		// 对象下载进度
 		OnDownloadingProgress func(downloaded, totalSize uint64)
+		// 对象 Header 获取回调
+		OnResponseHeader func(http.Header)
 	}
 
 	// 目标下载器
 	DestinationDownloader interface {
-		Download(context.Context, []URLProvider, destination.Destination, *DestinationDownloadOptions) (uint64, http.Header, error)
+		Download(context.Context, []URLProvider, destination.Destination, *DestinationDownloadOptions) (uint64, error)
 	}
 
 	// 对象下载 URL 生成选项
