@@ -22,6 +22,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_domains_v3"
 	"github.com/qiniu/go-sdk/v7/storagev2/backoff"
 	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
+	"github.com/qiniu/go-sdk/v7/storagev2/downloader"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
@@ -342,11 +343,12 @@ type BucketManagerOptions struct {
 
 // BucketManager 提供了对资源进行管理的操作
 type BucketManager struct {
-	Client    *clientv1.Client
-	Mac       *auth.Credentials
-	Cfg       *Config
-	options   BucketManagerOptions
-	apiClient *apis.Storage
+	Client          *clientv1.Client
+	Mac             *auth.Credentials
+	Cfg             *Config
+	options         BucketManagerOptions
+	apiClient       *apis.Storage
+	downloadManager *downloader.DownloadManager
 }
 
 // NewBucketManager 用来构建一个新的资源管理对象
@@ -400,11 +402,12 @@ func NewBucketManagerExWithOptions(mac *auth.Credentials, cfg *Config, clt *clie
 	}
 
 	return &BucketManager{
-		Client:    clt,
-		Mac:       mac,
-		Cfg:       cfg,
-		options:   options,
-		apiClient: apis.NewStorage(&opts),
+		Client:          clt,
+		Mac:             mac,
+		Cfg:             cfg,
+		options:         options,
+		apiClient:       apis.NewStorage(&opts),
+		downloadManager: downloader.NewDownloadManager(&downloader.DownloadManagerOptions{Options: opts}),
 	}
 }
 
