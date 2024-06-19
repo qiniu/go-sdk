@@ -12,10 +12,8 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	"github.com/qiniu/go-sdk/v7/storagev2/downloader"
@@ -89,10 +87,9 @@ func TestDefaultSrcURLsProvider(t *testing.T) {
 	defer cacheFile.Close()
 
 	generator, err := downloader.NewDefaultSrcURLsProvider(
-		credentials.NewCredentials(accessKey, secretKey),
+		accessKey,
 		&downloader.DefaultSrcURLsProviderOptions{
 			BucketRegionsQueryOptions: region.BucketRegionsQueryOptions{PersistentFilePath: cacheFile.Name()},
-			SignOptions:               downloader.SignOptions{Ttl: 1 * time.Minute},
 			BucketHosts:               region.Endpoints{Preferred: []string{server.URL}},
 		},
 	)
@@ -109,10 +106,7 @@ func TestDefaultSrcURLsProvider(t *testing.T) {
 	if len(urls) != 1 {
 		t.Fatalf("unexpected urls count")
 	}
-	if !strings.HasPrefix(getURLProviderString(t, urls[0]), "https://fakebucket.cn-east-1.qiniucs.com//%21@%23$%25%5E&%2A%28%29%3F?test1|test2&e=") {
-		t.Fatalf("unexpected generated url")
-	}
-	if !strings.Contains(getURLProviderString(t, urls[0]), "&token=fakeaccesskey:") {
+	if getURLProviderString(t, urls[0]) != "https://fakebucket.cn-east-1.qiniucs.com//%21@%23$%25%5E&%2A%28%29%3F?test1|test2" {
 		t.Fatalf("unexpected generated url")
 	}
 }

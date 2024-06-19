@@ -40,9 +40,8 @@ type (
 	}
 
 	defaultSrcURLsProvider struct {
-		credentials credentials.CredentialsProvider
-		query       region.BucketRegionsQuery
-		ttl         time.Duration
+		accessKey string
+		query     region.BucketRegionsQuery
 	}
 
 	domainsQueryURLsProvider struct {
@@ -65,7 +64,6 @@ type (
 	// 默认源站域名下载 URL 生成器选项
 	DefaultSrcURLsProviderOptions struct {
 		region.BucketRegionsQueryOptions
-		SignOptions
 
 		// Bucket 服务器地址
 		BucketHosts region.Endpoints
@@ -175,7 +173,7 @@ func (g *staticDomainBasedURLsProvider) GetURLs(_ context.Context, objectName st
 }
 
 // 创建默认源站域名下载 URL 生成器
-func NewDefaultSrcURLsProvider(credentials credentials.CredentialsProvider, options *DefaultSrcURLsProviderOptions) (DownloadURLsProvider, error) {
+func NewDefaultSrcURLsProvider(accessKey string, options *DefaultSrcURLsProviderOptions) (DownloadURLsProvider, error) {
 	if options == nil {
 		options = &DefaultSrcURLsProviderOptions{}
 	}
@@ -183,15 +181,11 @@ func NewDefaultSrcURLsProvider(credentials credentials.CredentialsProvider, opti
 	if bucketHosts.IsEmpty() {
 		bucketHosts = http_client.DefaultBucketHosts()
 	}
-	ttl := options.Ttl
-	if ttl == 0 {
-		ttl = 3 * time.Minute
-	}
 	query, err := region.NewBucketRegionsQuery(bucketHosts, &options.BucketRegionsQueryOptions)
 	if err != nil {
 		return nil, err
 	}
-	return &defaultSrcURLsProvider{credentials, query, ttl}, nil
+	return &defaultSrcURLsProvider{accessKey, query}, nil
 }
 
 func (g *defaultSrcURLsProvider) GetURLs(ctx context.Context, objectName string, options *GenerateOptions) ([]URLProvider, error) {
@@ -201,11 +195,7 @@ func (g *defaultSrcURLsProvider) GetURLs(ctx context.Context, objectName string,
 	if options.BucketName == "" {
 		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
 	}
-	cred, err := g.credentials.Get(ctx)
-	if err != nil {
-		return nil, err
-	}
-	regions, err := g.query.Query(cred.AccessKey, options.BucketName).GetRegions(ctx)
+	regions, err := g.query.Query(g.accessKey, options.BucketName).GetRegions(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +206,7 @@ func (g *defaultSrcURLsProvider) GetURLs(ctx context.Context, objectName string,
 	ioSrcDomains := make([]string, 0, len(region.IoSrc.Preferred)+len(region.IoSrc.Alternative))
 	ioSrcDomains = append(ioSrcDomains, region.IoSrc.Preferred...)
 	ioSrcDomains = append(ioSrcDomains, region.IoSrc.Alternative...)
-	return SignURLsProvider(NewStaticDomainBasedURLsProvider(ioSrcDomains), NewCredentialsSigner(g.credentials), &SignOptions{g.ttl}).GetURLs(ctx, objectName, options)
+	return NewStaticDomainBasedURLsProvider(ioSrcDomains).GetURLs(ctx, objectName, options)
 }
 
 const cacheFileName = "domain_v2_01.cache.json"
@@ -372,13 +362,11 @@ func SignURLsProvider(provider DownloadURLsProvider, signer Signer, options *Sig
 	return signedDownloadURLsProviders{provider, signer, options}
 }
 
-func (provider signedDownloadURLsProviders) GetURLs(ctx context.Context, objectName string, options *GenerateOptions) ([]URLProvider, error) {
-	urls, err := provider.provider.GetURLs(ctx, objectName, options)
-	if err != nil {
-		return nil, err
+func (provider signedDownloadURLsProviders) GetURLs(ctx context.Context, objectName string, options *GenerateOptions) (urls []URLProvider, err error) {
+	if urls, err = provider.provider.GetURLs(ctx, objectName, options); err == nil {
+		for i := range urls {
+			urls[i] = SignURLs(ctx, urls[i], provider.signer, provider.options)
+		}
 	}
-	for i := range urls {
-		urls[i] = SignURLs(ctx, urls[i], provider.signer, provider.options)
-	}
-	return urls, nil
+	return
 }
