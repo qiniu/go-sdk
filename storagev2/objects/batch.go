@@ -1,6 +1,7 @@
 package objects
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -13,7 +14,7 @@ import (
 
 	"github.com/gammazero/toposort"
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
-	"github.com/qiniu/go-sdk/v7/internal/context"
+	internal_context "github.com/qiniu/go-sdk/v7/internal/context"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/batch_ops"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/stat_object"
@@ -22,7 +23,7 @@ import (
 
 type (
 	BatchOpsExecutor interface {
-		ExecuteBatchOps(context.Context, []Operation, *apis.Storage) error
+		ExecuteBatchOps(internal_context.Context, []Operation, *apis.Storage) error
 	}
 
 	SerialBatchOpsExecutorOptions struct {
@@ -64,21 +65,21 @@ type (
 		adjustmentInterval                                              time.Duration
 		ticker                                                          *time.Ticker
 		resetTicker                                                     chan struct{}
-		cancelTicker                                                    context.CancelCauseFunc
+		cancelTicker                                                    internal_context.CancelCauseFunc
 		waitGroup                                                       sync.WaitGroup
 	}
 
 	workersManager struct {
 		lock                                  sync.Mutex
-		parentCtx                             context.Context
-		parentCancelFunc                      context.CancelCauseFunc
-		cancels                               []context.CancelCauseFunc
+		parentCtx                             internal_context.Context
+		parentCancelFunc                      internal_context.CancelCauseFunc
+		cancels                               []internal_context.CancelCauseFunc
 		requestsManager                       *requestsManager
 		maxWorkers, minWorkers                uint
 		addWorkerInterval                     time.Duration
 		ticker                                *time.Ticker
 		resetTicker                           chan struct{}
-		cancelTickerFunc                      context.CancelCauseFunc
+		cancelTickerFunc                      internal_context.CancelCauseFunc
 		timerWaitGroup, asyncWorkersWaitGroup sync.WaitGroup
 	}
 )
@@ -91,7 +92,7 @@ func NewSerialBatchOpsExecutor(options *SerialBatchOpsExecutorOptions) BatchOpsE
 	return &serialBatchOpsExecutor{options}
 }
 
-func (executor *serialBatchOpsExecutor) ExecuteBatchOps(ctx context.Context, operations []Operation, storage *apis.Storage) error {
+func (executor *serialBatchOpsExecutor) ExecuteBatchOps(ctx internal_context.Context, operations []Operation, storage *apis.Storage) error {
 	ops := make([]*operation, len(operations))
 	for i, op := range operations {
 		ops[i] = &operation{Operation: op}
@@ -108,7 +109,7 @@ func NewConcurrentBatchOpsExecutor(options *ConcurrentBatchOpsExecutorOptions) B
 	return &concurrentBatchOpsExecutor{options}
 }
 
-func (executor *concurrentBatchOpsExecutor) ExecuteBatchOps(ctx context.Context, operations []Operation, storage *apis.Storage) error {
+func (executor *concurrentBatchOpsExecutor) ExecuteBatchOps(ctx internal_context.Context, operations []Operation, storage *apis.Storage) error {
 	rm, err := newRequestsManager(
 		storage,
 		executor.options.InitBatchSize,
@@ -168,7 +169,7 @@ func newRequestsManager(storage *apis.Storage, initBatchSize, minBatchSize, maxB
 		return nil, err
 	}
 
-	ctx, cancelFunc := context.WithCancelCause(context.Background())
+	ctx, cancelFunc := internal_context.WithCancelCause(internal_context.Background())
 	rm := requestsManager{
 		storage:            storage,
 		operations:         wrapOperations(filterOperations(sortedOperations)),
@@ -188,7 +189,7 @@ func newRequestsManager(storage *apis.Storage, initBatchSize, minBatchSize, maxB
 	return &rm, nil
 }
 
-func (rm *requestsManager) asyncLoop(ctx context.Context) {
+func (rm *requestsManager) asyncLoop(ctx internal_context.Context) {
 	defer rm.waitGroup.Done()
 
 	for {
@@ -275,7 +276,7 @@ func (rm *requestsManager) increaseBatchSize() {
 	rm.batchSize = batchSize
 }
 
-func newWorkersManager(ctx context.Context, initWorkers, minWorkers, maxWorkers uint, addWorkerInterval time.Duration, requestsManager *requestsManager) *workersManager {
+func newWorkersManager(ctx internal_context.Context, initWorkers, minWorkers, maxWorkers uint, addWorkerInterval time.Duration, requestsManager *requestsManager) *workersManager {
 	if initWorkers == 0 {
 		initWorkers = 20
 	}
@@ -298,23 +299,23 @@ func newWorkersManager(ctx context.Context, initWorkers, minWorkers, maxWorkers 
 		addWorkerInterval = 1 * time.Minute
 	}
 	wm := new(workersManager)
-	wm.parentCtx, wm.parentCancelFunc = context.WithCancelCause(ctx)
+	wm.parentCtx, wm.parentCancelFunc = internal_context.WithCancelCause(ctx)
 	wm.requestsManager = requestsManager
-	wm.cancels = make([]context.CancelCauseFunc, initWorkers)
+	wm.cancels = make([]internal_context.CancelCauseFunc, initWorkers)
 	wm.maxWorkers = maxWorkers
 	wm.minWorkers = minWorkers
 	wm.addWorkerInterval = addWorkerInterval
 	wm.ticker = time.NewTicker(addWorkerInterval)
 	wm.resetTicker = make(chan struct{}, 1024)
 
-	var timerTickerCtx context.Context
-	timerTickerCtx, wm.cancelTickerFunc = context.WithCancelCause(wm.parentCtx)
+	var timerTickerCtx internal_context.Context
+	timerTickerCtx, wm.cancelTickerFunc = internal_context.WithCancelCause(wm.parentCtx)
 
 	wm.timerWaitGroup.Add(1)
 	go wm.asyncAddWorkersLoop(timerTickerCtx)
 
 	for i := uint(0); i < initWorkers; i++ {
-		workerCtx, workerCancelFunc := context.WithCancelCause(wm.parentCtx)
+		workerCtx, workerCancelFunc := internal_context.WithCancelCause(wm.parentCtx)
 		wm.cancels[i] = workerCancelFunc
 		wm.asyncWorkersWaitGroup.Add(1)
 		go wm.asyncWorker(workerCtx, i)
@@ -322,7 +323,7 @@ func newWorkersManager(ctx context.Context, initWorkers, minWorkers, maxWorkers 
 	return wm
 }
 
-func (wm *workersManager) asyncAddWorkersLoop(ctx context.Context) {
+func (wm *workersManager) asyncAddWorkersLoop(ctx internal_context.Context) {
 	defer wm.timerWaitGroup.Done()
 
 	for {
@@ -374,7 +375,7 @@ func (wm *workersManager) doOperationsSync() error {
 	}
 }
 
-func (wm *workersManager) asyncWorker(ctx context.Context, id uint) {
+func (wm *workersManager) asyncWorker(ctx internal_context.Context, id uint) {
 	defer wm.asyncWorkersWaitGroup.Done()
 	for getCtxError(wm.parentCtx) == nil {
 		if operations := wm.requestsManager.takeOperations(); len(operations) > 0 {
@@ -399,7 +400,7 @@ func (wm *workersManager) asyncWorker(ctx context.Context, id uint) {
 	}
 }
 
-func (wm *workersManager) doOperations(ctx context.Context, operations []*operation) ([]*operation, error) {
+func (wm *workersManager) doOperations(ctx internal_context.Context, operations []*operation) ([]*operation, error) {
 	return doOperations(ctx, operations, wm.requestsManager.storage, wm.requestsManager.batchSize, wm.requestsManager.maxTries)
 }
 
@@ -432,7 +433,7 @@ func (wm *workersManager) spawnWorker() {
 	wm.lock.Lock()
 	defer wm.lock.Unlock()
 
-	workerCtx, workerCancelFunc := context.WithCancelCause(wm.parentCtx)
+	workerCtx, workerCancelFunc := internal_context.WithCancelCause(wm.parentCtx)
 	for id := range wm.cancels {
 		if wm.cancels[id] == nil {
 			wm.cancels[id] = workerCancelFunc
@@ -444,7 +445,7 @@ func (wm *workersManager) spawnWorker() {
 	go wm.asyncWorker(workerCtx, uint(len(wm.cancels)-1))
 }
 
-func doOperations(ctx context.Context, operations []*operation, storage *apis.Storage, batchSize, maxTries uint) ([]*operation, error) {
+func doOperations(ctx internal_context.Context, operations []*operation, storage *apis.Storage, batchSize, maxTries uint) ([]*operation, error) {
 	if batchSize == 0 {
 		batchSize = 1000
 	}
@@ -710,7 +711,7 @@ func findBestMatches(size int, operations [][]*operation) ([]*operation, [][]*op
 	return bestMatches, append(operations[:lastIdx], operations[lastIdx+1:]...)
 }
 
-func getCtxError(ctx context.Context) error {
+func getCtxError(ctx internal_context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -720,7 +721,9 @@ func getCtxError(ctx context.Context) error {
 }
 
 func isTimeoutError(err error) bool {
-	if os.IsTimeout(err) {
+	if err == context.DeadlineExceeded {
+		return false
+	} else if os.IsTimeout(err) {
 		return true
 	} else if clientErr, ok := unwrapUnderlyingError(err).(*clientv1.ErrorInfo); ok {
 		if clientErr.Code == 504 {

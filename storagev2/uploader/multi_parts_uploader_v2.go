@@ -73,7 +73,7 @@ func (uploader *multiPartsUploaderV2) InitializeParts(ctx context.Context, src s
 		multiPartsObjectOptions.BucketName = bucketName
 	}
 
-	response, err := uploader.storage.ResumableUploadV2InitiateMultipartUpload(context.Background(), &apis.ResumableUploadV2InitiateMultipartUploadRequest{
+	response, err := uploader.storage.ResumableUploadV2InitiateMultipartUpload(ctx, &apis.ResumableUploadV2InitiateMultipartUploadRequest{
 		BucketName: bucketName,
 		ObjectName: multiPartsObjectOptions.ObjectName,
 		UpToken:    upToken,
@@ -203,7 +203,7 @@ func (uploader *multiPartsUploaderV2) uploadPart(ctx context.Context, initialize
 		return nil, err
 	}
 
-	response, err := uploader.storage.ResumableUploadV2UploadPart(context.Background(), &apis.ResumableUploadV2UploadPartRequest{
+	response, err := uploader.storage.ResumableUploadV2UploadPart(ctx, &apis.ResumableUploadV2UploadPartRequest{
 		BucketName: initialized.bucketName,
 		ObjectName: initialized.multiPartsObjectOptions.ObjectName,
 		UploadId:   initialized.uploadId,
@@ -272,7 +272,7 @@ func (uploader *multiPartsUploaderV2) CompleteParts(ctx context.Context, initial
 		customVars[normalizeCustomVarKey(k)] = v
 	}
 
-	_, err = uploader.storage.ResumableUploadV2CompleteMultipartUpload(context.Background(), &apis.ResumableUploadV2CompleteMultipartUploadRequest{
+	_, err = uploader.storage.ResumableUploadV2CompleteMultipartUpload(ctx, &apis.ResumableUploadV2CompleteMultipartUploadRequest{
 		BucketName:   initializedParts.bucketName,
 		ObjectName:   initializedParts.multiPartsObjectOptions.ObjectName,
 		UploadId:     initializedParts.uploadId,

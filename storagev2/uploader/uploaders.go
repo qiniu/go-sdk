@@ -215,7 +215,7 @@ func (uploader multiPartsUploader) UploadReader(ctx context.Context, reader io.R
 }
 
 func (uploader multiPartsUploader) upload(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectOptions *ObjectOptions, returnValue interface{}) error {
-	resumed, err := uploader.uploadResumedParts(ctx, src, upToken, httpClientOptions, objectOptions, returnValue)
+	resumed, err := uploader.uploadResumedParts(ctx, src, objectOptions, returnValue)
 	if err == nil && resumed {
 		return nil
 	} else if resumed {
@@ -228,7 +228,7 @@ func (uploader multiPartsUploader) upload(ctx context.Context, src source.Source
 	return uploader.tryToUploadToEachRegion(ctx, src, upToken, httpClientOptions, objectOptions, returnValue)
 }
 
-func (uploader multiPartsUploader) uploadResumedParts(ctx context.Context, src source.Source, upToken uptoken.Provider, httpClientOptions *httpclient.Options, objectOptions *ObjectOptions, returnValue interface{}) (bool, error) {
+func (uploader multiPartsUploader) uploadResumedParts(ctx context.Context, src source.Source, objectOptions *ObjectOptions, returnValue interface{}) (bool, error) {
 	multiPartsObjectOptions := MultiPartsObjectOptions{*objectOptions, uploader.scheduler.PartSize()}
 	if initializedParts := uploader.scheduler.MultiPartsUploader().TryToResume(ctx, src, &multiPartsObjectOptions); initializedParts == nil {
 		return false, nil

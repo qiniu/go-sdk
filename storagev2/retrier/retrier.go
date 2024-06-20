@@ -137,7 +137,9 @@ func getRetryDecisionForError(err error) RetryDecision {
 	}
 
 	unwrapedErr := unwrapUnderlyingError(err)
-	if os.IsTimeout(unwrapedErr) {
+	if unwrapedErr == context.DeadlineExceeded {
+		return DontRetry
+	} else if os.IsTimeout(unwrapedErr) {
 		return RetryRequest
 	} else if dnsError, ok := unwrapedErr.(*net.DNSError); ok && isDnsNotFoundError(dnsError) {
 		return TryNextHost
