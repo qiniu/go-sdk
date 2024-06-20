@@ -12,6 +12,7 @@ const (
 	DomainLiveRTMP    string = "liveRtmp"
 	DomainLiveHLS     string = "liveHls"
 	DomainLiveHDL     string = "liveHdl"
+	DomainLiveRTC     string = "liveWebrtc"
 )
 
 type Stream struct {
@@ -129,9 +130,10 @@ type RouteRet struct {
 }
 
 type RoutePlayUrls struct {
-	Rtmp string `json:"rtmp"` // rtmp播放地址
-	Flv  string `json:"flv"`  // flv播放地址
-	Hls  string `json:"hls"`  // hls播放地址
+	Rtmp   string `json:"rtmp"`   // rtmp播放地址
+	Flv    string `json:"flv"`    // flv播放地址
+	Hls    string `json:"hls"`    // hls播放地址
+	WebRTC string `json:"webrtc"` //webrtc播放地址
 }
 
 /*
@@ -166,6 +168,8 @@ func (manager *Manager) StaticPublishPlayURL(nsId, streamId string, route *Stati
 		return ret.PlayUrls.Hls, nil
 	case DomainLiveHDL:
 		return ret.PlayUrls.Flv, nil
+	case DomainLiveRTC:
+		return ret.PlayUrls.WebRTC, nil
 	}
 	return "", nil
 }
