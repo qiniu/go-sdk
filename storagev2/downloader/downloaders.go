@@ -88,7 +88,7 @@ func NewConcurrentDownloader(options *ConcurrentDownloaderOptions) DestinationDo
 	}
 	concurrency := options.Concurrency
 	if concurrency == 0 {
-		concurrency = 1
+		concurrency = 4
 	}
 	partSize := options.PartSize
 	if partSize == 0 {

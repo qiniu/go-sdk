@@ -425,8 +425,9 @@ func TestUploadManagerUploadDirectory(t *testing.T) {
 }
 
 func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
-	localFiles := make(map[string]uint64)
-	remoteObjects := make(map[string]*os.File)
+	// localFiles := make(map[string]uint64)
+	// remoteObjects := make(map[string]*os.File)
+	var localFiles, remoteObjects sync.Map
 
 	tmpDir_1, err := ioutil.TempDir("", "multi-parts-uploader-test-*")
 	if err != nil {
@@ -435,7 +436,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	defer os.RemoveAll(tmpDir_1)
 
 	const objectPrefix = "remoteDirectory"
-	remoteObjects[objectPrefix+string(os.PathSeparator)] = nil
+	remoteObjects.Store(objectPrefix+string(os.PathSeparator), (*os.File)(nil))
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -452,9 +453,9 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	if relativePath, err := filepath.Rel(tmpDir_1, tmpFile_1.Name()); err != nil {
 		t.Fatal(err)
 	} else {
-		remoteObjects[filepath.Join(objectPrefix, relativePath)] = tmpFile_1
+		remoteObjects.Store(filepath.Join(objectPrefix, relativePath), tmpFile_1)
 	}
-	localFiles[tmpFile_1.Name()] = 0
+	localFiles.Store(tmpFile_1.Name(), uint64(0))
 
 	tmpDir_2, err := ioutil.TempDir(tmpDir_1, "multi-parts-uploader-test-*")
 	if err != nil {
@@ -463,7 +464,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	if relativeDir, err := filepath.Rel(tmpDir_1, tmpDir_2); err != nil {
 		t.Fatal(err)
 	} else {
-		remoteObjects[filepath.Join(objectPrefix, relativeDir)+string(os.PathSeparator)] = nil
+		remoteObjects.Store(filepath.Join(objectPrefix, relativeDir)+string(os.PathSeparator), (*os.File)(nil))
 	}
 
 	tmpFile_2, err := ioutil.TempFile(tmpDir_2, "multi-parts-uploader-test-*")
@@ -479,9 +480,9 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	if relativePath, err := filepath.Rel(tmpDir_1, tmpFile_2.Name()); err != nil {
 		t.Fatal(err)
 	} else {
-		remoteObjects[filepath.Join(objectPrefix, relativePath)] = tmpFile_2
+		remoteObjects.Store(filepath.Join(objectPrefix, relativePath), tmpFile_2)
 	}
-	localFiles[tmpFile_2.Name()] = 0
+	localFiles.Store(tmpFile_2.Name(), uint64(0))
 
 	tmpDir_3, err := ioutil.TempDir(tmpDir_2, "multi-parts-uploader-test-*")
 	if err != nil {
@@ -490,7 +491,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	if relativeDir, err := filepath.Rel(tmpDir_1, tmpDir_3); err != nil {
 		t.Fatal(err)
 	} else {
-		remoteObjects[filepath.Join(objectPrefix, relativeDir)+string(os.PathSeparator)] = nil
+		remoteObjects.Store(filepath.Join(objectPrefix, relativeDir)+string(os.PathSeparator), (*os.File)(nil))
 	}
 
 	tmpFile_3, err := ioutil.TempFile(tmpDir_3, "multi-parts-uploader-test-*")
@@ -506,9 +507,9 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	if relativePath, err := filepath.Rel(tmpDir_1, tmpFile_3.Name()); err != nil {
 		t.Fatal(err)
 	} else {
-		remoteObjects[filepath.Join(objectPrefix, relativePath)] = tmpFile_3
+		remoteObjects.Store(filepath.Join(objectPrefix, relativePath), tmpFile_3)
 	}
-	localFiles[tmpFile_3.Name()] = 0
+	localFiles.Store(tmpFile_3.Name(), uint64(0))
 
 	serveMux := http.NewServeMux()
 	serveMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -523,10 +524,12 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 		}
 
 		key := r.MultipartForm.Value["key"][0]
-		if expectedObject, ok := remoteObjects[key]; !ok {
+		if expectedValue, ok := remoteObjects.Load(key); !ok {
+			t.Fatalf("unexpected key")
+		} else if expectedObject, ok := expectedValue.(*os.File); !ok {
 			t.Fatalf("unexpected key")
 		} else {
-			delete(remoteObjects, key)
+			remoteObjects.Delete(key)
 			multiPartFile := r.MultipartForm.File["file"][0]
 			receivedFile, err := multiPartFile.Open()
 			if err != nil {
@@ -575,7 +578,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 		BucketName:   "testbucket",
 		ObjectPrefix: objectPrefix,
 		BeforeObjectUpload: func(filePath string, _ *uploader.ObjectOptions) {
-			if _, ok := localFiles[filePath]; !ok {
+			if _, ok := localFiles.Load(filePath); !ok {
 				t.Fatalf("unexpected filePath")
 			}
 		},
@@ -583,19 +586,21 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 			if totalSize != 1024*1024 {
 				t.Fatalf("unexpected totalSize")
 			}
-			if lastUploaded, ok := localFiles[filePath]; !ok {
+			if lastUploadedValue, ok := localFiles.Load(filePath); !ok {
+				t.Fatalf("unexpected filePath")
+			} else if lastUploaded, ok := lastUploadedValue.(uint64); !ok {
 				t.Fatalf("unexpected filePath")
 			} else if uploaded < lastUploaded {
 				t.Fatalf("unexpected uploaded")
 			} else {
-				localFiles[filePath] = uploaded
+				localFiles.Store(filePath, uploaded)
 			}
 		},
 		OnObjectUploaded: func(filePath string, size uint64) {
 			if size != 1024*1024 {
 				t.Fatalf("unexpected size")
 			}
-			if _, ok := localFiles[filePath]; !ok {
+			if _, ok := localFiles.Load(filePath); !ok {
 				t.Fatalf("unexpected filePath")
 			}
 		},

@@ -144,7 +144,7 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 	}
 	objectConcurrency := options.ObjectConcurrency
 	if objectConcurrency == 0 {
-		objectConcurrency = 1
+		objectConcurrency = 4
 	}
 
 	g, ctx := errgroup.WithContext(ctx)

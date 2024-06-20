@@ -81,13 +81,17 @@ func NewUploadManager(options *UploadManagerOptions) *UploadManager {
 	if multiPartsThreshold == 0 {
 		multiPartsThreshold = partSize
 	}
+	concurrency := options.Concurrency
+	if concurrency == 0 {
+		concurrency = 4
+	}
 	uploadManager := UploadManager{
 		options:                   options.Options,
 		upTokenProvider:           options.UpTokenProvider,
 		resumableRecorder:         options.ResumableRecorder,
 		partSize:                  partSize,
 		multiPartsThreshold:       multiPartsThreshold,
-		concurrency:               options.Concurrency,
+		concurrency:               concurrency,
 		multiPartsUploaderVersion: options.MultiPartsUploaderVersion,
 	}
 	return &uploadManager
@@ -100,7 +104,7 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 	}
 	objectConcurrency := directoryOptions.ObjectConcurrency
 	if objectConcurrency == 0 {
-		objectConcurrency = 1
+		objectConcurrency = 4
 	}
 
 	if !strings.HasSuffix(directoryPath, "/") {

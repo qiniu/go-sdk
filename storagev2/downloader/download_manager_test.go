@@ -64,10 +64,9 @@ func TestDownloadManagerDownloadDirectory(t *testing.T) {
 	rsfServer := httptest.NewServer(rsfMux)
 	defer rsfServer.Close()
 
-	rander := rand.New(rand.NewSource(time.Now().UnixNano()))
-
 	ioMux := http.NewServeMux()
 	ioMux.HandleFunc("/test1/file1", func(w http.ResponseWriter, r *http.Request) {
+		rander := rand.New(rand.NewSource(time.Now().UnixNano()))
 		switch r.Method {
 		case http.MethodHead:
 			w.Header().Set("Content-Type", "application/json")
@@ -83,6 +82,7 @@ func TestDownloadManagerDownloadDirectory(t *testing.T) {
 		}
 	})
 	ioMux.HandleFunc("/test2/file2", func(w http.ResponseWriter, r *http.Request) {
+		rander := rand.New(rand.NewSource(time.Now().UnixNano()))
 		switch r.Method {
 		case http.MethodHead:
 			w.Header().Set("Content-Type", "application/json")
