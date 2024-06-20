@@ -310,6 +310,42 @@ func (httpClient *Client) GetHostsRetryConfig() *RetryConfig {
 	return httpClient.hostsRetryConfig
 }
 
+func (httpClient *Client) GetResolver() resolver.Resolver {
+	return httpClient.resolver
+}
+
+func (httpClient *Client) GetChooser() chooser.Chooser {
+	return httpClient.chooser
+}
+
+func (httpClient *Client) GetBeforeResolveCallback() func(*http.Request) {
+	return httpClient.beforeResolve
+}
+
+func (httpClient *Client) GetAfterResolveCallback() func(*http.Request, []net.IP) {
+	return httpClient.afterResolve
+}
+
+func (httpClient *Client) GetResolveErrorCallback() func(*http.Request, error) {
+	return httpClient.resolveError
+}
+
+func (httpClient *Client) GetBeforeBackoffCallback() func(*http.Request, *retrier.RetrierOptions, time.Duration) {
+	return httpClient.beforeBackoff
+}
+
+func (httpClient *Client) GetAfterBackoffCallback() func(*http.Request, *retrier.RetrierOptions, time.Duration) {
+	return httpClient.afterBackoff
+}
+
+func (httpClient *Client) GetBeforeRequestCallback() func(*http.Request, *retrier.RetrierOptions) {
+	return httpClient.beforeRequest
+}
+
+func (httpClient *Client) GetAfterResponseCallback() func(*http.Response, *retrier.RetrierOptions, error) {
+	return httpClient.afterResponse
+}
+
 func (httpClient *Client) getEndpoints(ctx context.Context, request *Request) (region.Endpoints, error) {
 	getEndpointsFromEndpointsProvider := func(ctx context.Context, endpoints region.EndpointsProvider) (region.Endpoints, error) {
 		return endpoints.GetEndpoints(ctx)
