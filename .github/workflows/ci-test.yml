@@ -26,7 +26,6 @@ jobs:
           GOPATH=$GITHUB_WORKSPACE go get github.com/gofrs/flock
           GOPATH=$GITHUB_WORKSPACE go get github.com/alex-ant/gomath/rational
           GOPATH=$GITHUB_WORKSPACE go get github.com/matishsiao/goInfo
-          GOPATH=$GITHUB_WORKSPACE go get github.com/gorilla/mux
           GOPATH=$GITHUB_WORKSPACE go get github.com/gammazero/toposort
 
           # FIXME special package
@@ -54,6 +53,9 @@ jobs:
 
           rm -rf $GITHUB_WORKSPACE/src/modernc.org/fileutil && git clone -b v1.0.0 --depth 1 https://gitlab.com/cznic/fileutil.git $GITHUB_WORKSPACE/src/modernc.org/fileutil
           # GOPATH=$GITHUB_WORKSPACE go get modernc.org/fileutil
+
+          rm -rf $GITHUB_WORKSPACE/src/github.com/gorilla/mux && git clone -b v1.7.4 --depth 1 https://github.com/gorilla/mux $GITHUB_WORKSPACE/src/github.com/gorilla/mux
+          # GOPATH=$GITHUB_WORKSPACE go get github.com/gorilla/mux
 
           GOPATH=$GITHUB_WORKSPACE go get github.com/iancoleman/strcase
 

@@ -316,7 +316,7 @@ func TestRetryInterceptorWithBackoff(t *testing.T) {
 	})
 	duration := time.Since(start)
 
-	if (duration - 31*time.Second).Abs() > 900*time.Millisecond {
+	if d := duration - 31*time.Second; d >= 900*time.Millisecond || d <= -900*time.Millisecond {
 		t.Fatalf("retry interval may be error:%v", duration)
 	}
 

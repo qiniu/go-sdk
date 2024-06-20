@@ -137,7 +137,7 @@ func TestHostsNotRetryInterceptor(t *testing.T) {
 	})
 	duration := time.Since(start)
 
-	if (duration - time.Duration(doCount-1)*time.Second).Abs() >= 900*time.Millisecond {
+	if d := duration - time.Duration(doCount-1)*time.Second; d >= 900*time.Millisecond || d <= -900*time.Millisecond {
 		t.Fatalf("retry interval may be error")
 	}
 
