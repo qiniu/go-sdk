@@ -120,9 +120,9 @@ func TestDownloadManagerDownloadDirectory(t *testing.T) {
 		}),
 	})
 	if err = downloadManager.DownloadDirectory(context.Background(), tmpDir, &downloader.DirectoryOptions{
-		UseInsecureProtocol:   true,
-		BucketName:            "bucket1",
-		DownloadURLsGenerator: downloader.NewStaticDomainBasedURLsProvider([]string{ioServer.URL}),
+		UseInsecureProtocol:  true,
+		BucketName:           "bucket1",
+		DownloadURLsProvider: downloader.NewStaticDomainBasedURLsProvider([]string{ioServer.URL}),
 	}); err != nil {
 		t.Fatal(err)
 	}

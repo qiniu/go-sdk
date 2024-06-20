@@ -19,6 +19,7 @@ type (
 	DownloadManager struct {
 		destinationDownloader DestinationDownloader
 		objectsManager        *objects.ObjectsManager
+		downloadURLsProvider  DownloadURLsProvider
 	}
 
 	DownloadManagerOptions struct {
@@ -30,6 +31,9 @@ type (
 
 		// 分片列举版本，如果不填写，默认为 V1
 		ListerVersion objects.ListerVersion
+
+		// 下载 URL 生成器
+		DownloadURLsProvider DownloadURLsProvider
 	}
 
 	// 对象下载参数
@@ -38,7 +42,7 @@ type (
 		GenerateOptions
 
 		// 下载 URL 生成器
-		DownloadURLsGenerator DownloadURLsProvider
+		DownloadURLsProvider DownloadURLsProvider
 	}
 
 	// 目录下载参数
@@ -56,7 +60,7 @@ type (
 		ObjectConcurrency int
 
 		// 下载 URL 生成器
-		DownloadURLsGenerator DownloadURLsProvider
+		DownloadURLsProvider DownloadURLsProvider
 
 		// 下载前回调函数
 		BeforeObjectDownload func(objectName string, objectOptions *ObjectOptions)
@@ -88,7 +92,7 @@ func NewDownloadManager(options *DownloadManagerOptions) *DownloadManager {
 		Options:       options.Options,
 		ListerVersion: options.ListerVersion,
 	})
-	return &DownloadManager{destinationDownloader, objectsManager}
+	return &DownloadManager{destinationDownloader, objectsManager, options.DownloadURLsProvider}
 }
 
 func (downloadManager *DownloadManager) DownloadToFile(ctx context.Context, objectName, filePath string, options *ObjectOptions) (uint64, error) {
@@ -115,11 +119,14 @@ func (downloadManager *DownloadManager) downloadToDestination(ctx context.Contex
 	if options == nil {
 		options = &ObjectOptions{}
 	}
-	downloadURLsGenerator := options.DownloadURLsGenerator
-	if downloadURLsGenerator == nil {
-		return 0, errors.MissingRequiredFieldError{Name: "DownloadURLsGenerator"}
+	downloadURLsProvider := options.DownloadURLsProvider
+	if downloadURLsProvider == nil {
+		downloadURLsProvider = downloadManager.downloadURLsProvider
 	}
-	urls, err := downloadURLsGenerator.GetURLs(ctx, objectName, &options.GenerateOptions)
+	if downloadURLsProvider == nil {
+		return 0, errors.MissingRequiredFieldError{Name: "DownloadURLsProvider"}
+	}
+	urls, err := downloadURLsProvider.GetURLs(ctx, objectName, &options.GenerateOptions)
 	if err != nil {
 		return 0, err
 	}
@@ -174,7 +181,7 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 						BucketName:          options.BucketName,
 						UseInsecureProtocol: options.UseInsecureProtocol,
 					},
-					DownloadURLsGenerator: options.DownloadURLsGenerator,
+					DownloadURLsProvider: options.DownloadURLsProvider,
 				}
 				if options.ShouldDownloadObject != nil && !options.ShouldDownloadObject(objectName) {
 					return nil

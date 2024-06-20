@@ -165,7 +165,7 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 			BucketName:          bucket,
 			UseInsecureProtocol: !m.Cfg.UseHTTPS,
 		},
-		DownloadURLsGenerator: urlsProvider,
+		DownloadURLsProvider: urlsProvider,
 	}
 
 	pipeR, pipeW := io.Pipe()
