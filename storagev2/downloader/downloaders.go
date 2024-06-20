@@ -292,6 +292,8 @@ func _downloadToPartReader(
 		if response, err = client.Do(req.WithContext(ctx)); err != nil {
 			if isUnretryableStatusCode(err) {
 				return 0, err
+			} else {
+				continue
 			}
 		}
 		var (

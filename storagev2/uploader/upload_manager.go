@@ -223,8 +223,9 @@ func (uploadManager *UploadManager) getScheduler() MultiPartsUploaderScheduler {
 
 func (uploadManager *UploadManager) getMultiPartsUploader() MultiPartsUploader {
 	multiPartsUploaderOptions := MultiPartsUploaderOptions{
-		Options:         uploadManager.options,
-		UpTokenProvider: uploadManager.upTokenProvider,
+		Options:           uploadManager.options,
+		UpTokenProvider:   uploadManager.upTokenProvider,
+		ResumableRecorder: uploadManager.resumableRecorder,
 	}
 	if uploadManager.multiPartsUploaderVersion == MultiPartsUploaderVersionV1 {
 		return NewMultiPartsUploaderV1(&multiPartsUploaderOptions)
