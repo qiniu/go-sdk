@@ -26,6 +26,9 @@ type (
 
 		// 数据目标 KEY
 		DestinationKey() (string, error)
+
+		// 获取文件，如果数据源不是文件，则返回 nil
+		GetFile() *os.File
 	}
 
 	// 分片
@@ -93,6 +96,14 @@ func (wcd *writeCloserDestination) DestinationKey() (string, error) {
 
 func (wcd *writeCloserDestination) Close() error {
 	return wcd.wr.Close()
+}
+
+func (wcd *writeCloserDestination) GetFile() *os.File {
+	if file, ok := wcd.wr.(*os.File); ok {
+		return file
+	} else {
+		return nil
+	}
 }
 
 func (wcp *writeCloserPart) Size() uint64 {
@@ -176,6 +187,14 @@ func (wad *writerAtDestination) Close() error {
 	return wad.wr.Close()
 }
 
+func (wad *writerAtDestination) GetFile() *os.File {
+	if file, ok := wad.wr.(*os.File); ok {
+		return file
+	} else {
+		return nil
+	}
+}
+
 func (w *writerAtPart) Size() uint64 {
 	return w.totalSize
 }
@@ -248,7 +267,7 @@ func copyBuffer(w io.Writer, r io.Reader, progress func(uint64)) (uint64, error)
 }
 
 func NewFileDestination(filePath string) (Destination, error) {
-	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return nil, err
 	}

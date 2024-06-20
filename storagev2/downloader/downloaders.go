@@ -153,6 +153,8 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urls []URLP
 			readableMedium = resumableRecorder.OpenForReading(resumableRecorderOpenOptions)
 			if readableMedium != nil {
 				defer readableMedium.Close()
+			} else if file := dest.GetFile(); file != nil {
+				file.Truncate(0) // 无法恢复进度，目标文件清空
 			}
 		}
 	}
