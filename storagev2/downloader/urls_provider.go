@@ -40,8 +40,11 @@ type (
 	}
 
 	defaultSrcURLsProvider struct {
-		accessKey string
-		query     region.BucketRegionsQuery
+		accessKey   string
+		query       region.BucketRegionsQuery
+		queryOnce   sync.Once
+		bucketHosts region.Endpoints
+		options     *DefaultSrcURLsProviderOptions
 	}
 
 	domainsQueryURLsProvider struct {
@@ -173,7 +176,7 @@ func (g *staticDomainBasedURLsProvider) GetURLs(_ context.Context, objectName st
 }
 
 // 创建默认源站域名下载 URL 生成器
-func NewDefaultSrcURLsProvider(accessKey string, options *DefaultSrcURLsProviderOptions) (DownloadURLsProvider, error) {
+func NewDefaultSrcURLsProvider(accessKey string, options *DefaultSrcURLsProviderOptions) DownloadURLsProvider {
 	if options == nil {
 		options = &DefaultSrcURLsProviderOptions{}
 	}
@@ -181,11 +184,7 @@ func NewDefaultSrcURLsProvider(accessKey string, options *DefaultSrcURLsProvider
 	if bucketHosts.IsEmpty() {
 		bucketHosts = http_client.DefaultBucketHosts()
 	}
-	query, err := region.NewBucketRegionsQuery(bucketHosts, &options.BucketRegionsQueryOptions)
-	if err != nil {
-		return nil, err
-	}
-	return &defaultSrcURLsProvider{accessKey, query}, nil
+	return &defaultSrcURLsProvider{accessKey: accessKey, bucketHosts: bucketHosts, options: options}
 }
 
 func (g *defaultSrcURLsProvider) GetURLs(ctx context.Context, objectName string, options *GenerateOptions) ([]URLProvider, error) {
@@ -195,6 +194,15 @@ func (g *defaultSrcURLsProvider) GetURLs(ctx context.Context, objectName string,
 	if options.BucketName == "" {
 		return nil, errors.MissingRequiredFieldError{Name: "BucketName"}
 	}
+
+	var err error
+	g.queryOnce.Do(func() {
+		g.query, err = region.NewBucketRegionsQuery(g.bucketHosts, &g.options.BucketRegionsQueryOptions)
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	regions, err := g.query.Query(g.accessKey, options.BucketName).GetRegions(ctx)
 	if err != nil {
 		return nil, err

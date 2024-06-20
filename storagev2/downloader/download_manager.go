@@ -6,8 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
+	"time"
 
+	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	"github.com/qiniu/go-sdk/v7/storagev2/downloader/destination"
 	"github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
@@ -17,9 +20,11 @@ import (
 
 type (
 	DownloadManager struct {
-		destinationDownloader DestinationDownloader
-		objectsManager        *objects.ObjectsManager
-		downloadURLsProvider  DownloadURLsProvider
+		destinationDownloader    DestinationDownloader
+		objectsManager           *objects.ObjectsManager
+		downloadURLsProvider     DownloadURLsProvider
+		downloadURLsProviderOnce sync.Once
+		options                  httpclient.Options
 	}
 
 	DownloadManagerOptions struct {
@@ -92,7 +97,11 @@ func NewDownloadManager(options *DownloadManagerOptions) *DownloadManager {
 		Options:       options.Options,
 		ListerVersion: options.ListerVersion,
 	})
-	return &DownloadManager{destinationDownloader, objectsManager, options.DownloadURLsProvider}
+	return &DownloadManager{
+		destinationDownloader: destinationDownloader,
+		objectsManager:        objectsManager,
+		options:               options.Options,
+	}
 }
 
 func (downloadManager *DownloadManager) DownloadToFile(ctx context.Context, objectName, filePath string, options *ObjectOptions) (uint64, error) {
@@ -120,6 +129,11 @@ func (downloadManager *DownloadManager) downloadToDestination(ctx context.Contex
 		options = &ObjectOptions{}
 	}
 	downloadURLsProvider := options.DownloadURLsProvider
+	if downloadURLsProvider == nil {
+		if err := downloadManager.initDownloadURLsProvider(ctx); err != nil {
+			return 0, err
+		}
+	}
 	if downloadURLsProvider == nil {
 		downloadURLsProvider = downloadManager.downloadURLsProvider
 	}
@@ -201,6 +215,25 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 		return err
 	}
 	return g.Wait()
+}
+
+func (downloadManager *DownloadManager) initDownloadURLsProvider(ctx context.Context) (err error) {
+	if downloadManager.downloadURLsProvider == nil &&
+		downloadManager.options.Credentials != nil {
+		downloadManager.downloadURLsProviderOnce.Do(func() {
+			var creds *credentials.Credentials
+			creds, err = downloadManager.options.Credentials.Get(ctx)
+			if err != nil {
+				return
+			}
+			downloadManager.downloadURLsProvider = SignURLsProvider(
+				NewDefaultSrcURLsProvider(creds.AccessKey, &DefaultSrcURLsProviderOptions{}),
+				NewCredentialsSigner(creds),
+				&SignOptions{Ttl: 3 * time.Minute},
+			)
+		})
+	}
+	return
 }
 
 func (w *writeSeekCloser) Write(p []byte) (int, error) {

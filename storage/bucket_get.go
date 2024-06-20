@@ -102,13 +102,10 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 	if err != nil {
 		return nil, err
 	}
-	urlsProvider, err := downloader.NewDefaultSrcURLsProvider(m.Mac.AccessKey, &downloader.DefaultSrcURLsProviderOptions{
+	urlsProvider := downloader.NewDefaultSrcURLsProvider(m.Mac.AccessKey, &downloader.DefaultSrcURLsProviderOptions{
 		BucketRegionsQueryOptions: region.BucketRegionsQueryOptions{},
 		BucketHosts:               bucketHosts,
 	})
-	if err != nil {
-		return nil, err
-	}
 	urlsProvider = m.applyPresignOnUrlsProvider(m.applyTrafficLimitOnUrlsProvider(urlsProvider, options.TrafficLimit))
 	if len(options.DownloadDomains) > 0 {
 		staticDomainBasedURLsProvider := downloader.NewStaticDomainBasedURLsProvider(options.DownloadDomains)

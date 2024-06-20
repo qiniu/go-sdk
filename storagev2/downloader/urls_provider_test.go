@@ -86,17 +86,14 @@ func TestDefaultSrcURLsProvider(t *testing.T) {
 	defer os.Remove(cacheFile.Name())
 	defer cacheFile.Close()
 
-	generator, err := downloader.NewDefaultSrcURLsProvider(
+	urlsProvider := downloader.NewDefaultSrcURLsProvider(
 		accessKey,
 		&downloader.DefaultSrcURLsProviderOptions{
 			BucketRegionsQueryOptions: region.BucketRegionsQueryOptions{PersistentFilePath: cacheFile.Name()},
 			BucketHosts:               region.Endpoints{Preferred: []string{server.URL}},
 		},
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	urls, err := generator.GetURLs(context.Background(), "/!@#$%^&*()?", &downloader.GenerateOptions{
+	urls, err := urlsProvider.GetURLs(context.Background(), "/!@#$%^&*()?", &downloader.GenerateOptions{
 		BucketName: bucketName,
 		Command:    "test1|test2",
 	})
