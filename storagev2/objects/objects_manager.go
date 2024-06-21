@@ -41,7 +41,7 @@ func NewObjectsManager(options *ObjectsManagerOptions) *ObjectsManager {
 	}
 	batchOpsExecutor := options.BatchOpsExecutor
 	if batchOpsExecutor == nil {
-		batchOpsExecutor = NewSerialBatchOpsExecutor(nil)
+		batchOpsExecutor = NewConcurrentBatchOpsExecutor(nil)
 	}
 	return &ObjectsManager{
 		storage:          apis.NewStorage(&options.Options),
