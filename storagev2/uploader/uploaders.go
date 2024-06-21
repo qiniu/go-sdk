@@ -25,9 +25,12 @@ import (
 )
 
 type (
+	// 表单上传器选项
 	FormUploaderOptions struct {
 		httpclient.Options
-		UpTokenProvider uptoken.Provider
+
+		// 上传凭证
+		UpToken uptoken.Provider
 	}
 
 	formUploader struct {
@@ -40,6 +43,7 @@ type (
 	}
 )
 
+// 创建表单上传器
 func NewFormUploader(options *FormUploaderOptions) Uploader {
 	if options == nil {
 		options = &FormUploaderOptions{}
@@ -51,7 +55,7 @@ func (uploader formUploader) UploadFile(ctx context.Context, path string, object
 	if objectOptions == nil {
 		objectOptions = &ObjectOptions{}
 	}
-	upToken, err := getUpToken(uploader.options.Credentials, objectOptions, uploader.options.UpTokenProvider)
+	upToken, err := getUpToken(uploader.options.Credentials, objectOptions, uploader.options.UpToken)
 	if err != nil {
 		return err
 	}
@@ -86,7 +90,7 @@ func (uploader formUploader) UploadReader(ctx context.Context, reader io.Reader,
 	if objectOptions == nil {
 		objectOptions = &ObjectOptions{}
 	}
-	upToken, err := getUpToken(uploader.options.Credentials, objectOptions, uploader.options.UpTokenProvider)
+	upToken, err := getUpToken(uploader.options.Credentials, objectOptions, uploader.options.UpToken)
 	if err != nil {
 		return err
 	}

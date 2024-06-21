@@ -101,6 +101,7 @@ type (
 	}
 )
 
+// 将 io.ReadSeekCloser 封装为数据源
 func NewReadSeekCloserSource(r internal_io.ReadSeekCloser, sourceKey string) Source {
 	return &readSeekCloseSource{rscra: newReadSeekCloseReaderAt(r), sourceKey: sourceKey}
 }
@@ -200,6 +201,7 @@ func (rscra *readSeekCloseReaderAt) GetFile() *os.File {
 	}
 }
 
+// 将 io.ReadAt + io.Seek + io.Closer 封装为数据源
 func NewReadAtSeekCloserSource(r ReadAtSeekCloser, sourceKey string) Source {
 	return &readAtSeekCloseSource{r: r, sourceKey: sourceKey}
 }
@@ -265,6 +267,7 @@ func (racs *readAtSeekCloseSource) GetFile() *os.File {
 	}
 }
 
+// 将 io.ReadCloser 封装为数据源
 func NewReadCloserSource(r io.ReadCloser, sourceKey string) Source {
 	return &readCloseSource{r: r, sourceKey: sourceKey}
 }
@@ -325,6 +328,7 @@ func (p unseekablePart) Size() uint64 {
 	return p.size
 }
 
+// 将文件封装为数据源
 func NewFileSource(filePath string) (Source, error) {
 	file, err := os.Open(filePath)
 	if err != nil {

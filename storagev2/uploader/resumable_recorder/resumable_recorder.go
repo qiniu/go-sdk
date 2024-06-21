@@ -56,7 +56,7 @@ type (
 		Next(*ResumableRecord) error
 	}
 
-	// 只追家的可恢复记录仪介质接口
+	// 只追加的可恢复记录仪介质接口
 	WriteableResumableRecorderMedium interface {
 		io.Closer
 

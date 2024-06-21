@@ -240,7 +240,7 @@ func (uploadManager *UploadManager) getMultiPartsUploader() MultiPartsUploader {
 
 func (uploadManager *UploadManager) getFormUploader() Uploader {
 	return NewFormUploader(&FormUploaderOptions{
-		Options:         uploadManager.options,
-		UpTokenProvider: uploadManager.upTokenProvider,
+		Options: uploadManager.options,
+		UpToken: uploadManager.upTokenProvider,
 	})
 }

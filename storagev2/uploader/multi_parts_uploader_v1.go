@@ -9,11 +9,9 @@ import (
 
 	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis"
-	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 	resumablerecorder "github.com/qiniu/go-sdk/v7/storagev2/uploader/resumable_recorder"
 	"github.com/qiniu/go-sdk/v7/storagev2/uploader/source"
-	"github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
 
 type (
@@ -40,18 +38,6 @@ type (
 		crc32        uint32
 		offset, size uint64
 		expiredAt    time.Time
-	}
-
-	// 分片上传器选项
-	MultiPartsUploaderOptions struct {
-		// HTTP 客户端选项
-		httpclient.Options
-
-		// 上传凭证接口
-		UpTokenProvider uptoken.Provider
-
-		// 可恢复记录，如果不设置，则无法进行断点续传
-		ResumableRecorder resumablerecorder.ResumableRecorder
 	}
 )
 
