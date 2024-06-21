@@ -197,10 +197,10 @@ func NewClient(options *Options) *Client {
 	if shouldFreezeHost == nil {
 		shouldFreezeHost = defaultShouldFreezeHost
 	}
-	credentials := options.Credentials
-	if credentials == nil {
-		if defaultAuth := auth.Default(); defaultAuth != nil {
-			credentials = defaultAuth
+	creds := options.Credentials
+	if creds == nil {
+		if defaultCreds := credentials.Default(); defaultCreds != nil {
+			creds = defaultCreds
 		}
 	}
 
@@ -209,7 +209,7 @@ func NewClient(options *Options) *Client {
 		basicHTTPClient:    clientv2.NewClient(options.BasicHTTPClient, options.Interceptors...),
 		bucketQuery:        options.BucketQuery,
 		regions:            options.Regions,
-		credentials:        credentials,
+		credentials:        creds,
 		resolver:           options.Resolver,
 		chooser:            options.Chooser,
 		hostRetryConfig:    options.HostRetryConfig,
@@ -248,12 +248,17 @@ func (httpClient *Client) Do(ctx context.Context, request *Request) (*http.Respo
 			if credentialsProvider == nil {
 				credentialsProvider = httpClient.credentials
 			}
+			if credentialsProvider == nil {
+				if defaultCreds := credentials.Default(); defaultCreds != nil {
+					credentialsProvider = defaultCreds
+				}
+			}
 			if credentialsProvider != nil {
-				if credentials, err := credentialsProvider.Get(ctx); err != nil {
+				if creds, err := credentialsProvider.Get(ctx); err != nil {
 					return nil, err
 				} else {
 					req = clientv2.WithInterceptors(req, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
-						Credentials: credentials,
+						Credentials: creds,
 						TokenType:   request.AuthType,
 						BeforeSign:  httpClient.beforeSign,
 						AfterSign:   httpClient.afterSign,

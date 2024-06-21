@@ -15,6 +15,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	"github.com/qiniu/go-sdk/v7/storagev2/objects"
+	"github.com/qiniu/go-sdk/v7/storagev2/region"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -218,22 +219,53 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 }
 
 func (downloadManager *DownloadManager) initDownloadURLsProvider(ctx context.Context) (err error) {
-	if downloadManager.downloadURLsProvider == nil &&
-		downloadManager.options.Credentials != nil {
-		downloadManager.downloadURLsProviderOnce.Do(func() {
-			var creds *credentials.Credentials
-			creds, err = downloadManager.options.Credentials.Get(ctx)
-			if err != nil {
-				return
-			}
-			downloadManager.downloadURLsProvider = SignURLsProvider(
-				NewDefaultSrcURLsProvider(creds.AccessKey, &DefaultSrcURLsProviderOptions{}),
-				NewCredentialsSigner(creds),
-				&SignOptions{Ttl: 3 * time.Minute},
-			)
-		})
+	if downloadManager.downloadURLsProvider == nil {
+		if credentialsProvider := downloadManager.getCredentialsProvider(); credentialsProvider != nil {
+			downloadManager.downloadURLsProviderOnce.Do(func() {
+				var creds *credentials.Credentials
+				creds, err = credentialsProvider.Get(ctx)
+				if err != nil {
+					return
+				}
+				bucketRegionsQueryOptions := region.BucketRegionsQueryOptions{
+					UseInsecureProtocol: downloadManager.options.UseInsecureProtocol,
+					Client:              downloadManager.options.BasicHTTPClient,
+					Resolver:            downloadManager.options.Resolver,
+					Chooser:             downloadManager.options.Chooser,
+					BeforeResolve:       downloadManager.options.BeforeResolve,
+					AfterResolve:        downloadManager.options.AfterResolve,
+					ResolveError:        downloadManager.options.ResolveError,
+					BeforeBackoff:       downloadManager.options.BeforeBackoff,
+					AfterBackoff:        downloadManager.options.AfterBackoff,
+					BeforeRequest:       downloadManager.options.BeforeRequest,
+					AfterResponse:       downloadManager.options.AfterResponse,
+				}
+				if hostRetryConfig := downloadManager.options.HostRetryConfig; hostRetryConfig != nil {
+					bucketRegionsQueryOptions.RetryMax = hostRetryConfig.RetryMax
+					bucketRegionsQueryOptions.Backoff = hostRetryConfig.Backoff
+				}
+				downloadManager.downloadURLsProvider = SignURLsProvider(
+					NewDefaultSrcURLsProvider(creds.AccessKey, &DefaultSrcURLsProviderOptions{
+						BucketRegionsQueryOptions: bucketRegionsQueryOptions,
+						BucketHosts:               httpclient.DefaultBucketHosts(),
+					}),
+					NewCredentialsSigner(creds),
+					&SignOptions{Ttl: 3 * time.Minute},
+				)
+			})
+		}
 	}
 	return
+}
+
+func (downloadManager *DownloadManager) getCredentialsProvider() credentials.CredentialsProvider {
+	credentialsProvider := downloadManager.options.Credentials
+	if credentialsProvider == nil {
+		if defaultCreds := credentials.Default(); defaultCreds != nil {
+			credentialsProvider = defaultCreds
+		}
+	}
+	return credentialsProvider
 }
 
 func (w *writeSeekCloser) Write(p []byte) (int, error) {

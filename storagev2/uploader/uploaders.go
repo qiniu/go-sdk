@@ -294,15 +294,20 @@ func (uploader multiPartsUploader) uploadPartsAndComplete(ctx context.Context, s
 	return uploader.scheduler.MultiPartsUploader().CompleteParts(ctx, initializedParts, uploadParts, returnValue)
 }
 
-func getUpToken(credentials creds.CredentialsProvider, objectOptions *ObjectOptions, upTokenProvider uptoken.Provider) (uptoken.Provider, error) {
+func getUpToken(c creds.CredentialsProvider, objectOptions *ObjectOptions, upTokenProvider uptoken.Provider) (uptoken.Provider, error) {
 	if objectOptions.UpToken != nil {
 		return objectOptions.UpToken, nil
 	} else if upTokenProvider != nil {
 		return upTokenProvider, nil
-	} else if credentials != nil && objectOptions.BucketName != "" {
-		return newCredentialsUpTokenSigner(credentials, objectOptions.BucketName, 1*time.Hour, 10*time.Minute), nil
 	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "UpToken"}
+		if c == nil {
+			c = creds.Default()
+		}
+		if c != nil && objectOptions.BucketName != "" {
+			return newCredentialsUpTokenSigner(c, objectOptions.BucketName, 1*time.Hour, 10*time.Minute), nil
+		} else {
+			return nil, errors.MissingRequiredFieldError{Name: "UpToken"}
+		}
 	}
 }
 

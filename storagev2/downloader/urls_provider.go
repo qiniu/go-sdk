@@ -229,7 +229,13 @@ func NewDomainsQueryURLsProvider(options *DomainsQueryURLsProviderOptions) (Down
 	if options == nil {
 		options = &DomainsQueryURLsProviderOptions{}
 	}
-	if options.Credentials == nil {
+	creds := options.Credentials
+	if creds == nil {
+		if defaultCreds := credentials.Default(); defaultCreds != nil {
+			creds = defaultCreds
+		}
+	}
+	if creds == nil {
 		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
 	}
 	compactInterval := options.CompactInterval
@@ -254,7 +260,7 @@ func NewDomainsQueryURLsProvider(options *DomainsQueryURLsProviderOptions) (Down
 	}
 
 	storage := apis.NewStorage(&options.Options)
-	return &domainsQueryURLsProvider{storage, persistentCache, options.Credentials, cacheTTL}, nil
+	return &domainsQueryURLsProvider{storage, persistentCache, creds, cacheTTL}, nil
 }
 
 func (g *domainsQueryURLsProvider) GetURLs(ctx context.Context, objectName string, options *GenerateOptions) ([]URLProvider, error) {
