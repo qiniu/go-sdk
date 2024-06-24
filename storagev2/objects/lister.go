@@ -12,6 +12,7 @@ import (
 )
 
 type (
+	// 对象列举接口
 	Lister interface {
 		io.Closer
 

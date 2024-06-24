@@ -10,24 +10,28 @@ import (
 )
 
 type (
+	// 目录
 	Directory struct {
 		bucket            *Bucket
 		prefix, delimiter string
 	}
 
+	// 目录条目
 	DirectoryEntry struct {
 		DirectoryName string
 		Object        *ObjectDetails
 	}
 
+	// 列举条目选项
 	ListEntriesOptions struct {
-		NeedParts bool
-		Recursive bool
+		NeedParts bool // 是否需要分片信息
+		Recursive bool // 是否递归列举
 	}
 )
 
 var SkipDir = filepath.SkipDir
 
+// 移动目录
 func (directory *Directory) MoveTo(ctx context.Context, toBucketName, toPrefix string) error {
 	if !strings.HasSuffix(toPrefix, directory.delimiter) {
 		toPrefix += directory.delimiter
@@ -42,6 +46,7 @@ func (directory *Directory) MoveTo(ctx context.Context, toBucketName, toPrefix s
 	return directory.bucket.objectsManager.Batch(ctx, operations, nil)
 }
 
+// 复制目录
 func (directory *Directory) CopyTo(ctx context.Context, toBucketName, toPrefix string) error {
 	if !strings.HasSuffix(toPrefix, directory.delimiter) {
 		toPrefix += directory.delimiter
@@ -56,6 +61,7 @@ func (directory *Directory) CopyTo(ctx context.Context, toBucketName, toPrefix s
 	return directory.bucket.objectsManager.Batch(ctx, operations, nil)
 }
 
+// 删除目录
 func (directory *Directory) Delete(ctx context.Context) error {
 	operations := make([]Operation, 0, 16)
 	if err := directory.forEachObject(ctx, func(objectDetails *ObjectDetails) {
@@ -78,6 +84,7 @@ func (directory *Directory) forEachObject(ctx context.Context, each func(*Object
 	return lister.Error()
 }
 
+// 列举目录条目
 func (directory *Directory) ListEntries(ctx context.Context, options *ListEntriesOptions, f func(*DirectoryEntry) error) error {
 	if options == nil {
 		options = &ListEntriesOptions{}

@@ -19,73 +19,76 @@ type (
 		// 批量请求命令
 		fmt.Stringer
 		// 被操作的对象，必须返回至少一个
-		relatedEntries() []Entry
+		relatedEntries() []entry
 		// 处理返回结果
 		handleResponse(*ObjectDetails, error)
 	}
 
-	bucketEntry struct {
-		bucket     *Bucket
-		objectName string
-	}
-
-	Entry struct {
+	entry struct {
 		bucketName string
 		objectName string
 	}
 
+	// 获取对象元信息操作
 	StatObjectOperation struct {
-		entry      bucketEntry
+		object     Object
 		needParts  bool
 		onResponse func(*ObjectDetails)
 		onError    func(error)
 	}
 
+	// 移动对象操作
 	MoveObjectOperation struct {
-		fromEntry  bucketEntry
-		toEntry    Entry
+		fromObject Object
+		toObject   entry
 		force      bool
 		onResponse func()
 		onError    func(error)
 	}
 
+	// 复制对象操作
 	CopyObjectOperation struct {
-		fromEntry  bucketEntry
-		toEntry    Entry
+		fromObject Object
+		toObject   entry
 		force      bool
 		onResponse func()
 		onError    func(error)
 	}
 
+	// 删除对象操作
 	DeleteObjectOperation struct {
-		entry      bucketEntry
+		object     Object
 		onResponse func()
 		onError    func(error)
 	}
 
+	// 解冻对象操作
 	RestoreObjectOperation struct {
-		entry           bucketEntry
+		object          Object
 		freezeAfterDays int64
 		onResponse      func()
 		onError         func(error)
 	}
 
+	// 设置对象存储类型操作
 	SetObjectStorageClassOperation struct {
-		entry        bucketEntry
+		object       Object
 		storageClass StorageClass
 		onResponse   func()
 		onError      func(error)
 	}
 
+	// 设置对象状态
 	SetObjectStatusOperation struct {
-		entry      bucketEntry
+		object     Object
 		status     Status
 		onResponse func()
 		onError    func(error)
 	}
 
+	// 设置对象元信息操作
 	SetObjectMetadataOperation struct {
-		entry      bucketEntry
+		object     Object
 		mimeType   string
 		metadata   map[string]string
 		conditions map[string]string
@@ -93,8 +96,9 @@ type (
 		onError    func(error)
 	}
 
+	// 设置对象生命周期操作
 	SetObjectLifeCycleOperation struct {
-		entry                  bucketEntry
+		object                 Object
 		toIAAfterDays          int64
 		toArchiveIRAfterDays   int64
 		toArchiveAfterDays     int64
@@ -120,8 +124,8 @@ func (operation *StatObjectOperation) OnError(fn func(error)) *StatObjectOperati
 	return operation
 }
 
-func (operation *StatObjectOperation) relatedEntries() []Entry {
-	return []Entry{{operation.entry.bucket.name, operation.entry.objectName}}
+func (operation *StatObjectOperation) relatedEntries() []entry {
+	return []entry{{operation.object.bucket.name, operation.object.name}}
 }
 
 func (operation *StatObjectOperation) parseResponse(response *stat_object.Response, err error) (*ObjectDetails, error) {
@@ -133,7 +137,7 @@ func (operation *StatObjectOperation) parseResponse(response *stat_object.Respon
 	}
 
 	object := ObjectDetails{
-		Name:          operation.entry.objectName,
+		Name:          operation.object.name,
 		UploadedAt:    time.Unix(response.PutTime/1e7, (response.PutTime%1e7)*1e2),
 		ETag:          response.Hash,
 		Size:          response.Size,
@@ -195,7 +199,7 @@ func (operation *StatObjectOperation) handleResponse(object *ObjectDetails, err 
 }
 
 func (operation *StatObjectOperation) String() string {
-	s := "stat/" + operation.entry.encode()
+	s := "stat/" + operation.object.encode()
 	if operation.needParts {
 		s += "/needparts/true"
 	}
@@ -203,11 +207,11 @@ func (operation *StatObjectOperation) String() string {
 }
 
 func (operation *StatObjectOperation) Call(ctx context.Context) (*ObjectDetails, error) {
-	response, err := operation.entry.bucket.objectsManager.storage.StatObject(ctx, &apis.StatObjectRequest{
-		Entry:     operation.entry.String(),
+	response, err := operation.object.bucket.objectsManager.storage.StatObject(ctx, &apis.StatObjectRequest{
+		Entry:     operation.object.String(),
 		NeedParts: operation.needParts,
 	}, &apis.Options{
-		OverwrittenBucketName: operation.entry.bucket.name,
+		OverwrittenBucketName: operation.object.bucket.name,
 	})
 	return operation.parseResponse(response, err)
 }
@@ -229,8 +233,8 @@ func (operation *MoveObjectOperation) OnError(fn func(error)) *MoveObjectOperati
 	return operation
 }
 
-func (operation *MoveObjectOperation) relatedEntries() []Entry {
-	return []Entry{{operation.fromEntry.bucket.name, operation.fromEntry.objectName}, operation.toEntry}
+func (operation *MoveObjectOperation) relatedEntries() []entry {
+	return []entry{{operation.fromObject.bucket.name, operation.fromObject.name}, operation.toObject}
 }
 
 func (operation *MoveObjectOperation) handleResponse(_ *ObjectDetails, err error) {
@@ -242,7 +246,7 @@ func (operation *MoveObjectOperation) handleResponse(_ *ObjectDetails, err error
 }
 
 func (operation *MoveObjectOperation) String() string {
-	s := "move/" + operation.fromEntry.encode() + "/" + operation.toEntry.encode()
+	s := "move/" + operation.fromObject.encode() + "/" + operation.toObject.encode()
 	if operation.force {
 		s += "/force/true"
 	}
@@ -250,12 +254,12 @@ func (operation *MoveObjectOperation) String() string {
 }
 
 func (operation *MoveObjectOperation) Call(ctx context.Context) error {
-	_, err := operation.fromEntry.bucket.objectsManager.storage.MoveObject(ctx, &apis.MoveObjectRequest{
-		SrcEntry:  operation.fromEntry.String(),
-		DestEntry: operation.toEntry.String(),
+	_, err := operation.fromObject.bucket.objectsManager.storage.MoveObject(ctx, &apis.MoveObjectRequest{
+		SrcEntry:  operation.fromObject.String(),
+		DestEntry: operation.toObject.String(),
 		IsForce:   operation.force,
 	}, &apis.Options{
-		OverwrittenBucketName: operation.fromEntry.bucket.name,
+		OverwrittenBucketName: operation.fromObject.bucket.name,
 	})
 	operation.handleResponse(nil, err)
 	return err
@@ -278,8 +282,8 @@ func (operation *CopyObjectOperation) OnError(fn func(error)) *CopyObjectOperati
 	return operation
 }
 
-func (operation *CopyObjectOperation) relatedEntries() []Entry {
-	return []Entry{{operation.fromEntry.bucket.name, operation.fromEntry.objectName}, operation.toEntry}
+func (operation *CopyObjectOperation) relatedEntries() []entry {
+	return []entry{{operation.fromObject.bucket.name, operation.fromObject.name}, operation.toObject}
 }
 
 func (operation *CopyObjectOperation) handleResponse(_ *ObjectDetails, err error) {
@@ -291,7 +295,7 @@ func (operation *CopyObjectOperation) handleResponse(_ *ObjectDetails, err error
 }
 
 func (operation *CopyObjectOperation) String() string {
-	s := "copy/" + operation.fromEntry.encode() + "/" + operation.toEntry.encode()
+	s := "copy/" + operation.fromObject.encode() + "/" + operation.toObject.encode()
 	if operation.force {
 		s += "/force/true"
 	}
@@ -299,12 +303,12 @@ func (operation *CopyObjectOperation) String() string {
 }
 
 func (operation *CopyObjectOperation) Call(ctx context.Context) error {
-	_, err := operation.fromEntry.bucket.objectsManager.storage.CopyObject(ctx, &apis.CopyObjectRequest{
-		SrcEntry:  operation.fromEntry.String(),
-		DestEntry: operation.toEntry.String(),
+	_, err := operation.fromObject.bucket.objectsManager.storage.CopyObject(ctx, &apis.CopyObjectRequest{
+		SrcEntry:  operation.fromObject.String(),
+		DestEntry: operation.toObject.String(),
 		IsForce:   operation.force,
 	}, &apis.Options{
-		OverwrittenBucketName: operation.fromEntry.bucket.name,
+		OverwrittenBucketName: operation.fromObject.bucket.name,
 	})
 	operation.handleResponse(nil, err)
 	return err
@@ -330,19 +334,19 @@ func (operation *DeleteObjectOperation) handleResponse(_ *ObjectDetails, err err
 	}
 }
 
-func (operation *DeleteObjectOperation) relatedEntries() []Entry {
-	return []Entry{{operation.entry.bucket.name, operation.entry.objectName}}
+func (operation *DeleteObjectOperation) relatedEntries() []entry {
+	return []entry{{operation.object.bucket.name, operation.object.name}}
 }
 
 func (operation *DeleteObjectOperation) String() string {
-	return "delete/" + operation.entry.encode()
+	return "delete/" + operation.object.encode()
 }
 
 func (operation *DeleteObjectOperation) Call(ctx context.Context) error {
-	_, err := operation.entry.bucket.objectsManager.storage.DeleteObject(ctx, &apis.DeleteObjectRequest{
-		Entry: operation.entry.String(),
+	_, err := operation.object.bucket.objectsManager.storage.DeleteObject(ctx, &apis.DeleteObjectRequest{
+		Entry: operation.object.String(),
 	}, &apis.Options{
-		OverwrittenBucketName: operation.entry.bucket.name,
+		OverwrittenBucketName: operation.object.bucket.name,
 	})
 	operation.handleResponse(nil, err)
 	return err
@@ -360,8 +364,8 @@ func (operation *RestoreObjectOperation) OnError(fn func(error)) *RestoreObjectO
 	return operation
 }
 
-func (operation *RestoreObjectOperation) relatedEntries() []Entry {
-	return []Entry{{operation.entry.bucket.name, operation.entry.objectName}}
+func (operation *RestoreObjectOperation) relatedEntries() []entry {
+	return []entry{{operation.object.bucket.name, operation.object.name}}
 }
 
 func (operation *RestoreObjectOperation) handleResponse(_ *ObjectDetails, err error) {
@@ -373,15 +377,15 @@ func (operation *RestoreObjectOperation) handleResponse(_ *ObjectDetails, err er
 }
 
 func (operation *RestoreObjectOperation) String() string {
-	return "restoreAr/" + operation.entry.encode() + "/freezeAfterDays/" + strconv.FormatInt(operation.freezeAfterDays, 10)
+	return "restoreAr/" + operation.object.encode() + "/freezeAfterDays/" + strconv.FormatInt(operation.freezeAfterDays, 10)
 }
 
 func (operation *RestoreObjectOperation) Call(ctx context.Context) error {
-	_, err := operation.entry.bucket.objectsManager.storage.RestoreArchivedObject(ctx, &apis.RestoreArchivedObjectRequest{
-		Entry:           operation.entry.String(),
+	_, err := operation.object.bucket.objectsManager.storage.RestoreArchivedObject(ctx, &apis.RestoreArchivedObjectRequest{
+		Entry:           operation.object.String(),
 		FreezeAfterDays: int64(operation.freezeAfterDays),
 	}, &apis.Options{
-		OverwrittenBucketName: operation.entry.bucket.name,
+		OverwrittenBucketName: operation.object.bucket.name,
 	})
 	operation.handleResponse(nil, err)
 	return err
@@ -399,8 +403,8 @@ func (operation *SetObjectStorageClassOperation) OnError(fn func(error)) *SetObj
 	return operation
 }
 
-func (operation *SetObjectStorageClassOperation) relatedEntries() []Entry {
-	return []Entry{{operation.entry.bucket.name, operation.entry.objectName}}
+func (operation *SetObjectStorageClassOperation) relatedEntries() []entry {
+	return []entry{{operation.object.bucket.name, operation.object.name}}
 }
 
 func (operation *SetObjectStorageClassOperation) handleResponse(_ *ObjectDetails, err error) {
@@ -412,15 +416,15 @@ func (operation *SetObjectStorageClassOperation) handleResponse(_ *ObjectDetails
 }
 
 func (operation *SetObjectStorageClassOperation) String() string {
-	return "chtype/" + operation.entry.encode() + "/type/" + strconv.Itoa(int(operation.storageClass))
+	return "chtype/" + operation.object.encode() + "/type/" + strconv.Itoa(int(operation.storageClass))
 }
 
 func (operation *SetObjectStorageClassOperation) Call(ctx context.Context) error {
-	_, err := operation.entry.bucket.objectsManager.storage.SetObjectFileType(ctx, &apis.SetObjectFileTypeRequest{
-		Entry: operation.entry.String(),
+	_, err := operation.object.bucket.objectsManager.storage.SetObjectFileType(ctx, &apis.SetObjectFileTypeRequest{
+		Entry: operation.object.String(),
 		Type:  int64(operation.storageClass),
 	}, &apis.Options{
-		OverwrittenBucketName: operation.entry.bucket.name,
+		OverwrittenBucketName: operation.object.bucket.name,
 	})
 	operation.handleResponse(nil, err)
 	return err
@@ -438,8 +442,8 @@ func (operation *SetObjectStatusOperation) OnError(fn func(error)) *SetObjectSta
 	return operation
 }
 
-func (operation *SetObjectStatusOperation) relatedEntries() []Entry {
-	return []Entry{{operation.entry.bucket.name, operation.entry.objectName}}
+func (operation *SetObjectStatusOperation) relatedEntries() []entry {
+	return []entry{{operation.object.bucket.name, operation.object.name}}
 }
 
 func (operation *SetObjectStatusOperation) handleResponse(_ *ObjectDetails, err error) {
@@ -451,15 +455,15 @@ func (operation *SetObjectStatusOperation) handleResponse(_ *ObjectDetails, err 
 }
 
 func (operation *SetObjectStatusOperation) String() string {
-	return "chstatus/" + operation.entry.encode() + "/status/" + strconv.Itoa(int(operation.status))
+	return "chstatus/" + operation.object.encode() + "/status/" + strconv.Itoa(int(operation.status))
 }
 
 func (operation *SetObjectStatusOperation) Call(ctx context.Context) error {
-	_, err := operation.entry.bucket.objectsManager.storage.ModifyObjectStatus(ctx, &apis.ModifyObjectStatusRequest{
-		Entry:  operation.entry.String(),
+	_, err := operation.object.bucket.objectsManager.storage.ModifyObjectStatus(ctx, &apis.ModifyObjectStatusRequest{
+		Entry:  operation.object.String(),
 		Status: int64(operation.status),
 	}, &apis.Options{
-		OverwrittenBucketName: operation.entry.bucket.name,
+		OverwrittenBucketName: operation.object.bucket.name,
 	})
 	operation.handleResponse(nil, err)
 	return err
@@ -487,8 +491,8 @@ func (operation *SetObjectMetadataOperation) OnError(fn func(error)) *SetObjectM
 	return operation
 }
 
-func (operation *SetObjectMetadataOperation) relatedEntries() []Entry {
-	return []Entry{{operation.entry.bucket.name, operation.entry.objectName}}
+func (operation *SetObjectMetadataOperation) relatedEntries() []entry {
+	return []entry{{operation.object.bucket.name, operation.object.name}}
 }
 
 func (operation *SetObjectMetadataOperation) handleResponse(_ *ObjectDetails, err error) {
@@ -500,7 +504,7 @@ func (operation *SetObjectMetadataOperation) handleResponse(_ *ObjectDetails, er
 }
 
 func (operation *SetObjectMetadataOperation) String() string {
-	s := "chgm/" + operation.entry.encode() + "/mime/" + base64.URLEncoding.EncodeToString([]byte(operation.mimeType))
+	s := "chgm/" + operation.object.encode() + "/mime/" + base64.URLEncoding.EncodeToString([]byte(operation.mimeType))
 	for k, v := range operation.metadata {
 		s += "/" + normalizeMetadataKey(k) + "/" + base64.URLEncoding.EncodeToString([]byte(v))
 	}
@@ -523,13 +527,13 @@ func (operation *SetObjectMetadataOperation) Call(ctx context.Context) error {
 	for k, v := range operation.metadata {
 		metadata[normalizeMetadataKey(k)] = v
 	}
-	_, err := operation.entry.bucket.objectsManager.storage.ModifyObjectMetadata(ctx, &apis.ModifyObjectMetadataRequest{
-		Entry:     operation.entry.String(),
+	_, err := operation.object.bucket.objectsManager.storage.ModifyObjectMetadata(ctx, &apis.ModifyObjectMetadataRequest{
+		Entry:     operation.object.String(),
 		MimeType:  operation.mimeType,
 		Condition: strings.Join(conds, "&"),
 		MetaData:  metadata,
 	}, &apis.Options{
-		OverwrittenBucketName: operation.entry.bucket.name,
+		OverwrittenBucketName: operation.object.bucket.name,
 	})
 	operation.handleResponse(nil, err)
 	return err
@@ -572,8 +576,8 @@ func (operation *SetObjectLifeCycleOperation) OnError(fn func(error)) *SetObject
 	return operation
 }
 
-func (operation *SetObjectLifeCycleOperation) relatedEntries() []Entry {
-	return []Entry{{operation.entry.bucket.name, operation.entry.objectName}}
+func (operation *SetObjectLifeCycleOperation) relatedEntries() []entry {
+	return []entry{{operation.object.bucket.name, operation.object.name}}
 }
 
 func (operation *SetObjectLifeCycleOperation) handleResponse(_ *ObjectDetails, err error) {
@@ -585,7 +589,7 @@ func (operation *SetObjectLifeCycleOperation) handleResponse(_ *ObjectDetails, e
 }
 
 func (operation *SetObjectLifeCycleOperation) String() string {
-	s := "lifecycle/" + operation.entry.encode()
+	s := "lifecycle/" + operation.object.encode()
 	if operation.toIAAfterDays > 0 {
 		s += "/toIAAfterDays/" + strconv.FormatInt(operation.toIAAfterDays, 10)
 	}
@@ -605,15 +609,15 @@ func (operation *SetObjectLifeCycleOperation) String() string {
 }
 
 func (operation *SetObjectLifeCycleOperation) Call(ctx context.Context) error {
-	_, err := operation.entry.bucket.objectsManager.storage.ModifyObjectLifeCycle(ctx, &apis.ModifyObjectLifeCycleRequest{
-		Entry:                  operation.entry.String(),
+	_, err := operation.object.bucket.objectsManager.storage.ModifyObjectLifeCycle(ctx, &apis.ModifyObjectLifeCycleRequest{
+		Entry:                  operation.object.String(),
 		ToIaAfterDays:          operation.toIAAfterDays,
 		ToArchiveAfterDays:     operation.toArchiveAfterDays,
 		ToDeepArchiveAfterDays: operation.toDeepArchiveAfterDays,
 		ToArchiveIrAfterDays:   operation.toArchiveIRAfterDays,
 		DeleteAfterDays:        operation.deleteAfterDays,
 	}, &apis.Options{
-		OverwrittenBucketName: operation.entry.bucket.name,
+		OverwrittenBucketName: operation.object.bucket.name,
 	})
 	operation.handleResponse(nil, err)
 	return err
@@ -621,19 +625,19 @@ func (operation *SetObjectLifeCycleOperation) Call(ctx context.Context) error {
 
 var _ Operation = (*SetObjectLifeCycleOperation)(nil)
 
-func (entry bucketEntry) String() string {
-	return entry.bucket.name + ":" + entry.objectName
+func (entry Object) String() string {
+	return entry.bucket.name + ":" + entry.name
 }
 
-func (entry bucketEntry) encode() string {
+func (entry Object) encode() string {
 	return base64.URLEncoding.EncodeToString([]byte(entry.String()))
 }
 
-func (entry Entry) String() string {
+func (entry entry) String() string {
 	return entry.bucketName + ":" + entry.objectName
 }
 
-func (entry Entry) encode() string {
+func (entry entry) encode() string {
 	return base64.URLEncoding.EncodeToString([]byte(entry.String()))
 }
 

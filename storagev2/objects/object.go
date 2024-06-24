@@ -1,70 +1,76 @@
 package objects
 
+// 对象
 type Object struct {
 	bucket *Bucket
 	name   string
 }
 
+// 获取对象元信息
 func (object *Object) Stat() *StatObjectOperation {
 	return &StatObjectOperation{
-		entry: object.toBucketEntry(),
+		object: *object,
 	}
 }
 
+// 移动对象
 func (object *Object) MoveTo(toBucketName, toObjectName string) *MoveObjectOperation {
 	return &MoveObjectOperation{
-		fromEntry: object.toBucketEntry(),
-		toEntry:   Entry{toBucketName, toObjectName},
+		fromObject: *object,
+		toObject:   entry{toBucketName, toObjectName},
 	}
 }
 
+// 复制对象
 func (object *Object) CopyTo(toBucketName, toObjectName string) *CopyObjectOperation {
 	return &CopyObjectOperation{
-		fromEntry: object.toBucketEntry(),
-		toEntry:   Entry{toBucketName, toObjectName},
+		fromObject: *object,
+		toObject:   entry{toBucketName, toObjectName},
 	}
 }
 
+// 删除对象
 func (object *Object) Delete() *DeleteObjectOperation {
 	return &DeleteObjectOperation{
-		entry: object.toBucketEntry(),
+		object: *object,
 	}
 }
 
+// 解冻对象
 func (object *Object) Restore(freezeAfterDays int64) *RestoreObjectOperation {
 	return &RestoreObjectOperation{
-		entry:           object.toBucketEntry(),
+		object:          *object,
 		freezeAfterDays: freezeAfterDays,
 	}
 }
 
+// 设置对象存储类型
 func (object *Object) SetStorageClass(storageClass StorageClass) *SetObjectStorageClassOperation {
 	return &SetObjectStorageClassOperation{
-		entry:        object.toBucketEntry(),
+		object:       *object,
 		storageClass: storageClass,
 	}
 }
 
+// 设置对象状态
 func (object *Object) SetStatus(status Status) *SetObjectStatusOperation {
 	return &SetObjectStatusOperation{
-		entry:  object.toBucketEntry(),
+		object: *object,
 		status: status,
 	}
 }
 
+// 设置对象元信息
 func (object *Object) SetMetadata(mimeType string) *SetObjectMetadataOperation {
 	return &SetObjectMetadataOperation{
-		entry:    object.toBucketEntry(),
+		object:   *object,
 		mimeType: mimeType,
 	}
 }
 
+// 设置对象生命周期
 func (object *Object) SetLifeCycle() *SetObjectLifeCycleOperation {
 	return &SetObjectLifeCycleOperation{
-		entry: object.toBucketEntry(),
+		object: *object,
 	}
-}
-
-func (object *Object) toBucketEntry() bucketEntry {
-	return bucketEntry{object.bucket, object.name}
 }

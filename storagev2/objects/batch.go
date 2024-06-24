@@ -22,30 +22,33 @@ import (
 )
 
 type (
+	// 批处理执行器
 	BatchOpsExecutor interface {
 		ExecuteBatchOps(internal_context.Context, []Operation, *apis.Storage) error
 	}
 
+	// 串行批处理执行器选项
 	SerialBatchOpsExecutorOptions struct {
-		RetryMax  uint
-		BatchSize uint
+		RetryMax  uint // 最大重试次数，默认为 10
+		BatchSize uint // 批次大小，默认为 1000
 	}
 
 	serialBatchOpsExecutor struct {
 		options *SerialBatchOpsExecutorOptions
 	}
 
+	// 并行批处理执行器选项
 	ConcurrentBatchOpsExecutorOptions struct {
-		RetryMax           uint
-		InitBatchSize      uint
-		MaxBatchSize       uint
-		MinBatchSize       uint
-		SpanAdjustment     uint
-		AdjustmentInterval time.Duration
-		InitWorkers        uint
-		MaxWorkers         uint
-		MinWorkers         uint
-		AddWorkerInterval  time.Duration
+		RetryMax          uint          // 最大重试次数，默认为 10
+		InitBatchSize     uint          // 初始批次大小，默认为 250
+		MaxBatchSize      uint          // 最大批次大小，默认为 250
+		MinBatchSize      uint          // 最小批次大小，默认为 50
+		DoublingFactor    uint          // 批次大小翻倍系数，默认为 2
+		DoublingInterval  time.Duration // 翻倍时间间隔，默认为 1 分钟
+		InitWorkers       uint          // 初始化并发数，默认为 20
+		MaxWorkers        uint          // 最大并发数，默认为 20
+		MinWorkers        uint          // 最小并发数，默认为 1
+		AddWorkerInterval time.Duration // 增加并发数时间间隔
 	}
 
 	concurrentBatchOpsExecutor struct {
@@ -61,8 +64,8 @@ type (
 		storage                                                         *apis.Storage
 		lock                                                            sync.Mutex
 		operations                                                      [][]*operation
-		batchSize, minBatchSize, maxBatchSize, spanAdjustment, maxTries uint
-		adjustmentInterval                                              time.Duration
+		batchSize, minBatchSize, maxBatchSize, doublingFactor, maxTries uint
+		doublingInterval                                                time.Duration
 		ticker                                                          *time.Ticker
 		resetTicker                                                     chan struct{}
 		cancelTicker                                                    internal_context.CancelCauseFunc
@@ -115,9 +118,9 @@ func (executor *concurrentBatchOpsExecutor) ExecuteBatchOps(ctx internal_context
 		executor.options.InitBatchSize,
 		executor.options.MinBatchSize,
 		executor.options.MaxBatchSize,
-		executor.options.SpanAdjustment,
+		executor.options.DoublingFactor,
 		executor.options.RetryMax,
-		executor.options.AdjustmentInterval,
+		executor.options.DoublingInterval,
 		operations,
 	)
 	if err != nil {
@@ -135,7 +138,7 @@ func (executor *concurrentBatchOpsExecutor) ExecuteBatchOps(ctx internal_context
 	return wm.wait()
 }
 
-func newRequestsManager(storage *apis.Storage, initBatchSize, minBatchSize, maxBatchSize, spanAdjustment, maxTries uint, adjustmentInterval time.Duration, operations []Operation) (*requestsManager, error) {
+func newRequestsManager(storage *apis.Storage, initBatchSize, minBatchSize, maxBatchSize, doublingFactor, maxTries uint, doublingInterval time.Duration, operations []Operation) (*requestsManager, error) {
 	if initBatchSize == 0 {
 		initBatchSize = 250
 	}
@@ -154,11 +157,11 @@ func newRequestsManager(storage *apis.Storage, initBatchSize, minBatchSize, maxB
 	if initBatchSize > maxBatchSize {
 		initBatchSize = maxBatchSize
 	}
-	if spanAdjustment < 2 {
-		spanAdjustment = 2
+	if doublingFactor < 2 {
+		doublingFactor = 2
 	}
-	if adjustmentInterval == 0 {
-		adjustmentInterval = 1 * time.Minute
+	if doublingInterval == 0 {
+		doublingInterval = 1 * time.Minute
 	}
 	if maxTries == 0 {
 		maxTries = 10
@@ -171,16 +174,16 @@ func newRequestsManager(storage *apis.Storage, initBatchSize, minBatchSize, maxB
 
 	ctx, cancelFunc := internal_context.WithCancelCause(internal_context.Background())
 	rm := requestsManager{
-		storage:            storage,
-		operations:         wrapOperations(filterOperations(sortedOperations)),
-		batchSize:          initBatchSize,
-		minBatchSize:       minBatchSize,
-		maxBatchSize:       maxBatchSize,
-		spanAdjustment:     spanAdjustment,
-		adjustmentInterval: adjustmentInterval,
-		ticker:             time.NewTicker(adjustmentInterval),
-		resetTicker:        make(chan struct{}, 1024),
-		cancelTicker:       cancelFunc,
+		storage:          storage,
+		operations:       wrapOperations(filterOperations(sortedOperations)),
+		batchSize:        initBatchSize,
+		minBatchSize:     minBatchSize,
+		maxBatchSize:     maxBatchSize,
+		doublingFactor:   doublingFactor,
+		doublingInterval: doublingInterval,
+		ticker:           time.NewTicker(doublingInterval),
+		resetTicker:      make(chan struct{}, 1024),
+		cancelTicker:     cancelFunc,
 	}
 	sortOperations(rm.operations)
 
@@ -255,13 +258,13 @@ func (rm *requestsManager) decreaseBatchSize() {
 	rm.lock.Lock()
 	defer rm.lock.Unlock()
 
-	batchSize := rm.batchSize / rm.spanAdjustment
+	batchSize := rm.batchSize / rm.doublingFactor
 	if batchSize < rm.minBatchSize {
 		batchSize = rm.minBatchSize
 	}
 	rm.batchSize = batchSize
 	rm.ticker.Stop()
-	rm.ticker = time.NewTicker(rm.adjustmentInterval)
+	rm.ticker = time.NewTicker(rm.doublingInterval)
 	rm.resetTicker <- struct{}{}
 }
 
@@ -269,7 +272,7 @@ func (rm *requestsManager) increaseBatchSize() {
 	rm.lock.Lock()
 	defer rm.lock.Unlock()
 
-	batchSize := rm.batchSize * rm.spanAdjustment
+	batchSize := rm.batchSize * rm.doublingFactor
 	if batchSize > rm.maxBatchSize {
 		batchSize = rm.maxBatchSize
 	}

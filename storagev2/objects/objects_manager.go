@@ -35,6 +35,7 @@ type (
 	}
 )
 
+// 创建对象管理器
 func NewObjectsManager(options *ObjectsManagerOptions) *ObjectsManager {
 	if options == nil {
 		options = &ObjectsManagerOptions{}
@@ -51,10 +52,12 @@ func NewObjectsManager(options *ObjectsManagerOptions) *ObjectsManager {
 	}
 }
 
+// 获取存储空间
 func (objectsManager *ObjectsManager) Bucket(name string) *Bucket {
 	return &Bucket{name: name, objectsManager: objectsManager}
 }
 
+// 执行批处理操作
 func (objectsManager *ObjectsManager) Batch(ctx context.Context, operations []Operation, options *BatchOptions) error {
 	if len(operations) == 0 {
 		return nil
