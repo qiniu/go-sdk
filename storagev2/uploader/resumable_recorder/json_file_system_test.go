@@ -40,7 +40,7 @@ func TestJsonFileSystemResumableRecorder(t *testing.T) {
 			PartId:     fmt.Sprintf("test-part-%d", i+1),
 			Offset:     i * 4 * 1024 * 1024,
 			PartNumber: i + 1,
-			ExpiredAt:  time.Now().Add(1 * time.Minute),
+			ExpiredAt:  time.Now().Add(10 * time.Second),
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -54,7 +54,7 @@ func TestJsonFileSystemResumableRecorder(t *testing.T) {
 		PartId:     fmt.Sprintf("test-part-%d", 3+1),
 		Offset:     3 * 4 * 1024 * 1024,
 		PartNumber: 3 + 1,
-		ExpiredAt:  time.Now().Add(1 * time.Minute),
+		ExpiredAt:  time.Now().Add(10 * time.Second),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestJsonFileSystemResumableRecorder(t *testing.T) {
 			PartId:     fmt.Sprintf("test-part-%d", i+1),
 			Offset:     i * 4 * 1024 * 1024,
 			PartNumber: i + 1,
-			ExpiredAt:  time.Now().Add(1 * time.Minute),
+			ExpiredAt:  time.Now().Add(10 * time.Second),
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -103,5 +103,20 @@ func TestJsonFileSystemResumableRecorder(t *testing.T) {
 	}
 	if err = readableMedium.Close(); err != nil {
 		t.Fatal(err)
+	}
+
+	time.Sleep(11 * time.Second)
+	if err = fs.ClearExpired(); err != nil {
+		t.Fatal(err)
+	}
+
+	readableMedium = fs.OpenForReading(&options)
+	if readableMedium != nil {
+		t.Fatalf("unexpected readable medium")
+	}
+
+	readableMedium = fs.OpenForReading(&options2)
+	if readableMedium != nil {
+		t.Fatalf("unexpected readable medium")
 	}
 }

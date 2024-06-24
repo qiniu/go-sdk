@@ -7,11 +7,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
 	"time"
 
+	"github.com/gofrs/flock"
 	"github.com/qiniu/go-sdk/v7/storagev2/region"
 	"modernc.org/fileutil"
 )
@@ -30,6 +33,8 @@ type (
 	}
 )
 
+const jsonFileSystemResumableRecorderLock = "json_file_system_resumable_recorder_01.lock"
+
 // 创建记录文件系统的可恢复记录仪
 func NewJsonFileSystemResumableRecorder(dirPath string) ResumableRecorder {
 	return jsonFileSystemResumableRecorder{dirPath}
@@ -43,6 +48,10 @@ func (frr jsonFileSystemResumableRecorder) OpenForReading(options *ResumableReco
 		return nil
 	}
 
+	err := os.MkdirAll(frr.dirPath, 0700)
+	if err != nil {
+		return nil
+	}
 	file, err := os.Open(frr.getFilePath(options))
 	if err != nil {
 		return nil
@@ -91,6 +100,68 @@ func (frr jsonFileSystemResumableRecorder) OpenForCreatingNew(options *Resumable
 
 func (frr jsonFileSystemResumableRecorder) Delete(options *ResumableRecorderOpenOptions) error {
 	return os.Remove(frr.getFilePath(options))
+}
+
+func (frr jsonFileSystemResumableRecorder) ClearExpired() error {
+	jsonFileSystemResumableRecorderLockFilePath := filepath.Join(frr.dirPath, jsonFileSystemResumableRecorderLock)
+	lock := flock.New(jsonFileSystemResumableRecorderLockFilePath)
+	locked, err := lock.TryLock()
+	if err != nil {
+		return err
+	} else if !locked {
+		return nil
+	}
+	defer lock.Unlock()
+
+	fileInfos, err := ioutil.ReadDir(frr.dirPath)
+	if err != nil {
+		return err
+	}
+	for _, fileInfo := range fileInfos {
+		if !fileInfo.Mode().IsRegular() {
+			continue
+		}
+		if fileInfo.Name() == jsonFileSystemResumableRecorderLock {
+			continue
+		}
+		filePath := filepath.Join(frr.dirPath, fileInfo.Name())
+		if err = frr.tryToClearPath(filePath); err != nil {
+			os.Remove(filePath)
+		}
+	}
+	return nil
+}
+
+func (frr jsonFileSystemResumableRecorder) tryToClearPath(filePath string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_ = fileutil.Fadvise(file, 0, 0, fileutil.POSIX_FADV_SEQUENTIAL)
+	decoder := json.NewDecoder(file)
+	var (
+		lineOptions jsonBasedResumableRecorderOpenOptions
+		jrr         jsonBasedResumableRecord
+	)
+	if err = decoder.Decode(&lineOptions); err != nil {
+		return nil
+	}
+	if lineOptions.Version != fileSystemResumableRecorderVersion {
+		return nil
+	}
+	for {
+		if err := decoder.Decode(&jrr); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		} else if time.Now().Before(time.Unix(jrr.ExpiredAt, 0)) {
+			return nil
+		}
+	}
+	return errors.New("no valid resumable record")
 }
 
 func (frr jsonFileSystemResumableRecorder) fileName(options *ResumableRecorderOpenOptions) string {

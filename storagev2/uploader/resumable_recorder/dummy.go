@@ -22,3 +22,7 @@ func (dummyResumableRecorder) OpenForCreatingNew(*ResumableRecorderOpenOptions) 
 func (dummyResumableRecorder) Delete(*ResumableRecorderOpenOptions) error {
 	return nil
 }
+
+func (dummyResumableRecorder) ClearExpired() error {
+	return nil
+}

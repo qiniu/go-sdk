@@ -1,6 +1,9 @@
 package resumablerecorder
 
-import "io"
+import (
+	"io"
+	"time"
+)
 
 type (
 	// 可恢复记录仪选项
@@ -34,6 +37,9 @@ type (
 
 		// 删除记录仪介质
 		Delete(*ResumableRecorderOpenOptions) error
+
+		// 清理过期的记录仪介质
+		ClearOutdated(createdBefore time.Duration) error
 	}
 
 	// 只读的可恢复记录仪介质接口

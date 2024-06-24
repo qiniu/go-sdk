@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	resumablerecorder "github.com/qiniu/go-sdk/v7/storagev2/downloader/resumable_recorder"
 )
@@ -85,5 +86,20 @@ func TestJsonFileSystemResumableRecorder(t *testing.T) {
 	}
 	if err = readableMedium.Close(); err != nil {
 		t.Fatal(err)
+	}
+
+	time.Sleep(11 * time.Second)
+	if err = fs.ClearOutdated(10 * time.Second); err != nil {
+		t.Fatal(err)
+	}
+
+	readableMedium = fs.OpenForReading(&options)
+	if readableMedium != nil {
+		t.Fatalf("unexpected readable medium")
+	}
+
+	readableMedium = fs.OpenForReading(&options2)
+	if readableMedium != nil {
+		t.Fatalf("unexpected readable medium")
 	}
 }
