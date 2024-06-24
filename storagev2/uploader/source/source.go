@@ -2,6 +2,7 @@ package source
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -338,8 +339,11 @@ func NewFileSource(filePath string) (Source, error) {
 		return NewReadCloserSource(file, ""), nil
 	} else if absFilePath, err := filepath.Abs(filePath); err != nil {
 		return nil, err
+	} else if fileInfo, err := file.Stat(); err != nil {
+		return nil, err
 	} else {
-		return NewReadAtSeekCloserSource(file, absFilePath), nil
+		sourceKey := fmt.Sprintf("%d:%d:%s", fileInfo.Size(), fileInfo.ModTime().UnixNano(), absFilePath)
+		return NewReadAtSeekCloserSource(file, sourceKey), nil
 	}
 }
 

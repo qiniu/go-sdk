@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"hash/crc32"
 	"io"
 	"io/ioutil"
@@ -388,12 +389,18 @@ func TestMultiPartsUploaderV1Resuming(t *testing.T) {
 	server = httptest.NewServer(serveMux)
 	defer server.Close()
 
+	tmpFileStat, err := tmpFile.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpFileSourceKey := fmt.Sprintf("%d:%d:%s", tmpFileStat.Size(), tmpFileStat.ModTime().UnixNano(), tmpFile.Name())
+
 	resumableRecorder := resumablerecorder.NewJsonFileSystemResumableRecorder(tmpDir)
 	medium := resumableRecorder.OpenForCreatingNew(&resumablerecorder.ResumableRecorderOpenOptions{
 		AccessKey:   "testak",
 		BucketName:  "testbucket",
 		ObjectName:  "testkey",
-		SourceKey:   tmpFile.Name(),
+		SourceKey:   tmpFileSourceKey,
 		PartSize:    4 * 1024 * 1024,
 		TotalSize:   5 * 1024 * 1024,
 		UpEndpoints: region.Endpoints{Preferred: []string{server.URL}},
