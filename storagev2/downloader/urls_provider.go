@@ -23,16 +23,16 @@ import (
 )
 
 type (
-	unsignedURL struct {
-		url *url.URL
+	simpleURLsIter struct {
+		urls, used []*url.URL
 	}
 
-	signedURL struct {
-		ctx     context.Context
-		url     URLProvider
-		signer  Signer
-		options *SignOptions
-		cache   *cache.Cache
+	signedURLsIter struct {
+		ctx      context.Context
+		urlsIter URLsIter
+		signer   Signer
+		options  *SignOptions
+		cache    *cache.Cache
 	}
 
 	staticDomainBasedURLsProvider struct {
@@ -56,6 +56,10 @@ type (
 
 	combinedDownloadURLsProviders struct {
 		providers []DownloadURLsProvider
+	}
+
+	combinedURLsIter struct {
+		iters, used []URLsIter
 	}
 
 	signedDownloadURLsProviders struct {
@@ -100,41 +104,81 @@ type (
 	}
 )
 
-// 转换 URL
-func NewURLProvider(u *url.URL) URLProvider {
-	return &unsignedURL{u}
+// 将 URL 列表转换为迭代器
+func NewURLsIter(urls []*url.URL) URLsIter {
+	return &simpleURLsIter{urls: urls, used: make([]*url.URL, 0, len(urls))}
 }
 
-func (uu *unsignedURL) GetURL(u *url.URL) error {
-	*u = *uu.url
-	return nil
+func (s *simpleURLsIter) Peek(u *url.URL) (bool, error) {
+	if len(s.urls) > 0 {
+		*u = *s.urls[0]
+		return true, nil
+	}
+	return false, nil
+}
+
+func (s *simpleURLsIter) Next() {
+	if len(s.urls) > 0 {
+		s.used = append(s.used, s.urls[0])
+		s.urls = s.urls[1:]
+	}
+}
+
+func (s *simpleURLsIter) Reset() {
+	s.urls = append(s.used, s.urls...)
+	s.used = make([]*url.URL, 0, cap(s.urls))
+}
+
+func (s *simpleURLsIter) Clone() URLsIter {
+	return &simpleURLsIter{
+		urls: append(make([]*url.URL, 0, cap(s.urls)), s.urls...),
+		used: append(make([]*url.URL, 0, cap(s.used)), s.used...),
+	}
 }
 
 // 为 URL 列表签名
-func SignURLs(ctx context.Context, url URLProvider, signer Signer, options *SignOptions) URLProvider {
-	return &signedURL{ctx: ctx, url: url, signer: signer, options: options, cache: cache.NewCache(1 * time.Second)}
+func SignURLs(ctx context.Context, urlsIter URLsIter, signer Signer, options *SignOptions) URLsIter {
+	return &signedURLsIter{ctx: ctx, urlsIter: urlsIter, signer: signer, options: options, cache: cache.NewCache(1 * time.Second)}
 }
 
-func (su *signedURL) GetURL(u *url.URL) error {
-	key := u.String()
-	var err error
-	cacheValue, status := su.cache.Get(key, func() (cache.CacheValue, error) {
-		var (
-			signedURL url.URL
-		)
-		if err = su.url.GetURL(&signedURL); err != nil {
-			return nil, err
+func (s *signedURLsIter) Peek(u *url.URL) (bool, error) {
+	var unsignedURL url.URL
+	if ok, err := s.urlsIter.Peek(&unsignedURL); err != nil {
+		return ok, err
+	} else if ok {
+		var err error
+		cacheValue, status := s.cache.Get(unsignedURL.String(), func() (cache.CacheValue, error) {
+			signedURL := unsignedURL
+			if err = s.signer.Sign(s.ctx, &signedURL, s.options); err != nil {
+				return nil, err
+			}
+			return signingCacheValue{&signedURL, time.Now().Add(1 * time.Second)}, nil
+		})
+		if status == cache.NoResultGot {
+			return false, err
 		}
-		if err = su.signer.Sign(su.ctx, &signedURL, su.options); err != nil {
-			return nil, err
-		}
-		return signingCacheValue{&signedURL, time.Now().Add(1 * time.Second)}, nil
-	})
-	if status == cache.NoResultGot {
-		return err
+		*u = *cacheValue.(signingCacheValue).url
+		return true, nil
 	}
-	*u = *cacheValue.(signingCacheValue).url
-	return nil
+	return false, nil
+}
+
+func (s *signedURLsIter) Next() {
+	s.urlsIter.Next()
+}
+
+func (s *signedURLsIter) Reset() {
+	s.urlsIter.Reset()
+}
+
+func (s *signedURLsIter) Clone() URLsIter {
+	return &signedURLsIter{
+		ctx:      s.ctx,
+		urlsIter: s.urlsIter.Clone(),
+		signer:   s.signer,
+		options:  s.options,
+		cache:    s.cache,
+	}
 }
 
 func (scv signingCacheValue) IsEqual(cv cache.CacheValue) bool {
@@ -150,11 +194,11 @@ func NewStaticDomainBasedURLsProvider(domains []string) DownloadURLsProvider {
 	return &staticDomainBasedURLsProvider{domains}
 }
 
-func (g *staticDomainBasedURLsProvider) GetURLs(_ context.Context, objectName string, options *GenerateOptions) ([]URLProvider, error) {
+func (g *staticDomainBasedURLsProvider) GetURLsIter(_ context.Context, objectName string, options *GenerateOptions) (URLsIter, error) {
 	if options == nil {
 		options = &GenerateOptions{}
 	}
-	urls := make([]URLProvider, 0, len(g.domains))
+	urls := make([]*url.URL, 0, len(g.domains))
 	for _, domain := range g.domains {
 		if !strings.Contains(domain, "://") {
 			if options.UseInsecureProtocol {
@@ -170,9 +214,9 @@ func (g *staticDomainBasedURLsProvider) GetURLs(_ context.Context, objectName st
 		u.Path = "/" + objectName
 		u.RawPath = ""
 		u.RawQuery = options.Command
-		urls = append(urls, NewURLProvider(u))
+		urls = append(urls, u)
 	}
-	return urls, nil
+	return NewURLsIter(urls), nil
 }
 
 // 创建默认源站域名下载 URL 生成器
@@ -187,7 +231,7 @@ func NewDefaultSrcURLsProvider(accessKey string, options *DefaultSrcURLsProvider
 	return &defaultSrcURLsProvider{accessKey: accessKey, bucketHosts: bucketHosts, options: options}
 }
 
-func (g *defaultSrcURLsProvider) GetURLs(ctx context.Context, objectName string, options *GenerateOptions) ([]URLProvider, error) {
+func (g *defaultSrcURLsProvider) GetURLsIter(ctx context.Context, objectName string, options *GenerateOptions) (URLsIter, error) {
 	if options == nil {
 		options = &GenerateOptions{}
 	}
@@ -214,7 +258,7 @@ func (g *defaultSrcURLsProvider) GetURLs(ctx context.Context, objectName string,
 	ioSrcDomains := make([]string, 0, len(region.IoSrc.Preferred)+len(region.IoSrc.Alternative))
 	ioSrcDomains = append(ioSrcDomains, region.IoSrc.Preferred...)
 	ioSrcDomains = append(ioSrcDomains, region.IoSrc.Alternative...)
-	return NewStaticDomainBasedURLsProvider(ioSrcDomains).GetURLs(ctx, objectName, options)
+	return NewStaticDomainBasedURLsProvider(ioSrcDomains).GetURLsIter(ctx, objectName, options)
 }
 
 const cacheFileName = "domain_v2_01.cache.json"
@@ -263,7 +307,7 @@ func NewDomainsQueryURLsProvider(options *DomainsQueryURLsProviderOptions) (Down
 	return &domainsQueryURLsProvider{storage, persistentCache, creds, cacheTTL}, nil
 }
 
-func (g *domainsQueryURLsProvider) GetURLs(ctx context.Context, objectName string, options *GenerateOptions) ([]URLProvider, error) {
+func (g *domainsQueryURLsProvider) GetURLsIter(ctx context.Context, objectName string, options *GenerateOptions) (URLsIter, error) {
 	var (
 		creds *credentials.Credentials
 		err   error
@@ -292,7 +336,7 @@ func (g *domainsQueryURLsProvider) GetURLs(ctx context.Context, objectName strin
 		return nil, err
 	}
 	domains := cacheValue.(*domainCacheValue).Domains
-	return NewStaticDomainBasedURLsProvider(domains).GetURLs(ctx, objectName, options)
+	return NewStaticDomainBasedURLsProvider(domains).GetURLsIter(ctx, objectName, options)
 }
 
 func (left *domainCacheValue) IsEqual(rightValue cache.CacheValue) bool {
@@ -359,16 +403,57 @@ func CombineDownloadURLsProviders(providers ...DownloadURLsProvider) DownloadURL
 	return combinedDownloadURLsProviders{providers}
 }
 
-func (g combinedDownloadURLsProviders) GetURLs(ctx context.Context, objectName string, options *GenerateOptions) ([]URLProvider, error) {
-	urlProviders := make([]URLProvider, 0, len(g.providers))
+func (g combinedDownloadURLsProviders) GetURLsIter(ctx context.Context, objectName string, options *GenerateOptions) (URLsIter, error) {
+	urlIters := make([]URLsIter, 0, len(g.providers))
 	for _, downloadURLsProvider := range g.providers {
-		ups, err := downloadURLsProvider.GetURLs(ctx, objectName, options)
+		urlsIter, err := downloadURLsProvider.GetURLsIter(ctx, objectName, options)
 		if err != nil {
 			return nil, err
 		}
-		urlProviders = append(urlProviders, ups...)
+		urlIters = append(urlIters, urlsIter)
 	}
-	return urlProviders, nil
+	return &combinedURLsIter{iters: urlIters, used: make([]URLsIter, 0, len(urlIters))}, nil
+}
+
+func (c *combinedURLsIter) Peek(u *url.URL) (bool, error) {
+	for len(c.iters) > 0 {
+		iter := c.iters[0]
+		if ok, err := iter.Peek(u); err != nil {
+			return ok, err
+		} else if ok {
+			return true, nil
+		} else {
+			c.used = append(c.used, c.iters[0])
+			c.iters = c.iters[1:]
+		}
+	}
+	return false, nil
+}
+
+func (c *combinedURLsIter) Next() {
+	if len(c.iters) > 0 {
+		iter := c.iters[0]
+		iter.Next()
+	}
+}
+
+func (c *combinedURLsIter) Reset() {
+	c.iters = append(c.used, c.iters...)
+	c.used = make([]URLsIter, 0, cap(c.iters))
+}
+
+func (c *combinedURLsIter) Clone() URLsIter {
+	new := combinedURLsIter{
+		iters: make([]URLsIter, 0, cap(c.iters)),
+		used:  make([]URLsIter, 0, cap(c.used)),
+	}
+	for _, iter := range c.iters {
+		new.iters = append(new.iters, iter.Clone())
+	}
+	for _, iter := range c.used {
+		new.used = append(new.used, iter.Clone())
+	}
+	return &new
 }
 
 // 为下载 URL 获取结果签名
@@ -376,11 +461,10 @@ func SignURLsProvider(provider DownloadURLsProvider, signer Signer, options *Sig
 	return signedDownloadURLsProviders{provider, signer, options}
 }
 
-func (provider signedDownloadURLsProviders) GetURLs(ctx context.Context, objectName string, options *GenerateOptions) (urls []URLProvider, err error) {
-	if urls, err = provider.provider.GetURLs(ctx, objectName, options); err == nil {
-		for i := range urls {
-			urls[i] = SignURLs(ctx, urls[i], provider.signer, provider.options)
-		}
+func (provider signedDownloadURLsProviders) GetURLsIter(ctx context.Context, objectName string, options *GenerateOptions) (URLsIter, error) {
+	if urlsIter, err := provider.provider.GetURLsIter(ctx, objectName, options); err == nil {
+		return SignURLs(ctx, urlsIter, provider.signer, provider.options), nil
+	} else {
+		return urlsIter, err
 	}
-	return
 }

@@ -141,7 +141,7 @@ func (downloadManager *DownloadManager) downloadToDestination(ctx context.Contex
 	if downloadURLsProvider == nil {
 		return 0, errors.MissingRequiredFieldError{Name: "DownloadURLsProvider"}
 	}
-	urls, err := downloadURLsProvider.GetURLs(ctx, objectName, &options.GenerateOptions)
+	urls, err := downloadURLsProvider.GetURLsIter(ctx, objectName, &options.GenerateOptions)
 	if err != nil {
 		return 0, err
 	}

@@ -8,7 +8,7 @@ import (
 
 type (
 	retryWhenTokenOutOfDateInterceptor struct{}
-	urlProviderContextKey              struct{}
+	urlsIterContextKey                 struct{}
 )
 
 func (interceptor retryWhenTokenOutOfDateInterceptor) Priority() clientv2.InterceptorPriority {
@@ -16,9 +16,9 @@ func (interceptor retryWhenTokenOutOfDateInterceptor) Priority() clientv2.Interc
 }
 
 func (interceptor retryWhenTokenOutOfDateInterceptor) Intercept(req *http.Request, handler clientv2.Handler) (resp *http.Response, err error) {
-	if urlProvider, ok := req.Context().Value(urlProviderContextKey{}).(URLProvider); ok {
-		if err = urlProvider.GetURL(req.URL); err != nil {
-			return nil, err
+	if urlsIter, ok := req.Context().Value(urlsIterContextKey{}).(URLsIter); ok {
+		if _, err = urlsIter.Peek(req.URL); err != nil {
+			return
 		}
 	}
 	resp, err = handler(req)

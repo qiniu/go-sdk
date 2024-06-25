@@ -53,32 +53,44 @@ type (
 		base         downloader.DownloadURLsProvider
 		trafficLimit uint64
 	}
-	trafficLimitURLProvider struct {
-		base         downloader.URLProvider
+	trafficLimitURLsIter struct {
+		iter         downloader.URLsIter
 		trafficLimit uint64
 	}
 )
 
-func (p trafficLimitURLProvider) GetURL(u *url.URL) (err error) {
-	err = p.base.GetURL(u)
-	if err == nil {
+func (p trafficLimitURLsIter) Peek(u *url.URL) (bool, error) {
+	if ok, err := p.iter.Peek(u); err != nil {
+		return ok, err
+	} else if !ok {
+		return false, nil
+	} else {
 		if u.RawQuery != "" {
 			u.RawQuery += "&"
 		}
 		u.RawQuery += fmt.Sprintf("X-Qiniu-Traffic-Limit=%d", p.trafficLimit)
+		return true, nil
 	}
-	return
 }
 
-func (p trafficLimitDownloadURLsProvider) GetURLs(ctx context.Context, objectName string, options *downloader.GenerateOptions) (urlProviders []downloader.URLProvider, err error) {
-	urlProviders, err = p.base.GetURLs(ctx, objectName, options)
-	if err != nil {
-		return
+func (p trafficLimitURLsIter) Next() {
+	p.iter.Next()
+}
+
+func (p trafficLimitURLsIter) Reset() {
+	p.iter.Reset()
+}
+
+func (p trafficLimitURLsIter) Clone() downloader.URLsIter {
+	return trafficLimitURLsIter{p.iter.Clone(), p.trafficLimit}
+}
+
+func (p trafficLimitDownloadURLsProvider) GetURLsIter(ctx context.Context, objectName string, options *downloader.GenerateOptions) (downloader.URLsIter, error) {
+	if urlsIter, err := p.base.GetURLsIter(ctx, objectName, options); err != nil {
+		return nil, err
+	} else {
+		return trafficLimitURLsIter{urlsIter, p.trafficLimit}, nil
 	}
-	for i, urlProvider := range urlProviders {
-		urlProviders[i] = trafficLimitURLProvider{urlProvider, p.trafficLimit}
-	}
-	return
 }
 
 // Get

@@ -10,14 +10,21 @@ import (
 )
 
 type (
-	// 获取 URL 接口
-	URLProvider interface {
-		GetURL(*url.URL) error
+	// 获取 URL 迭代器
+	URLsIter interface {
+		// 获取首个 URL
+		Peek(*url.URL) (bool, error)
+		// 切换到下一个 URL
+		Next()
+		// 重置迭代器
+		Reset()
+		// 复制迭代器
+		Clone() URLsIter
 	}
 
 	// 获取对象下载 URL 接口
 	DownloadURLsProvider interface {
-		GetURLs(context.Context, string, *GenerateOptions) ([]URLProvider, error)
+		GetURLsIter(context.Context, string, *GenerateOptions) (URLsIter, error)
 	}
 
 	// 对下载 URL 签名
@@ -37,7 +44,7 @@ type (
 
 	// 目标下载器
 	DestinationDownloader interface {
-		Download(context.Context, []URLProvider, destination.Destination, *DestinationDownloadOptions) (uint64, error)
+		Download(context.Context, URLsIter, destination.Destination, *DestinationDownloadOptions) (uint64, error)
 	}
 
 	// 对象下载 URL 生成选项

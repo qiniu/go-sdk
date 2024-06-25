@@ -99,11 +99,8 @@ func TestConcurrentDownloaderWithSinglePart(t *testing.T) {
 	)
 	n, err := d.Download(
 		context.Background(),
-		[]downloader.URLProvider{
-			downloader.NewURLProvider(url1),
-			downloader.NewURLProvider(url2),
-			downloader.NewURLProvider(url3),
-		}, destination.NewWriteCloserDestination(&buf, ""),
+		downloader.NewURLsIter([]*url.URL{url1, url2, url3}),
+		destination.NewWriteCloserDestination(&buf, ""),
 		&downloader.DestinationDownloadOptions{
 			OnDownloadingProgress: func(downloaded, totalSize uint64) {
 				if downloaded < lastDownloaded {
@@ -124,10 +121,10 @@ func TestConcurrentDownloaderWithSinglePart(t *testing.T) {
 	if lastDownloaded != 1024*1024 {
 		t.Fatalf("unexpected downloaded progress")
 	}
-	if counts[0] != 20 {
+	if counts[0] != 10 {
 		t.Fatalf("unexpected called count")
 	}
-	if counts[1] != 20 {
+	if counts[1] != 10 {
 		t.Fatalf("unexpected called count")
 	}
 	if counts[2] != 2 {
@@ -199,7 +196,7 @@ func TestConcurrentDownloaderWithCompression(t *testing.T) {
 	)
 	n, err := d.Download(
 		context.Background(),
-		[]downloader.URLProvider{downloader.NewURLProvider(url1)},
+		downloader.NewURLsIter([]*url.URL{url1}),
 		destination.NewWriteCloserDestination(&buf, ""), &downloader.DestinationDownloadOptions{
 			OnDownloadingProgress: func(downloaded, totalSize uint64) {
 				if downloaded < lastDownloaded {
@@ -283,7 +280,7 @@ func TestConcurrentDownloaderWithMultipleParts(t *testing.T) {
 	var lastDownloaded uint64
 	n, err := d.Download(
 		context.Background(),
-		[]downloader.URLProvider{downloader.NewURLProvider(url1)},
+		downloader.NewURLsIter([]*url.URL{url1}),
 		dest,
 		&downloader.DestinationDownloadOptions{
 			OnDownloadingProgress: func(downloaded, totalSize uint64) {
@@ -380,7 +377,7 @@ func TestConcurrentDownloaderWithMultiplePartsAndRange(t *testing.T) {
 	var lastDownloaded uint64
 	n, err := d.Download(
 		context.Background(),
-		[]downloader.URLProvider{downloader.NewURLProvider(url1)},
+		downloader.NewURLsIter([]*url.URL{url1}),
 		dest,
 		&downloader.DestinationDownloadOptions{
 			Header: http.Header{"Range": []string{fmt.Sprintf("bytes=%d-", SIZE-REQUEST_SIZE)}},
@@ -530,7 +527,7 @@ func TestConcurrentDownloaderWithResumableRecorder(t *testing.T) {
 	var lastDownloaded uint64
 	n, err := d.Download(
 		context.Background(),
-		[]downloader.URLProvider{downloader.NewURLProvider(url1)},
+		downloader.NewURLsIter([]*url.URL{url1}),
 		dest,
 		&downloader.DestinationDownloadOptions{
 			OnDownloadingProgress: func(downloaded, totalSize uint64) {
