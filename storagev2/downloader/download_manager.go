@@ -260,6 +260,7 @@ func (downloadManager *DownloadManager) initDownloadURLsProvider(ctx context.Con
 					AfterBackoff:        downloadManager.options.AfterBackoff,
 					BeforeRequest:       downloadManager.options.BeforeRequest,
 					AfterResponse:       downloadManager.options.AfterResponse,
+					AccelerateUploading: downloadManager.options.AccelerateUploading,
 				}
 				if hostRetryConfig := downloadManager.options.HostRetryConfig; hostRetryConfig != nil {
 					bucketRegionsQueryOptions.RetryMax = hostRetryConfig.RetryMax

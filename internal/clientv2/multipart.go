@@ -1,11 +1,13 @@
 package clientv2
 
 import (
+	"crypto/rand"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/textproto"
 	"strings"
+	"sync"
 
 	"github.com/qiniu/go-sdk/v7/internal/context"
 	compatible_io "github.com/qiniu/go-sdk/v7/internal/io"
@@ -21,11 +23,13 @@ type (
 	}
 
 	MultipartForm struct {
-		values []keyValuePair
-		files  []keyFilePair
-		ctx    context.Context
-		cancel context.CancelCauseFunc
-		w      *io.PipeWriter
+		values       []keyValuePair
+		files        []keyFilePair
+		ctx          context.Context
+		cancel       context.CancelCauseFunc
+		w            *io.PipeWriter
+		boundary     string
+		boundaryOnce sync.Once
 	}
 
 	multipartFormReader struct {
@@ -46,10 +50,23 @@ func (f *MultipartForm) SetFile(key, fileName, contentType string, stream compat
 	return f
 }
 
+func (f *MultipartForm) generateBoundary() string {
+	f.boundaryOnce.Do(func() {
+		var buf [30]byte
+		_, err := io.ReadFull(rand.Reader, buf[:])
+		if err != nil {
+			panic(err)
+		}
+		f.boundary = fmt.Sprintf("%x", buf[:])
+	})
+	return f.boundary
+}
+
 func newMultipartFormReader(form *MultipartForm) *multipartFormReader {
 	reader := &multipartFormReader{form: form}
 	reader.r, form.w = io.Pipe()
 	reader.multipartWriter = multipart.NewWriter(form.w)
+	reader.multipartWriter.SetBoundary(form.generateBoundary())
 
 	go func(multipartWriter *multipart.Writer, w *io.PipeWriter, ctx context.Context, cancel context.CancelCauseFunc) {
 		defer w.Close()
@@ -91,13 +108,13 @@ func (r *multipartFormReader) Read(p []byte) (int, error) {
 	}
 }
 
-func (r *multipartFormReader) Close() (err error) {
+func (r *multipartFormReader) Close() error {
 	if r.closed {
 		return nil
 	}
 	r.closed = true
 	r.form.cancel(io.ErrClosedPipe)
-	err = r.r.Close()
+	err := r.r.Close()
 	for _, pair := range r.form.files {
 		if e := pair.stream.Close(); e != nil && err == nil {
 			err = e
@@ -140,7 +157,7 @@ func GetMultipartFormRequestBody(info *MultipartForm) GetRequestBody {
 			}
 		}
 		r := newMultipartFormReader(info)
-		o.Header.Add("Content-Type", r.formDataContentType())
+		o.Header.Set("Content-Type", r.formDataContentType())
 		return r, nil
 	}
 }

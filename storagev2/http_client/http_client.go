@@ -40,27 +40,28 @@ type (
 
 	// Client 提供了对七牛 HTTP 客户端
 	Client struct {
-		useHttps           bool
-		basicHTTPClient    BasicHTTPClient
-		bucketQuery        region.BucketRegionsQuery
-		regions            region.RegionsProvider
-		credentials        credentials.CredentialsProvider
-		resolver           resolver.Resolver
-		chooser            chooser.Chooser
-		hostRetryConfig    *RetryConfig
-		hostsRetryConfig   *RetryConfig
-		hostFreezeDuration time.Duration
-		shouldFreezeHost   func(req *http.Request, resp *http.Response, err error) bool
-		beforeSign         func(req *http.Request)
-		afterSign          func(req *http.Request)
-		signError          func(req *http.Request, err error)
-		beforeResolve      func(*http.Request)
-		afterResolve       func(*http.Request, []net.IP)
-		resolveError       func(*http.Request, error)
-		beforeBackoff      func(*http.Request, *retrier.RetrierOptions, time.Duration)
-		afterBackoff       func(*http.Request, *retrier.RetrierOptions, time.Duration)
-		beforeRequest      func(*http.Request, *retrier.RetrierOptions)
-		afterResponse      func(*http.Response, *retrier.RetrierOptions, error)
+		useHttps            bool
+		accelerateUploading bool
+		basicHTTPClient     BasicHTTPClient
+		bucketQuery         region.BucketRegionsQuery
+		regions             region.RegionsProvider
+		credentials         credentials.CredentialsProvider
+		resolver            resolver.Resolver
+		chooser             chooser.Chooser
+		hostRetryConfig     *RetryConfig
+		hostsRetryConfig    *RetryConfig
+		hostFreezeDuration  time.Duration
+		shouldFreezeHost    func(req *http.Request, resp *http.Response, err error) bool
+		beforeSign          func(req *http.Request)
+		afterSign           func(req *http.Request)
+		signError           func(req *http.Request, err error)
+		beforeResolve       func(*http.Request)
+		afterResolve        func(*http.Request, []net.IP)
+		resolveError        func(*http.Request, error)
+		beforeBackoff       func(*http.Request, *retrier.RetrierOptions, time.Duration)
+		afterBackoff        func(*http.Request, *retrier.RetrierOptions, time.Duration)
+		beforeRequest       func(*http.Request, *retrier.RetrierOptions)
+		afterResponse       func(*http.Response, *retrier.RetrierOptions, error)
 	}
 
 	// Options 为构建 Client 提供了可选参数
@@ -130,6 +131,9 @@ type (
 
 		// 请求后回调函数
 		AfterResponse func(*http.Response, *retrier.RetrierOptions, error)
+
+		// 是否加速上传
+		AccelerateUploading bool
 	}
 
 	// Request 包含一个具体的 HTTP 请求的参数
@@ -205,27 +209,28 @@ func NewClient(options *Options) *Client {
 	}
 
 	return &Client{
-		useHttps:           !options.UseInsecureProtocol,
-		basicHTTPClient:    clientv2.NewClient(options.BasicHTTPClient, options.Interceptors...),
-		bucketQuery:        options.BucketQuery,
-		regions:            options.Regions,
-		credentials:        creds,
-		resolver:           options.Resolver,
-		chooser:            options.Chooser,
-		hostRetryConfig:    options.HostRetryConfig,
-		hostsRetryConfig:   options.HostsRetryConfig,
-		hostFreezeDuration: hostFreezeDuration,
-		shouldFreezeHost:   shouldFreezeHost,
-		beforeSign:         options.BeforeSign,
-		afterSign:          options.AfterSign,
-		signError:          options.SignError,
-		beforeResolve:      options.BeforeResolve,
-		afterResolve:       options.AfterResolve,
-		resolveError:       options.ResolveError,
-		beforeBackoff:      options.BeforeBackoff,
-		afterBackoff:       options.AfterBackoff,
-		beforeRequest:      options.BeforeRequest,
-		afterResponse:      options.AfterResponse,
+		useHttps:            !options.UseInsecureProtocol,
+		accelerateUploading: options.AccelerateUploading,
+		basicHTTPClient:     clientv2.NewClient(options.BasicHTTPClient, options.Interceptors...),
+		bucketQuery:         options.BucketQuery,
+		regions:             options.Regions,
+		credentials:         creds,
+		resolver:            options.Resolver,
+		chooser:             options.Chooser,
+		hostRetryConfig:     options.HostRetryConfig,
+		hostsRetryConfig:    options.HostsRetryConfig,
+		hostFreezeDuration:  hostFreezeDuration,
+		shouldFreezeHost:    shouldFreezeHost,
+		beforeSign:          options.BeforeSign,
+		afterSign:           options.AfterSign,
+		signError:           options.SignError,
+		beforeResolve:       options.BeforeResolve,
+		afterResolve:        options.AfterResolve,
+		resolveError:        options.ResolveError,
+		beforeBackoff:       options.BeforeBackoff,
+		afterBackoff:        options.AfterBackoff,
+		beforeRequest:       options.BeforeRequest,
+		afterResponse:       options.AfterResponse,
 	}
 }
 
@@ -279,6 +284,10 @@ func (httpClient *Client) DoAndAcceptJSON(ctx context.Context, request *Request,
 	} else {
 		return clientv1.DecodeJsonFromReader(resp.Body, ret)
 	}
+}
+
+func (httpClient *Client) AccelerateUploadingEnabled() bool {
+	return httpClient.accelerateUploading
 }
 
 func (httpClient *Client) GetBucketQuery() region.BucketRegionsQuery {
@@ -361,7 +370,7 @@ func (httpClient *Client) getEndpoints(ctx context.Context, request *Request) (r
 			return region.Endpoints{}, ErrNoRegion
 		}
 		r := rs[0]
-		return r.Endpoints(request.ServiceNames)
+		return r.Endpoints(serviceNames)
 	}
 	if request.Endpoints != nil {
 		return getEndpointsFromEndpointsProvider(ctx, request.Endpoints)
@@ -391,7 +400,7 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 		hostsRetryConfig = *httpClient.hostsRetryConfig
 	}
 	if hostsRetryConfig.RetryMax <= 0 {
-		hostsRetryConfig.RetryMax = len(endpoints.Preferred) + len(endpoints.Alternative)
+		hostsRetryConfig.RetryMax = endpoints.HostsLength()
 	}
 	if hostsRetryConfig.Retrier == nil {
 		hostsRetryConfig.Retrier = retrier.NewErrorRetrier()

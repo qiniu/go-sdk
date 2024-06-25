@@ -454,6 +454,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 												Qual(PackageNameRegion, "BucketRegionsQueryOptions").
 												ValuesFunc(func(group *jen.Group) {
 													group.Add(jen.Id("UseInsecureProtocol").Op(":").Id("storage").Dot("client").Dot("UseInsecureProtocol").Call())
+													group.Add(jen.Id("AccelerateUploading").Op(":").Id("storage").Dot("client").Dot("AccelerateUploadingEnabled").Call())
 													group.Add(jen.Id("HostFreezeDuration").Op(":").Id("storage").Dot("client").Dot("GetHostFreezeDuration").Call())
 													group.Add(jen.Id("Client").Op(":").Id("storage").Dot("client").Dot("GetClient").Call())
 													group.Add(jen.Id("Resolver").Op(":").Id("storage").Dot("client").Dot("GetResolver").Call())

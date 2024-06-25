@@ -184,6 +184,11 @@ func (frr jsonFileSystemResumableRecorder) fileName(options *ResumableRecorderOp
 		hasher.Write([]byte{1})
 	}
 	hasher.Write([]byte{0})
+	for _, endpoint := range options.UpEndpoints.Accelerated {
+		hasher.Write([]byte(endpoint))
+		hasher.Write([]byte{1})
+	}
+	hasher.Write([]byte{0})
 	binary.Write(hasher, binary.LittleEndian, options.PartSize)
 	binary.Write(hasher, binary.LittleEndian, options.TotalSize)
 	return hex.EncodeToString(hasher.Sum(nil))

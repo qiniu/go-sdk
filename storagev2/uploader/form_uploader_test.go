@@ -310,6 +310,128 @@ func TestFormUploaderRetry(t *testing.T) {
 	}
 }
 
+func TestFormUploaderAccelaratedUploading(t *testing.T) {
+	tmpFile, err := ioutil.TempFile("", "form-uploader-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	hasher := md5.New()
+	if _, err = io.CopyN(tmpFile, io.TeeReader(r, hasher), 1024*1024); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = tmpFile.Seek(0, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+	expectedMd5 := hasher.Sum(nil)
+
+	var handlerCalled_1, handlerCalled_2 uint64
+
+	serveMux_1 := http.NewServeMux()
+	serveMux_1.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddUint64(&handlerCalled_1, 1)
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if err := r.ParseMultipartForm(2 * 1024 * 1024); err != nil {
+			t.Fatal(err)
+		}
+		if values := r.MultipartForm.Value["key"]; len(values) != 1 || values[0] != "testkey" {
+			t.Fatalf("unexpected key")
+		}
+		if values := r.MultipartForm.Value["token"]; len(values) != 1 || !strings.HasPrefix(values[0], "testak:") {
+			t.Fatalf("unexpected token")
+		}
+		if values := r.MultipartForm.Value["x-qn-meta-a"]; len(values) != 1 || values[0] != "b" {
+			t.Fatalf("unexpected x-qn-meta-a")
+		}
+		if values := r.MultipartForm.Value["x-qn-meta-c"]; len(values) != 1 || values[0] != "d" {
+			t.Fatalf("unexpected x-qn-meta-c")
+		}
+		if values := r.MultipartForm.Value["x:a"]; len(values) != 1 || values[0] != "b" {
+			t.Fatalf("unexpected x:a")
+		}
+		if values := r.MultipartForm.Value["x:c"]; len(values) != 1 || values[0] != "d" {
+			t.Fatalf("unexpected x:c")
+		}
+		if files := r.MultipartForm.File["file"]; len(files) != 1 || files[0].Filename != "testfilename" || files[0].Size != 1024*1024 {
+			t.Fatalf("unexpected file")
+		} else if contentType := files[0].Header.Get("Content-Type"); contentType != "application/json" {
+			t.Fatalf("unexpected file content-type")
+		} else if file, err := files[0].Open(); err != nil {
+			t.Fatal(err)
+		} else {
+			defer file.Close()
+			hasher := md5.New()
+			if _, err = io.Copy(hasher, file); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(hasher.Sum(nil), expectedMd5) {
+				t.Fatalf("unexpected file content")
+			}
+		}
+		w.Header().Add("x-reqid", "fakereqid")
+		w.Write([]byte(`{"ok":true}`))
+	})
+	server_1 := httptest.NewServer(serveMux_1)
+	defer server_1.Close()
+
+	serveMux_2 := http.NewServeMux()
+	serveMux_2.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddUint64(&handlerCalled_2, 1)
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if err := r.ParseMultipartForm(2 * 1024 * 1024); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Add("x-reqid", "fakereqid")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`{"error":"transfer acceleration is not configured on this bucket"}`))
+	})
+	server_2 := httptest.NewServer(serveMux_2)
+	defer server_2.Close()
+
+	var (
+		returnValue struct {
+			Ok bool `json:"ok"`
+		}
+		key = "testkey"
+	)
+
+	formUploader := NewFormUploader(&FormUploaderOptions{
+		Options: http_client.Options{
+			Regions: regions{[]*region.Region{
+				{Up: region.Endpoints{Accelerated: []string{server_2.URL}, Preferred: []string{server_1.URL}}},
+			}},
+			Credentials: credentials.NewCredentials("testak", "testsk"),
+		},
+	})
+	if err = formUploader.UploadFile(context.Background(), tmpFile.Name(), &ObjectOptions{
+		BucketName:  "testbucket",
+		ObjectName:  &key,
+		FileName:    "testfilename",
+		ContentType: "application/json",
+		Metadata:    map[string]string{"a": "b", "c": "d"},
+		CustomVars:  map[string]string{"a": "b", "c": "d"},
+	}, &returnValue); err != nil {
+		t.Fatal(err)
+	}
+	if !returnValue.Ok {
+		t.Fatalf("unexpected response value")
+	}
+	if count := atomic.LoadUint64(&handlerCalled_1); count != 1 {
+		t.Fatalf("unexpected handler call count: %d", count)
+	}
+	if count := atomic.LoadUint64(&handlerCalled_2); count != 1 {
+		t.Fatalf("unexpected handler call count: %d", count)
+	}
+}
+
 type regions struct {
 	regions []*region.Region
 }

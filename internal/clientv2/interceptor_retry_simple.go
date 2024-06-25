@@ -108,6 +108,10 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 		req, chosenIPs = interceptor.choose(req, resolvedIPs, hostname)
 		resp, err = interceptor.callHandler(req, &retrier.RetrierOptions{Attempts: i}, handler)
 
+		if err == nil && resp.StatusCode/100 >= 4 {
+			err = clientv1.ResponseError(resp)
+		}
+
 		retryDecision := interceptor.config.getRetryDecision(reqBefore, resp, err, i)
 		if retryDecision == retrier.DontRetry {
 			interceptor.feedbackGood(req, hostname, chosenIPs)
