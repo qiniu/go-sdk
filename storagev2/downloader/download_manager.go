@@ -20,6 +20,7 @@ import (
 )
 
 type (
+	// 下载管理器
 	DownloadManager struct {
 		destinationDownloader    DestinationDownloader
 		objectsManager           *objects.ObjectsManager
@@ -28,6 +29,7 @@ type (
 		options                  httpclient.Options
 	}
 
+	// 下载管理器选项
 	DownloadManagerOptions struct {
 		// HTTP 客户端选项
 		httpclient.Options
@@ -86,6 +88,7 @@ type (
 	}
 )
 
+// 创建下载管理器
 func NewDownloadManager(options *DownloadManagerOptions) *DownloadManager {
 	if options == nil {
 		options = &DownloadManagerOptions{}
@@ -105,6 +108,7 @@ func NewDownloadManager(options *DownloadManagerOptions) *DownloadManager {
 	}
 }
 
+// 下载对象到文件
 func (downloadManager *DownloadManager) DownloadToFile(ctx context.Context, objectName, filePath string, options *ObjectOptions) (uint64, error) {
 	dest, err := destination.NewFileDestination(filePath)
 	if err != nil {
@@ -114,6 +118,7 @@ func (downloadManager *DownloadManager) DownloadToFile(ctx context.Context, obje
 	return downloadManager.downloadToDestination(ctx, objectName, dest, options)
 }
 
+// 下载对象到 io.Writer
 func (downloadManager *DownloadManager) DownloadToWriter(ctx context.Context, objectName string, writer io.Writer, options *ObjectOptions) (uint64, error) {
 	var dest destination.Destination
 	if writeAtCloser, ok := writer.(destination.WriteAtCloser); ok {
@@ -148,6 +153,7 @@ func (downloadManager *DownloadManager) downloadToDestination(ctx context.Contex
 	return downloadManager.destinationDownloader.Download(ctx, urls, dest, &options.DestinationDownloadOptions)
 }
 
+// 下载目录
 func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, targetDirPath string, options *DirectoryOptions) error {
 	var err error
 

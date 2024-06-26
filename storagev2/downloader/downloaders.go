@@ -32,6 +32,7 @@ type (
 		resumableRecorder resumablerecorder.ResumableRecorder
 	}
 
+	// 下载器选项
 	DownloaderOptions struct {
 		Client   clientv2.Client   // HTTP 客户端，如果不配置则使用默认的 HTTP 客户端
 		RetryMax int               // 最大重试次数，如果不配置，默认为 9
@@ -48,11 +49,12 @@ type (
 		AfterResponse func(*http.Response, *retrier.RetrierOptions, error)        // 请求后回调函数
 	}
 
+	// 并发下载器选项
 	ConcurrentDownloaderOptions struct {
 		DownloaderOptions
-		Concurrency       uint
-		PartSize          uint64
-		ResumableRecorder resumablerecorder.ResumableRecorder
+		Concurrency       uint                                // 并发度
+		PartSize          uint64                              // 分片大小
+		ResumableRecorder resumablerecorder.ResumableRecorder // 可恢复记录仪
 	}
 )
 
@@ -82,6 +84,7 @@ func (options *DownloaderOptions) toSimpleRetryConfig() clientv2.SimpleRetryConf
 	}
 }
 
+// 创建并发下载器
 func NewConcurrentDownloader(options *ConcurrentDownloaderOptions) DestinationDownloader {
 	if options == nil {
 		options = &ConcurrentDownloaderOptions{}

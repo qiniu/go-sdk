@@ -11,6 +11,7 @@ import (
 )
 
 type (
+	// 切片选项
 	SliceOptions struct {
 		// 只读可恢复记录仪介质
 		Medium resumablerecorder.ReadableResumableRecorderMedium
@@ -78,6 +79,7 @@ type (
 	}
 )
 
+// 将 io.WriteCloser 封装为数据目标
 func NewWriteCloserDestination(wr io.WriteCloser, destinationKey string) Destination {
 	return &writeCloserDestination{wr, destinationKey}
 }
@@ -138,6 +140,7 @@ func (wcp *writeCloserPart) CopyFrom(r io.Reader, progress func(uint64)) (uint64
 	return n, err
 }
 
+// 将 io.WriterAt + io.WriteSeeker + io.Closer 封装为数据目标
 func NewWriteAtCloserDestination(wr WriteAtCloser, destinationKey string) Destination {
 	return &writerAtDestination{wr, destinationKey}
 }
@@ -266,6 +269,7 @@ func copyBuffer(w io.Writer, r io.Reader, progress func(uint64)) (uint64, error)
 	return haveCopied, err
 }
 
+// 将文件封装为数据目标
 func NewFileDestination(filePath string) (Destination, error) {
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
