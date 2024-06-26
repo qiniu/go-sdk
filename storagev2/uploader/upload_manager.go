@@ -219,9 +219,13 @@ func (uploadManager *UploadManager) UploadReader(ctx context.Context, reader io.
 
 func (uploadManager *UploadManager) getScheduler() MultiPartsUploaderScheduler {
 	if uploadManager.concurrency > 1 {
-		return NewConcurrentMultiPartsUploaderScheduler(uploadManager.getMultiPartsUploader(), uploadManager.partSize, uploadManager.concurrency)
+		return NewConcurrentMultiPartsUploaderScheduler(uploadManager.getMultiPartsUploader(), &ConcurrentMultiPartsUploaderSchedulerOptions{
+			PartSize: uploadManager.partSize, Concurrency: uploadManager.concurrency,
+		})
 	} else {
-		return NewSerialMultiPartsUploaderScheduler(uploadManager.getMultiPartsUploader(), uploadManager.partSize)
+		return NewSerialMultiPartsUploaderScheduler(uploadManager.getMultiPartsUploader(), &SerialMultiPartsUploaderSchedulerOptions{
+			PartSize: uploadManager.partSize,
+		})
 	}
 }
 

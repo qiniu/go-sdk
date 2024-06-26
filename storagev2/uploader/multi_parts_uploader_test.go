@@ -201,7 +201,7 @@ func TestMultiPartsUploader(t *testing.T) {
 				Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 				Credentials: credentials.NewCredentials("testak", "testsk"),
 			},
-		}), 4*1024*1024, 2,
+		}), &uploader.ConcurrentMultiPartsUploaderSchedulerOptions{PartSize: 1 << 22, Concurrency: 2},
 	))
 
 	var (
@@ -394,7 +394,7 @@ func TestMultiPartsUploaderResuming(t *testing.T) {
 				Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 				Credentials: credentials.NewCredentials("testak", "testsk"),
 			},
-		}), 4*1024*1024, 2,
+		}), &uploader.ConcurrentMultiPartsUploaderSchedulerOptions{PartSize: 1 << 22, Concurrency: 2},
 	))
 
 	var (
@@ -620,7 +620,7 @@ func TestMultiPartsUploaderRetry(t *testing.T) {
 				}},
 				Credentials: credentials.NewCredentials("testak", "testsk"),
 			},
-		}), 4*1024*1024,
+		}), &uploader.SerialMultiPartsUploaderSchedulerOptions{PartSize: 1 << 22},
 	))
 
 	var (

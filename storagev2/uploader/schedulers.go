@@ -15,20 +15,58 @@ type (
 		partSize uint64
 	}
 
+	// 串行分片上传调度器选项
+	SerialMultiPartsUploaderSchedulerOptions struct {
+		PartSize uint64 // 分片大小
+	}
+
 	concurrentMultiPartsUploaderScheduler struct {
 		uploader    MultiPartsUploader
 		partSize    uint64
 		concurrency int
 	}
+
+	// 并行分片上传调度器选项
+	ConcurrentMultiPartsUploaderSchedulerOptions struct {
+		PartSize    uint64 // 分片大小
+		Concurrency int    // 并发度
+	}
 )
 
 // 创建串行分片上传调度器
-func NewSerialMultiPartsUploaderScheduler(uploader MultiPartsUploader, partSize uint64) MultiPartsUploaderScheduler {
+func NewSerialMultiPartsUploaderScheduler(uploader MultiPartsUploader, options *SerialMultiPartsUploaderSchedulerOptions) MultiPartsUploaderScheduler {
+	if options == nil {
+		options = &SerialMultiPartsUploaderSchedulerOptions{}
+	}
+	partSize := options.PartSize
+	if partSize == 0 {
+		partSize = 1 << 22
+	} else if partSize < (1 << 20) {
+		partSize = 1 << 20
+	} else if partSize > (1 << 30) {
+		partSize = 1 << 30
+	}
 	return serialMultiPartsUploaderScheduler{uploader, partSize}
 }
 
 // 创建并行分片上传调度器
-func NewConcurrentMultiPartsUploaderScheduler(uploader MultiPartsUploader, partSize uint64, concurrency int) MultiPartsUploaderScheduler {
+func NewConcurrentMultiPartsUploaderScheduler(uploader MultiPartsUploader, options *ConcurrentMultiPartsUploaderSchedulerOptions) MultiPartsUploaderScheduler {
+	if options == nil {
+		options = &ConcurrentMultiPartsUploaderSchedulerOptions{}
+	}
+	partSize := options.PartSize
+	if partSize == 0 {
+		partSize = 1 << 22
+	} else if partSize < (1 << 20) {
+		partSize = 1 << 20
+	} else if partSize > (1 << 30) {
+		partSize = 1 << 30
+	}
+	concurrency := options.Concurrency
+	if concurrency <= 0 {
+		concurrency = 4
+	}
+
 	return concurrentMultiPartsUploaderScheduler{uploader, partSize, concurrency}
 }
 

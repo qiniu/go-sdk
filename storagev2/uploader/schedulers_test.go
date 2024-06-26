@@ -199,13 +199,13 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 				Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 				Credentials: credentials.NewCredentials("testak", "testsk"),
 			},
-		}), 4*1024*1024),
+		}), &uploader.SerialMultiPartsUploaderSchedulerOptions{PartSize: 1 << 22}),
 		uploader.NewConcurrentMultiPartsUploaderScheduler(uploader.NewMultiPartsUploaderV1(&uploader.MultiPartsUploaderOptions{
 			Options: http_client.Options{
 				Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 				Credentials: credentials.NewCredentials("testak", "testsk"),
 			},
-		}), 4*1024*1024, 2),
+		}), &uploader.ConcurrentMultiPartsUploaderSchedulerOptions{PartSize: 1 << 22, Concurrency: 2}),
 	}
 	key := "testkey"
 	for _, scheduler := range schedulers {
