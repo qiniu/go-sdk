@@ -110,18 +110,21 @@ type (
 )
 
 func (operation *StatObjectOperation) NeedParts(needParts bool) *StatObjectOperation {
-	operation.needParts = needParts
-	return operation
+	copy := *operation
+	copy.needParts = needParts
+	return &copy
 }
 
 func (operation *StatObjectOperation) OnResponse(fn func(*ObjectDetails)) *StatObjectOperation {
-	operation.onResponse = fn
-	return operation
+	copy := *operation
+	copy.onResponse = fn
+	return &copy
 }
 
 func (operation *StatObjectOperation) OnError(fn func(error)) *StatObjectOperation {
-	operation.onError = fn
-	return operation
+	copy := *operation
+	copy.onError = fn
+	return &copy
 }
 
 func (operation *StatObjectOperation) relatedEntries() []entry {
@@ -219,18 +222,21 @@ func (operation *StatObjectOperation) Call(ctx context.Context) (*ObjectDetails,
 var _ Operation = (*StatObjectOperation)(nil)
 
 func (operation *MoveObjectOperation) Force(force bool) *MoveObjectOperation {
-	operation.force = force
-	return operation
+	copy := *operation
+	copy.force = force
+	return &copy
 }
 
 func (operation *MoveObjectOperation) OnResponse(fn func()) *MoveObjectOperation {
-	operation.onResponse = fn
-	return operation
+	copy := *operation
+	copy.onResponse = fn
+	return &copy
 }
 
 func (operation *MoveObjectOperation) OnError(fn func(error)) *MoveObjectOperation {
-	operation.onError = fn
-	return operation
+	copy := *operation
+	copy.onError = fn
+	return &copy
 }
 
 func (operation *MoveObjectOperation) relatedEntries() []entry {
@@ -268,18 +274,21 @@ func (operation *MoveObjectOperation) Call(ctx context.Context) error {
 var _ Operation = (*MoveObjectOperation)(nil)
 
 func (operation *CopyObjectOperation) Force(force bool) *CopyObjectOperation {
-	operation.force = force
-	return operation
+	copy := *operation
+	copy.force = force
+	return &copy
 }
 
 func (operation *CopyObjectOperation) OnResponse(fn func()) *CopyObjectOperation {
-	operation.onResponse = fn
-	return operation
+	copy := *operation
+	copy.onResponse = fn
+	return &copy
 }
 
 func (operation *CopyObjectOperation) OnError(fn func(error)) *CopyObjectOperation {
-	operation.onError = fn
-	return operation
+	copy := *operation
+	copy.onError = fn
+	return &copy
 }
 
 func (operation *CopyObjectOperation) relatedEntries() []entry {
@@ -317,13 +326,15 @@ func (operation *CopyObjectOperation) Call(ctx context.Context) error {
 var _ Operation = (*CopyObjectOperation)(nil)
 
 func (operation *DeleteObjectOperation) OnResponse(fn func()) *DeleteObjectOperation {
-	operation.onResponse = fn
-	return operation
+	copy := *operation
+	copy.onResponse = fn
+	return &copy
 }
 
 func (operation *DeleteObjectOperation) OnError(fn func(error)) *DeleteObjectOperation {
-	operation.onError = fn
-	return operation
+	copy := *operation
+	copy.onError = fn
+	return &copy
 }
 
 func (operation *DeleteObjectOperation) handleResponse(_ *ObjectDetails, err error) {
@@ -355,13 +366,15 @@ func (operation *DeleteObjectOperation) Call(ctx context.Context) error {
 var _ Operation = (*DeleteObjectOperation)(nil)
 
 func (operation *RestoreObjectOperation) OnResponse(fn func()) *RestoreObjectOperation {
-	operation.onResponse = fn
-	return operation
+	copy := *operation
+	copy.onResponse = fn
+	return &copy
 }
 
 func (operation *RestoreObjectOperation) OnError(fn func(error)) *RestoreObjectOperation {
-	operation.onError = fn
-	return operation
+	copy := *operation
+	copy.onError = fn
+	return &copy
 }
 
 func (operation *RestoreObjectOperation) relatedEntries() []entry {
@@ -394,13 +407,15 @@ func (operation *RestoreObjectOperation) Call(ctx context.Context) error {
 var _ Operation = (*RestoreObjectOperation)(nil)
 
 func (operation *SetObjectStorageClassOperation) OnResponse(fn func()) *SetObjectStorageClassOperation {
-	operation.onResponse = fn
-	return operation
+	copy := *operation
+	copy.onResponse = fn
+	return &copy
 }
 
 func (operation *SetObjectStorageClassOperation) OnError(fn func(error)) *SetObjectStorageClassOperation {
-	operation.onError = fn
-	return operation
+	copy := *operation
+	copy.onError = fn
+	return &copy
 }
 
 func (operation *SetObjectStorageClassOperation) relatedEntries() []entry {
@@ -433,13 +448,15 @@ func (operation *SetObjectStorageClassOperation) Call(ctx context.Context) error
 var _ Operation = (*SetObjectStorageClassOperation)(nil)
 
 func (operation *SetObjectStatusOperation) OnResponse(fn func()) *SetObjectStatusOperation {
-	operation.onResponse = fn
-	return operation
+	copy := *operation
+	copy.onResponse = fn
+	return &copy
 }
 
 func (operation *SetObjectStatusOperation) OnError(fn func(error)) *SetObjectStatusOperation {
-	operation.onError = fn
-	return operation
+	copy := *operation
+	copy.onError = fn
+	return &copy
 }
 
 func (operation *SetObjectStatusOperation) relatedEntries() []entry {
@@ -472,23 +489,27 @@ func (operation *SetObjectStatusOperation) Call(ctx context.Context) error {
 var _ Operation = (*SetObjectStatusOperation)(nil)
 
 func (operation *SetObjectMetadataOperation) Metadata(metadata map[string]string) *SetObjectMetadataOperation {
-	operation.metadata = metadata
-	return operation
+	copy := *operation
+	copy.metadata = metadata
+	return &copy
 }
 
 func (operation *SetObjectMetadataOperation) Conditions(conds map[string]string) *SetObjectMetadataOperation {
-	operation.conditions = conds
-	return operation
+	copy := *operation
+	copy.conditions = conds
+	return &copy
 }
 
 func (operation *SetObjectMetadataOperation) OnResponse(fn func()) *SetObjectMetadataOperation {
-	operation.onResponse = fn
-	return operation
+	copy := *operation
+	copy.onResponse = fn
+	return &copy
 }
 
 func (operation *SetObjectMetadataOperation) OnError(fn func(error)) *SetObjectMetadataOperation {
-	operation.onError = fn
-	return operation
+	copy := *operation
+	copy.onError = fn
+	return &copy
 }
 
 func (operation *SetObjectMetadataOperation) relatedEntries() []entry {
@@ -547,33 +568,39 @@ func (operation *SetObjectLifeCycleOperation) ToIAAfterDays(afterDays int64) *Se
 }
 
 func (operation *SetObjectLifeCycleOperation) ToArchiveIRAfterDays(afterDays int64) *SetObjectLifeCycleOperation {
-	operation.toArchiveIRAfterDays = afterDays
-	return operation
+	copy := *operation
+	copy.toArchiveIRAfterDays = afterDays
+	return &copy
 }
 
 func (operation *SetObjectLifeCycleOperation) ToArchiveAfterDays(afterDays int64) *SetObjectLifeCycleOperation {
-	operation.toArchiveAfterDays = afterDays
-	return operation
+	copy := *operation
+	copy.toArchiveAfterDays = afterDays
+	return &copy
 }
 
 func (operation *SetObjectLifeCycleOperation) ToDeepArchiveAfterDays(afterDays int64) *SetObjectLifeCycleOperation {
-	operation.toDeepArchiveAfterDays = afterDays
-	return operation
+	copy := *operation
+	copy.toDeepArchiveAfterDays = afterDays
+	return &copy
 }
 
 func (operation *SetObjectLifeCycleOperation) DeleteAfterDays(afterDays int64) *SetObjectLifeCycleOperation {
-	operation.deleteAfterDays = afterDays
-	return operation
+	copy := *operation
+	copy.deleteAfterDays = afterDays
+	return &copy
 }
 
 func (operation *SetObjectLifeCycleOperation) OnResponse(fn func()) *SetObjectLifeCycleOperation {
-	operation.onResponse = fn
-	return operation
+	copy := *operation
+	copy.onResponse = fn
+	return &copy
 }
 
 func (operation *SetObjectLifeCycleOperation) OnError(fn func(error)) *SetObjectLifeCycleOperation {
-	operation.onError = fn
-	return operation
+	copy := *operation
+	copy.onError = fn
+	return &copy
 }
 
 func (operation *SetObjectLifeCycleOperation) relatedEntries() []entry {
