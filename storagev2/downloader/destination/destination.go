@@ -19,7 +19,7 @@ type (
 
 	// 数据目标
 	Destination interface {
-		PartReader
+		PartWriter
 		io.Closer
 
 		// 切片
@@ -34,7 +34,7 @@ type (
 
 	// 分片
 	Part interface {
-		PartReader
+		PartWriter
 
 		// 分片大小
 		Size() uint64
@@ -46,8 +46,8 @@ type (
 		HaveDownloaded() uint64
 	}
 
-	// 分片读取接口
-	PartReader interface {
+	// 分片写入接口
+	PartWriter interface {
 		// 从 `io.Reader` 复制数据写入
 		CopyFrom(io.Reader, func(uint64)) (uint64, error)
 	}

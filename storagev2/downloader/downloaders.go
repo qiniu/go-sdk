@@ -262,7 +262,7 @@ func (downloader concurrentDownloader) downloadToPart(
 
 func downloadToPartReaderWithOffsetAndSize(
 	ctx context.Context, urlsIter URLsIter, etag string, offset, size uint64, headers http.Header,
-	client clientv2.Client, part destination.PartReader, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
+	client clientv2.Client, part destination.PartWriter, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
 	headers = cloneHeader(headers)
 	setRange(headers, offset, offset+size)
 	return _downloadToPartReader(ctx, urlsIter, headers, etag, client, part, onDownloadingProgress)
@@ -270,7 +270,7 @@ func downloadToPartReaderWithOffsetAndSize(
 
 func downloadToPartReader(
 	ctx context.Context, urlsIter URLsIter, etag string, headers http.Header,
-	client clientv2.Client, part destination.PartReader, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
+	client clientv2.Client, part destination.PartWriter, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
 	if headers.Get("Range") == "" {
 		headers = cloneHeader(headers)
 		setAcceptGzip(headers)
@@ -280,7 +280,7 @@ func downloadToPartReader(
 
 func _downloadToPartReader(
 	ctx context.Context, urlsIter URLsIter, headers http.Header, etag string,
-	client clientv2.Client, part destination.PartReader, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
+	client clientv2.Client, part destination.PartWriter, onDownloadingProgress func(downloaded uint64)) (uint64, error) {
 	var (
 		response      *http.Response
 		u             url.URL
