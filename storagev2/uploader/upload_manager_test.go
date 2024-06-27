@@ -425,8 +425,6 @@ func TestUploadManagerUploadDirectory(t *testing.T) {
 }
 
 func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
-	// localFiles := make(map[string]uint64)
-	// remoteObjects := make(map[string]*os.File)
 	var localFiles, remoteObjects sync.Map
 
 	tmpDir_1, err := ioutil.TempDir("", "multi-parts-uploader-test-*")
@@ -436,7 +434,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	defer os.RemoveAll(tmpDir_1)
 
 	const objectPrefix = "remoteDirectory"
-	remoteObjects.Store(objectPrefix+string(os.PathSeparator), (*os.File)(nil))
+	remoteObjects.Store(objectPrefix+"/", (*os.File)(nil))
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -453,7 +451,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	if relativePath, err := filepath.Rel(tmpDir_1, tmpFile_1.Name()); err != nil {
 		t.Fatal(err)
 	} else {
-		remoteObjects.Store(filepath.Join(objectPrefix, relativePath), tmpFile_1)
+		remoteObjects.Store(strings.Replace(filepath.Join(objectPrefix, relativePath), string(filepath.Separator), "/", -1), tmpFile_1)
 	}
 	localFiles.Store(tmpFile_1.Name(), uint64(0))
 
@@ -464,7 +462,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	if relativeDir, err := filepath.Rel(tmpDir_1, tmpDir_2); err != nil {
 		t.Fatal(err)
 	} else {
-		remoteObjects.Store(filepath.Join(objectPrefix, relativeDir)+string(os.PathSeparator), (*os.File)(nil))
+		remoteObjects.Store(strings.Replace(filepath.Join(objectPrefix, relativeDir)+string(filepath.Separator), string(filepath.Separator), "/", -1), (*os.File)(nil))
 	}
 
 	tmpFile_2, err := ioutil.TempFile(tmpDir_2, "multi-parts-uploader-test-*")
@@ -480,7 +478,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	if relativePath, err := filepath.Rel(tmpDir_1, tmpFile_2.Name()); err != nil {
 		t.Fatal(err)
 	} else {
-		remoteObjects.Store(filepath.Join(objectPrefix, relativePath), tmpFile_2)
+		remoteObjects.Store(strings.Replace(filepath.Join(objectPrefix, relativePath), string(filepath.Separator), "/", -1), tmpFile_2)
 	}
 	localFiles.Store(tmpFile_2.Name(), uint64(0))
 
@@ -491,7 +489,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	if relativeDir, err := filepath.Rel(tmpDir_1, tmpDir_3); err != nil {
 		t.Fatal(err)
 	} else {
-		remoteObjects.Store(filepath.Join(objectPrefix, relativeDir)+string(os.PathSeparator), (*os.File)(nil))
+		remoteObjects.Store(strings.Replace(filepath.Join(objectPrefix, relativeDir)+string(filepath.Separator), string(filepath.Separator), "/", -1), (*os.File)(nil))
 	}
 
 	tmpFile_3, err := ioutil.TempFile(tmpDir_3, "multi-parts-uploader-test-*")
@@ -507,7 +505,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	if relativePath, err := filepath.Rel(tmpDir_1, tmpFile_3.Name()); err != nil {
 		t.Fatal(err)
 	} else {
-		remoteObjects.Store(filepath.Join(objectPrefix, relativePath), tmpFile_3)
+		remoteObjects.Store(strings.Replace(filepath.Join(objectPrefix, relativePath), string(filepath.Separator), "/", -1), tmpFile_3)
 	}
 	localFiles.Store(tmpFile_3.Name(), uint64(0))
 
@@ -575,8 +573,10 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	})
 
 	err = uploadManager.UploadDirectory(context.Background(), tmpDir_1, &uploader.DirectoryOptions{
-		BucketName:   "testbucket",
-		ObjectPrefix: objectPrefix,
+		BucketName: "testbucket",
+		UpdateObjectName: func(path string) string {
+			return objectPrefix + "/" + path
+		},
 		BeforeObjectUpload: func(filePath string, _ *uploader.ObjectOptions) {
 			if _, ok := localFiles.Load(filePath); !ok {
 				t.Fatalf("unexpected filePath")

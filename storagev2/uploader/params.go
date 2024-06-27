@@ -69,9 +69,6 @@ type (
 		// 空间名称
 		BucketName string
 
-		// 对象前缀
-		ObjectPrefix string
-
 		// 下载并发度
 		ObjectConcurrency int
 
@@ -88,6 +85,12 @@ type (
 		ShouldCreateDirectory bool
 
 		// 是否上传指定对象
-		ShouldUploadObject func(filePath string) bool
+		ShouldUploadObject func(filePath string, objectOptions *ObjectOptions) bool
+
+		// 更改对象名称
+		UpdateObjectName func(string) string
+
+		// 分隔符，默认为 /
+		Delimiter string
 	}
 )

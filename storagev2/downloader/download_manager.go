@@ -81,6 +81,9 @@ type (
 
 		// 是否下载指定对象
 		ShouldDownloadObject func(objectName string) bool
+
+		// 分隔符，默认为 /
+		Delimiter string
 	}
 
 	writeSeekCloser struct {
@@ -167,6 +170,10 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 	if objectConcurrency == 0 {
 		objectConcurrency = 4
 	}
+	delimiter := options.Delimiter
+	if delimiter == "" {
+		delimiter = "/"
+	}
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(objectConcurrency)
@@ -180,8 +187,11 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 	for lister.Next(&object) {
 		objectName := object.Name
 		relativePath := strings.TrimPrefix(objectName, options.ObjectPrefix)
+		if delimiter != string(filepath.Separator) {
+			relativePath = strings.Replace(relativePath, delimiter, string(filepath.Separator), -1)
+		}
 		fullPath := filepath.Join(targetDirPath, relativePath)
-		if strings.HasSuffix(relativePath, "/") {
+		if strings.HasSuffix(fullPath, string(filepath.Separator)) {
 			if err = os.MkdirAll(fullPath, 0700); err != nil {
 				return err
 			}

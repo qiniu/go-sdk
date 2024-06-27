@@ -106,9 +106,25 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 	if objectConcurrency == 0 {
 		objectConcurrency = 4
 	}
+	delimiter := directoryOptions.Delimiter
+	if delimiter == "" {
+		delimiter = "/"
+	}
 
-	if !strings.HasSuffix(directoryPath, "/") {
-		directoryPath += "/"
+	if !strings.HasSuffix(directoryPath, string(filepath.Separator)) {
+		directoryPath += string(filepath.Separator)
+	}
+
+	updateObjectName := directoryOptions.UpdateObjectName
+	if updateObjectName == nil {
+		updateObjectName = func(path string) string { return path }
+	}
+	generateObjectName := func(path string) string {
+		path = strings.TrimPrefix(path, directoryPath)
+		if delimiter != string(filepath.Separator) {
+			path = strings.Replace(path, string(filepath.Separator), delimiter, -1)
+		}
+		return updateObjectName(path)
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -119,7 +135,7 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 			return err
 		}
 		g.Go(func() error {
-			objectName := filepath.Join(directoryOptions.ObjectPrefix, strings.TrimPrefix(path, directoryPath))
+			objectName := generateObjectName(path)
 			if info.Mode().IsRegular() {
 				objectOptions := ObjectOptions{
 					RegionsProvider: directoryOptions.RegionsProvider,
@@ -128,7 +144,7 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 					ObjectName:      &objectName,
 					FileName:        filepath.Base(path),
 				}
-				if directoryOptions.ShouldUploadObject != nil && !directoryOptions.ShouldUploadObject(path) {
+				if directoryOptions.ShouldUploadObject != nil && !directoryOptions.ShouldUploadObject(path, &objectOptions) {
 					return nil
 				}
 				if directoryOptions.BeforeObjectUpload != nil {
@@ -144,7 +160,9 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 					directoryOptions.OnObjectUploaded(path, uint64(info.Size()))
 				}
 			} else if directoryOptions.ShouldCreateDirectory && info.IsDir() {
-				objectName += string(os.PathSeparator)
+				if !strings.HasSuffix(objectName, delimiter) {
+					objectName += delimiter
+				}
 				objectOptions := ObjectOptions{
 					RegionsProvider: directoryOptions.RegionsProvider,
 					UpToken:         directoryOptions.UpToken,
