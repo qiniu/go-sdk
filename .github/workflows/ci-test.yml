@@ -9,21 +9,24 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           path: src/github.com/qiniu/go-sdk
           ref: ${{ github.ref }}
           submodules: recursive
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.10.x'
+          go-version: '1.10'
       - name: Run unit cases
         run: |
-          set -e
+          set -ex
           rm -rf $GITHUB_WORKSPACE/src/github.com/qiniu/x && git clone -b v1.12.21 --depth 1 https://github.com/qiniu/x.git $GITHUB_WORKSPACE/src/github.com/qiniu/x
+
           GOPATH=$GITHUB_WORKSPACE go get github.com/qiniu/dyn
-          GOPATH=$GITHUB_WORKSPACE go get github.com/gofrs/flock
+
+          rm -rf $GITHUB_WORKSPACE/src/github.com/gofrs/flock && git clone -b v0.8.1 --depth 1 https://github.com/gofrs/flock $GITHUB_WORKSPACE/src/github.com/gofrs/flock
+
           GOPATH=$GITHUB_WORKSPACE go get github.com/alex-ant/gomath/rational
           GOPATH=$GITHUB_WORKSPACE go get github.com/matishsiao/goInfo
           GOPATH=$GITHUB_WORKSPACE go get github.com/gammazero/toposort
@@ -35,27 +38,17 @@ jobs:
           # new package name don't work in non-module mode
           rm -rf $GITHUB_WORKSPACE/src/github.com/go-playground/validator/v10 && git clone -b v10.9.0 --depth 1 https://github.com/go-playground/validator.git $GITHUB_WORKSPACE/src/github.com/go-playground/validator/v10
           rm -rf $GITHUB_WORKSPACE/src/github.com/universal-translator && git clone -b v0.18.0 --depth 1 https://github.com/go-playground/universal-translator.git $GITHUB_WORKSPACE/src/github.com/go-playground/universal-translator
-
+          rm -rf $GITHUB_WORKSPACE/src/golang.org/x/sys && git clone -b v0.12.0 --depth 1 https://github.com/golang/sys $GITHUB_WORKSPACE/src/golang.org/x/sys
           rm -rf $GITHUB_WORKSPACE/src/golang.org/x/crypto && git clone -b v0.10.0 --depth 1 https://go.googlesource.com/crypto $GITHUB_WORKSPACE/src/golang.org/x/crypto
-          # GOPATH=$GITHUB_WORKSPACE go get golang.org/x/crypto/sha3
-
           rm -rf $GITHUB_WORKSPACE/src/golang.org/x/text && git clone -b v0.10.0 --depth 1 https://github.com/golang/text $GITHUB_WORKSPACE/src/golang.org/x/text
-          # GOPATH=$GITHUB_WORKSPACE go get golang.org/x/text/language
-
           rm -rf $GITHUB_WORKSPACE/src/golang.org/x/sync && git clone -b v0.3.0 --depth 1 https://github.com/golang/sync $GITHUB_WORKSPACE/src/golang.org/x/sync
-          # GOPATH=$GITHUB_WORKSPACE go get golang.org/x/sync
 
           GOPATH=$GITHUB_WORKSPACE go get github.com/leodido/go-urn
           GOPATH=$GITHUB_WORKSPACE go get github.com/go-playground/locales
 
           rm -rf $GITHUB_WORKSPACE/src/github.com/dave/jennifer && git clone -b v1.6.1 --depth 1 https://github.com/dave/jennifer $GITHUB_WORKSPACE/src/github.com/dave/jennifer
-          # GOPATH=$GITHUB_WORKSPACE go get github.com/dave/jennifer
-
           rm -rf $GITHUB_WORKSPACE/src/modernc.org/fileutil && git clone -b v1.0.0 --depth 1 https://gitlab.com/cznic/fileutil.git $GITHUB_WORKSPACE/src/modernc.org/fileutil
-          # GOPATH=$GITHUB_WORKSPACE go get modernc.org/fileutil
-
           rm -rf $GITHUB_WORKSPACE/src/github.com/gorilla/mux && git clone -b v1.7.4 --depth 1 https://github.com/gorilla/mux $GITHUB_WORKSPACE/src/github.com/gorilla/mux
-          # GOPATH=$GITHUB_WORKSPACE go get github.com/gorilla/mux
 
           GOPATH=$GITHUB_WORKSPACE go get github.com/iancoleman/strcase
 
@@ -75,7 +68,7 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        go_version: ['1.11.x', '1.12.x', '1.13.x', '1.14.x', '1.15.x', '1.16.x', '1.17.x', '1.18.x', '1.19.x', '1.20.x', '1.21.x', '1.22.x']
+        go_version: ['1.11', '1.12', '1.13', '1.14', '1.15', '1.16', '1.17', '1.18', '1.19', '1.20', '1.21', '1.22']
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -83,24 +76,24 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
           submodules: recursive
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go_version }}
       - name: Format
         run: |
-          if [ "${{ matrix.go_version }}" = "1.22.x" ]; then
+          if [ "${{ matrix.go_version }}" = "1.22" ]; then
             if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
               exit 1
             fi
           fi
       - name: Golint
         run: |
-          if [ "${{ matrix.go_version }}" = "1.22.x" ]; then
+          if [ "${{ matrix.go_version }}" = "1.22" ]; then
             set -e
             go install honnef.co/go/tools/cmd/staticcheck@latest
             make staticcheck
@@ -108,9 +101,55 @@ jobs:
       - name: Run unit cases
         run: |
           set -e
-          if [ "${{ matrix.go_version }}" = "1.11.x" ] || [ "${{ matrix.go_version }}" = "1.12.x" ] || [ "${{ matrix.go_version }}" = "1.13.x" ] || [ "${{ matrix.go_version }}" = "1.14.x" ] || [ "${{ matrix.go_version }}" = "1.15.x" ]; then
+          if [ "${{ matrix.go_version }}" = "1.11" ] || [ "${{ matrix.go_version }}" = "1.12" ] || [ "${{ matrix.go_version }}" = "1.13" ] || [ "${{ matrix.go_version }}" = "1.14" ] || [ "${{ matrix.go_version }}" = "1.15" ]; then
             go get modernc.org/fileutil@v1.0.0
           fi
           make unittest
         env:
           GO111MODULE: 'on'
+  go-mod-test-windows:
+    needs: 'go-mod-test'
+    runs-on: windows-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          submodules: recursive
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Run unit cases
+        run: |
+          set -e
+          make unittest
+        shell: bash
+  go-mod-test-macos:
+    needs: 'go-mod-test-windows'
+    runs-on: macos-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          submodules: recursive
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Install dependencies
+        run: |
+          brew install make
+      - name: Run unit cases
+        run: |
+          set -e
+          make unittest
