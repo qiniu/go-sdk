@@ -237,12 +237,9 @@ func (httpClient *Client) Do(ctx context.Context, request *Request) (*http.Respo
 	}
 	if !isSignatureDisabled(ctx) {
 		if upTokenProvider := request.UpToken; upTokenProvider != nil {
-			// TODO: 这里需要改造成 interceptor
-			if upToken, err := upTokenProvider.GetUpToken(ctx); err != nil {
-				return nil, err
-			} else {
-				req.Header.Set("Authorization", "UpToken "+upToken)
-			}
+			req = clientv2.WithInterceptors(req, clientv2.NewUpTokenInterceptor(clientv2.UpTokenConfig{
+				UpToken: upTokenProvider,
+			}))
 		} else {
 			credentialsProvider := request.Credentials
 			if credentialsProvider == nil {
