@@ -3,6 +3,7 @@ package io
 import (
 	"errors"
 	"io"
+	"syscall"
 )
 
 func MakeReadSeekCloserFromReader(r io.Reader) ReadSeekCloser {
@@ -21,7 +22,7 @@ func (r *readSeekCloserFromReader) Seek(offset int64, whence int) (int64, error)
 	if seeker, ok := r.r.(io.Seeker); ok {
 		return seeker.Seek(offset, whence)
 	}
-	return 0, errors.New("not support seek")
+	return 0, syscall.ESPIPE
 }
 
 func (r *readSeekCloserFromReader) Close() error {

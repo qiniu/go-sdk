@@ -24,15 +24,16 @@ func NewSubnetChooser(options *SubnetChooserConfig) Chooser {
 	if options == nil {
 		options = &SubnetChooserConfig{}
 	}
-	if options.FreezeDuration == 0 {
-		options.FreezeDuration = 10 * time.Minute
+	freezeDuration := options.FreezeDuration
+	if freezeDuration == 0 {
+		freezeDuration = 10 * time.Minute
 	}
 	return &subnetChooser{
 		blackheap: blackheap{
 			m:     make(map[string]*blackItem, 1024),
 			items: make([]*blackItem, 0, 1024),
 		},
-		freezeDuration: options.FreezeDuration,
+		freezeDuration: freezeDuration,
 	}
 }
 

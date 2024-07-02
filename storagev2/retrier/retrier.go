@@ -78,10 +78,10 @@ func isResponseRetryable(resp *http.Response) bool {
 	if resp == nil {
 		return false
 	}
-	return isStatusCodeRetryable(resp.StatusCode)
+	return IsStatusCodeRetryable(resp.StatusCode)
 }
 
-func isStatusCodeRetryable(statusCode int) bool {
+func IsStatusCodeRetryable(statusCode int) bool {
 	if statusCode < 500 {
 		return false
 	}
@@ -137,7 +137,9 @@ func getRetryDecisionForError(err error) RetryDecision {
 	}
 
 	unwrapedErr := unwrapUnderlyingError(err)
-	if os.IsTimeout(unwrapedErr) {
+	if unwrapedErr == context.DeadlineExceeded {
+		return DontRetry
+	} else if os.IsTimeout(unwrapedErr) {
 		return RetryRequest
 	} else if dnsError, ok := unwrapedErr.(*net.DNSError); ok && isDnsNotFoundError(dnsError) {
 		return TryNextHost
@@ -151,7 +153,7 @@ func getRetryDecisionForError(err error) RetryDecision {
 	} else if unwrapedErr == context.Canceled {
 		return DontRetry
 	} else if clientErr, ok := unwrapedErr.(*clientv1.ErrorInfo); ok {
-		if isStatusCodeRetryable(clientErr.Code) {
+		if IsStatusCodeRetryable(clientErr.Code) {
 			return RetryRequest
 		} else {
 			return DontRetry

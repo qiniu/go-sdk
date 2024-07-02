@@ -123,6 +123,9 @@ func TestPutWithSizeV2(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
+			defer os.Remove(tmpFile.Name())
+			defer tmpFile.Close()
+
 			if _, err = io.CopyN(tmpFile, io.TeeReader(r, md5Sumer), size); err != nil {
 				t.Error(err)
 			} else if err = tmpFile.Close(); err != nil {

@@ -77,8 +77,8 @@ func (signer *signer) onceGetCredentials(ctx context.Context) (*credentials.Cred
 	signer.onceCredentials.Do(func() {
 		if signer.credentialsProvider != nil {
 			signer.credentials, err = signer.credentialsProvider.Get(ctx)
-		} else {
-			signer.credentials = credentials.Default()
+		} else if defaultCreds := credentials.Default(); defaultCreds != nil {
+			signer.credentials = defaultCreds
 		}
 	})
 	return signer.credentials, err

@@ -23,4 +23,5 @@ type Options struct {
 	OverwrittenBucketName  string
 	OverwrittenEndpoints   region.EndpointsProvider
 	OverwrittenRegion      region.RegionsProvider
+	OnRequestProgress      func(uint64, uint64)
 }

@@ -51,6 +51,16 @@ func IsUplogEnabled() bool {
 	return uplog.IsUplogEnabled()
 }
 
+// GetUplogMaxStorageBytes 获取日志最大存储容量
+func GetUplogMaxStorageBytes() uint64 {
+	return uplog.GetUplogMaxStorageBytes()
+}
+
+// SetUplogMaxStorageBytes 设置日志最大存储容量
+func SetUplogMaxStorageBytes(max uint64) {
+	uplog.SetUplogMaxStorageBytes(max)
+}
+
 // SetUplogFileBufferDirPath 设置日志文件缓存目录
 func SetUplogFileBufferDirPath(path string) {
 	uplog.SetUplogFileBufferDirPath(path)

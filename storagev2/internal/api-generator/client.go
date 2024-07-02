@@ -328,7 +328,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 					getUpTokenFunc = jen.Func().Params().Params(jen.String(), jen.Error()).BlockFunc(func(group *jen.Group) {
 						group.Return(jen.Id("innerRequest").Dot("UpToken").Dot("GetUpToken").Call(jen.Id("ctx")))
 					})
-				default:
+				case AuthorizationNone:
 					getUpTokenFunc = jen.Nil()
 				}
 
@@ -406,6 +406,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 									)
 								}
 							}
+							group.Add(jen.Id("OnRequestProgress").Op(":").Id("options").Dot("OnRequestProgress"))
 						}),
 				)
 				group.Add(
@@ -455,6 +456,15 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 													group.Add(jen.Id("UseInsecureProtocol").Op(":").Id("storage").Dot("client").Dot("UseInsecureProtocol").Call())
 													group.Add(jen.Id("HostFreezeDuration").Op(":").Id("storage").Dot("client").Dot("GetHostFreezeDuration").Call())
 													group.Add(jen.Id("Client").Op(":").Id("storage").Dot("client").Dot("GetClient").Call())
+													group.Add(jen.Id("Resolver").Op(":").Id("storage").Dot("client").Dot("GetResolver").Call())
+													group.Add(jen.Id("Chooser").Op(":").Id("storage").Dot("client").Dot("GetChooser").Call())
+													group.Add(jen.Id("BeforeResolve").Op(":").Id("storage").Dot("client").Dot("GetBeforeResolveCallback").Call())
+													group.Add(jen.Id("AfterResolve").Op(":").Id("storage").Dot("client").Dot("GetAfterResolveCallback").Call())
+													group.Add(jen.Id("ResolveError").Op(":").Id("storage").Dot("client").Dot("GetResolveErrorCallback").Call())
+													group.Add(jen.Id("BeforeBackoff").Op(":").Id("storage").Dot("client").Dot("GetBeforeBackoffCallback").Call())
+													group.Add(jen.Id("AfterBackoff").Op(":").Id("storage").Dot("client").Dot("GetAfterBackoffCallback").Call())
+													group.Add(jen.Id("BeforeRequest").Op(":").Id("storage").Dot("client").Dot("GetBeforeRequestCallback").Call())
+													group.Add(jen.Id("AfterResponse").Op(":").Id("storage").Dot("client").Dot("GetAfterResponseCallback").Call())
 												}),
 										)
 										group.Add(
@@ -463,6 +473,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 												jen.Id("hostRetryConfig").Op("!=").Nil(),
 											).BlockFunc(func(group *jen.Group) {
 												group.Id("queryOptions").Dot("RetryMax").Op("=").Id("hostRetryConfig").Dot("RetryMax")
+												group.Id("queryOptions").Dot("Backoff").Op("=").Id("hostRetryConfig").Dot("Backoff")
 											}),
 										)
 										group.Add(
@@ -525,6 +536,9 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							)
 						}),
 				)
+				if description.Request.Authorization.ToAuthorization() == AuthorizationNone {
+					group.Add(jen.Id("ctx").Op("=").Qual(PackageNameHTTPClient, "WithoutSignature").Call(jen.Id("ctx")))
+				}
 				if body := description.Response.Body; body != nil {
 					if json := body.Json; json != nil {
 						if description.Request.responseTypeRequired {

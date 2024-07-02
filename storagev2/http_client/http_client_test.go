@@ -60,6 +60,7 @@ func TestHttpClient(t *testing.T) {
 	defer server_3.Close()
 
 	httpClient := NewClient(&Options{
+		HostRetryConfig: &RetryConfig{},
 		Regions: &region.Region{
 			Api: region.Endpoints{
 				Preferred:   []string{server_1.URL, server_2.URL},

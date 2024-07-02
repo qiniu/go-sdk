@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gofrs/flock"
@@ -24,7 +25,8 @@ var (
 	uplogFileBuffer               *os.File
 	uplogFileBufferFileLocker     *flock.Flock
 	uplogFileBufferLock           sync.Mutex
-	uplogFileBufferThreshold      int64 = 4 * 1024 * 1024
+	uplogFileBufferThreshold      uint64 = 4 * 1024 * 1024
+	uplogMaxStorageBytes          uint64 = 100 * 1024 * 1024
 	uplogWriteFileBufferTicker    *time.Ticker
 	uplogWriteFileBufferInterval  time.Duration = 1 * time.Minute
 	uplogWriteFileBufferTimerLock sync.Mutex
@@ -93,6 +95,14 @@ func IsUplogEnabled() bool {
 	return !uplogDisabled
 }
 
+func GetUplogMaxStorageBytes() uint64 {
+	return atomic.LoadUint64(&uplogMaxStorageBytes)
+}
+
+func SetUplogMaxStorageBytes(max uint64) {
+	atomic.StoreUint64(&uplogMaxStorageBytes, max)
+}
+
 func SetUplogFileBufferDirPath(path string) {
 	uplogFileBufferDirPathMutex.Lock()
 	defer uplogFileBufferDirPathMutex.Unlock()
@@ -111,7 +121,7 @@ func getUplogFileBufferPath(current bool) string {
 		uplogFileBufferPath = filepath.Join(uplogFileBufferDirPath, UPLOG_FILE_BUFFER_NAME)
 	}
 	if !current {
-		uplogFileBufferPath = uplogFileBufferPath + "." + time.Now().UTC().Format(time.RFC3339Nano)
+		uplogFileBufferPath = uplogFileBufferPath + "." + time.Now().UTC().Format("20060102150405.999999999")
 	}
 	return uplogFileBufferPath
 }
@@ -129,13 +139,13 @@ func getUplogFileDirectoryLock() *flock.Flock {
 }
 
 func FlushBuffer() error {
-	return withUploadFileBuffer(func(io.Writer) (bool, error) {
-		return true, nil
+	return withUploadFileBuffer(func(w io.WriteCloser) error {
+		return w.Close()
 	})
 }
 
 func writeMemoryBufferToFileBuffer(data []byte) (n int, err error) {
-	if err = withUploadFileBuffer(func(w io.Writer) (shouldClose bool, e error) {
+	if err = withUploadFileBuffer(func(w io.WriteCloser) (e error) {
 		for len(data) > 0 {
 			n, e = w.Write(data)
 			if e != nil {
@@ -148,7 +158,7 @@ func writeMemoryBufferToFileBuffer(data []byte) (n int, err error) {
 		return
 	}
 
-	if fi, serr := os.Stat(getUplogFileBufferPath(true)); serr == nil && fi.Size() >= uplogFileBufferThreshold {
+	if fi, serr := os.Stat(getUplogFileBufferPath(true)); serr == nil && uint64(fi.Size()) >= uplogFileBufferThreshold {
 		tryToArchiveFileBuffer(false)
 	}
 	return
@@ -176,16 +186,14 @@ func tryToArchiveFileBuffer(force bool) {
 	}
 	defer locker.Close()
 
-	if err = withUploadFileBuffer(func(io.Writer) (shouldClose bool, renameErr error) {
+	if err = withUploadFileBuffer(func(w io.WriteCloser) error {
 		currentFilePath := getUplogFileBufferPath(true)
 		if fileInfo, fileInfoErr := os.Stat(currentFilePath); fileInfoErr == nil && fileInfo.Size() == 0 {
-			return
+			return nil
 		}
 		archivedFilePath := getUplogFileBufferPath(false)
-		if renameErr = os.Rename(currentFilePath, archivedFilePath); renameErr == nil {
-			shouldClose = true
-		}
-		return
+		w.Close()
+		return os.Rename(currentFilePath, archivedFilePath)
 	}); err != nil {
 		return
 	}
@@ -194,9 +202,17 @@ func tryToArchiveFileBuffer(force bool) {
 	go uploadAllClosedFileBuffers()
 }
 
-func withUploadFileBuffer(fn func(io.Writer) (bool, error)) (err error) {
-	var shouldClose bool
+type uplogFileBufferWrapper struct{}
 
+func (uplogFileBufferWrapper) Write(p []byte) (int, error) {
+	return uplogFileBuffer.Write(p)
+}
+
+func (uplogFileBufferWrapper) Close() error {
+	return closeUplogFileBufferWithoutLock()
+}
+
+func withUploadFileBuffer(fn func(io.WriteCloser) error) (err error) {
 	uplogFileBufferLock.Lock()
 	defer uplogFileBufferLock.Unlock()
 
@@ -216,25 +232,34 @@ func withUploadFileBuffer(fn func(io.Writer) (bool, error)) (err error) {
 		} else if uplogFileBuffer, err = os.OpenFile(uplogFileBufferPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err != nil {
 			return
 		}
-		uplogFileBufferFileLocker = flock.New(uplogFileBufferPath)
+		uplogFileBufferLockPath := uplogFileBufferPath + ".lock"
+		uplogFileBufferFileLocker = flock.New(uplogFileBufferLockPath)
 	}
 
 	if err = uplogFileBufferFileLocker.Lock(); err != nil {
 		return
 	}
-	shouldClose, err = fn(uplogFileBuffer)
-	_ = uplogFileBufferFileLocker.Unlock()
-	if shouldClose {
-		closeUplogFileBufferWithoutLock()
+	err = fn(uplogFileBufferWrapper{})
+	if uplogFileBufferFileLocker != nil && uplogFileBufferFileLocker.Locked() {
+		_ = uplogFileBufferFileLocker.Unlock()
 	}
 	return
 }
 
-func closeUplogFileBufferWithoutLock() {
-	uplogFileBuffer.Close()
-	uplogFileBuffer = nil
-	uplogFileBufferFileLocker.Close()
-	uplogFileBufferFileLocker = nil
+func closeUplogFileBufferWithoutLock() error {
+	var err1, err2 error
+	if uplogFileBuffer != nil {
+		err1 = uplogFileBuffer.Close()
+		uplogFileBuffer = nil
+	}
+	if uplogFileBufferFileLocker != nil {
+		err2 = uplogFileBufferFileLocker.Close()
+		uplogFileBufferFileLocker = nil
+	}
+	if err1 != nil {
+		return err1
+	}
+	return err2
 }
 
 func SetWriteFileBufferInterval(d time.Duration) {
@@ -295,16 +320,23 @@ func (r *multipleFileReader) readAllAsync() {
 	defer r.w.CloseWithError(io.EOF)
 	defer r.compressor.Close()
 	for _, path := range r.paths {
-		file, err := os.Open(path)
-		if err != nil {
-			r.setError(err)
-			return
-		}
-		if _, err = io.Copy(r.compressor, file); err != nil && err != io.EOF {
+		if err := r.readAllForPathAsync(path); err != nil {
 			r.setError(err)
 			return
 		}
 	}
+}
+
+func (r *multipleFileReader) readAllForPathAsync(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if _, err = io.Copy(r.compressor, file); err != nil && err != io.EOF {
+		return err
+	}
+	return nil
 }
 
 func (r *multipleFileReader) getError() error {
@@ -340,10 +372,9 @@ func getArchivedUplogFileBufferPaths(dirPath string) ([]string, error) {
 
 	archivedPaths := make([]string, 0, len(dirEntries))
 	for _, dirEntry := range dirEntries {
-		if !dirEntry.Mode().IsRegular() {
-			continue
-		}
-		if !strings.HasPrefix(dirEntry.Name(), UPLOG_FILE_BUFFER_NAME+".") {
+		if !dirEntry.Mode().IsRegular() ||
+			!strings.HasPrefix(dirEntry.Name(), UPLOG_FILE_BUFFER_NAME+".") ||
+			strings.HasSuffix(dirEntry.Name(), ".lock") {
 			continue
 		}
 		archivedPaths = append(archivedPaths, filepath.Join(dirPath, dirEntry.Name()))

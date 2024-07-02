@@ -41,15 +41,16 @@ func NewIPChooser(options *IPChooserConfig) Chooser {
 	if options == nil {
 		options = &IPChooserConfig{}
 	}
-	if options.FreezeDuration == 0 {
-		options.FreezeDuration = 10 * time.Minute
+	freezeDuration := options.FreezeDuration
+	if freezeDuration == 0 {
+		freezeDuration = 10 * time.Minute
 	}
 	return &ipChooser{
 		blackheap: blackheap{
 			m:     make(map[string]*blackItem, 1024),
 			items: make([]*blackItem, 0, 1024),
 		},
-		freezeDuration: options.FreezeDuration,
+		freezeDuration: freezeDuration,
 	}
 }
 

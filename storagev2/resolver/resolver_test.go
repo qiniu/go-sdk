@@ -5,7 +5,9 @@ package resolver_test
 
 import (
 	"context"
+	"io/ioutil"
 	"net"
+	"os"
 	"testing"
 
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
@@ -31,8 +33,18 @@ func (mr *mockResolver) Resolve(ctx context.Context, host string) ([]net.IP, err
 }
 
 func TestCacheResolver(t *testing.T) {
+	tmpFile, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
 	mr := &mockResolver{m: map[string][]net.IP{"upload.qiniup.com": {net.IPv4(1, 1, 1, 1)}}, c: make(map[string]int)}
-	resolver, err := resolver.NewCacheResolver(mr, nil)
+	resolver, err := resolver.NewCacheResolver(mr, &resolver.CacheResolverConfig{
+		PersistentFilePath: tmpFile.Name(),
+	})
+
 	if err != nil {
 		t.Fatal(err)
 	}
