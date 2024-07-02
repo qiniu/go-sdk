@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gofrs/flock"
@@ -24,7 +25,8 @@ var (
 	uplogFileBuffer               *os.File
 	uplogFileBufferFileLocker     *flock.Flock
 	uplogFileBufferLock           sync.Mutex
-	uplogFileBufferThreshold      int64 = 4 * 1024 * 1024
+	uplogFileBufferThreshold      uint64 = 4 * 1024 * 1024
+	uplogMaxStorageBytes          uint64 = 100 * 1024 * 1024
 	uplogWriteFileBufferTicker    *time.Ticker
 	uplogWriteFileBufferInterval  time.Duration = 1 * time.Minute
 	uplogWriteFileBufferTimerLock sync.Mutex
@@ -93,6 +95,14 @@ func IsUplogEnabled() bool {
 	return !uplogDisabled
 }
 
+func GetUplogMaxStorageBytes() uint64 {
+	return atomic.LoadUint64(&uplogMaxStorageBytes)
+}
+
+func SetUplogMaxStorageBytes(max uint64) {
+	atomic.StoreUint64(&uplogMaxStorageBytes, max)
+}
+
 func SetUplogFileBufferDirPath(path string) {
 	uplogFileBufferDirPathMutex.Lock()
 	defer uplogFileBufferDirPathMutex.Unlock()
@@ -148,7 +158,7 @@ func writeMemoryBufferToFileBuffer(data []byte) (n int, err error) {
 		return
 	}
 
-	if fi, serr := os.Stat(getUplogFileBufferPath(true)); serr == nil && fi.Size() >= uplogFileBufferThreshold {
+	if fi, serr := os.Stat(getUplogFileBufferPath(true)); serr == nil && uint64(fi.Size()) >= uplogFileBufferThreshold {
 		tryToArchiveFileBuffer(false)
 	}
 	return
