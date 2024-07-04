@@ -48,7 +48,7 @@ type (
 		InitWorkers       uint          // 初始化并发数，默认为 20
 		MaxWorkers        uint          // 最大并发数，默认为 20
 		MinWorkers        uint          // 最小并发数，默认为 1
-		AddWorkerInterval time.Duration // 增加并发数时间间隔
+		AddWorkerInterval time.Duration // 增加并发数时间间隔，默认为 1 分钟
 	}
 
 	concurrentBatchOpsExecutor struct {
@@ -630,6 +630,9 @@ func topoSort(operations []Operation) ([][]Operation, error) {
 	)
 
 	for operationId, operation := range operations {
+		if operation == nil {
+			continue
+		}
 		edges = append(edges, toposort.Edge{nil, operationId})
 
 		var firstKey string
