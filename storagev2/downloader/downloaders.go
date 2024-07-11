@@ -128,7 +128,8 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urlsIter UR
 		return 0, clientv1.ResponseError(headResponse)
 	}
 	etag := parseEtag(headResponse.Header.Get("Etag"))
-	if headResponse.ContentLength < 0 { // 无法确定文件实际大小，发出一个请求下载整个文件，不再使用并行下载
+	if headResponse.ContentLength < 0 || // 无法确定文件实际大小，发出一个请求下载整个文件，不再使用并行下载
+		headResponse.Header.Get("Accept-Ranges") != "bytes" { // 必须返回 Accept-Ranges 头，否则不认为可以分片下载
 		var progress func(uint64)
 		if onDownloadingProgress := options.OnDownloadingProgress; onDownloadingProgress != nil {
 			progress = func(downloaded uint64) {

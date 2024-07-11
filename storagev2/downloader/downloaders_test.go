@@ -42,6 +42,7 @@ func TestConcurrentDownloaderWithSinglePart(t *testing.T) {
 		case 2:
 			w.WriteHeader(http.StatusServiceUnavailable)
 		case 3:
+			w.Header().Set("Accept-Ranges", "bytes")
 			switch r.Method {
 			case http.MethodHead:
 				w.Header().Set("Etag", "testetag1")
@@ -144,6 +145,7 @@ func TestConcurrentDownloaderWithCompression(t *testing.T) {
 		counts += 1
 		switch id {
 		case 1:
+			w.Header().Set("Accept-Ranges", "bytes")
 			switch r.Method {
 			case http.MethodHead:
 				if r.Header.Get("Accept-Encoding") != "" {
@@ -449,6 +451,7 @@ func TestConcurrentDownloaderWithResumableRecorder(t *testing.T) {
 	handler := func(id int, w http.ResponseWriter, r *http.Request) {
 		switch id {
 		case 1:
+			w.Header().Set("Accept-Ranges", "bytes")
 			switch r.Method {
 			case http.MethodHead:
 				w.Header().Set("Etag", "testetag1")

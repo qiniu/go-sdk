@@ -67,6 +67,7 @@ func TestDownloadManagerDownloadDirectory(t *testing.T) {
 	ioMux := http.NewServeMux()
 	ioMux.HandleFunc("/test1/file1", func(w http.ResponseWriter, r *http.Request) {
 		rander := rand.New(rand.NewSource(time.Now().UnixNano()))
+		w.Header().Set("Accept-Ranges", "bytes")
 		switch r.Method {
 		case http.MethodHead:
 			w.Header().Set("Content-Type", "application/json")
@@ -83,6 +84,7 @@ func TestDownloadManagerDownloadDirectory(t *testing.T) {
 	})
 	ioMux.HandleFunc("/test2/file2", func(w http.ResponseWriter, r *http.Request) {
 		rander := rand.New(rand.NewSource(time.Now().UnixNano()))
+		w.Header().Set("Accept-Ranges", "bytes")
 		switch r.Method {
 		case http.MethodHead:
 			w.Header().Set("Content-Type", "application/json")
