@@ -69,7 +69,7 @@ type (
 		// 空间名称
 		BucketName string
 
-		// 下载并发度
+		// 上传并发度
 		ObjectConcurrency int
 
 		// 上传前回调函数
