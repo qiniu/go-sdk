@@ -27,7 +27,7 @@ func TestSeekableDestination(t *testing.T) {
 	defer tmpFile.Close()
 
 	dest := destination.NewWriteAtCloserDestination(tmpFile, tmpFile.Name())
-	parts, err := dest.Slice(1024*1024*1024, 1024*1024, nil)
+	parts, err := dest.Split(1024*1024*1024, 1024*1024, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestUnseekableDestination(t *testing.T) {
 	defer tmpFile.Close()
 
 	dest := destination.NewWriteCloserDestination(tmpFile, tmpFile.Name())
-	parts, err := dest.Slice(1024*1024, 1024, nil)
+	parts, err := dest.Split(1024*1024, 1024, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

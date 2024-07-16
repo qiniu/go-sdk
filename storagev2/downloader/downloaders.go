@@ -167,7 +167,7 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urlsIter UR
 		}
 	}
 
-	parts, err := dest.Slice(needToDownload, downloader.partSize, &destination.SliceOptions{Medium: readableMedium})
+	parts, err := dest.Split(needToDownload, downloader.partSize, &destination.SplitOptions{Medium: readableMedium})
 	if err != nil {
 		return 0, err
 	}
