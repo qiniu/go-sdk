@@ -266,7 +266,7 @@ func (downloadManager *DownloadManager) initDownloadURLsProvider(ctx context.Con
 						BucketHosts:               httpclient.DefaultBucketHosts(),
 					}),
 					NewCredentialsSigner(creds),
-					&SignOptions{Ttl: 3 * time.Minute},
+					&SignOptions{TTL: 3 * time.Minute},
 				)
 			})
 		}

@@ -204,6 +204,6 @@ func (m *BucketManager) applyTrafficLimitOnUrlsProvider(urlsProvider downloader.
 }
 
 func (m *BucketManager) applyPresignOnUrlsProvider(urlsProvider downloader.DownloadURLsProvider) downloader.DownloadURLsProvider {
-	signOptions := downloader.SignOptions{Ttl: 3 * time.Minute}
+	signOptions := downloader.SignOptions{TTL: 3 * time.Minute}
 	return downloader.SignURLsProvider(urlsProvider, downloader.NewCredentialsSigner(m.Mac), &signOptions)
 }

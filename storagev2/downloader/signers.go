@@ -23,7 +23,7 @@ func (signer credentialsSigner) Sign(ctx context.Context, u *url.URL, options *S
 	if options == nil {
 		options = &SignOptions{}
 	}
-	ttl := options.Ttl
+	ttl := options.TTL
 	if ttl == 0 {
 		ttl = 3 * time.Minute
 	}

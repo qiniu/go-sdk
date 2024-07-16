@@ -62,6 +62,6 @@ type (
 	// 对象签名选项
 	SignOptions struct {
 		// 签名有效期，如果不填写，默认为 3 分钟
-		Ttl time.Duration
+		TTL time.Duration
 	}
 )
