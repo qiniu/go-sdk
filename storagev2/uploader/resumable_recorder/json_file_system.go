@@ -273,7 +273,7 @@ func (medium jsonFileSystemResumableRecorderReadableMedium) Next(rr *ResumableRe
 		PartNumber: jrr.PartNumber,
 		PartSize:   jrr.PartSize,
 		ExpiredAt:  time.Unix(jrr.ExpiredAt, 0),
-		Crc32:      jrr.Crc32,
+		CRC32:      jrr.Crc32,
 	}
 	copy(rr.MD5[:], md5Bytes)
 	return nil
@@ -291,7 +291,7 @@ func (medium jsonFileSystemResumableRecorderWritableMedium) Write(rr *ResumableR
 		PartNumber: rr.PartNumber,
 		PartSize:   rr.PartSize,
 		ExpiredAt:  rr.ExpiredAt.Unix(),
-		Crc32:      rr.Crc32,
+		Crc32:      rr.CRC32,
 		MD5:        hex.EncodeToString(rr.MD5[:]),
 	}
 	return medium.encoder.Encode(&jrr)

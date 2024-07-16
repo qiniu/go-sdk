@@ -82,7 +82,7 @@ func (uploader *multiPartsUploaderV1) TryToResume(ctx context.Context, src sourc
 		}
 		records[record.PartNumber] = resumedMultiPartsUploaderV1Record{
 			ctx:       record.PartId,
-			crc32:     record.Crc32,
+			crc32:     record.CRC32,
 			offset:    record.Offset,
 			size:      record.PartSize,
 			expiredAt: record.ExpiredAt,
@@ -156,7 +156,7 @@ func (uploader *multiPartsUploaderV1) uploadPart(ctx context.Context, initialize
 			PartSize:   part.Size(),
 			PartNumber: part.PartNumber(),
 			ExpiredAt:  time.Unix(response.ExpiredAt, 0),
-			Crc32:      uint32(response.Crc32),
+			CRC32:      uint32(response.Crc32),
 		})
 	}
 

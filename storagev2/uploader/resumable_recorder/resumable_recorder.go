@@ -88,7 +88,7 @@ type (
 		ExpiredAt time.Time
 
 		// 分片内容 CRC32
-		Crc32 uint32
+		CRC32 uint32
 
 		// 分片内容 MD5
 		MD5 [md5.Size]byte
