@@ -197,7 +197,7 @@ func (uploadManager *UploadManager) UploadFile(ctx context.Context, path string,
 
 	var uploader Uploader
 	if fileInfo.Size() > int64(uploadManager.multiPartsThreshold) {
-		uploader = NewMultiPartsUploader(uploadManager.getScheduler())
+		uploader = newMultiPartsUploader(uploadManager.getScheduler())
 	} else {
 		uploader = uploadManager.getFormUploader()
 	}
@@ -216,7 +216,7 @@ func (uploadManager *UploadManager) UploadReader(ctx context.Context, reader io.
 	if rscs, ok := reader.(io.ReadSeeker); ok && canSeekReally(rscs) {
 		size, err := getSeekerSize(rscs)
 		if err == nil && size > uploadManager.multiPartsThreshold {
-			uploader = NewMultiPartsUploader(uploadManager.getScheduler())
+			uploader = newMultiPartsUploader(uploadManager.getScheduler())
 		}
 	}
 	if uploader == nil {
@@ -226,7 +226,7 @@ func (uploadManager *UploadManager) UploadReader(ctx context.Context, reader io.
 		}
 		reader = io.MultiReader(bytes.NewReader(firstPartBytes), reader)
 		if len(firstPartBytes) > int(uploadManager.multiPartsThreshold) {
-			uploader = NewMultiPartsUploader(uploadManager.getScheduler())
+			uploader = newMultiPartsUploader(uploadManager.getScheduler())
 		} else {
 			uploader = uploadManager.getFormUploader()
 		}
@@ -235,13 +235,13 @@ func (uploadManager *UploadManager) UploadReader(ctx context.Context, reader io.
 	return uploader.UploadReader(ctx, reader, objectOptions, returnValue)
 }
 
-func (uploadManager *UploadManager) getScheduler() MultiPartsUploaderScheduler {
+func (uploadManager *UploadManager) getScheduler() multiPartsUploaderScheduler {
 	if uploadManager.concurrency > 1 {
-		return NewConcurrentMultiPartsUploaderScheduler(uploadManager.getMultiPartsUploader(), &ConcurrentMultiPartsUploaderSchedulerOptions{
+		return newConcurrentMultiPartsUploaderScheduler(uploadManager.getMultiPartsUploader(), &concurrentMultiPartsUploaderSchedulerOptions{
 			PartSize: uploadManager.partSize, Concurrency: uploadManager.concurrency,
 		})
 	} else {
-		return NewSerialMultiPartsUploaderScheduler(uploadManager.getMultiPartsUploader(), &SerialMultiPartsUploaderSchedulerOptions{
+		return newSerialMultiPartsUploaderScheduler(uploadManager.getMultiPartsUploader(), &serialMultiPartsUploaderSchedulerOptions{
 			PartSize: uploadManager.partSize,
 		})
 	}

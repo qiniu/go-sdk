@@ -1,7 +1,7 @@
 //go:build unit
 // +build unit
 
-package uploader_test
+package uploader
 
 import (
 	"bytes"
@@ -22,7 +22,6 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	"github.com/qiniu/go-sdk/v7/storagev2/region"
-	"github.com/qiniu/go-sdk/v7/storagev2/uploader"
 )
 
 func TestFormUploader(t *testing.T) {
@@ -90,7 +89,7 @@ func TestFormUploader(t *testing.T) {
 	server := httptest.NewServer(serveMux)
 	defer server.Close()
 
-	formUploader := uploader.NewFormUploader(&uploader.FormUploaderOptions{
+	formUploader := NewFormUploader(&FormUploaderOptions{
 		Options: http_client.Options{
 			Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 			Credentials: credentials.NewCredentials("testak", "testsk"),
@@ -103,7 +102,7 @@ func TestFormUploader(t *testing.T) {
 		key          = "testkey"
 		lastUploaded uint64
 	)
-	if err = formUploader.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectOptions{
+	if err = formUploader.UploadFile(context.Background(), tmpFile.Name(), &ObjectOptions{
 		BucketName:  "testbucket",
 		ObjectName:  &key,
 		FileName:    "testfilename",
@@ -236,7 +235,7 @@ func TestFormUploaderRetry(t *testing.T) {
 		key = "testkey"
 	)
 
-	formUploader := uploader.NewFormUploader(&uploader.FormUploaderOptions{
+	formUploader := NewFormUploader(&FormUploaderOptions{
 		Options: http_client.Options{
 			Regions: regions{[]*region.Region{
 				{Up: region.Endpoints{Preferred: []string{server_3.URL}}},
@@ -246,7 +245,7 @@ func TestFormUploaderRetry(t *testing.T) {
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 		},
 	})
-	if err = formUploader.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectOptions{
+	if err = formUploader.UploadFile(context.Background(), tmpFile.Name(), &ObjectOptions{
 		BucketName:  "testbucket",
 		ObjectName:  &key,
 		FileName:    "testfilename",
@@ -272,7 +271,7 @@ func TestFormUploaderRetry(t *testing.T) {
 	atomic.StoreUint64(&handlerCalled_2, 0)
 	atomic.StoreUint64(&handlerCalled_3, 0)
 
-	formUploader = uploader.NewFormUploader(&uploader.FormUploaderOptions{
+	formUploader = NewFormUploader(&FormUploaderOptions{
 		Options: http_client.Options{
 			Regions: regions{[]*region.Region{
 				{Up: region.Endpoints{Preferred: []string{server_3.URL}}},
@@ -282,7 +281,7 @@ func TestFormUploaderRetry(t *testing.T) {
 			Credentials: credentials.NewCredentials("testak", "testsk"),
 		},
 	})
-	if err = formUploader.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectOptions{
+	if err = formUploader.UploadFile(context.Background(), tmpFile.Name(), &ObjectOptions{
 		RegionsProvider: nil,
 		BucketName:      "testbucket",
 		ObjectName:      &key,

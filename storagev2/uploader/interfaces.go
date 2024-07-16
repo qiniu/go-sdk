@@ -51,7 +51,7 @@ type (
 	}
 
 	// 分片上传调度器
-	MultiPartsUploaderScheduler interface {
+	multiPartsUploaderScheduler interface {
 		// 上传数据源的全部分片
 		UploadParts(context.Context, InitializedParts, source.Source, *UploadPartsOptions) ([]UploadedPart, error)
 

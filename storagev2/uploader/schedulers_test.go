@@ -1,7 +1,7 @@
 //go:build unit
 // +build unit
 
-package uploader_test
+package uploader
 
 import (
 	"bytes"
@@ -26,7 +26,6 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	"github.com/qiniu/go-sdk/v7/storagev2/region"
-	"github.com/qiniu/go-sdk/v7/storagev2/uploader"
 	"github.com/qiniu/go-sdk/v7/storagev2/uploader/source"
 )
 
@@ -193,19 +192,19 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 	server = httptest.NewServer(serveMux)
 	defer server.Close()
 
-	schedulers := []uploader.MultiPartsUploaderScheduler{
-		uploader.NewSerialMultiPartsUploaderScheduler(uploader.NewMultiPartsUploaderV1(&uploader.MultiPartsUploaderOptions{
+	schedulers := []multiPartsUploaderScheduler{
+		newSerialMultiPartsUploaderScheduler(NewMultiPartsUploaderV1(&MultiPartsUploaderOptions{
 			Options: http_client.Options{
 				Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 				Credentials: credentials.NewCredentials("testak", "testsk"),
 			},
-		}), &uploader.SerialMultiPartsUploaderSchedulerOptions{PartSize: 1 << 22}),
-		uploader.NewConcurrentMultiPartsUploaderScheduler(uploader.NewMultiPartsUploaderV1(&uploader.MultiPartsUploaderOptions{
+		}), &serialMultiPartsUploaderSchedulerOptions{PartSize: 1 << 22}),
+		newConcurrentMultiPartsUploaderScheduler(NewMultiPartsUploaderV1(&MultiPartsUploaderOptions{
 			Options: http_client.Options{
 				Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 				Credentials: credentials.NewCredentials("testak", "testsk"),
 			},
-		}), &uploader.ConcurrentMultiPartsUploaderSchedulerOptions{PartSize: 1 << 22, Concurrency: 2}),
+		}), &concurrentMultiPartsUploaderSchedulerOptions{PartSize: 1 << 22, Concurrency: 2}),
 	}
 	key := "testkey"
 	for _, scheduler := range schedulers {
@@ -213,8 +212,8 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		initializedPart, err := scheduler.MultiPartsUploader().InitializeParts(context.Background(), src, &uploader.MultiPartsObjectOptions{
-			uploader.ObjectOptions{
+		initializedPart, err := scheduler.MultiPartsUploader().InitializeParts(context.Background(), src, &MultiPartsObjectOptions{
+			ObjectOptions{
 				BucketName:  "testbucket",
 				ObjectName:  &key,
 				FileName:    "testfilename",
@@ -231,7 +230,7 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 
 		var lastUploaded [2]uint64
 		var uploadedPartSizes [2]uint64
-		uploadedParts, err := scheduler.UploadParts(context.Background(), initializedPart, src, &uploader.UploadPartsOptions{
+		uploadedParts, err := scheduler.UploadParts(context.Background(), initializedPart, src, &UploadPartsOptions{
 			OnUploadingProgress: func(partNumber uint64, uploaded uint64, partSize uint64) {
 				if partNumber == 1 && partSize != 4*1024*1024 {
 					t.Fatalf("unexpected partSize")

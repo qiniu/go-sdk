@@ -16,7 +16,7 @@ type (
 	}
 
 	// 串行分片上传调度器选项
-	SerialMultiPartsUploaderSchedulerOptions struct {
+	serialMultiPartsUploaderSchedulerOptions struct {
 		PartSize uint64 // 分片大小
 	}
 
@@ -27,16 +27,16 @@ type (
 	}
 
 	// 并行分片上传调度器选项
-	ConcurrentMultiPartsUploaderSchedulerOptions struct {
+	concurrentMultiPartsUploaderSchedulerOptions struct {
 		PartSize    uint64 // 分片大小
 		Concurrency int    // 并发度
 	}
 )
 
 // 创建串行分片上传调度器
-func NewSerialMultiPartsUploaderScheduler(uploader MultiPartsUploader, options *SerialMultiPartsUploaderSchedulerOptions) MultiPartsUploaderScheduler {
+func newSerialMultiPartsUploaderScheduler(uploader MultiPartsUploader, options *serialMultiPartsUploaderSchedulerOptions) multiPartsUploaderScheduler {
 	if options == nil {
-		options = &SerialMultiPartsUploaderSchedulerOptions{}
+		options = &serialMultiPartsUploaderSchedulerOptions{}
 	}
 	partSize := options.PartSize
 	if partSize == 0 {
@@ -50,9 +50,9 @@ func NewSerialMultiPartsUploaderScheduler(uploader MultiPartsUploader, options *
 }
 
 // 创建并行分片上传调度器
-func NewConcurrentMultiPartsUploaderScheduler(uploader MultiPartsUploader, options *ConcurrentMultiPartsUploaderSchedulerOptions) MultiPartsUploaderScheduler {
+func newConcurrentMultiPartsUploaderScheduler(uploader MultiPartsUploader, options *concurrentMultiPartsUploaderSchedulerOptions) multiPartsUploaderScheduler {
 	if options == nil {
-		options = &ConcurrentMultiPartsUploaderSchedulerOptions{}
+		options = &concurrentMultiPartsUploaderSchedulerOptions{}
 	}
 	partSize := options.PartSize
 	if partSize == 0 {

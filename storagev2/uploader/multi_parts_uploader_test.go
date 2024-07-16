@@ -1,7 +1,7 @@
 //go:build unit
 // +build unit
 
-package uploader_test
+package uploader
 
 import (
 	"bytes"
@@ -28,7 +28,6 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	"github.com/qiniu/go-sdk/v7/storagev2/region"
-	"github.com/qiniu/go-sdk/v7/storagev2/uploader"
 	resumablerecorder "github.com/qiniu/go-sdk/v7/storagev2/uploader/resumable_recorder"
 )
 
@@ -195,13 +194,13 @@ func TestMultiPartsUploader(t *testing.T) {
 	server = httptest.NewServer(serveMux)
 	defer server.Close()
 
-	multiPartsUploader := uploader.NewMultiPartsUploader(uploader.NewConcurrentMultiPartsUploaderScheduler(
-		uploader.NewMultiPartsUploaderV1(&uploader.MultiPartsUploaderOptions{
+	multiPartsUploader := newMultiPartsUploader(newConcurrentMultiPartsUploaderScheduler(
+		NewMultiPartsUploaderV1(&MultiPartsUploaderOptions{
 			Options: http_client.Options{
 				Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 				Credentials: credentials.NewCredentials("testak", "testsk"),
 			},
-		}), &uploader.ConcurrentMultiPartsUploaderSchedulerOptions{PartSize: 1 << 22, Concurrency: 2},
+		}), &concurrentMultiPartsUploaderSchedulerOptions{PartSize: 1 << 22, Concurrency: 2},
 	))
 
 	var (
@@ -211,7 +210,7 @@ func TestMultiPartsUploader(t *testing.T) {
 		}
 		lastUploaded uint64
 	)
-	if err = multiPartsUploader.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectOptions{
+	if err = multiPartsUploader.UploadFile(context.Background(), tmpFile.Name(), &ObjectOptions{
 		BucketName:  "testbucket",
 		ObjectName:  &key,
 		FileName:    "testfilename",
@@ -387,14 +386,14 @@ func TestMultiPartsUploaderResuming(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	multiPartsUploader := uploader.NewMultiPartsUploader(uploader.NewConcurrentMultiPartsUploaderScheduler(
-		uploader.NewMultiPartsUploaderV1(&uploader.MultiPartsUploaderOptions{
+	multiPartsUploader := newMultiPartsUploader(newConcurrentMultiPartsUploaderScheduler(
+		NewMultiPartsUploaderV1(&MultiPartsUploaderOptions{
 			ResumableRecorder: resumableRecorder,
 			Options: http_client.Options{
 				Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 				Credentials: credentials.NewCredentials("testak", "testsk"),
 			},
-		}), &uploader.ConcurrentMultiPartsUploaderSchedulerOptions{PartSize: 1 << 22, Concurrency: 2},
+		}), &concurrentMultiPartsUploaderSchedulerOptions{PartSize: 1 << 22, Concurrency: 2},
 	))
 
 	var (
@@ -404,7 +403,7 @@ func TestMultiPartsUploaderResuming(t *testing.T) {
 		}
 		lastUploaded uint64
 	)
-	if err = multiPartsUploader.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectOptions{
+	if err = multiPartsUploader.UploadFile(context.Background(), tmpFile.Name(), &ObjectOptions{
 		BucketName:  "testbucket",
 		ObjectName:  &key,
 		FileName:    "testfilename",
@@ -610,8 +609,8 @@ func TestMultiPartsUploaderRetry(t *testing.T) {
 	server_3 = httptest.NewServer(serveMux_3)
 	defer server_3.Close()
 
-	multiPartsUploader := uploader.NewMultiPartsUploader(uploader.NewSerialMultiPartsUploaderScheduler(
-		uploader.NewMultiPartsUploaderV1(&uploader.MultiPartsUploaderOptions{
+	multiPartsUploader := newMultiPartsUploader(newSerialMultiPartsUploaderScheduler(
+		NewMultiPartsUploaderV1(&MultiPartsUploaderOptions{
 			Options: http_client.Options{
 				Regions: regions{[]*region.Region{
 					{Up: region.Endpoints{Preferred: []string{server_1.URL}}},
@@ -620,7 +619,7 @@ func TestMultiPartsUploaderRetry(t *testing.T) {
 				}},
 				Credentials: credentials.NewCredentials("testak", "testsk"),
 			},
-		}), &uploader.SerialMultiPartsUploaderSchedulerOptions{PartSize: 1 << 22},
+		}), &serialMultiPartsUploaderSchedulerOptions{PartSize: 1 << 22},
 	))
 
 	var (
@@ -630,7 +629,7 @@ func TestMultiPartsUploaderRetry(t *testing.T) {
 		}
 		lastUploaded uint64
 	)
-	if err = multiPartsUploader.UploadFile(context.Background(), tmpFile.Name(), &uploader.ObjectOptions{
+	if err = multiPartsUploader.UploadFile(context.Background(), tmpFile.Name(), &ObjectOptions{
 		BucketName:  "testbucket",
 		ObjectName:  &key,
 		FileName:    "testfilename",

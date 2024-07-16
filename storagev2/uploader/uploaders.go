@@ -39,7 +39,7 @@ type (
 	}
 
 	multiPartsUploader struct {
-		scheduler MultiPartsUploaderScheduler
+		scheduler multiPartsUploaderScheduler
 	}
 )
 
@@ -156,7 +156,7 @@ func (uploader formUploader) uploadToRegion(
 	return err
 }
 
-func NewMultiPartsUploader(scheduler MultiPartsUploaderScheduler) Uploader {
+func newMultiPartsUploader(scheduler multiPartsUploaderScheduler) Uploader {
 	return multiPartsUploader{scheduler}
 }
 
