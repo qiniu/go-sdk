@@ -23,7 +23,7 @@ type (
 	}
 
 	multiPartsUploaderV2InitializedParts struct {
-		bucketName, uploadId    string
+		bucketName, uploadID    string
 		multiPartsObjectOptions *MultiPartsObjectOptions
 		expiredAt               time.Time
 		records                 map[uint64]resumedMultiPartsUploaderV2Record
@@ -38,7 +38,7 @@ type (
 	}
 
 	resumedMultiPartsUploaderV2Record struct {
-		uploadId, etag           string
+		uploadID, etag           string
 		md5                      [md5.Size]byte
 		partNumber, offset, size uint64
 		expiredAt                time.Time
@@ -87,7 +87,7 @@ func (uploader *multiPartsUploaderV2) InitializeParts(ctx context.Context, src s
 	medium := tryToOpenResumableRecorderForAppending(ctx, src, multiPartsObjectOptions, uploader.options)
 	return &multiPartsUploaderV2InitializedParts{
 		bucketName:              bucketName,
-		uploadId:                response.UploadId,
+		uploadID:                response.UploadId,
 		multiPartsObjectOptions: multiPartsObjectOptions,
 		expiredAt:               time.Unix(response.ExpiredAt, 0),
 		medium:                  medium,
@@ -132,7 +132,7 @@ func (uploader *multiPartsUploaderV2) TryToResume(ctx context.Context, src sourc
 			break
 		}
 		records[record.PartNumber] = resumedMultiPartsUploaderV2Record{
-			uploadId:   record.UploadId,
+			uploadID:   record.UploadID,
 			etag:       record.PartId,
 			md5:        record.MD5,
 			partNumber: record.PartNumber,
@@ -141,7 +141,7 @@ func (uploader *multiPartsUploaderV2) TryToResume(ctx context.Context, src sourc
 			expiredAt:  record.ExpiredAt,
 		}
 		if uploadId == "" {
-			uploadId = record.UploadId
+			uploadId = record.UploadID
 			expiredAt = record.ExpiredAt
 		}
 	}
@@ -153,7 +153,7 @@ func (uploader *multiPartsUploaderV2) TryToResume(ctx context.Context, src sourc
 	medium := tryToOpenResumableRecorderForAppending(ctx, src, multiPartsObjectOptions, uploader.options)
 	return &multiPartsUploaderV2InitializedParts{
 		bucketName:              bucketName,
-		uploadId:                uploadId,
+		uploadID:                uploadId,
 		multiPartsObjectOptions: multiPartsObjectOptions,
 		expiredAt:               expiredAt,
 		records:                 records,
@@ -206,7 +206,7 @@ func (uploader *multiPartsUploaderV2) uploadPart(ctx context.Context, initialize
 	response, err := uploader.storage.ResumableUploadV2UploadPart(ctx, &apis.ResumableUploadV2UploadPartRequest{
 		BucketName: initialized.bucketName,
 		ObjectName: initialized.multiPartsObjectOptions.ObjectName,
-		UploadId:   initialized.uploadId,
+		UploadId:   initialized.uploadID,
 		PartNumber: int64(part.PartNumber()),
 		Md5:        hex.EncodeToString(md5[:]),
 		UpToken:    upToken,
@@ -218,7 +218,7 @@ func (uploader *multiPartsUploaderV2) uploadPart(ctx context.Context, initialize
 
 	if medium := initialized.medium; medium != nil {
 		medium.Write(&resumablerecorder.ResumableRecord{
-			UploadId:   initialized.uploadId,
+			UploadID:   initialized.uploadID,
 			PartId:     response.Etag,
 			Offset:     part.Offset(),
 			PartSize:   part.Size(),
@@ -275,7 +275,7 @@ func (uploader *multiPartsUploaderV2) CompleteParts(ctx context.Context, initial
 	_, err = uploader.storage.ResumableUploadV2CompleteMultipartUpload(ctx, &apis.ResumableUploadV2CompleteMultipartUploadRequest{
 		BucketName:   initializedParts.bucketName,
 		ObjectName:   initializedParts.multiPartsObjectOptions.ObjectName,
-		UploadId:     initializedParts.uploadId,
+		UploadId:     initializedParts.uploadID,
 		UpToken:      upToken,
 		Parts:        completedParts,
 		FileName:     initializedParts.multiPartsObjectOptions.FileName,

@@ -36,7 +36,7 @@ func TestJsonFileSystemResumableRecorder(t *testing.T) {
 	writableMedium := fs.OpenForCreatingNew(&options)
 	for i := uint64(0); i < 3; i++ {
 		if err = writableMedium.Write(&resumablerecorder.ResumableRecord{
-			UploadId:   "test-upload-id",
+			UploadID:   "test-upload-id",
 			PartId:     fmt.Sprintf("test-part-%d", i+1),
 			Offset:     i * 4 * 1024 * 1024,
 			PartNumber: i + 1,
@@ -50,7 +50,7 @@ func TestJsonFileSystemResumableRecorder(t *testing.T) {
 	}
 	writableMedium = fs.OpenForAppending(&options)
 	if err = writableMedium.Write(&resumablerecorder.ResumableRecord{
-		UploadId:   "test-upload-id",
+		UploadID:   "test-upload-id",
 		PartId:     fmt.Sprintf("test-part-%d", 3+1),
 		Offset:     3 * 4 * 1024 * 1024,
 		PartNumber: 3 + 1,
@@ -67,7 +67,7 @@ func TestJsonFileSystemResumableRecorder(t *testing.T) {
 	writableMedium = fs.OpenForCreatingNew(&options2)
 	for i := uint64(0); i < 4; i++ {
 		if err = writableMedium.Write(&resumablerecorder.ResumableRecord{
-			UploadId:   "test-upload-id-2",
+			UploadID:   "test-upload-id-2",
 			PartId:     fmt.Sprintf("test-part-%d", i+1),
 			Offset:     i * 4 * 1024 * 1024,
 			PartNumber: i + 1,
@@ -88,8 +88,8 @@ func TestJsonFileSystemResumableRecorder(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if rr.UploadId != "test-upload-id" {
-			t.Fatalf("unexpected uploadId: %s", rr.UploadId)
+		if rr.UploadID != "test-upload-id" {
+			t.Fatalf("unexpected uploadId: %s", rr.UploadID)
 		}
 		if rr.PartId != fmt.Sprintf("test-part-%d", i+1) {
 			t.Fatalf("unexpected partId: %s", rr.PartId)

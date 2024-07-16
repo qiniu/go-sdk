@@ -206,7 +206,7 @@ type (
 	}
 
 	jsonBasedResumableRecord struct {
-		UploadId   string `json:"u,omitempty"`
+		UploadID   string `json:"u,omitempty"`
 		PartId     string `json:"p,omitempty"`
 		Offset     uint64 `json:"o,omitempty"`
 		PartNumber uint64 `json:"n,omitempty"`
@@ -267,7 +267,7 @@ func (medium jsonFileSystemResumableRecorderReadableMedium) Next(rr *ResumableRe
 	}
 
 	*rr = ResumableRecord{
-		UploadId:   jrr.UploadId,
+		UploadID:   jrr.UploadID,
 		PartId:     jrr.PartId,
 		Offset:     jrr.Offset,
 		PartNumber: jrr.PartNumber,
@@ -285,7 +285,7 @@ func (medium jsonFileSystemResumableRecorderReadableMedium) Close() error {
 
 func (medium jsonFileSystemResumableRecorderWritableMedium) Write(rr *ResumableRecord) error {
 	jrr := jsonBasedResumableRecord{
-		UploadId:   rr.UploadId,
+		UploadID:   rr.UploadID,
 		PartId:     rr.PartId,
 		Offset:     rr.Offset,
 		PartNumber: rr.PartNumber,

@@ -70,7 +70,7 @@ type (
 	// 可恢复记录
 	ResumableRecord struct {
 		// 上传对象 ID
-		UploadId string
+		UploadID string
 
 		// 上传分片 ID
 		PartId string
