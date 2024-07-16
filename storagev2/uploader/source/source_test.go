@@ -45,7 +45,7 @@ func testSource(t *testing.T, source uploader.Source, originalFile *os.File) {
 		t.Fatalf("Unexpected file size: %d", ts)
 	}
 
-	if sk, err := source.SourceKey(); err != nil {
+	if sk, err := source.SourceID(); err != nil {
 		t.Fatal(err)
 	} else if sk != originalFile.Name() {
 		t.Fatalf("Unexpected source key: %#v", sk)

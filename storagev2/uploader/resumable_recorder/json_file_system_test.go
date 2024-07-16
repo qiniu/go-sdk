@@ -24,7 +24,7 @@ func TestJsonFileSystemResumableRecorder(t *testing.T) {
 		AccessKey:  "testak",
 		BucketName: "test-bucket",
 		ObjectName: "test-object",
-		SourceKey:  "/tmp/fakeFile",
+		SourceID:   "/tmp/fakeFile",
 		PartSize:   4 * 1024 * 1024,
 		TotalSize:  100 * 1024 * 1024,
 		UpEndpoints: region.Endpoints{

@@ -39,8 +39,8 @@ func tryToDeleteResumableRecorderMedium(ctx context.Context, src source.Source, 
 }
 
 func makeResumableRecorderOpenOptions(ctx context.Context, src source.Source, multiPartsObjectOptions *MultiPartsObjectOptions, multiPartsUploaderOptions *MultiPartsUploaderOptions) *resumablerecorder.ResumableRecorderOpenOptions {
-	sourceKey, err := src.SourceKey()
-	if err != nil || sourceKey == "" {
+	sourceID, err := src.SourceID()
+	if err != nil || sourceID == "" {
 		return nil
 	}
 
@@ -79,7 +79,7 @@ func makeResumableRecorderOpenOptions(ctx context.Context, src source.Source, mu
 		AccessKey:   accessKey,
 		BucketName:  bucketName,
 		ObjectName:  objectName,
-		SourceKey:   sourceKey,
+		SourceID:    sourceID,
 		PartSize:    multiPartsObjectOptions.PartSize,
 		TotalSize:   totalSize,
 		UpEndpoints: regions[0].Up,

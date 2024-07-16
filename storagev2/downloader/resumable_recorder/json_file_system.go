@@ -41,7 +41,7 @@ func (frr jsonFileSystemResumableRecorder) OpenForReading(options *ResumableReco
 	if options == nil {
 		options = &ResumableRecorderOpenOptions{}
 	}
-	if options.DestinationKey == "" {
+	if options.DestinationID == "" {
 		return nil
 	}
 
@@ -65,7 +65,7 @@ func (frr jsonFileSystemResumableRecorder) OpenForAppending(options *ResumableRe
 	if options == nil {
 		options = &ResumableRecorderOpenOptions{}
 	}
-	if options.DestinationKey == "" {
+	if options.DestinationID == "" {
 		return nil
 	}
 
@@ -80,7 +80,7 @@ func (frr jsonFileSystemResumableRecorder) OpenForCreatingNew(options *Resumable
 	if options == nil {
 		options = &ResumableRecorderOpenOptions{}
 	}
-	if options.DestinationKey == "" {
+	if options.DestinationID == "" {
 		return nil
 	}
 
@@ -152,7 +152,7 @@ func (frr jsonFileSystemResumableRecorder) tryToClearPath(createdBefore time.Dur
 
 func (frr jsonFileSystemResumableRecorder) fileName(options *ResumableRecorderOpenOptions) string {
 	hasher := sha1.New()
-	hasher.Write([]byte(options.DestinationKey))
+	hasher.Write([]byte(options.DestinationID))
 	hasher.Write([]byte{0})
 	hasher.Write([]byte(options.ETag))
 	hasher.Write([]byte{0})
@@ -169,13 +169,13 @@ func (frr jsonFileSystemResumableRecorder) getFilePath(options *ResumableRecorde
 
 type (
 	jsonBasedResumableRecorderOpenOptions struct {
-		ETag           string `json:"e,omitempty"`
-		DestinationKey string `json:"d,omitempty"`
-		PartSize       uint64 `json:"p,omitempty"`
-		TotalSize      uint64 `json:"t,omitempty"`
-		Offset         uint64 `json:"o,omitempty"`
-		CreatedAt      int64  `json:"c,omitempty"`
-		Version        uint32 `json:"v,omitempty"`
+		ETag          string `json:"e,omitempty"`
+		DestinationID string `json:"d,omitempty"`
+		PartSize      uint64 `json:"p,omitempty"`
+		TotalSize     uint64 `json:"t,omitempty"`
+		Offset        uint64 `json:"o,omitempty"`
+		CreatedAt     int64  `json:"c,omitempty"`
+		Version       uint32 `json:"v,omitempty"`
 	}
 
 	jsonBasedResumableRecord struct {
@@ -189,13 +189,13 @@ const fileSystemResumableRecorderVersion uint32 = 1
 
 func jsonFileSystemResumableRecorderWriteHeaderLine(encoder *json.Encoder, options *ResumableRecorderOpenOptions) error {
 	return encoder.Encode(&jsonBasedResumableRecorderOpenOptions{
-		ETag:           options.ETag,
-		DestinationKey: options.DestinationKey,
-		PartSize:       options.PartSize,
-		TotalSize:      options.TotalSize,
-		Offset:         options.Offset,
-		CreatedAt:      time.Now().Unix(),
-		Version:        fileSystemResumableRecorderVersion,
+		ETag:          options.ETag,
+		DestinationID: options.DestinationID,
+		PartSize:      options.PartSize,
+		TotalSize:     options.TotalSize,
+		Offset:        options.Offset,
+		CreatedAt:     time.Now().Unix(),
+		Version:       fileSystemResumableRecorderVersion,
 	})
 }
 
@@ -206,13 +206,13 @@ func jsonFileSystemResumableRecorderVerifyHeaderLine(decoder *json.Decoder, opti
 		return false, err
 	}
 	return reflect.DeepEqual(lineOptions, jsonBasedResumableRecorderOpenOptions{
-		ETag:           options.ETag,
-		DestinationKey: options.DestinationKey,
-		PartSize:       options.PartSize,
-		TotalSize:      options.TotalSize,
-		Offset:         options.Offset,
-		CreatedAt:      lineOptions.CreatedAt,
-		Version:        fileSystemResumableRecorderVersion,
+		ETag:          options.ETag,
+		DestinationID: options.DestinationID,
+		PartSize:      options.PartSize,
+		TotalSize:     options.TotalSize,
+		Offset:        options.Offset,
+		CreatedAt:     lineOptions.CreatedAt,
+		Version:       fileSystemResumableRecorderVersion,
 	}), nil
 }
 

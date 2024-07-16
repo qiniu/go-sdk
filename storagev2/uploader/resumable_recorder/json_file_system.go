@@ -44,7 +44,7 @@ func (frr jsonFileSystemResumableRecorder) OpenForReading(options *ResumableReco
 	if options == nil {
 		options = &ResumableRecorderOpenOptions{}
 	}
-	if options.SourceKey == "" {
+	if options.SourceID == "" {
 		return nil
 	}
 
@@ -68,7 +68,7 @@ func (frr jsonFileSystemResumableRecorder) OpenForAppending(options *ResumableRe
 	if options == nil {
 		options = &ResumableRecorderOpenOptions{}
 	}
-	if options.SourceKey == "" {
+	if options.SourceID == "" {
 		return nil
 	}
 
@@ -83,7 +83,7 @@ func (frr jsonFileSystemResumableRecorder) OpenForCreatingNew(options *Resumable
 	if options == nil {
 		options = &ResumableRecorderOpenOptions{}
 	}
-	if options.SourceKey == "" {
+	if options.SourceID == "" {
 		return nil
 	}
 
@@ -166,7 +166,7 @@ func (frr jsonFileSystemResumableRecorder) tryToClearPath(filePath string) error
 
 func (frr jsonFileSystemResumableRecorder) fileName(options *ResumableRecorderOpenOptions) string {
 	hasher := sha1.New()
-	hasher.Write([]byte(options.SourceKey))
+	hasher.Write([]byte(options.SourceID))
 	hasher.Write([]byte{0})
 	hasher.Write([]byte(options.AccessKey))
 	hasher.Write([]byte{0})
@@ -198,7 +198,7 @@ type (
 		AccessKey   string           `json:"a,omitempty"`
 		BucketName  string           `json:"b,omitempty"`
 		ObjectName  string           `json:"o,omitempty"`
-		SourceKey   string           `json:"s,omitempty"`
+		SourceID    string           `json:"s,omitempty"`
 		PartSize    uint64           `json:"p,omitempty"`
 		TotalSize   uint64           `json:"t,omitempty"`
 		UpEndpoints region.Endpoints `json:"u,omitempty"`
@@ -224,7 +224,7 @@ func jsonFileSystemResumableRecorderWriteHeaderLine(encoder *json.Encoder, optio
 		AccessKey:   options.AccessKey,
 		BucketName:  options.BucketName,
 		ObjectName:  options.ObjectName,
-		SourceKey:   options.SourceKey,
+		SourceID:    options.SourceID,
 		PartSize:    options.PartSize,
 		TotalSize:   options.TotalSize,
 		UpEndpoints: options.UpEndpoints,
@@ -242,7 +242,7 @@ func jsonFileSystemResumableRecorderVerifyHeaderLine(decoder *json.Decoder, opti
 		AccessKey:   options.AccessKey,
 		BucketName:  options.BucketName,
 		ObjectName:  options.ObjectName,
-		SourceKey:   options.SourceKey,
+		SourceID:    options.SourceID,
 		PartSize:    options.PartSize,
 		TotalSize:   options.TotalSize,
 		UpEndpoints: options.UpEndpoints,

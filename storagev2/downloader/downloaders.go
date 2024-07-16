@@ -146,15 +146,15 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urlsIter UR
 		resumableRecorderOpenOptions *resumablerecorder.ResumableRecorderOpenOptions
 	)
 	if resumableRecorder := downloader.resumableRecorder; resumableRecorder != nil {
-		var destinationKey string
-		destinationKey, err = dest.DestinationKey()
-		if err == nil && destinationKey != "" {
+		var destinationID string
+		destinationID, err = dest.DestinationID()
+		if err == nil && destinationID != "" {
 			resumableRecorderOpenOptions = &resumablerecorder.ResumableRecorderOpenOptions{
-				ETag:           etag,
-				DestinationKey: destinationKey,
-				PartSize:       downloader.partSize,
-				TotalSize:      needToDownload,
-				Offset:         offset,
+				ETag:          etag,
+				DestinationID: destinationID,
+				PartSize:      downloader.partSize,
+				TotalSize:     needToDownload,
+				Offset:        offset,
 			}
 			readableMedium = resumableRecorder.OpenForReading(resumableRecorderOpenOptions)
 			if readableMedium != nil {

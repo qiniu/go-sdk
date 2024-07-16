@@ -487,10 +487,10 @@ func TestConcurrentDownloaderWithResumableRecorder(t *testing.T) {
 
 	resumableRecorder := resumablerecorder.NewJsonFileSystemResumableRecorder(tmpDir)
 	options := resumablerecorder.ResumableRecorderOpenOptions{
-		ETag:           "testetag1",
-		DestinationKey: dstFile.Name(),
-		PartSize:       1024 * 1024,
-		TotalSize:      10 * 1024 * 1024,
+		ETag:          "testetag1",
+		DestinationID: dstFile.Name(),
+		PartSize:      1024 * 1024,
+		TotalSize:     10 * 1024 * 1024,
 	}
 	writableMedium := resumableRecorder.OpenForCreatingNew(&options)
 	defer writableMedium.Close()

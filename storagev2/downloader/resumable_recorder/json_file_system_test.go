@@ -19,10 +19,10 @@ func TestJsonFileSystemResumableRecorder(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 	options := resumablerecorder.ResumableRecorderOpenOptions{
-		ETag:           "testetag1",
-		DestinationKey: "/tmp/fakeFile",
-		PartSize:       16 * 1024 * 1024,
-		TotalSize:      100 * 1024 * 1024,
+		ETag:          "testetag1",
+		DestinationID: "/tmp/fakeFile",
+		PartSize:      16 * 1024 * 1024,
+		TotalSize:     100 * 1024 * 1024,
 	}
 	fs := resumablerecorder.NewJsonFileSystemResumableRecorder(tmpDir)
 	writableMedium := fs.OpenForCreatingNew(&options)

@@ -25,8 +25,8 @@ type (
 		// 切片
 		Slice(totalSize, partSize uint64, options *SliceOptions) ([]Part, error)
 
-		// 数据目标 KEY
-		DestinationKey() (string, error)
+		// 数据目标 ID
+		DestinationID() (string, error)
 
 		// 获取文件，如果数据源不是文件，则返回 nil
 		GetFile() *os.File
@@ -53,8 +53,8 @@ type (
 	}
 
 	writerAtDestination struct {
-		wr             WriteAtCloser
-		destinationKey string
+		wr            WriteAtCloser
+		destinationID string
 	}
 
 	writerAtPart struct {
@@ -63,8 +63,8 @@ type (
 	}
 
 	writeCloserDestination struct {
-		wr             io.WriteCloser
-		destinationKey string
+		wr            io.WriteCloser
+		destinationID string
 	}
 
 	writeCloserPart struct {
@@ -80,8 +80,8 @@ type (
 )
 
 // 将 io.WriteCloser 封装为数据目标
-func NewWriteCloserDestination(wr io.WriteCloser, destinationKey string) Destination {
-	return &writeCloserDestination{wr, destinationKey}
+func NewWriteCloserDestination(wr io.WriteCloser, destinationID string) Destination {
+	return &writeCloserDestination{wr, destinationID}
 }
 
 func (wcd *writeCloserDestination) CopyFrom(r io.Reader, progress func(uint64)) (uint64, error) {
@@ -92,8 +92,8 @@ func (wcd *writeCloserDestination) Slice(totalSize, _ uint64, _ *SliceOptions) (
 	return []Part{&writeCloserPart{wcd.wr, totalSize, totalSize}}, nil
 }
 
-func (wcd *writeCloserDestination) DestinationKey() (string, error) {
-	return wcd.destinationKey, nil
+func (wcd *writeCloserDestination) DestinationID() (string, error) {
+	return wcd.destinationID, nil
 }
 
 func (wcd *writeCloserDestination) Close() error {
@@ -141,8 +141,8 @@ func (wcp *writeCloserPart) CopyFrom(r io.Reader, progress func(uint64)) (uint64
 }
 
 // 将 io.WriterAt + io.WriteSeeker + io.Closer 封装为数据目标
-func NewWriteAtCloserDestination(wr WriteAtCloser, destinationKey string) Destination {
-	return &writerAtDestination{wr, destinationKey}
+func NewWriteAtCloserDestination(wr WriteAtCloser, destinationID string) Destination {
+	return &writerAtDestination{wr, destinationID}
 }
 
 func (wad *writerAtDestination) CopyFrom(r io.Reader, progress func(uint64)) (uint64, error) {
@@ -182,8 +182,8 @@ func (wad *writerAtDestination) Slice(totalSize, partSize uint64, options *Slice
 	return parts, nil
 }
 
-func (wad *writerAtDestination) DestinationKey() (string, error) {
-	return wad.destinationKey, nil
+func (wad *writerAtDestination) DestinationID() (string, error) {
+	return wad.destinationID, nil
 }
 
 func (wad *writerAtDestination) Close() error {

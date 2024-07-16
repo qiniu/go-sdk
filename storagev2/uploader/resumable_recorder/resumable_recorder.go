@@ -20,8 +20,8 @@ type (
 		// 对象名称
 		ObjectName string
 
-		// 数据源 KEY
-		SourceKey string
+		// 数据源 ID
+		SourceID string
 
 		// 分片大小
 		PartSize uint64

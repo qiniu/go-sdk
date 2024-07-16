@@ -11,8 +11,8 @@ type (
 		// 数据源 ETag
 		ETag string
 
-		// 数据目标 KEY
-		DestinationKey string
+		// 数据目标 ID
+		DestinationID string
 
 		// 分片大小
 		PartSize uint64

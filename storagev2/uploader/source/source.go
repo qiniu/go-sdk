@@ -20,8 +20,8 @@ type (
 		// 切片
 		Slice(uint64) (Part, error)
 
-		// 数据源 KEY
-		SourceKey() (string, error)
+		// 数据源 ID
+		SourceID() (string, error)
 
 		// 获取文件，如果数据源不是文件，则返回 nil
 		GetFile() *os.File
@@ -70,7 +70,7 @@ type (
 	readSeekCloseSource struct {
 		rscra      *readSeekCloseReaderAt
 		off        uint64
-		sourceKey  string
+		sourceID   string
 		partNumber uint64
 		m          sync.Mutex
 	}
@@ -83,7 +83,7 @@ type (
 
 	readCloseSource struct {
 		r                  io.ReadCloser
-		sourceKey          string
+		sourceID           string
 		offset, partNumber uint64
 	}
 
@@ -96,15 +96,15 @@ type (
 	readAtSeekCloseSource struct {
 		r          ReadAtSeekCloser
 		off        uint64
-		sourceKey  string
+		sourceID   string
 		partNumber uint64
 		m          sync.Mutex
 	}
 )
 
 // 将 io.ReadSeekCloser 封装为数据源
-func NewReadSeekCloserSource(r internal_io.ReadSeekCloser, sourceKey string) Source {
-	return &readSeekCloseSource{rscra: newReadSeekCloseReaderAt(r), sourceKey: sourceKey}
+func NewReadSeekCloserSource(r internal_io.ReadSeekCloser, sourceID string) Source {
+	return &readSeekCloseSource{rscra: newReadSeekCloseReaderAt(r), sourceID: sourceID}
 }
 
 func (rscs *readSeekCloseSource) Slice(n uint64) (Part, error) {
@@ -132,8 +132,8 @@ func (rscs *readSeekCloseSource) TotalSize() (uint64, error) {
 	return rscs.rscra.TotalSize()
 }
 
-func (rscs *readSeekCloseSource) SourceKey() (string, error) {
-	return rscs.sourceKey, nil
+func (rscs *readSeekCloseSource) SourceID() (string, error) {
+	return rscs.sourceID, nil
 }
 
 func (rscs *readSeekCloseSource) Close() error {
@@ -203,8 +203,8 @@ func (rscra *readSeekCloseReaderAt) GetFile() *os.File {
 }
 
 // 将 io.ReadAt + io.Seek + io.Closer 封装为数据源
-func NewReadAtSeekCloserSource(r ReadAtSeekCloser, sourceKey string) Source {
-	return &readAtSeekCloseSource{r: r, sourceKey: sourceKey}
+func NewReadAtSeekCloserSource(r ReadAtSeekCloser, sourceID string) Source {
+	return &readAtSeekCloseSource{r: r, sourceID: sourceID}
 }
 
 func (racs *readAtSeekCloseSource) Slice(n uint64) (Part, error) {
@@ -243,8 +243,8 @@ func (racs *readAtSeekCloseSource) TotalSize() (uint64, error) {
 	return uint64(totalSize), nil
 }
 
-func (racs *readAtSeekCloseSource) SourceKey() (string, error) {
-	return racs.sourceKey, nil
+func (racs *readAtSeekCloseSource) SourceID() (string, error) {
+	return racs.sourceID, nil
 }
 
 func (racs *readAtSeekCloseSource) Close() error {
@@ -269,8 +269,8 @@ func (racs *readAtSeekCloseSource) GetFile() *os.File {
 }
 
 // 将 io.ReadCloser 封装为数据源
-func NewReadCloserSource(r io.ReadCloser, sourceKey string) Source {
-	return &readCloseSource{r: r, sourceKey: sourceKey}
+func NewReadCloserSource(r io.ReadCloser, sourceID string) Source {
+	return &readCloseSource{r: r, sourceID: sourceID}
 }
 
 func (rcs *readCloseSource) Slice(n uint64) (Part, error) {
@@ -289,8 +289,8 @@ func (rcs *readCloseSource) Slice(n uint64) (Part, error) {
 	}, nil
 }
 
-func (rcs *readCloseSource) SourceKey() (string, error) {
-	return rcs.sourceKey, nil
+func (rcs *readCloseSource) SourceID() (string, error) {
+	return rcs.sourceID, nil
 }
 
 func (rcs *readCloseSource) Close() error {
@@ -342,8 +342,8 @@ func NewFileSource(filePath string) (Source, error) {
 	} else if fileInfo, err := file.Stat(); err != nil {
 		return nil, err
 	} else {
-		sourceKey := fmt.Sprintf("%d:%d:%s", fileInfo.Size(), fileInfo.ModTime().UnixNano(), absFilePath)
-		return NewReadAtSeekCloserSource(file, sourceKey), nil
+		sourceID := fmt.Sprintf("%d:%d:%s", fileInfo.Size(), fileInfo.ModTime().UnixNano(), absFilePath)
+		return NewReadAtSeekCloserSource(file, sourceID), nil
 	}
 }
 
