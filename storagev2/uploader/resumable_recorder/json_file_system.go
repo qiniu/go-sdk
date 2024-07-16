@@ -207,12 +207,12 @@ type (
 
 	jsonBasedResumableRecord struct {
 		UploadID   string `json:"u,omitempty"`
-		PartId     string `json:"p,omitempty"`
+		PartID     string `json:"p,omitempty"`
 		Offset     uint64 `json:"o,omitempty"`
 		PartNumber uint64 `json:"n,omitempty"`
 		PartSize   uint64 `json:"s,omitempty"`
 		ExpiredAt  int64  `json:"e,omitempty"`
-		Crc32      uint32 `json:"c,omitempty"`
+		CRC32      uint32 `json:"c,omitempty"`
 		MD5        string `json:"m,omitempty"`
 	}
 )
@@ -268,12 +268,12 @@ func (medium jsonFileSystemResumableRecorderReadableMedium) Next(rr *ResumableRe
 
 	*rr = ResumableRecord{
 		UploadID:   jrr.UploadID,
-		PartId:     jrr.PartId,
+		PartID:     jrr.PartID,
 		Offset:     jrr.Offset,
 		PartNumber: jrr.PartNumber,
 		PartSize:   jrr.PartSize,
 		ExpiredAt:  time.Unix(jrr.ExpiredAt, 0),
-		CRC32:      jrr.Crc32,
+		CRC32:      jrr.CRC32,
 	}
 	copy(rr.MD5[:], md5Bytes)
 	return nil
@@ -286,12 +286,12 @@ func (medium jsonFileSystemResumableRecorderReadableMedium) Close() error {
 func (medium jsonFileSystemResumableRecorderWritableMedium) Write(rr *ResumableRecord) error {
 	jrr := jsonBasedResumableRecord{
 		UploadID:   rr.UploadID,
-		PartId:     rr.PartId,
+		PartID:     rr.PartID,
 		Offset:     rr.Offset,
 		PartNumber: rr.PartNumber,
 		PartSize:   rr.PartSize,
 		ExpiredAt:  rr.ExpiredAt.Unix(),
-		Crc32:      rr.CRC32,
+		CRC32:      rr.CRC32,
 		MD5:        hex.EncodeToString(rr.MD5[:]),
 	}
 	return medium.encoder.Encode(&jrr)

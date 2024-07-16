@@ -406,7 +406,7 @@ func TestMultiPartsUploaderV1Resuming(t *testing.T) {
 		UpEndpoints: region.Endpoints{Preferred: []string{server.URL}},
 	})
 	if err = medium.Write(&resumablerecorder.ResumableRecord{
-		PartId:     "testctx1",
+		PartID:     "testctx1",
 		Offset:     0,
 		PartSize:   4 * 1024 * 1024,
 		PartNumber: 1,
@@ -415,7 +415,7 @@ func TestMultiPartsUploaderV1Resuming(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = medium.Write(&resumablerecorder.ResumableRecord{
-		PartId:     "testctx2",
+		PartID:     "testctx2",
 		Offset:     4 * 1024 * 1024,
 		PartSize:   1 * 1024 * 1024,
 		PartNumber: 2,

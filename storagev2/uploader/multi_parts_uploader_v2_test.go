@@ -64,7 +64,7 @@ func TestMultiPartsUploaderV2(t *testing.T) {
 			t.Fatalf("unexpected object name")
 		}
 		jsonBytes, err := json.Marshal(&apis.ResumableUploadV2InitiateMultipartUploadResponse{
-			UploadId:  "testuploadId",
+			UploadId:  "testuploadID",
 			ExpiredAt: time.Now().Add(1 * time.Hour).Unix(),
 		})
 		if err != nil {
@@ -72,7 +72,7 @@ func TestMultiPartsUploaderV2(t *testing.T) {
 		}
 		w.Write(jsonBytes)
 	}).Methods(http.MethodPost)
-	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadId}/{partNumber}", func(w http.ResponseWriter, r *http.Request) {
+	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadID}/{partNumber}", func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.Header.Get("Authorization"), "UpToken testak:") {
 			t.Fatalf("unexpected authorization")
 		}
@@ -86,7 +86,7 @@ func TestMultiPartsUploaderV2(t *testing.T) {
 		} else if string(objectBytes) != "testkey" {
 			t.Fatalf("unexpected object name")
 		}
-		if vars["uploadId"] != "testuploadId" {
+		if vars["uploadID"] != "testuploadID" {
 			t.Fatalf("unexpected upload id")
 		}
 		actualBody, err := internal_io.ReadAll(r.Body)
@@ -132,7 +132,7 @@ func TestMultiPartsUploaderV2(t *testing.T) {
 		}
 		w.Write(jsonBody)
 	}).Methods(http.MethodPut)
-	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadId}", func(w http.ResponseWriter, r *http.Request) {
+	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadID}", func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.Header.Get("Authorization"), "UpToken testak:") {
 			t.Fatalf("unexpected authorization")
 		}
@@ -146,7 +146,7 @@ func TestMultiPartsUploaderV2(t *testing.T) {
 		} else if string(objectBytes) != "testkey" {
 			t.Fatalf("unexpected object name")
 		}
-		if vars["uploadId"] != "testuploadId" {
+		if vars["uploadID"] != "testuploadID" {
 			t.Fatalf("unexpected upload id")
 		}
 		requestBodyBytes, err := internal_io.ReadAll(r.Body)
@@ -292,7 +292,7 @@ func TestMultiPartsUploaderV2Resuming(t *testing.T) {
 	}
 
 	serveMux := mux.NewRouter()
-	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadId}", func(w http.ResponseWriter, r *http.Request) {
+	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadID}", func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.Header.Get("Authorization"), "UpToken testak:") {
 			t.Fatalf("unexpected authorization")
 		}
@@ -306,7 +306,7 @@ func TestMultiPartsUploaderV2Resuming(t *testing.T) {
 		} else if string(objectBytes) != "testkey" {
 			t.Fatalf("unexpected object name")
 		}
-		if vars["uploadId"] != "testuploadId" {
+		if vars["uploadID"] != "testuploadID" {
 			t.Fatalf("unexpected upload id")
 		}
 		requestBodyBytes, err := internal_io.ReadAll(r.Body)
@@ -367,8 +367,8 @@ func TestMultiPartsUploaderV2Resuming(t *testing.T) {
 		UpEndpoints: region.Endpoints{Preferred: []string{server.URL}},
 	})
 	if err = medium.Write(&resumablerecorder.ResumableRecord{
-		UploadID:   "testuploadId",
-		PartId:     "testetag1",
+		UploadID:   "testuploadID",
+		PartID:     "testetag1",
 		Offset:     0,
 		PartSize:   4 * 1024 * 1024,
 		PartNumber: 1,
@@ -377,8 +377,8 @@ func TestMultiPartsUploaderV2Resuming(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = medium.Write(&resumablerecorder.ResumableRecord{
-		UploadID:   "testuploadId",
-		PartId:     "testetag2",
+		UploadID:   "testuploadID",
+		PartID:     "testetag2",
 		Offset:     4 * 1024 * 1024,
 		PartSize:   1 * 1024 * 1024,
 		PartNumber: 2,

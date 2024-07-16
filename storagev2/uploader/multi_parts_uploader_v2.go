@@ -123,7 +123,7 @@ func (uploader *multiPartsUploaderV2) TryToResume(ctx context.Context, src sourc
 
 	var (
 		records   = make(map[uint64]resumedMultiPartsUploaderV2Record)
-		uploadId  string
+		uploadID  string
 		expiredAt time.Time
 	)
 	for {
@@ -133,27 +133,27 @@ func (uploader *multiPartsUploaderV2) TryToResume(ctx context.Context, src sourc
 		}
 		records[record.PartNumber] = resumedMultiPartsUploaderV2Record{
 			uploadID:   record.UploadID,
-			etag:       record.PartId,
+			etag:       record.PartID,
 			md5:        record.MD5,
 			partNumber: record.PartNumber,
 			offset:     record.Offset,
 			size:       record.PartSize,
 			expiredAt:  record.ExpiredAt,
 		}
-		if uploadId == "" {
-			uploadId = record.UploadID
+		if uploadID == "" {
+			uploadID = record.UploadID
 			expiredAt = record.ExpiredAt
 		}
 	}
 	readableMedium.Close()
-	if uploadId == "" {
+	if uploadID == "" {
 		return nil
 	}
 
 	medium := tryToOpenResumableRecorderForAppending(ctx, src, multiPartsObjectOptions, uploader.options)
 	return &multiPartsUploaderV2InitializedParts{
 		bucketName:              bucketName,
-		uploadID:                uploadId,
+		uploadID:                uploadID,
 		multiPartsObjectOptions: multiPartsObjectOptions,
 		expiredAt:               expiredAt,
 		records:                 records,
@@ -219,7 +219,7 @@ func (uploader *multiPartsUploaderV2) uploadPart(ctx context.Context, initialize
 	if medium := initialized.medium; medium != nil {
 		medium.Write(&resumablerecorder.ResumableRecord{
 			UploadID:   initialized.uploadID,
-			PartId:     response.Etag,
+			PartID:     response.Etag,
 			Offset:     part.Offset(),
 			PartSize:   part.Size(),
 			PartNumber: part.PartNumber(),

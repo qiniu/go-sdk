@@ -63,7 +63,7 @@ func TestUploadManagerUploadFile(t *testing.T) {
 			t.Fatalf("unexpected object name")
 		}
 		jsonBytes, err := json.Marshal(&apis.ResumableUploadV2InitiateMultipartUploadResponse{
-			UploadId:  "testuploadId",
+			UploadId:  "testuploadID",
 			ExpiredAt: time.Now().Add(1 * time.Hour).Unix(),
 		})
 		if err != nil {
@@ -71,7 +71,7 @@ func TestUploadManagerUploadFile(t *testing.T) {
 		}
 		w.Write(jsonBytes)
 	}).Methods(http.MethodPost)
-	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadId}/{partNumber}", func(w http.ResponseWriter, r *http.Request) {
+	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadID}/{partNumber}", func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.Header.Get("Authorization"), "UpToken testak:") {
 			t.Fatalf("unexpected authorization")
 		}
@@ -85,7 +85,7 @@ func TestUploadManagerUploadFile(t *testing.T) {
 		} else if string(objectBytes) != "testkey" {
 			t.Fatalf("unexpected object name")
 		}
-		if vars["uploadId"] != "testuploadId" {
+		if vars["uploadID"] != "testuploadID" {
 			t.Fatalf("unexpected upload id")
 		}
 		actualBody, err := internal_io.ReadAll(r.Body)
@@ -131,7 +131,7 @@ func TestUploadManagerUploadFile(t *testing.T) {
 		}
 		w.Write(jsonBody)
 	}).Methods(http.MethodPut)
-	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadId}", func(w http.ResponseWriter, r *http.Request) {
+	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadID}", func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.Header.Get("Authorization"), "UpToken testak:") {
 			t.Fatalf("unexpected authorization")
 		}
@@ -145,7 +145,7 @@ func TestUploadManagerUploadFile(t *testing.T) {
 		} else if string(objectBytes) != "testkey" {
 			t.Fatalf("unexpected object name")
 		}
-		if vars["uploadId"] != "testuploadId" {
+		if vars["uploadID"] != "testuploadID" {
 			t.Fatalf("unexpected upload id")
 		}
 		requestBodyBytes, err := internal_io.ReadAll(r.Body)
@@ -250,7 +250,7 @@ func TestUploadManagerUploadReader(t *testing.T) {
 			t.Fatalf("unexpected object name")
 		}
 		jsonBytes, err := json.Marshal(&apis.ResumableUploadV2InitiateMultipartUploadResponse{
-			UploadId:  "testuploadId",
+			UploadId:  "testuploadID",
 			ExpiredAt: time.Now().Add(1 * time.Hour).Unix(),
 		})
 		if err != nil {
@@ -258,7 +258,7 @@ func TestUploadManagerUploadReader(t *testing.T) {
 		}
 		w.Write(jsonBytes)
 	}).Methods(http.MethodPost)
-	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadId}/{partNumber}", func(w http.ResponseWriter, r *http.Request) {
+	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadID}/{partNumber}", func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.Header.Get("Authorization"), "UpToken testak:") {
 			t.Fatalf("unexpected authorization")
 		}
@@ -272,7 +272,7 @@ func TestUploadManagerUploadReader(t *testing.T) {
 		} else if string(objectBytes) != "testkey" {
 			t.Fatalf("unexpected object name")
 		}
-		if vars["uploadId"] != "testuploadId" {
+		if vars["uploadID"] != "testuploadID" {
 			t.Fatalf("unexpected upload id")
 		}
 		actualBody, err := internal_io.ReadAll(r.Body)
@@ -318,7 +318,7 @@ func TestUploadManagerUploadReader(t *testing.T) {
 		}
 		w.Write(jsonBody)
 	}).Methods(http.MethodPut)
-	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadId}", func(w http.ResponseWriter, r *http.Request) {
+	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadID}", func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.Header.Get("Authorization"), "UpToken testak:") {
 			t.Fatalf("unexpected authorization")
 		}
@@ -332,7 +332,7 @@ func TestUploadManagerUploadReader(t *testing.T) {
 		} else if string(objectBytes) != "testkey" {
 			t.Fatalf("unexpected object name")
 		}
-		if vars["uploadId"] != "testuploadId" {
+		if vars["uploadID"] != "testuploadID" {
 			t.Fatalf("unexpected upload id")
 		}
 		requestBodyBytes, err := internal_io.ReadAll(r.Body)

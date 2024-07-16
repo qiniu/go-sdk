@@ -81,7 +81,7 @@ func (uploader *multiPartsUploaderV1) TryToResume(ctx context.Context, src sourc
 			break
 		}
 		records[record.PartNumber] = resumedMultiPartsUploaderV1Record{
-			ctx:       record.PartId,
+			ctx:       record.PartID,
 			crc32:     record.CRC32,
 			offset:    record.Offset,
 			size:      record.PartSize,
@@ -151,7 +151,7 @@ func (uploader *multiPartsUploaderV1) uploadPart(ctx context.Context, initialize
 
 	if medium := initialized.medium; medium != nil {
 		medium.Write(&resumablerecorder.ResumableRecord{
-			PartId:     response.Ctx,
+			PartID:     response.Ctx,
 			Offset:     part.Offset(),
 			PartSize:   part.Size(),
 			PartNumber: part.PartNumber(),

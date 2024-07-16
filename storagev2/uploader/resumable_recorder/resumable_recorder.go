@@ -73,7 +73,7 @@ type (
 		UploadID string
 
 		// 上传分片 ID
-		PartId string
+		PartID string
 
 		// 分片偏移量
 		Offset uint64
