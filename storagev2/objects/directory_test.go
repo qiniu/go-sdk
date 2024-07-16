@@ -101,7 +101,7 @@ func TestDirectoryListEntriesWithoutRecurse(t *testing.T) {
 	})
 	directory := objectsManager.Bucket("bucket1").Directory("", "")
 	listed := make(map[string]*objects.ObjectDetails)
-	err := directory.ListEntries(context.Background(), nil, func(de *objects.DirectoryEntry) error {
+	err := directory.ListEntries(context.Background(), nil, func(de *objects.Entry) error {
 		if de.DirectoryName != "" {
 			listed[de.DirectoryName] = nil
 		} else {
@@ -254,7 +254,7 @@ func TestDirectoryListEntriesWithRecurse(t *testing.T) {
 	listed := make(map[string]*objects.ObjectDetails)
 	err := directory.ListEntries(context.Background(), &objects.ListEntriesOptions{
 		Recursive: true,
-	}, func(de *objects.DirectoryEntry) error {
+	}, func(de *objects.Entry) error {
 		if de.DirectoryName != "" {
 			listed[de.DirectoryName] = nil
 		} else {
@@ -397,7 +397,7 @@ func TestDirectoryListEntriesWithSkipDir(t *testing.T) {
 	listed := make(map[string]*objects.ObjectDetails)
 	err := directory.ListEntries(context.Background(), &objects.ListEntriesOptions{
 		Recursive: true,
-	}, func(de *objects.DirectoryEntry) error {
+	}, func(de *objects.Entry) error {
 		if de.DirectoryName != "" {
 			listed[de.DirectoryName] = nil
 			if de.DirectoryName == "test2/" {

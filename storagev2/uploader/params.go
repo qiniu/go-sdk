@@ -91,6 +91,6 @@ type (
 		UpdateObjectName func(string) string
 
 		// 分隔符，默认为 /
-		Delimiter string
+		PathSeparator string
 	}
 )

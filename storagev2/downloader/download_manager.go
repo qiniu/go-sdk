@@ -83,7 +83,7 @@ type (
 		ShouldDownloadObject func(objectName string) bool
 
 		// 分隔符，默认为 /
-		Delimiter string
+		PathSeparator string
 	}
 
 	writeSeekCloser struct {
@@ -170,9 +170,9 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 	if objectConcurrency == 0 {
 		objectConcurrency = 4
 	}
-	delimiter := options.Delimiter
-	if delimiter == "" {
-		delimiter = "/"
+	pathSeparator := options.PathSeparator
+	if pathSeparator == "" {
+		pathSeparator = "/"
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -187,8 +187,8 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 	for lister.Next(&object) {
 		objectName := object.Name
 		relativePath := strings.TrimPrefix(objectName, options.ObjectPrefix)
-		if delimiter != string(filepath.Separator) {
-			relativePath = strings.Replace(relativePath, delimiter, string(filepath.Separator), -1)
+		if pathSeparator != string(filepath.Separator) {
+			relativePath = strings.Replace(relativePath, pathSeparator, string(filepath.Separator), -1)
 		}
 		fullPath := filepath.Join(targetDirPath, relativePath)
 		if strings.HasSuffix(fullPath, string(filepath.Separator)) {

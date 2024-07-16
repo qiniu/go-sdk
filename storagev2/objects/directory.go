@@ -12,14 +12,17 @@ import (
 type (
 	// 目录
 	Directory struct {
-		bucket            *Bucket
-		prefix, delimiter string
+		bucket                *Bucket
+		prefix, pathSeparator string
 	}
 
-	// 目录条目
-	DirectoryEntry struct {
+	// 条目
+	Entry struct {
+		// 目录名称，仅当条目为目录时才有效
 		DirectoryName string
-		Object        *ObjectDetails
+
+		// 对象元信息，仅当条目为对象时才有效
+		Object *ObjectDetails
 	}
 
 	// 列举条目选项
@@ -33,8 +36,8 @@ var SkipDir = filepath.SkipDir
 
 // 移动目录
 func (directory *Directory) MoveTo(ctx context.Context, toBucketName, toPrefix string) error {
-	if !strings.HasSuffix(toPrefix, directory.delimiter) {
-		toPrefix += directory.delimiter
+	if !strings.HasSuffix(toPrefix, directory.pathSeparator) {
+		toPrefix += directory.pathSeparator
 	}
 	operations := make([]Operation, 0, 16)
 	if err := directory.forEachObject(ctx, func(objectDetails *ObjectDetails) {
@@ -48,8 +51,8 @@ func (directory *Directory) MoveTo(ctx context.Context, toBucketName, toPrefix s
 
 // 复制目录
 func (directory *Directory) CopyTo(ctx context.Context, toBucketName, toPrefix string) error {
-	if !strings.HasSuffix(toPrefix, directory.delimiter) {
-		toPrefix += directory.delimiter
+	if !strings.HasSuffix(toPrefix, directory.pathSeparator) {
+		toPrefix += directory.pathSeparator
 	}
 	operations := make([]Operation, 0, 16)
 	if err := directory.forEachObject(ctx, func(objectDetails *ObjectDetails) {
@@ -85,7 +88,7 @@ func (directory *Directory) forEachObject(ctx context.Context, each func(*Object
 }
 
 // 列举目录条目
-func (directory *Directory) ListEntries(ctx context.Context, options *ListEntriesOptions, f func(*DirectoryEntry) error) error {
+func (directory *Directory) ListEntries(ctx context.Context, options *ListEntriesOptions, f func(*Entry) error) error {
 	if options == nil {
 		options = &ListEntriesOptions{}
 	}
@@ -95,12 +98,12 @@ func (directory *Directory) ListEntries(ctx context.Context, options *ListEntrie
 	return consumeEntries(ctx, directories, options, f)
 }
 
-func (directory *Directory) listEntries(ctx context.Context, marker string, needParts bool) ([]*DirectoryEntry, string, error) {
-	entries := make([]*DirectoryEntry, 0, 1024)
+func (directory *Directory) listEntries(ctx context.Context, marker string, needParts bool) ([]*Entry, string, error) {
+	entries := make([]*Entry, 0, 1024)
 	request := apis.GetObjectsRequest{
 		Bucket:    directory.bucket.name,
 		Prefix:    directory.prefix,
-		Delimiter: directory.delimiter,
+		Delimiter: directory.pathSeparator,
 		Marker:    marker,
 		NeedParts: needParts,
 	}
@@ -109,19 +112,19 @@ func (directory *Directory) listEntries(ctx context.Context, marker string, need
 		return nil, "", err
 	}
 	for _, commonPrefix := range response.CommonPrefixes {
-		entries = append(entries, &DirectoryEntry{DirectoryName: commonPrefix})
+		entries = append(entries, &Entry{DirectoryName: commonPrefix})
 	}
 	for _, item := range response.Items {
 		objectDetails := new(ObjectDetails)
 		if err = objectDetails.fromListedObjectEntry(&item); err != nil {
 			return nil, "", err
 		}
-		entries = append(entries, &DirectoryEntry{Object: objectDetails})
+		entries = append(entries, &Entry{Object: objectDetails})
 	}
 	return entries, response.Marker, nil
 }
 
-func consumeEntries(ctx context.Context, directories *list.List, options *ListEntriesOptions, f func(*DirectoryEntry) error) error {
+func consumeEntries(ctx context.Context, directories *list.List, options *ListEntriesOptions, f func(*Entry) error) error {
 	var firstElement *list.Element
 	for {
 		if firstElement = directories.Front(); firstElement == nil {
@@ -131,7 +134,7 @@ func consumeEntries(ctx context.Context, directories *list.List, options *ListEn
 		currentDirectory := firstElement.Value.(*Directory)
 
 		var (
-			entries   []*DirectoryEntry
+			entries   []*Entry
 			firstPage = true
 			marker    string
 			err       error
@@ -147,7 +150,7 @@ func consumeEntries(ctx context.Context, directories *list.List, options *ListEn
 					switch err {
 					case nil:
 						if options.Recursive && entry.DirectoryName != "" {
-							directories.PushBack(&Directory{bucket: currentDirectory.bucket, prefix: entry.DirectoryName, delimiter: currentDirectory.delimiter})
+							directories.PushBack(&Directory{bucket: currentDirectory.bucket, prefix: entry.DirectoryName, pathSeparator: currentDirectory.pathSeparator})
 						}
 					case SkipDir:
 						if entry.DirectoryName == "" {

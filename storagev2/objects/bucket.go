@@ -32,14 +32,14 @@ func (bucket *Bucket) Object(name string) *Object {
 }
 
 // 获取存储空间目录
-func (bucket *Bucket) Directory(prefix, delimiter string) *Directory {
-	if delimiter == "" {
-		delimiter = "/"
+func (bucket *Bucket) Directory(prefix, pathSeparator string) *Directory {
+	if pathSeparator == "" {
+		pathSeparator = "/"
 	}
-	if prefix != "" && !strings.HasSuffix(prefix, delimiter) {
-		prefix += delimiter
+	if prefix != "" && !strings.HasSuffix(prefix, pathSeparator) {
+		prefix += pathSeparator
 	}
-	return &Directory{bucket, prefix, delimiter}
+	return &Directory{bucket, prefix, pathSeparator}
 }
 
 // 列举对象

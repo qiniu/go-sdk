@@ -106,9 +106,9 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 	if objectConcurrency == 0 {
 		objectConcurrency = 4
 	}
-	delimiter := directoryOptions.Delimiter
-	if delimiter == "" {
-		delimiter = "/"
+	pathSeparator := directoryOptions.PathSeparator
+	if pathSeparator == "" {
+		pathSeparator = "/"
 	}
 
 	if !strings.HasSuffix(directoryPath, string(filepath.Separator)) {
@@ -121,8 +121,8 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 	}
 	generateObjectName := func(path string) string {
 		path = strings.TrimPrefix(path, directoryPath)
-		if delimiter != string(filepath.Separator) {
-			path = strings.Replace(path, string(filepath.Separator), delimiter, -1)
+		if pathSeparator != string(filepath.Separator) {
+			path = strings.Replace(path, string(filepath.Separator), pathSeparator, -1)
 		}
 		return updateObjectName(path)
 	}
@@ -160,8 +160,8 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 					directoryOptions.OnObjectUploaded(path, uint64(info.Size()))
 				}
 			} else if directoryOptions.ShouldCreateDirectory && info.IsDir() {
-				if !strings.HasSuffix(objectName, delimiter) {
-					objectName += delimiter
+				if !strings.HasSuffix(objectName, pathSeparator) {
+					objectName += pathSeparator
 				}
 				objectOptions := ObjectOptions{
 					RegionsProvider: directoryOptions.RegionsProvider,
