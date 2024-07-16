@@ -357,7 +357,7 @@ func TestMultiPartsUploaderV2Resuming(t *testing.T) {
 	tmpFileSourceID := fmt.Sprintf("%d:%d:%s", tmpFileStat.Size(), tmpFileStat.ModTime().UnixNano(), tmpFile.Name())
 
 	resumableRecorder := resumablerecorder.NewJsonFileSystemResumableRecorder(tmpDir)
-	medium := resumableRecorder.OpenForCreatingNew(&resumablerecorder.ResumableRecorderOpenOptions{
+	medium := resumableRecorder.OpenForCreatingNew(&resumablerecorder.ResumableRecorderOpenArgs{
 		AccessKey:   "testak",
 		BucketName:  "testbucket",
 		ObjectName:  "testkey",

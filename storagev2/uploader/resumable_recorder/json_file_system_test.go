@@ -20,7 +20,7 @@ func TestJsonFileSystemResumableRecorder(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
-	options := resumablerecorder.ResumableRecorderOpenOptions{
+	options := resumablerecorder.ResumableRecorderOpenArgs{
 		AccessKey:  "testak",
 		BucketName: "test-bucket",
 		ObjectName: "test-object",

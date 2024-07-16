@@ -18,7 +18,7 @@ func TestJsonFileSystemResumableRecorder(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
-	options := resumablerecorder.ResumableRecorderOpenOptions{
+	options := resumablerecorder.ResumableRecorderOpenArgs{
 		ETag:          "testetag1",
 		DestinationID: "/tmp/fakeFile",
 		PartSize:      16 * 1024 * 1024,

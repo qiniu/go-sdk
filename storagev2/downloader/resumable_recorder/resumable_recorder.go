@@ -7,7 +7,7 @@ import (
 
 type (
 	// 可恢复记录仪选项
-	ResumableRecorderOpenOptions struct {
+	ResumableRecorderOpenArgs struct {
 		// 数据源 ETag
 		ETag string
 
@@ -27,16 +27,16 @@ type (
 	// 可恢复记录仪接口
 	ResumableRecorder interface {
 		// 打开记录仪介质以读取记录
-		OpenForReading(*ResumableRecorderOpenOptions) ReadableResumableRecorderMedium
+		OpenForReading(*ResumableRecorderOpenArgs) ReadableResumableRecorderMedium
 
 		// 打开记录仪介质以追加记录
-		OpenForAppending(*ResumableRecorderOpenOptions) WriteableResumableRecorderMedium
+		OpenForAppending(*ResumableRecorderOpenArgs) WriteableResumableRecorderMedium
 
 		// 新建记录仪介质以追加记录
-		OpenForCreatingNew(*ResumableRecorderOpenOptions) WriteableResumableRecorderMedium
+		OpenForCreatingNew(*ResumableRecorderOpenArgs) WriteableResumableRecorderMedium
 
 		// 删除记录仪介质
-		Delete(*ResumableRecorderOpenOptions) error
+		Delete(*ResumableRecorderOpenArgs) error
 
 		// 清理过期的记录仪介质
 		ClearOutdated(createdBefore time.Duration) error

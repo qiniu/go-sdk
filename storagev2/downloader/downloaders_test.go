@@ -486,7 +486,7 @@ func TestConcurrentDownloaderWithResumableRecorder(t *testing.T) {
 	url1.Path = "/testfile"
 
 	resumableRecorder := resumablerecorder.NewJsonFileSystemResumableRecorder(tmpDir)
-	options := resumablerecorder.ResumableRecorderOpenOptions{
+	options := resumablerecorder.ResumableRecorderOpenArgs{
 		ETag:          "testetag1",
 		DestinationID: dstFile.Name(),
 		PartSize:      1024 * 1024,

@@ -141,22 +141,22 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urlsIter UR
 	needToDownload := uint64(headResponse.ContentLength)
 
 	var (
-		readableMedium               resumablerecorder.ReadableResumableRecorderMedium
-		writeableMedium              resumablerecorder.WriteableResumableRecorderMedium
-		resumableRecorderOpenOptions *resumablerecorder.ResumableRecorderOpenOptions
+		readableMedium            resumablerecorder.ReadableResumableRecorderMedium
+		writeableMedium           resumablerecorder.WriteableResumableRecorderMedium
+		resumableRecorderOpenArgs *resumablerecorder.ResumableRecorderOpenArgs
 	)
 	if resumableRecorder := downloader.resumableRecorder; resumableRecorder != nil {
 		var destinationID string
 		destinationID, err = dest.DestinationID()
 		if err == nil && destinationID != "" {
-			resumableRecorderOpenOptions = &resumablerecorder.ResumableRecorderOpenOptions{
+			resumableRecorderOpenArgs = &resumablerecorder.ResumableRecorderOpenArgs{
 				ETag:          etag,
 				DestinationID: destinationID,
 				PartSize:      downloader.partSize,
 				TotalSize:     needToDownload,
 				Offset:        offset,
 			}
-			readableMedium = resumableRecorder.OpenForReading(resumableRecorderOpenOptions)
+			readableMedium = resumableRecorder.OpenForReading(resumableRecorderOpenArgs)
 			if readableMedium != nil {
 				defer readableMedium.Close()
 			} else if file := dest.GetFile(); file != nil {
@@ -175,10 +175,10 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urlsIter UR
 		readableMedium.Close()
 		readableMedium = nil
 	}
-	if resumableRecorder := downloader.resumableRecorder; resumableRecorder != nil && resumableRecorderOpenOptions != nil {
-		writeableMedium = resumableRecorder.OpenForAppending(resumableRecorderOpenOptions)
+	if resumableRecorder := downloader.resumableRecorder; resumableRecorder != nil && resumableRecorderOpenArgs != nil {
+		writeableMedium = resumableRecorder.OpenForAppending(resumableRecorderOpenArgs)
 		if writeableMedium == nil {
-			writeableMedium = resumableRecorder.OpenForCreatingNew(resumableRecorderOpenOptions)
+			writeableMedium = resumableRecorder.OpenForCreatingNew(resumableRecorderOpenArgs)
 		}
 		if writeableMedium != nil {
 			defer writeableMedium.Close()
@@ -215,8 +215,8 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urlsIter UR
 		writeableMedium.Close()
 		writeableMedium = nil
 	}
-	if resumableRecorder := downloader.resumableRecorder; resumableRecorder != nil && resumableRecorderOpenOptions != nil && err == nil {
-		resumableRecorder.Delete(resumableRecorderOpenOptions)
+	if resumableRecorder := downloader.resumableRecorder; resumableRecorder != nil && resumableRecorderOpenArgs != nil && err == nil {
+		resumableRecorder.Delete(resumableRecorderOpenArgs)
 	}
 	return downloadingProgress.totalDownloaded(), err
 }

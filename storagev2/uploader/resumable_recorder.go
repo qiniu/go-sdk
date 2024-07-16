@@ -9,7 +9,7 @@ import (
 )
 
 func tryToOpenResumableRecorderForReading(ctx context.Context, src source.Source, multiPartsObjectOptions *MultiPartsObjectOptions, multiPartsUploaderOptions *MultiPartsUploaderOptions) resumablerecorder.ReadableResumableRecorderMedium {
-	if options := makeResumableRecorderOpenOptions(ctx, src, multiPartsObjectOptions, multiPartsUploaderOptions); options != nil {
+	if options := makeResumableRecorderOpenArgs(ctx, src, multiPartsObjectOptions, multiPartsUploaderOptions); options != nil {
 		if resumableRecorder := multiPartsUploaderOptions.ResumableRecorder; resumableRecorder != nil {
 			return resumableRecorder.OpenForReading(options)
 		}
@@ -18,7 +18,7 @@ func tryToOpenResumableRecorderForReading(ctx context.Context, src source.Source
 }
 
 func tryToOpenResumableRecorderForAppending(ctx context.Context, src source.Source, multiPartsObjectOptions *MultiPartsObjectOptions, multiPartsUploaderOptions *MultiPartsUploaderOptions) resumablerecorder.WriteableResumableRecorderMedium {
-	if options := makeResumableRecorderOpenOptions(ctx, src, multiPartsObjectOptions, multiPartsUploaderOptions); options != nil {
+	if options := makeResumableRecorderOpenArgs(ctx, src, multiPartsObjectOptions, multiPartsUploaderOptions); options != nil {
 		if resumableRecorder := multiPartsUploaderOptions.ResumableRecorder; resumableRecorder != nil {
 			medium := resumableRecorder.OpenForAppending(options)
 			if medium == nil {
@@ -31,14 +31,14 @@ func tryToOpenResumableRecorderForAppending(ctx context.Context, src source.Sour
 }
 
 func tryToDeleteResumableRecorderMedium(ctx context.Context, src source.Source, multiPartsObjectOptions *MultiPartsObjectOptions, multiPartsUploaderOptions *MultiPartsUploaderOptions) {
-	if options := makeResumableRecorderOpenOptions(ctx, src, multiPartsObjectOptions, multiPartsUploaderOptions); options != nil {
+	if options := makeResumableRecorderOpenArgs(ctx, src, multiPartsObjectOptions, multiPartsUploaderOptions); options != nil {
 		if resumableRecorder := multiPartsUploaderOptions.ResumableRecorder; resumableRecorder != nil {
 			resumableRecorder.Delete(options)
 		}
 	}
 }
 
-func makeResumableRecorderOpenOptions(ctx context.Context, src source.Source, multiPartsObjectOptions *MultiPartsObjectOptions, multiPartsUploaderOptions *MultiPartsUploaderOptions) *resumablerecorder.ResumableRecorderOpenOptions {
+func makeResumableRecorderOpenArgs(ctx context.Context, src source.Source, multiPartsObjectOptions *MultiPartsObjectOptions, multiPartsUploaderOptions *MultiPartsUploaderOptions) *resumablerecorder.ResumableRecorderOpenArgs {
 	sourceID, err := src.SourceID()
 	if err != nil || sourceID == "" {
 		return nil
@@ -75,7 +75,7 @@ func makeResumableRecorderOpenOptions(ctx context.Context, src source.Source, mu
 		return nil
 	}
 
-	return &resumablerecorder.ResumableRecorderOpenOptions{
+	return &resumablerecorder.ResumableRecorderOpenArgs{
 		AccessKey:   accessKey,
 		BucketName:  bucketName,
 		ObjectName:  objectName,

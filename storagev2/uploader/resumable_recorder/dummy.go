@@ -7,19 +7,19 @@ func NewDummyResumableRecorder() ResumableRecorder {
 	return dummyResumableRecorder{}
 }
 
-func (dummyResumableRecorder) OpenForReading(*ResumableRecorderOpenOptions) ReadableResumableRecorderMedium {
+func (dummyResumableRecorder) OpenForReading(*ResumableRecorderOpenArgs) ReadableResumableRecorderMedium {
 	return nil
 }
 
-func (dummyResumableRecorder) OpenForAppending(*ResumableRecorderOpenOptions) WriteableResumableRecorderMedium {
+func (dummyResumableRecorder) OpenForAppending(*ResumableRecorderOpenArgs) WriteableResumableRecorderMedium {
 	return nil
 }
 
-func (dummyResumableRecorder) OpenForCreatingNew(*ResumableRecorderOpenOptions) WriteableResumableRecorderMedium {
+func (dummyResumableRecorder) OpenForCreatingNew(*ResumableRecorderOpenArgs) WriteableResumableRecorderMedium {
 	return nil
 }
 
-func (dummyResumableRecorder) Delete(*ResumableRecorderOpenOptions) error {
+func (dummyResumableRecorder) Delete(*ResumableRecorderOpenArgs) error {
 	return nil
 }
 

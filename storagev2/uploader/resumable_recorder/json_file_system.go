@@ -40,9 +40,9 @@ func NewJsonFileSystemResumableRecorder(dirPath string) ResumableRecorder {
 	return jsonFileSystemResumableRecorder{dirPath}
 }
 
-func (frr jsonFileSystemResumableRecorder) OpenForReading(options *ResumableRecorderOpenOptions) ReadableResumableRecorderMedium {
+func (frr jsonFileSystemResumableRecorder) OpenForReading(options *ResumableRecorderOpenArgs) ReadableResumableRecorderMedium {
 	if options == nil {
-		options = &ResumableRecorderOpenOptions{}
+		options = &ResumableRecorderOpenArgs{}
 	}
 	if options.SourceID == "" {
 		return nil
@@ -64,9 +64,9 @@ func (frr jsonFileSystemResumableRecorder) OpenForReading(options *ResumableReco
 	return jsonFileSystemResumableRecorderReadableMedium{file, decoder}
 }
 
-func (frr jsonFileSystemResumableRecorder) OpenForAppending(options *ResumableRecorderOpenOptions) WriteableResumableRecorderMedium {
+func (frr jsonFileSystemResumableRecorder) OpenForAppending(options *ResumableRecorderOpenArgs) WriteableResumableRecorderMedium {
 	if options == nil {
-		options = &ResumableRecorderOpenOptions{}
+		options = &ResumableRecorderOpenArgs{}
 	}
 	if options.SourceID == "" {
 		return nil
@@ -79,9 +79,9 @@ func (frr jsonFileSystemResumableRecorder) OpenForAppending(options *ResumableRe
 	return jsonFileSystemResumableRecorderWritableMedium{file, json.NewEncoder(file)}
 }
 
-func (frr jsonFileSystemResumableRecorder) OpenForCreatingNew(options *ResumableRecorderOpenOptions) WriteableResumableRecorderMedium {
+func (frr jsonFileSystemResumableRecorder) OpenForCreatingNew(options *ResumableRecorderOpenArgs) WriteableResumableRecorderMedium {
 	if options == nil {
-		options = &ResumableRecorderOpenOptions{}
+		options = &ResumableRecorderOpenArgs{}
 	}
 	if options.SourceID == "" {
 		return nil
@@ -98,7 +98,7 @@ func (frr jsonFileSystemResumableRecorder) OpenForCreatingNew(options *Resumable
 	return jsonFileSystemResumableRecorderWritableMedium{file, encoder}
 }
 
-func (frr jsonFileSystemResumableRecorder) Delete(options *ResumableRecorderOpenOptions) error {
+func (frr jsonFileSystemResumableRecorder) Delete(options *ResumableRecorderOpenArgs) error {
 	return os.Remove(frr.getFilePath(options))
 }
 
@@ -142,7 +142,7 @@ func (frr jsonFileSystemResumableRecorder) tryToClearPath(filePath string) error
 	_ = fileutil.Fadvise(file, 0, 0, fileutil.POSIX_FADV_SEQUENTIAL)
 	decoder := json.NewDecoder(file)
 	var (
-		lineOptions jsonBasedResumableRecorderOpenOptions
+		lineOptions jsonBasedResumableRecorderOpenArgs
 		jrr         jsonBasedResumableRecord
 	)
 	if err = decoder.Decode(&lineOptions); err != nil {
@@ -164,7 +164,7 @@ func (frr jsonFileSystemResumableRecorder) tryToClearPath(filePath string) error
 	return errors.New("no valid resumable record")
 }
 
-func (frr jsonFileSystemResumableRecorder) fileName(options *ResumableRecorderOpenOptions) string {
+func (frr jsonFileSystemResumableRecorder) fileName(options *ResumableRecorderOpenArgs) string {
 	hasher := sha1.New()
 	hasher.Write([]byte(options.SourceID))
 	hasher.Write([]byte{0})
@@ -189,12 +189,12 @@ func (frr jsonFileSystemResumableRecorder) fileName(options *ResumableRecorderOp
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-func (frr jsonFileSystemResumableRecorder) getFilePath(options *ResumableRecorderOpenOptions) string {
+func (frr jsonFileSystemResumableRecorder) getFilePath(options *ResumableRecorderOpenArgs) string {
 	return filepath.Join(frr.dirPath, frr.fileName(options))
 }
 
 type (
-	jsonBasedResumableRecorderOpenOptions struct {
+	jsonBasedResumableRecorderOpenArgs struct {
 		AccessKey   string           `json:"a,omitempty"`
 		BucketName  string           `json:"b,omitempty"`
 		ObjectName  string           `json:"o,omitempty"`
@@ -219,8 +219,8 @@ type (
 
 const fileSystemResumableRecorderVersion uint32 = 1
 
-func jsonFileSystemResumableRecorderWriteHeaderLine(encoder *json.Encoder, options *ResumableRecorderOpenOptions) error {
-	return encoder.Encode(&jsonBasedResumableRecorderOpenOptions{
+func jsonFileSystemResumableRecorderWriteHeaderLine(encoder *json.Encoder, options *ResumableRecorderOpenArgs) error {
+	return encoder.Encode(&jsonBasedResumableRecorderOpenArgs{
 		AccessKey:   options.AccessKey,
 		BucketName:  options.BucketName,
 		ObjectName:  options.ObjectName,
@@ -232,13 +232,13 @@ func jsonFileSystemResumableRecorderWriteHeaderLine(encoder *json.Encoder, optio
 	})
 }
 
-func jsonFileSystemResumableRecorderVerifyHeaderLine(decoder *json.Decoder, options *ResumableRecorderOpenOptions) (bool, error) {
-	var lineOptions jsonBasedResumableRecorderOpenOptions
+func jsonFileSystemResumableRecorderVerifyHeaderLine(decoder *json.Decoder, options *ResumableRecorderOpenArgs) (bool, error) {
+	var lineOptions jsonBasedResumableRecorderOpenArgs
 	err := decoder.Decode(&lineOptions)
 	if err != nil {
 		return false, err
 	}
-	return reflect.DeepEqual(lineOptions, jsonBasedResumableRecorderOpenOptions{
+	return reflect.DeepEqual(lineOptions, jsonBasedResumableRecorderOpenArgs{
 		AccessKey:   options.AccessKey,
 		BucketName:  options.BucketName,
 		ObjectName:  options.ObjectName,
