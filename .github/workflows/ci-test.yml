@@ -43,16 +43,17 @@ jobs:
           rm -rf $GITHUB_WORKSPACE/src/github.com/prometheus/procfs && git clone -b v0.0.6 --depth 1 https://github.com/prometheus/procfs.git $GITHUB_WORKSPACE/src/github.com/prometheus/procfs
           rm -rf $GITHUB_WORKSPACE/src/howett.net/plist && git clone -b v1.0.0 --depth 1 https://github.com/DHowett/go-plist.git $GITHUB_WORKSPACE/src/howett.net/plist
           rm -rf $GITHUB_WORKSPACE/src/golang.org/x/sys && git clone -b v0.13.0 --depth 1 https://github.com/golang/sys $GITHUB_WORKSPACE/src/golang.org/x/sys
+          rm -rf $GITHUB_WORKSPACE/src/github.com/jessevdk/go-flags && git clone -b v1.4.0 --depth 1 https://github.com/jessevdk/go-flags.git $GITHUB_WORKSPACE/src/github.com/jessevdk/go-flags
           rm -rf $GITHUB_WORKSPACE/src/golang.org/x/crypto && git clone -b v0.10.0 --depth 1 https://go.googlesource.com/crypto $GITHUB_WORKSPACE/src/golang.org/x/crypto
-          rm -rf $GITHUB_WORKSPACE/src/golang.org/x/text && git clone -b v0.10.0 --depth 1 https://github.com/golang/text $GITHUB_WORKSPACE/src/golang.org/x/text
-          rm -rf $GITHUB_WORKSPACE/src/golang.org/x/sync && git clone -b v0.3.0 --depth 1 https://github.com/golang/sync $GITHUB_WORKSPACE/src/golang.org/x/sync
+          rm -rf $GITHUB_WORKSPACE/src/golang.org/x/text && git clone -b v0.10.0 --depth 1 https://github.com/golang/text.git $GITHUB_WORKSPACE/src/golang.org/x/text
+          rm -rf $GITHUB_WORKSPACE/src/golang.org/x/sync && git clone -b v0.3.0 --depth 1 https://github.com/golang/sync.git $GITHUB_WORKSPACE/src/golang.org/x/sync
 
           GOPATH=$GITHUB_WORKSPACE go get github.com/leodido/go-urn
           GOPATH=$GITHUB_WORKSPACE go get github.com/go-playground/locales
 
-          rm -rf $GITHUB_WORKSPACE/src/github.com/dave/jennifer && git clone -b v1.6.1 --depth 1 https://github.com/dave/jennifer $GITHUB_WORKSPACE/src/github.com/dave/jennifer
+          rm -rf $GITHUB_WORKSPACE/src/github.com/dave/jennifer && git clone -b v1.6.1 --depth 1 https://github.com/dave/jennifer.git $GITHUB_WORKSPACE/src/github.com/dave/jennifer
           rm -rf $GITHUB_WORKSPACE/src/modernc.org/fileutil && git clone -b v1.0.0 --depth 1 https://gitlab.com/cznic/fileutil.git $GITHUB_WORKSPACE/src/modernc.org/fileutil
-          rm -rf $GITHUB_WORKSPACE/src/github.com/gorilla/mux && git clone -b v1.7.4 --depth 1 https://github.com/gorilla/mux $GITHUB_WORKSPACE/src/github.com/gorilla/mux
+          rm -rf $GITHUB_WORKSPACE/src/github.com/gorilla/mux && git clone -b v1.7.4 --depth 1 https://github.com/gorilla/mux.git $GITHUB_WORKSPACE/src/github.com/gorilla/mux
 
           GOPATH=$GITHUB_WORKSPACE go get github.com/iancoleman/strcase
 

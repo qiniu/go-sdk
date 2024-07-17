@@ -13,6 +13,7 @@ require (
 	github.com/gofrs/flock v0.8.1
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/iancoleman/strcase v0.3.0
+	github.com/jessevdk/go-flags v1.4.0 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/matishsiao/goInfo v0.0.0-20210923090445-da2e3fa8d45f

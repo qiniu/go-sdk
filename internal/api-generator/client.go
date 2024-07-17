@@ -85,9 +85,13 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 	if options.Documentation != "" {
 		group.Add(jen.Comment(options.Documentation))
 	}
+
+	structName := strcase.ToCamel(flags.StructName)
+	fieldName := strcase.ToLowerCamel(flags.StructName)
+
 	group.Add(
 		jen.Func().
-			Params(jen.Id("storage").Op("*").Id("Storage")).
+			Params(jen.Id(fieldName).Op("*").Id(structName)).
 			Id(options.camelCaseName()).
 			Params(
 				jen.Id("ctx").Qual("context", "Context"),
@@ -123,7 +127,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 				case AuthorizationQbox, AuthorizationQiniu:
 					group.Add(jen.If(
 						jen.Id("innerRequest").Dot("Credentials").Op("==").Nil().Op("&&").
-							Id("storage").Dot("client").Dot("GetCredentials").Call().Op("==").Nil()).
+							Id(fieldName).Dot("client").Dot("GetCredentials").Call().Op("==").Nil()).
 						BlockFunc(func(group *jen.Group) {
 							group.Add(jen.Return(
 								jen.Nil(),
@@ -307,7 +311,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							group.Add(
 								jen.Id("credentials").
 									Op("=").
-									Id("storage").
+									Id(fieldName).
 									Dot("client").
 									Dot("GetCredentials").
 									Call())
@@ -413,9 +417,9 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 					jen.If(
 						jen.Id("options").Dot("OverwrittenEndpoints").Op("==").Nil().Op("&&").
 							Id("options").Dot("OverwrittenRegion").Op("==").Nil().Op("&&").
-							Id("storage").Dot("client").Dot("GetRegions").Call().Op("==").Nil()).
+							Id(fieldName).Dot("client").Dot("GetRegions").Call().Op("==").Nil()).
 						BlockFunc(func(group *jen.Group) {
-							group.Add(jen.Id("query").Op(":=").Id("storage").Dot("client").Dot("GetBucketQuery").Call())
+							group.Add(jen.Id("query").Op(":=").Id(fieldName).Dot("client").Dot("GetBucketQuery").Call())
 							group.Add(
 								jen.If(jen.Id("query").Op("==").Nil()).BlockFunc(func(group *jen.Group) {
 									group.Add(jen.Id("bucketHosts").Op(":=").Qual(PackageNameHTTPClient, "DefaultBucketHosts").Call())
@@ -453,24 +457,24 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 												Op(":=").
 												Qual(PackageNameRegion, "BucketRegionsQueryOptions").
 												ValuesFunc(func(group *jen.Group) {
-													group.Add(jen.Id("UseInsecureProtocol").Op(":").Id("storage").Dot("client").Dot("UseInsecureProtocol").Call())
-													group.Add(jen.Id("AccelerateUploading").Op(":").Id("storage").Dot("client").Dot("AccelerateUploadingEnabled").Call())
-													group.Add(jen.Id("HostFreezeDuration").Op(":").Id("storage").Dot("client").Dot("GetHostFreezeDuration").Call())
-													group.Add(jen.Id("Client").Op(":").Id("storage").Dot("client").Dot("GetClient").Call())
-													group.Add(jen.Id("Resolver").Op(":").Id("storage").Dot("client").Dot("GetResolver").Call())
-													group.Add(jen.Id("Chooser").Op(":").Id("storage").Dot("client").Dot("GetChooser").Call())
-													group.Add(jen.Id("BeforeResolve").Op(":").Id("storage").Dot("client").Dot("GetBeforeResolveCallback").Call())
-													group.Add(jen.Id("AfterResolve").Op(":").Id("storage").Dot("client").Dot("GetAfterResolveCallback").Call())
-													group.Add(jen.Id("ResolveError").Op(":").Id("storage").Dot("client").Dot("GetResolveErrorCallback").Call())
-													group.Add(jen.Id("BeforeBackoff").Op(":").Id("storage").Dot("client").Dot("GetBeforeBackoffCallback").Call())
-													group.Add(jen.Id("AfterBackoff").Op(":").Id("storage").Dot("client").Dot("GetAfterBackoffCallback").Call())
-													group.Add(jen.Id("BeforeRequest").Op(":").Id("storage").Dot("client").Dot("GetBeforeRequestCallback").Call())
-													group.Add(jen.Id("AfterResponse").Op(":").Id("storage").Dot("client").Dot("GetAfterResponseCallback").Call())
+													group.Add(jen.Id("UseInsecureProtocol").Op(":").Id(fieldName).Dot("client").Dot("UseInsecureProtocol").Call())
+													group.Add(jen.Id("AccelerateUploading").Op(":").Id(fieldName).Dot("client").Dot("AccelerateUploadingEnabled").Call())
+													group.Add(jen.Id("HostFreezeDuration").Op(":").Id(fieldName).Dot("client").Dot("GetHostFreezeDuration").Call())
+													group.Add(jen.Id("Client").Op(":").Id(fieldName).Dot("client").Dot("GetClient").Call())
+													group.Add(jen.Id("Resolver").Op(":").Id(fieldName).Dot("client").Dot("GetResolver").Call())
+													group.Add(jen.Id("Chooser").Op(":").Id(fieldName).Dot("client").Dot("GetChooser").Call())
+													group.Add(jen.Id("BeforeResolve").Op(":").Id(fieldName).Dot("client").Dot("GetBeforeResolveCallback").Call())
+													group.Add(jen.Id("AfterResolve").Op(":").Id(fieldName).Dot("client").Dot("GetAfterResolveCallback").Call())
+													group.Add(jen.Id("ResolveError").Op(":").Id(fieldName).Dot("client").Dot("GetResolveErrorCallback").Call())
+													group.Add(jen.Id("BeforeBackoff").Op(":").Id(fieldName).Dot("client").Dot("GetBeforeBackoffCallback").Call())
+													group.Add(jen.Id("AfterBackoff").Op(":").Id(fieldName).Dot("client").Dot("GetAfterBackoffCallback").Call())
+													group.Add(jen.Id("BeforeRequest").Op(":").Id(fieldName).Dot("client").Dot("GetBeforeRequestCallback").Call())
+													group.Add(jen.Id("AfterResponse").Op(":").Id(fieldName).Dot("client").Dot("GetAfterResponseCallback").Call())
 												}),
 										)
 										group.Add(
 											jen.If(
-												jen.Id("hostRetryConfig").Op(":=").Id("storage").Dot("client").Dot("GetHostRetryConfig").Call(),
+												jen.Id("hostRetryConfig").Op(":=").Id(fieldName).Dot("client").Dot("GetHostRetryConfig").Call(),
 												jen.Id("hostRetryConfig").Op("!=").Nil(),
 											).BlockFunc(func(group *jen.Group) {
 												group.Id("queryOptions").Dot("RetryMax").Op("=").Id("hostRetryConfig").Dot("RetryMax")
@@ -507,7 +511,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 										jen.If(jen.Id("accessKey").Op("==").Lit("")).
 											BlockFunc(func(group *jen.Group) {
 												group.Add(jen.If(
-													jen.Id("credentialsProvider").Op(":=").Id("storage").Dot("client").Dot("GetCredentials").Call(),
+													jen.Id("credentialsProvider").Op(":=").Id(fieldName).Dot("client").Dot("GetCredentials").Call(),
 													jen.Id("credentialsProvider").Op("!=").Nil(),
 												).BlockFunc(func(group *jen.Group) {
 													group.If(
@@ -551,7 +555,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							jen.If(
 								jen.Err().
 									Op(":=").
-									Id("storage").
+									Id(fieldName).
 									Dot("client").
 									Dot("DoAndAcceptJSON").
 									Call(
@@ -569,7 +573,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 						group.Add(
 							jen.List(jen.Id("resp"), jen.Err()).
 								Op(":=").
-								Id("storage").
+								Id(fieldName).
 								Dot("client").
 								Dot("Do").
 								Call(
@@ -598,7 +602,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 					group.Add(
 						jen.List(jen.Id("resp"), jen.Err()).
 							Op(":=").
-							Id("storage").
+							Id(fieldName).
 							Dot("client").
 							Dot("Do").
 							Call(
