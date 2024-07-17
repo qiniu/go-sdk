@@ -17,12 +17,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/internal/cache"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"github.com/qiniu/go-sdk/v7/internal/log"
 	"github.com/qiniu/go-sdk/v7/storagev2/backoff"
 	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
+	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 )
@@ -41,7 +43,7 @@ type (
 		accelerateUploading bool
 	}
 
-	// BucketRegionsQuery 空间区域查询器选项
+	// BucketRegionsQueryOptions 空间区域查询器选项
 	BucketRegionsQueryOptions struct {
 		// 使用 HTTP 协议
 		UseInsecureProtocol bool
@@ -134,7 +136,7 @@ type (
 	}
 )
 
-const cacheFileName = "query_v4_01.cache.json"
+const bucketRegionsQueryCacheFileName = "query_v4_01.cache.json"
 
 var (
 	persistentCaches     map[uint64]*cache.Cache
@@ -156,7 +158,7 @@ func NewBucketRegionsQuery(bucketHosts Endpoints, opts *BucketRegionsQueryOption
 	}
 	persistentFilePath := opts.PersistentFilePath
 	if persistentFilePath == "" {
-		persistentFilePath = filepath.Join(os.TempDir(), "qiniu-golang-sdk", cacheFileName)
+		persistentFilePath = filepath.Join(os.TempDir(), "qiniu-golang-sdk", bucketRegionsQueryCacheFileName)
 	}
 	persistentDuration := opts.PersistentDuration
 	if persistentDuration == time.Duration(0) {
@@ -172,7 +174,7 @@ func NewBucketRegionsQuery(bucketHosts Endpoints, opts *BucketRegionsQueryOption
 		bucketHosts: bucketHosts,
 		cache:       persistentCache,
 		client: makeBucketQueryClient(
-			opts.Client,
+			opts.Client, nil,
 			bucketHosts,
 			!opts.UseInsecureProtocol,
 			retryMax,
@@ -241,9 +243,10 @@ func (provider *bucketRegionsProvider) GetRegions(ctx context.Context) ([]*Regio
 		var ret v4QueryResponse
 		url := fmt.Sprintf("%s/v4/query?ak=%s&bucket=%s", provider.query.bucketHosts.firstUrl(provider.query.useHttps), provider.accessKey, provider.bucketName)
 		if err = clientv2.DoAndDecodeJsonResponse(provider.query.client, clientv2.RequestParams{
-			Context: ctx,
-			Method:  clientv2.RequestMethodGet,
-			Url:     url,
+			Context:        ctx,
+			Method:         clientv2.RequestMethodGet,
+			Url:            url,
+			BufferResponse: true,
 		}, &ret); err != nil {
 			return nil, err
 		}
@@ -337,6 +340,7 @@ func makeHostsCacheKey(hosts []string) string {
 
 func makeBucketQueryClient(
 	client clientv2.Client,
+	credentials credentials.CredentialsProvider,
 	bucketHosts Endpoints,
 	useHttps bool,
 	retryMax int,
@@ -373,6 +377,12 @@ func makeBucketQueryClient(
 			AfterResponse: afterResponse,
 		}),
 		clientv2.NewBufferResponseInterceptor(),
+	}
+	if credentials != nil {
+		is = append(is, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
+			Credentials: credentials,
+			TokenType:   auth.TokenQiniu,
+		}))
 	}
 	return clientv2.NewClient(client, is...)
 }

@@ -11,24 +11,24 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"strings"
 	"sync/atomic"
 	"testing"
+
+	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
 )
 
-func TestBucketRegionsQuery(t *testing.T) {
+func TestAllRegionsProvider(t *testing.T) {
 	const accessKey = "fakeaccesskey"
-	const bucketName = "fakeBucketName"
+	const secretKey = "fakesecretkey"
 	var callCount uint64
 	mux := http.NewServeMux()
-	mux.HandleFunc("/v4/query", func(w http.ResponseWriter, r *http.Request) {
-		if gotAk := r.URL.Query().Get("ak"); gotAk != accessKey {
-			t.Fatalf("Unexpected ak: %s", gotAk)
-		}
-		if gotBucketName := r.URL.Query().Get("bucket"); gotBucketName != bucketName {
-			t.Fatalf("Unexpected bucket: %s", gotBucketName)
+	mux.HandleFunc("/regions", func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.Header.Get("Authorization"), "Qiniu "+accessKey) {
+			t.Fatalf("unexpected authorization")
 		}
 		w.Header().Add("X-ReqId", "fakereqid")
-		if _, err := io.WriteString(w, mockUcQueryResponseBody()); err != nil {
+		if _, err := io.WriteString(w, mockUcRegionsResponseBody()); err != nil {
 			t.Fatal(err)
 		}
 		atomic.AddUint64(&callCount, 1)
@@ -43,14 +43,14 @@ func TestBucketRegionsQuery(t *testing.T) {
 	defer os.Remove(cacheFile.Name())
 	defer cacheFile.Close()
 
-	query, err := NewBucketRegionsQuery(Endpoints{Preferred: []string{server.URL}}, &BucketRegionsQueryOptions{
+	provider, err := NewAllRegionsProvider(credentials.NewCredentials(accessKey, secretKey), Endpoints{Preferred: []string{server.URL}}, &AllRegionsProviderOptions{
 		PersistentFilePath: cacheFile.Name(),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 2; i++ {
-		regions, err := query.Query(accessKey, bucketName).GetRegions(context.Background())
+		regions, err := provider.GetRegions(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -81,12 +81,12 @@ func TestBucketRegionsQuery(t *testing.T) {
 	}
 }
 
-func mockUcQueryResponseBody() string {
+func mockUcRegionsResponseBody() string {
 	return `
 	{
-		"hosts": [
+		"regions": [
 			{
-				"region": "z0",
+				"id": "z0",
 				"ttl": 86400,
 				"io": {
 					"domains": ["iovip.qbox.me"]
@@ -109,7 +109,7 @@ func mockUcQueryResponseBody() string {
 				}
 			},
 			{
-				"region": "z1",
+				"id": "z1",
 				"ttl": 86400,
 				"io": {
 					"domains": ["iovip-z1.qbox.me"]

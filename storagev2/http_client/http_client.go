@@ -257,17 +257,13 @@ func (httpClient *Client) Do(ctx context.Context, request *Request) (*http.Respo
 				}
 			}
 			if credentialsProvider != nil {
-				if creds, err := credentialsProvider.Get(ctx); err != nil {
-					return nil, err
-				} else {
-					req = clientv2.WithInterceptors(req, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
-						Credentials: creds,
-						TokenType:   request.AuthType,
-						BeforeSign:  httpClient.beforeSign,
-						AfterSign:   httpClient.afterSign,
-						SignError:   httpClient.signError,
-					}))
-				}
+				req = clientv2.WithInterceptors(req, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
+					Credentials: credentialsProvider,
+					TokenType:   request.AuthType,
+					BeforeSign:  httpClient.beforeSign,
+					AfterSign:   httpClient.afterSign,
+					SignError:   httpClient.signError,
+				}))
 			}
 		}
 	}

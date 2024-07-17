@@ -4,11 +4,12 @@ import (
 	"net/http"
 
 	"github.com/qiniu/go-sdk/v7/auth"
+	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
 )
 
 type AuthConfig struct {
 	// 鉴权参数
-	Credentials *auth.Credentials
+	Credentials credentials.CredentialsProvider
 	// 鉴权类型，不包含上传
 	TokenType auth.TokenType
 	// 签名前回调函数
@@ -39,10 +40,14 @@ func (interceptor *authInterceptor) Intercept(req *http.Request, handler Handler
 	}
 
 	if credentials := interceptor.config.Credentials; credentials != nil {
+		creds, err := credentials.Get(req.Context())
+		if err != nil {
+			return nil, err
+		}
 		if interceptor.config.BeforeSign != nil {
 			interceptor.config.BeforeSign(req)
 		}
-		if err := credentials.AddToken(interceptor.config.TokenType, req); err != nil {
+		if err := creds.AddToken(interceptor.config.TokenType, req); err != nil {
 			if interceptor.config.SignError != nil {
 				interceptor.config.SignError(req, err)
 			}
