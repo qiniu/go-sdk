@@ -5,10 +5,10 @@ package apis
 import (
 	"context"
 	auth "github.com/qiniu/go-sdk/v7/auth"
+	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	addbucketrules "github.com/qiniu/go-sdk/v7/storagev2/apis/add_bucket_rules"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	uplog "github.com/qiniu/go-sdk/v7/storagev2/internal/uplog"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 	"net/url"

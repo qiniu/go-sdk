@@ -6,10 +6,10 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	resumableuploadv2completemultipartupload "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v2_complete_multipart_upload"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	uplog "github.com/qiniu/go-sdk/v7/storagev2/internal/uplog"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"strings"
 )

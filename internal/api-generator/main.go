@@ -19,7 +19,7 @@ const (
 	PackageNameUpToken     = "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 	PackageNameErrors      = "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	PackageNameApis        = "github.com/qiniu/go-sdk/v7/storagev2/apis"
-	PackageNameUplog       = "github.com/qiniu/go-sdk/v7/storagev2/internal/uplog"
+	PackageNameUplog       = "github.com/qiniu/go-sdk/v7/internal/uplog"
 	PackageNameInternalIo  = "github.com/qiniu/go-sdk/v7/internal/io"
 )
 

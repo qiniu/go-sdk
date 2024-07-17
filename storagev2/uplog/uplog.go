@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/qiniu/go-sdk/v7/storagev2/internal/uplog"
+	"github.com/qiniu/go-sdk/v7/internal/uplog"
 )
 
 // UpApiVersion 表示上传接口的版本

@@ -4,10 +4,10 @@ package apis
 
 import (
 	"context"
+	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	querybucketv2 "github.com/qiniu/go-sdk/v7/storagev2/apis/query_bucket_v2"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	uplog "github.com/qiniu/go-sdk/v7/storagev2/internal/uplog"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"net/url"
 	"strings"

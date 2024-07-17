@@ -5,10 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	resumableuploadv2listparts "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v2_list_parts"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	uplog "github.com/qiniu/go-sdk/v7/storagev2/internal/uplog"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"net/url"
 	"strconv"
