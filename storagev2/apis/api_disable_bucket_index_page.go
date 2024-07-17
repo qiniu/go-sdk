@@ -32,16 +32,6 @@ func (query *innerDisableBucketIndexPageRequest) buildQuery() (url.Values, error
 	allQuery.Set("noIndexPage", strconv.FormatInt(query.NoIndexPage, 10))
 	return allQuery, nil
 }
-func (request *innerDisableBucketIndexPageRequest) getAccessKey(ctx context.Context) (string, error) {
-	if request.Credentials != nil {
-		if credentials, err := request.Credentials.Get(ctx); err != nil {
-			return "", err
-		} else {
-			return credentials.AccessKey, nil
-		}
-	}
-	return "", nil
-}
 
 type DisableBucketIndexPageRequest = disablebucketindexpage.Request
 type DisableBucketIndexPageResponse = disablebucketindexpage.Response
@@ -56,7 +46,7 @@ func (storage *Storage) DisableBucketIndexPage(ctx context.Context, request *Dis
 	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
 		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
 	}
-	var pathSegments []string
+	pathSegments := make([]string, 0, 1)
 	pathSegments = append(pathSegments, "noIndexPage")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
@@ -72,8 +62,7 @@ func (storage *Storage) DisableBucketIndexPage(ctx context.Context, request *Dis
 			return nil, err
 		}
 	}
-	var objectName string
-	uplogInterceptor, err := uplog.NewRequestUplog("disableBucketIndexPage", bucketName, objectName, func() (string, error) {
+	uplogInterceptor, err := uplog.NewRequestUplog("disableBucketIndexPage", bucketName, "", func() (string, error) {
 		credentials := innerRequest.Credentials
 		if credentials == nil {
 			credentials = storage.client.GetCredentials()
@@ -89,33 +78,11 @@ func (storage *Storage) DisableBucketIndexPage(ctx context.Context, request *Dis
 	}
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
-		query := storage.client.GetBucketQuery()
-		if query == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			if options.OverwrittenBucketHosts != nil {
-				req.Endpoints = options.OverwrittenBucketHosts
-			} else {
-				req.Endpoints = bucketHosts
-			}
-		}
-		if query != nil {
-			var accessKey string
-			var err error
-			if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
-				return nil, err
-			}
-			if accessKey == "" {
-				if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
-					if creds, err := credentialsProvider.Get(ctx); err != nil {
-						return nil, err
-					} else if creds != nil {
-						accessKey = creds.AccessKey
-					}
-				}
-			}
-			if accessKey != "" && bucketName != "" {
-				req.Region = query.Query(accessKey, bucketName)
-			}
+		bucketHosts := httpclient.DefaultBucketHosts()
+		if options.OverwrittenBucketHosts != nil {
+			req.Endpoints = options.OverwrittenBucketHosts
+		} else {
+			req.Endpoints = bucketHosts
 		}
 	}
 	resp, err := storage.client.Do(ctx, &req)

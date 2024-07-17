@@ -25,6 +25,7 @@ const (
 	MethodNameGET    MethodName = http.MethodGet
 	MethodNamePOST   MethodName = http.MethodPost
 	MethodNamePUT    MethodName = http.MethodPut
+	MethodNamePATCH  MethodName = http.MethodPatch
 	MethodNameDELETE MethodName = http.MethodDelete
 
 	ServiceNameUp     ServiceName = "up"
@@ -82,6 +83,8 @@ func (s MethodName) ToString() (string, error) {
 		return string(MethodNamePOST), nil
 	case "put":
 		return string(MethodNamePUT), nil
+	case "patch":
+		return string(MethodNamePATCH), nil
 	case "delete":
 		return string(MethodNameDELETE), nil
 	default:

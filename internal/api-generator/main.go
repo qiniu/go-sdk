@@ -19,15 +19,15 @@ const (
 	PackageNameRegion      = "github.com/qiniu/go-sdk/v7/storagev2/region"
 	PackageNameUpToken     = "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 	PackageNameErrors      = "github.com/qiniu/go-sdk/v7/storagev2/errors"
-	PackageNameApis        = "github.com/qiniu/go-sdk/v7/storagev2/apis"
 	PackageNameUplog       = "github.com/qiniu/go-sdk/v7/internal/uplog"
 	PackageNameInternalIo  = "github.com/qiniu/go-sdk/v7/internal/io"
 )
 
 var flags struct {
-	ApiSpecsPaths []string `long:"api-specs" required:"true"`
-	OutputDirPath string   `long:"output" required:"true"`
-	StructName    string   `long:"struct-name" required:"true"`
+	ApiSpecsPaths  []string `long:"api-specs" required:"true"`
+	OutputDirPath  string   `long:"output" required:"true"`
+	ApiPackagePath string   `long:"api-package" required:"true"`
+	StructName     string   `long:"struct-name" required:"true"`
 }
 
 func main() {
@@ -157,4 +157,9 @@ func generateApiClient(group *jen.Group) {
 			))
 		}),
 	)
+}
+
+func isStorageAPIs() bool {
+	structName := strcase.ToCamel(flags.StructName)
+	return structName == "Storage"
 }

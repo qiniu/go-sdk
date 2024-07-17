@@ -189,6 +189,7 @@ func NewBucketRegionsQuery(bucketHosts Endpoints, opts *BucketRegionsQueryOption
 			opts.AfterBackoff,
 			opts.BeforeRequest,
 			opts.AfterResponse,
+			nil, nil, nil,
 		),
 		useHttps:            !opts.UseInsecureProtocol,
 		accelerateUploading: opts.AccelerateUploading,
@@ -355,6 +356,8 @@ func makeBucketQueryClient(
 	afterBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration),
 	beforeRequest func(*http.Request, *retrier.RetrierOptions),
 	afterResponse func(*http.Response, *retrier.RetrierOptions, error),
+	beforeSign, afterSign func(*http.Request),
+	signError func(*http.Request, error),
 ) clientv2.Client {
 	is := []clientv2.Interceptor{
 		clientv2.NewAntiHijackingInterceptor(),
@@ -382,6 +385,9 @@ func makeBucketQueryClient(
 		is = append(is, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
 			Credentials: credentials,
 			TokenType:   auth.TokenQiniu,
+			BeforeSign:  beforeSign,
+			AfterSign:   afterSign,
+			SignError:   signError,
 		}))
 	}
 	return clientv2.NewClient(client, is...)

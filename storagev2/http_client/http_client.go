@@ -44,6 +44,7 @@ type (
 		accelerateUploading bool
 		basicHTTPClient     BasicHTTPClient
 		bucketQuery         region.BucketRegionsQuery
+		allRegions          region.RegionsProvider
 		regions             region.RegionsProvider
 		credentials         credentials.CredentialsProvider
 		resolver            resolver.Resolver
@@ -71,6 +72,9 @@ type (
 
 		// 空间区域查询器
 		BucketQuery region.BucketRegionsQuery
+
+		// 所有区域提供者
+		AllRegions region.RegionsProvider
 
 		// 区域提供者
 		Regions region.RegionsProvider
@@ -213,6 +217,7 @@ func NewClient(options *Options) *Client {
 		accelerateUploading: options.AccelerateUploading,
 		basicHTTPClient:     clientv2.NewClient(options.BasicHTTPClient, options.Interceptors...),
 		bucketQuery:         options.BucketQuery,
+		allRegions:          options.AllRegions,
 		regions:             options.Regions,
 		credentials:         creds,
 		resolver:            options.Resolver,
@@ -250,11 +255,6 @@ func (httpClient *Client) Do(ctx context.Context, request *Request) (*http.Respo
 			credentialsProvider := request.Credentials
 			if credentialsProvider == nil {
 				credentialsProvider = httpClient.credentials
-			}
-			if credentialsProvider == nil {
-				if defaultCreds := credentials.Default(); defaultCreds != nil {
-					credentialsProvider = defaultCreds
-				}
 			}
 			if credentialsProvider != nil {
 				req = clientv2.WithInterceptors(req, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
@@ -294,6 +294,10 @@ func (httpClient *Client) GetCredentials() credentials.CredentialsProvider {
 	return httpClient.credentials
 }
 
+func (httpClient *Client) GetAllRegions() region.RegionsProvider {
+	return httpClient.allRegions
+}
+
 func (httpClient *Client) GetRegions() region.RegionsProvider {
 	return httpClient.regions
 }
@@ -324,6 +328,18 @@ func (httpClient *Client) GetResolver() resolver.Resolver {
 
 func (httpClient *Client) GetChooser() chooser.Chooser {
 	return httpClient.chooser
+}
+
+func (httpClient *Client) GetBeforeSignCallback() func(*http.Request) {
+	return httpClient.beforeSign
+}
+
+func (httpClient *Client) GetAfterSignCallback() func(*http.Request) {
+	return httpClient.afterSign
+}
+
+func (httpClient *Client) GetSignErrorCallback() func(*http.Request, error) {
+	return httpClient.signError
 }
 
 func (httpClient *Client) GetBeforeResolveCallback() func(*http.Request) {

@@ -53,7 +53,7 @@ func (storage *Storage) BatchOps(ctx context.Context, request *BatchOpsRequest, 
 	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
 		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
 	}
-	var pathSegments []string
+	pathSegments := make([]string, 0, 1)
 	pathSegments = append(pathSegments, "batch")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
@@ -62,8 +62,7 @@ func (storage *Storage) BatchOps(ctx context.Context, request *BatchOpsRequest, 
 		return nil, err
 	}
 	bucketName := options.OverwrittenBucketName
-	var objectName string
-	uplogInterceptor, err := uplog.NewRequestUplog("batchOps", bucketName, objectName, func() (string, error) {
+	uplogInterceptor, err := uplog.NewRequestUplog("batchOps", bucketName, "", func() (string, error) {
 		credentials := innerRequest.Credentials
 		if credentials == nil {
 			credentials = storage.client.GetCredentials()
@@ -79,40 +78,42 @@ func (storage *Storage) BatchOps(ctx context.Context, request *BatchOpsRequest, 
 	}
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, RequestBody: httpclient.GetFormRequestBody(body), OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
-		query := storage.client.GetBucketQuery()
-		if query == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			if options.OverwrittenBucketHosts != nil {
-				if bucketHosts, err = options.OverwrittenBucketHosts.GetEndpoints(ctx); err != nil {
+		bucketHosts := httpclient.DefaultBucketHosts()
+		if bucketName != "" {
+			query := storage.client.GetBucketQuery()
+			if query == nil {
+				if options.OverwrittenBucketHosts != nil {
+					if bucketHosts, err = options.OverwrittenBucketHosts.GetEndpoints(ctx); err != nil {
+						return nil, err
+					}
+				}
+				queryOptions := region.BucketRegionsQueryOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), AccelerateUploading: storage.client.AccelerateUploadingEnabled(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Resolver: storage.client.GetResolver(), Chooser: storage.client.GetChooser(), BeforeResolve: storage.client.GetBeforeResolveCallback(), AfterResolve: storage.client.GetAfterResolveCallback(), ResolveError: storage.client.GetResolveErrorCallback(), BeforeBackoff: storage.client.GetBeforeBackoffCallback(), AfterBackoff: storage.client.GetAfterBackoffCallback(), BeforeRequest: storage.client.GetBeforeRequestCallback(), AfterResponse: storage.client.GetAfterResponseCallback()}
+				if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
+					queryOptions.RetryMax = hostRetryConfig.RetryMax
+					queryOptions.Backoff = hostRetryConfig.Backoff
+				}
+				if query, err = region.NewBucketRegionsQuery(bucketHosts, &queryOptions); err != nil {
 					return nil, err
 				}
 			}
-			queryOptions := region.BucketRegionsQueryOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), AccelerateUploading: storage.client.AccelerateUploadingEnabled(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Client: storage.client.GetClient(), Resolver: storage.client.GetResolver(), Chooser: storage.client.GetChooser(), BeforeResolve: storage.client.GetBeforeResolveCallback(), AfterResolve: storage.client.GetAfterResolveCallback(), ResolveError: storage.client.GetResolveErrorCallback(), BeforeBackoff: storage.client.GetBeforeBackoffCallback(), AfterBackoff: storage.client.GetAfterBackoffCallback(), BeforeRequest: storage.client.GetBeforeRequestCallback(), AfterResponse: storage.client.GetAfterResponseCallback()}
-			if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
-				queryOptions.RetryMax = hostRetryConfig.RetryMax
-				queryOptions.Backoff = hostRetryConfig.Backoff
-			}
-			if query, err = region.NewBucketRegionsQuery(bucketHosts, &queryOptions); err != nil {
-				return nil, err
-			}
-		}
-		if query != nil {
-			var accessKey string
-			var err error
-			if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
-				return nil, err
-			}
-			if accessKey == "" {
-				if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
-					if creds, err := credentialsProvider.Get(ctx); err != nil {
-						return nil, err
-					} else if creds != nil {
-						accessKey = creds.AccessKey
+			if query != nil {
+				var accessKey string
+				var err error
+				if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
+					return nil, err
+				}
+				if accessKey == "" {
+					if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
+						if creds, err := credentialsProvider.Get(ctx); err != nil {
+							return nil, err
+						} else if creds != nil {
+							accessKey = creds.AccessKey
+						}
 					}
 				}
-			}
-			if accessKey != "" && bucketName != "" {
-				req.Region = query.Query(accessKey, bucketName)
+				if accessKey != "" {
+					req.Region = query.Query(accessKey, bucketName)
+				}
 			}
 		}
 	}

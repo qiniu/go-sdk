@@ -60,6 +60,15 @@ type (
 		// 退避器，如果不配置则使用默认的退避器
 		Backoff backoff.Backoff
 
+		// 签名前回调函数
+		BeforeSign func(*http.Request)
+
+		// 签名后回调函数
+		AfterSign func(*http.Request)
+
+		// 签名错误回调函数
+		SignError func(*http.Request, error)
+
 		// 域名解析前回调函数
 		BeforeResolve func(*http.Request)
 
@@ -148,6 +157,9 @@ func NewAllRegionsProvider(credentials credentials.CredentialsProvider, bucketHo
 			opts.AfterBackoff,
 			opts.BeforeRequest,
 			opts.AfterResponse,
+			opts.BeforeSign,
+			opts.AfterSign,
+			opts.SignError,
 		),
 		useHttps: !opts.UseInsecureProtocol,
 	}, nil

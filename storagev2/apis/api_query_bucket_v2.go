@@ -32,9 +32,6 @@ func (query *innerQueryBucketV2Request) buildQuery() (url.Values, error) {
 	}
 	return allQuery, nil
 }
-func (request *innerQueryBucketV2Request) getAccessKey(ctx context.Context) (string, error) {
-	return "", nil
-}
 
 type QueryBucketV2Request = querybucketv2.Request
 type QueryBucketV2Response = querybucketv2.Response
@@ -46,7 +43,7 @@ func (storage *Storage) QueryBucketV2(ctx context.Context, request *QueryBucketV
 	}
 	innerRequest := (*innerQueryBucketV2Request)(request)
 	serviceNames := []region.ServiceName{region.ServiceBucket}
-	var pathSegments []string
+	pathSegments := make([]string, 0, 2)
 	pathSegments = append(pathSegments, "v2", "query")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
@@ -62,40 +59,17 @@ func (storage *Storage) QueryBucketV2(ctx context.Context, request *QueryBucketV
 			return nil, err
 		}
 	}
-	var objectName string
-	uplogInterceptor, err := uplog.NewRequestUplog("queryBucketV2", bucketName, objectName, nil)
+	uplogInterceptor, err := uplog.NewRequestUplog("queryBucketV2", bucketName, "", nil)
 	if err != nil {
 		return nil, err
 	}
 	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
-		query := storage.client.GetBucketQuery()
-		if query == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			if options.OverwrittenBucketHosts != nil {
-				req.Endpoints = options.OverwrittenBucketHosts
-			} else {
-				req.Endpoints = bucketHosts
-			}
-		}
-		if query != nil {
-			var accessKey string
-			var err error
-			if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
-				return nil, err
-			}
-			if accessKey == "" {
-				if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
-					if creds, err := credentialsProvider.Get(ctx); err != nil {
-						return nil, err
-					} else if creds != nil {
-						accessKey = creds.AccessKey
-					}
-				}
-			}
-			if accessKey != "" && bucketName != "" {
-				req.Region = query.Query(accessKey, bucketName)
-			}
+		bucketHosts := httpclient.DefaultBucketHosts()
+		if options.OverwrittenBucketHosts != nil {
+			req.Endpoints = options.OverwrittenBucketHosts
+		} else {
+			req.Endpoints = bucketHosts
 		}
 	}
 	ctx = httpclient.WithoutSignature(ctx)

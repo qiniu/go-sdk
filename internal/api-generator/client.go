@@ -59,7 +59,7 @@ func (description *ApiDetailedDescription) generateSubPackages(group *jen.Group,
 }
 
 func (description *ApiDetailedDescription) generatePackage(group *jen.Group, options CodeGeneratorOptions) (err error) {
-	packageName := PackageNameApis + "/" + options.Name
+	packageName := flags.ApiPackagePath + "/" + options.Name
 	innerStructName := "inner" + options.camelCaseName() + "Request"
 	reexportedRequestStructName := options.camelCaseName() + "Request"
 	reexportedResponseStructName := options.camelCaseName() + "Response"
@@ -77,8 +77,10 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 			return
 		}
 	}
-	if err = description.Request.generateGetAccessKeyFunc(group, innerStructName); err != nil {
-		return
+	if isStorageAPIs() && !description.isBucketService() {
+		if err = description.Request.generateGetAccessKeyFunc(group, innerStructName); err != nil {
+			return
+		}
 	}
 	group.Add(jen.Type().Id(reexportedRequestStructName).Op("=").Qual(packageName, "Request"))
 	group.Add(jen.Type().Id(reexportedResponseStructName).Op("=").Qual(packageName, "Response"))
@@ -87,7 +89,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 	}
 
 	structName := strcase.ToCamel(flags.StructName)
-	fieldName := strcase.ToLowerCamel(flags.StructName)
+	fieldName := strcase.ToLowerCamel(structName)
 
 	group.Add(
 		jen.Func().
@@ -161,7 +163,22 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 						}),
 					)
 				}
-				group.Add(jen.Var().Id("pathSegments").Index().String())
+				guessPathSegmentsCount := 0
+				if description.BasePath != "" {
+					guessPathSegmentsCount += len(description.getBasePathSegments())
+				}
+				if description.PathSuffix != "" {
+					guessPathSegmentsCount += len(description.getPathSuffixSegments())
+				}
+				if pp := description.Request.PathParams; pp != nil {
+					for _, namedPathParam := range pp.Named {
+						guessPathSegmentsCount += 1
+						if namedPathParam.PathSegment != "" {
+							guessPathSegmentsCount += 1
+						}
+					}
+				}
+				group.Add(jen.Id("pathSegments").Op(":=").Make(jen.Index().String(), jen.Lit(0), jen.Lit(guessPathSegmentsCount)))
 				if description.BasePath != "" {
 					group.Add(jen.Id("pathSegments").Op("=").AppendFunc(func(group *jen.Group) {
 						group.Add(jen.Id("pathSegments"))
@@ -275,27 +292,37 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 						)
 					}
 				}
-				group.Add(jen.Id("bucketName").Op(":=").Id("options").Dot("OverwrittenBucketName"))
-				if getBucketNameGenerated {
-					group.Add(
-						jen.If(jen.Id("bucketName").Op("==").Lit("")).BlockFunc(func(group *jen.Group) {
-							group.Add(jen.Var().Id("err").Error())
-							group.Add(
-								jen.If(
-									jen.List(jen.Id("bucketName"), jen.Err()).Op("=").Id("innerRequest").Dot("getBucketName").Call(jen.Id("ctx")),
-									jen.Err().Op("!=").Nil(),
-								).BlockFunc(func(group *jen.Group) {
-									group.Return(jen.Nil(), jen.Err())
-								}),
-							)
-						}),
-					)
+				if isStorageAPIs() {
+					group.Add(jen.Id("bucketName").Op(":=").Id("options").Dot("OverwrittenBucketName"))
+					if getBucketNameGenerated {
+						group.Add(
+							jen.If(jen.Id("bucketName").Op("==").Lit("")).BlockFunc(func(group *jen.Group) {
+								group.Add(jen.Var().Id("err").Error())
+								group.Add(
+									jen.If(
+										jen.List(jen.Id("bucketName"), jen.Err()).Op("=").Id("innerRequest").Dot("getBucketName").Call(jen.Id("ctx")),
+										jen.Err().Op("!=").Nil(),
+									).BlockFunc(func(group *jen.Group) {
+										group.Return(jen.Nil(), jen.Err())
+									}),
+								)
+							}),
+						)
+					}
+				}
+				if isStorageAPIs() && getObjectNameGenerated {
+					group.Add(jen.Id("objectName").Op(":=").Id("innerRequest").Dot("getObjectName").Call())
 				}
 
-				if getObjectNameGenerated {
-					group.Add(jen.Id("objectName").Op(":=").Id("innerRequest").Dot("getObjectName").Call())
-				} else {
-					group.Add(jen.Var().Id("objectName").String())
+				var (
+					bucketNameVar jen.Code = jen.Lit("")
+					objectNameVar jen.Code = jen.Lit("")
+				)
+				if isStorageAPIs() {
+					bucketNameVar = jen.Id("bucketName")
+					if getObjectNameGenerated {
+						objectNameVar = jen.Id("objectName")
+					}
 				}
 
 				var getUpTokenFunc jen.Code
@@ -320,7 +347,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							jen.List(jen.Id("putPolicy"), jen.Err()).
 								Op(":=").
 								Qual(PackageNameUpToken, "NewPutPolicy").
-								Call(jen.Id("bucketName"), jen.Qual("time", "Now").Call().Dot("Add").Call(jen.Qual("time", "Hour"))))
+								Call(bucketNameVar, jen.Qual("time", "Now").Call().Dot("Add").Call(jen.Qual("time", "Hour"))))
 						group.Add(jen.If(jen.Err().Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
 							group.Return(jen.List(jen.Lit(""), jen.Err()))
 						}))
@@ -341,8 +368,8 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 						Op(":=").
 						Qual(PackageNameUplog, "NewRequestUplog").Call(
 						jen.Lit(strcase.ToLowerCamel(options.camelCaseName())),
-						jen.Id("bucketName"),
-						jen.Id("objectName"),
+						bucketNameVar,
+						objectNameVar,
 						getUpTokenFunc,
 					),
 				)
@@ -350,7 +377,8 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 					group.Return(jen.Nil(), jen.Err())
 				}))
 
-				method, err := description.Method.ToString()
+				var method string
+				method, err = description.Method.ToString()
 				if err != nil {
 					return
 				}
@@ -419,126 +447,203 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							Id("options").Dot("OverwrittenRegion").Op("==").Nil().Op("&&").
 							Id(fieldName).Dot("client").Dot("GetRegions").Call().Op("==").Nil()).
 						BlockFunc(func(group *jen.Group) {
-							group.Add(jen.Id("query").Op(":=").Id(fieldName).Dot("client").Dot("GetBucketQuery").Call())
-							group.Add(
-								jen.If(jen.Id("query").Op("==").Nil()).BlockFunc(func(group *jen.Group) {
-									group.Add(jen.Id("bucketHosts").Op(":=").Qual(PackageNameHTTPClient, "DefaultBucketHosts").Call())
-									if description.isBucketService() {
-										group.Add(
-											jen.If(jen.Id("options").Dot("OverwrittenBucketHosts").Op("!=").Nil()).
-												BlockFunc(func(group *jen.Group) {
-													group.Add(jen.Id("req").Dot("Endpoints").Op("=").Id("options").Dot("OverwrittenBucketHosts"))
-												}).
-												Else().
-												BlockFunc(func(group *jen.Group) {
-													group.Add(jen.Id("req").Dot("Endpoints").Op("=").Id("bucketHosts"))
-												}),
-										)
-									} else {
-										group.Add(
-											jen.If(jen.Id("options").Dot("OverwrittenBucketHosts").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
-												group.Add(
-													jen.If(
-														jen.List(jen.Id("bucketHosts"), jen.Err()).
-															Op("=").
-															Id("options").
-															Dot("OverwrittenBucketHosts").
-															Dot("GetEndpoints").
-															Call(jen.Id("ctx")),
-														jen.Err().Op("!=").Nil(),
-													).BlockFunc(func(group *jen.Group) {
-														group.Add(jen.Return(jen.Nil(), jen.Err()))
-													}),
-												)
-											}),
-										)
-										group.Add(
-											jen.Id("queryOptions").
-												Op(":=").
-												Qual(PackageNameRegion, "BucketRegionsQueryOptions").
-												ValuesFunc(func(group *jen.Group) {
-													group.Add(jen.Id("UseInsecureProtocol").Op(":").Id(fieldName).Dot("client").Dot("UseInsecureProtocol").Call())
-													group.Add(jen.Id("AccelerateUploading").Op(":").Id(fieldName).Dot("client").Dot("AccelerateUploadingEnabled").Call())
-													group.Add(jen.Id("HostFreezeDuration").Op(":").Id(fieldName).Dot("client").Dot("GetHostFreezeDuration").Call())
-													group.Add(jen.Id("Client").Op(":").Id(fieldName).Dot("client").Dot("GetClient").Call())
-													group.Add(jen.Id("Resolver").Op(":").Id(fieldName).Dot("client").Dot("GetResolver").Call())
-													group.Add(jen.Id("Chooser").Op(":").Id(fieldName).Dot("client").Dot("GetChooser").Call())
-													group.Add(jen.Id("BeforeResolve").Op(":").Id(fieldName).Dot("client").Dot("GetBeforeResolveCallback").Call())
-													group.Add(jen.Id("AfterResolve").Op(":").Id(fieldName).Dot("client").Dot("GetAfterResolveCallback").Call())
-													group.Add(jen.Id("ResolveError").Op(":").Id(fieldName).Dot("client").Dot("GetResolveErrorCallback").Call())
-													group.Add(jen.Id("BeforeBackoff").Op(":").Id(fieldName).Dot("client").Dot("GetBeforeBackoffCallback").Call())
-													group.Add(jen.Id("AfterBackoff").Op(":").Id(fieldName).Dot("client").Dot("GetAfterBackoffCallback").Call())
-													group.Add(jen.Id("BeforeRequest").Op(":").Id(fieldName).Dot("client").Dot("GetBeforeRequestCallback").Call())
-													group.Add(jen.Id("AfterResponse").Op(":").Id(fieldName).Dot("client").Dot("GetAfterResponseCallback").Call())
-												}),
-										)
-										group.Add(
-											jen.If(
-												jen.Id("hostRetryConfig").Op(":=").Id(fieldName).Dot("client").Dot("GetHostRetryConfig").Call(),
-												jen.Id("hostRetryConfig").Op("!=").Nil(),
-											).BlockFunc(func(group *jen.Group) {
-												group.Id("queryOptions").Dot("RetryMax").Op("=").Id("hostRetryConfig").Dot("RetryMax")
-												group.Id("queryOptions").Dot("Backoff").Op("=").Id("hostRetryConfig").Dot("Backoff")
-											}),
-										)
-										group.Add(
-											jen.If(
-												jen.List(jen.Id("query"), jen.Err()).
-													Op("=").
-													Qual(PackageNameRegion, "NewBucketRegionsQuery").
-													Call(jen.Id("bucketHosts"), jen.Op("&").Id("queryOptions")),
-												jen.Err().Op("!=").Nil(),
-											).BlockFunc(func(group *jen.Group) {
-												group.Add(jen.Return(jen.Nil(), jen.Err()))
-											}),
-										)
-									}
-								}),
-							)
-							group.Add(
-								jen.If(jen.Id("query").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
-									group.Add(jen.Var().Id("accessKey").String())
-									group.Add(jen.Var().Err().Error())
+							group.Add(jen.Id("bucketHosts").Op(":=").Qual(PackageNameHTTPClient, "DefaultBucketHosts").Call())
+							if description.isBucketService() {
+								group.Add(
+									jen.If(jen.Id("options").Dot("OverwrittenBucketHosts").Op("!=").Nil()).
+										BlockFunc(func(group *jen.Group) {
+											group.Add(jen.Id("req").Dot("Endpoints").Op("=").Id("options").Dot("OverwrittenBucketHosts"))
+										}).
+										Else().
+										BlockFunc(func(group *jen.Group) {
+											group.Add(jen.Id("req").Dot("Endpoints").Op("=").Id("bucketHosts"))
+										}),
+								)
+							} else {
+								ifBucketIsNotEmptyStmt := jen.If(jen.Id("bucketName").Op("!=").Lit("")).BlockFunc(func(group *jen.Group) {
+									group.Add(jen.Id("query").Op(":=").Id(fieldName).Dot("client").Dot("GetBucketQuery").Call())
 									group.Add(
-										jen.If(
-											jen.List(jen.Id("accessKey"), jen.Err()).Op("=").Id("innerRequest").Dot("getAccessKey").Call(jen.Id("ctx")),
-											jen.Err().Op("!=").Nil(),
-										).BlockFunc(func(group *jen.Group) {
-											group.Return(jen.Nil(), jen.Err())
+										jen.If(jen.Id("query").Op("==").Nil()).BlockFunc(func(group *jen.Group) {
+											group.Add(
+												jen.If(jen.Id("options").Dot("OverwrittenBucketHosts").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+													group.Add(
+														jen.If(
+															jen.List(jen.Id("bucketHosts"), jen.Err()).
+																Op("=").
+																Id("options").
+																Dot("OverwrittenBucketHosts").
+																Dot("GetEndpoints").
+																Call(jen.Id("ctx")),
+															jen.Err().Op("!=").Nil(),
+														).BlockFunc(func(group *jen.Group) {
+															group.Add(jen.Return(jen.Nil(), jen.Err()))
+														}),
+													)
+												}),
+											)
+											group.Add(
+												jen.Id("queryOptions").
+													Op(":=").
+													Qual(PackageNameRegion, "BucketRegionsQueryOptions").
+													ValuesFunc(func(group *jen.Group) {
+														group.Add(jen.Id("UseInsecureProtocol").Op(":").Id(fieldName).Dot("client").Dot("UseInsecureProtocol").Call())
+														group.Add(jen.Id("AccelerateUploading").Op(":").Id(fieldName).Dot("client").Dot("AccelerateUploadingEnabled").Call())
+														group.Add(jen.Id("HostFreezeDuration").Op(":").Id(fieldName).Dot("client").Dot("GetHostFreezeDuration").Call())
+														group.Add(jen.Id("Resolver").Op(":").Id(fieldName).Dot("client").Dot("GetResolver").Call())
+														group.Add(jen.Id("Chooser").Op(":").Id(fieldName).Dot("client").Dot("GetChooser").Call())
+														group.Add(jen.Id("BeforeResolve").Op(":").Id(fieldName).Dot("client").Dot("GetBeforeResolveCallback").Call())
+														group.Add(jen.Id("AfterResolve").Op(":").Id(fieldName).Dot("client").Dot("GetAfterResolveCallback").Call())
+														group.Add(jen.Id("ResolveError").Op(":").Id(fieldName).Dot("client").Dot("GetResolveErrorCallback").Call())
+														group.Add(jen.Id("BeforeBackoff").Op(":").Id(fieldName).Dot("client").Dot("GetBeforeBackoffCallback").Call())
+														group.Add(jen.Id("AfterBackoff").Op(":").Id(fieldName).Dot("client").Dot("GetAfterBackoffCallback").Call())
+														group.Add(jen.Id("BeforeRequest").Op(":").Id(fieldName).Dot("client").Dot("GetBeforeRequestCallback").Call())
+														group.Add(jen.Id("AfterResponse").Op(":").Id(fieldName).Dot("client").Dot("GetAfterResponseCallback").Call())
+													}),
+											)
+											group.Add(
+												jen.If(
+													jen.Id("hostRetryConfig").Op(":=").Id(fieldName).Dot("client").Dot("GetHostRetryConfig").Call(),
+													jen.Id("hostRetryConfig").Op("!=").Nil(),
+												).BlockFunc(func(group *jen.Group) {
+													group.Id("queryOptions").Dot("RetryMax").Op("=").Id("hostRetryConfig").Dot("RetryMax")
+													group.Id("queryOptions").Dot("Backoff").Op("=").Id("hostRetryConfig").Dot("Backoff")
+												}),
+											)
+											group.Add(
+												jen.If(
+													jen.List(jen.Id("query"), jen.Err()).
+														Op("=").
+														Qual(PackageNameRegion, "NewBucketRegionsQuery").
+														Call(jen.Id("bucketHosts"), jen.Op("&").Id("queryOptions")),
+													jen.Err().Op("!=").Nil(),
+												).BlockFunc(func(group *jen.Group) {
+													group.Add(jen.Return(jen.Nil(), jen.Err()))
+												}),
+											)
 										}),
 									)
 									group.Add(
-										jen.If(jen.Id("accessKey").Op("==").Lit("")).
-											BlockFunc(func(group *jen.Group) {
-												group.Add(jen.If(
-													jen.Id("credentialsProvider").Op(":=").Id(fieldName).Dot("client").Dot("GetCredentials").Call(),
-													jen.Id("credentialsProvider").Op("!=").Nil(),
+										jen.If(jen.Id("query").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+											group.Add(jen.Var().Id("accessKey").String())
+											group.Add(jen.Var().Err().Error())
+											group.Add(
+												jen.If(
+													jen.List(jen.Id("accessKey"), jen.Err()).Op("=").Id("innerRequest").Dot("getAccessKey").Call(jen.Id("ctx")),
+													jen.Err().Op("!=").Nil(),
 												).BlockFunc(func(group *jen.Group) {
-													group.If(
-														jen.List(jen.Id("creds"), jen.Err()).
-															Op(":=").
-															Id("credentialsProvider").
-															Dot("Get").
-															Call(jen.Id("ctx")),
-														jen.Err().Op("!=").Nil(),
-													).BlockFunc(func(group *jen.Group) {
-														group.Return(jen.Nil(), jen.Err())
-													}).Else().
-														If(jen.Id("creds").Op("!=").Nil()).
-														BlockFunc(func(group *jen.Group) {
-															group.Id("accessKey").Op("=").Id("creds").Dot("AccessKey")
-														})
-												}))
-											}),
+													group.Return(jen.Nil(), jen.Err())
+												}),
+											)
+											group.Add(
+												jen.If(jen.Id("accessKey").Op("==").Lit("")).
+													BlockFunc(func(group *jen.Group) {
+														group.Add(jen.If(
+															jen.Id("credentialsProvider").Op(":=").Id(fieldName).Dot("client").Dot("GetCredentials").Call(),
+															jen.Id("credentialsProvider").Op("!=").Nil(),
+														).BlockFunc(func(group *jen.Group) {
+															group.If(
+																jen.List(jen.Id("creds"), jen.Err()).
+																	Op(":=").
+																	Id("credentialsProvider").
+																	Dot("Get").
+																	Call(jen.Id("ctx")),
+																jen.Err().Op("!=").Nil(),
+															).BlockFunc(func(group *jen.Group) {
+																group.Return(jen.Nil(), jen.Err())
+															}).Else().
+																If(jen.Id("creds").Op("!=").Nil()).
+																BlockFunc(func(group *jen.Group) {
+																	group.Id("accessKey").Op("=").Id("creds").Dot("AccessKey")
+																})
+														}))
+													}),
+											)
+											group.Add(
+												jen.If(jen.Id("accessKey").Op("!=").Lit("")).
+													BlockFunc(func(group *jen.Group) {
+														group.Id("req").Dot("Region").Op("=").Id("query").Dot("Query").Call(jen.Id("accessKey"), jen.Id("bucketName"))
+													}),
+											)
+										}),
 									)
+								})
+								ifBucketIsEmptyStmt := jen.CustomFunc(jen.Options{Multi: true}, func(group *jen.Group) {
+									group.Add(jen.Id("req").Dot("Region").Op("=").Id(fieldName).Dot("client").Dot("GetAllRegions").Call())
 									group.Add(
-										jen.If(jen.Id("accessKey").Op("!=").Lit("").Op("&&").Id("bucketName").Op("!=").Lit("")).
-											BlockFunc(func(group *jen.Group) {
-												group.Id("req").Dot("Region").Op("=").Id("query").Dot("Query").Call(jen.Id("accessKey"), jen.Id("bucketName"))
-											}),
+										jen.If(jen.Id("req").Dot("Region").Op("==").Nil()).BlockFunc(func(group *jen.Group) {
+											group.Add(
+												jen.If(jen.Id("options").Dot("OverwrittenBucketHosts").Op("!=").Nil()).BlockFunc(func(group *jen.Group) {
+													group.Add(
+														jen.If(
+															jen.List(jen.Id("bucketHosts"), jen.Err()).
+																Op("=").
+																Id("options").
+																Dot("OverwrittenBucketHosts").
+																Dot("GetEndpoints").
+																Call(jen.Id("ctx")),
+															jen.Err().Op("!=").Nil(),
+														).BlockFunc(func(group *jen.Group) {
+															group.Add(jen.Return(jen.Nil(), jen.Err()))
+														}),
+													)
+												}),
+											)
+											group.Add(
+												jen.Id("allRegionsOptions").
+													Op(":=").
+													Qual(PackageNameRegion, "AllRegionsProviderOptions").
+													ValuesFunc(func(group *jen.Group) {
+														group.Add(jen.Id("UseInsecureProtocol").Op(":").Id(fieldName).Dot("client").Dot("UseInsecureProtocol").Call())
+														group.Add(jen.Id("HostFreezeDuration").Op(":").Id(fieldName).Dot("client").Dot("GetHostFreezeDuration").Call())
+														group.Add(jen.Id("Resolver").Op(":").Id(fieldName).Dot("client").Dot("GetResolver").Call())
+														group.Add(jen.Id("Chooser").Op(":").Id(fieldName).Dot("client").Dot("GetChooser").Call())
+														group.Add(jen.Id("BeforeSign").Op(":").Id(fieldName).Dot("client").Dot("GetBeforeSignCallback").Call())
+														group.Add(jen.Id("AfterSign").Op(":").Id(fieldName).Dot("client").Dot("GetAfterSignCallback").Call())
+														group.Add(jen.Id("SignError").Op(":").Id(fieldName).Dot("client").Dot("GetSignErrorCallback").Call())
+														group.Add(jen.Id("BeforeResolve").Op(":").Id(fieldName).Dot("client").Dot("GetBeforeResolveCallback").Call())
+														group.Add(jen.Id("AfterResolve").Op(":").Id(fieldName).Dot("client").Dot("GetAfterResolveCallback").Call())
+														group.Add(jen.Id("ResolveError").Op(":").Id(fieldName).Dot("client").Dot("GetResolveErrorCallback").Call())
+														group.Add(jen.Id("BeforeBackoff").Op(":").Id(fieldName).Dot("client").Dot("GetBeforeBackoffCallback").Call())
+														group.Add(jen.Id("AfterBackoff").Op(":").Id(fieldName).Dot("client").Dot("GetAfterBackoffCallback").Call())
+														group.Add(jen.Id("BeforeRequest").Op(":").Id(fieldName).Dot("client").Dot("GetBeforeRequestCallback").Call())
+														group.Add(jen.Id("AfterResponse").Op(":").Id(fieldName).Dot("client").Dot("GetAfterResponseCallback").Call())
+													}),
+											)
+											group.Add(
+												jen.If(
+													jen.Id("hostRetryConfig").Op(":=").Id(fieldName).Dot("client").Dot("GetHostRetryConfig").Call(),
+													jen.Id("hostRetryConfig").Op("!=").Nil(),
+												).BlockFunc(func(group *jen.Group) {
+													group.Id("allRegionsOptions").Dot("RetryMax").Op("=").Id("hostRetryConfig").Dot("RetryMax")
+													group.Id("allRegionsOptions").Dot("Backoff").Op("=").Id("hostRetryConfig").Dot("Backoff")
+												}),
+											)
+											group.Add(jen.Id("credentials").Op(":=").Id("innerRequest").Dot("Credentials"))
+											group.Add(jen.If(jen.Id("credentials").Op("==").Nil()).BlockFunc(func(group *jen.Group) {
+												group.Add(jen.Id("credentials").Op("=").Id(fieldName).Dot("client").Dot("GetCredentials").Call())
+											}))
+											group.Add(
+												jen.If(
+													jen.List(jen.Id("req").Dot("Region"), jen.Err()).
+														Op("=").
+														Qual(PackageNameRegion, "NewAllRegionsProvider").
+														Call(jen.Id("credentials"), jen.Id("bucketHosts"), jen.Op("&").Id("allRegionsOptions")),
+													jen.Err().Op("!=").Nil(),
+												).BlockFunc(func(group *jen.Group) {
+													group.Add(jen.Return(jen.Nil(), jen.Err()))
+												}),
+											)
+										}),
 									)
-								}),
-							)
+								})
+								if !isStorageAPIs() {
+									group.Add(ifBucketIsEmptyStmt)
+								} else if description.isApiService() {
+									group.Add(ifBucketIsNotEmptyStmt).Else().Block(ifBucketIsEmptyStmt)
+								} else {
+									group.Add(ifBucketIsNotEmptyStmt)
+								}
+							}
 						}),
 				)
 				if description.Request.Authorization.ToAuthorization() == AuthorizationNone {
@@ -774,6 +879,15 @@ func (description *ApiDetailedDescription) getPathSuffixSegments() []string {
 func (description *ApiDetailedDescription) isBucketService() bool {
 	for _, service := range description.ServiceNames {
 		if service == ServiceNameBucket {
+			return true
+		}
+	}
+	return false
+}
+
+func (description *ApiDetailedDescription) isApiService() bool {
+	for _, service := range description.ServiceNames {
+		if service == ServiceNameApi {
 			return true
 		}
 	}

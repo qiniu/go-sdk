@@ -178,7 +178,14 @@ func (pp *PathParams) addBuildFunc(group *jen.Group, structName string) error {
 			Params().
 			Params(jen.Index().Add(jen.String()), jen.Error()).
 			BlockFunc(func(group *jen.Group) {
-				group.Add(jen.Var().Id("allSegments").Index().Add(jen.String()))
+				guessPathSegmentsCount := 0
+				for _, namedPathParam := range pp.Named {
+					guessPathSegmentsCount += 1
+					if namedPathParam.PathSegment != "" {
+						guessPathSegmentsCount += 1
+					}
+				}
+				group.Add(jen.Id("allSegments").Op(":=").Make(jen.Index().Add(jen.String()), jen.Lit(0), jen.Lit(guessPathSegmentsCount)))
 				for _, namedPathParam := range pp.Named {
 					var (
 						code                jen.Code
