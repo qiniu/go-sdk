@@ -12,3 +12,4 @@ staticcheck:
 
 generate:
 	go generate ./storagev2/
+	go generate ./iam/
