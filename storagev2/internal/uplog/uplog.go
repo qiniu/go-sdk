@@ -9,7 +9,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/matishsiao/goInfo"
+	sysinfo "github.com/elastic/go-sysinfo"
 )
 
 type (
@@ -66,8 +66,8 @@ var (
 
 func getOsVersion() string {
 	osVersionOnce.Do(func() {
-		if osInfo, err := goInfo.GetInfo(); err == nil {
-			osVersion = osInfo.Core
+		if hostInfo, err := sysinfo.Host(); err == nil {
+			osVersion = hostInfo.Info().KernelVersion
 		}
 	})
 	return osVersion
