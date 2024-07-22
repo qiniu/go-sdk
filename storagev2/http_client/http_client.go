@@ -235,6 +235,7 @@ func (httpClient *Client) Do(ctx context.Context, request *Request) (*http.Respo
 	if err != nil {
 		return nil, err
 	}
+	req = clientv2.WithInterceptors(req, clientv2.NewAntiHijackingInterceptor())
 	if !isSignatureDisabled(ctx) {
 		if upTokenProvider := request.UpToken; upTokenProvider != nil {
 			req = clientv2.WithInterceptors(req, clientv2.NewUpTokenInterceptor(clientv2.UpTokenConfig{

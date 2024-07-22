@@ -29,6 +29,7 @@ func TestHttpClient(t *testing.T) {
 		if auth := r.Header.Get("Authorization"); !strings.HasPrefix(auth, "Qiniu TestAk:") {
 			t.Fatalf("Unexpected authorization: %s", auth)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.WriteHeader(http.StatusInternalServerError)
 		io.WriteString(w, "test error")
 	})
@@ -41,6 +42,7 @@ func TestHttpClient(t *testing.T) {
 		if auth := r.Header.Get("Authorization"); !strings.HasPrefix(auth, "Qiniu TestAk:") {
 			t.Fatalf("Unexpected authorization: %s", auth)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.WriteHeader(http.StatusInternalServerError)
 		io.WriteString(w, "test error")
 	})
@@ -53,6 +55,7 @@ func TestHttpClient(t *testing.T) {
 		if auth := r.Header.Get("Authorization"); !strings.HasPrefix(auth, "Qiniu TestAk:") {
 			t.Fatalf("Unexpected authorization: %s", auth)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.WriteHeader(http.StatusInternalServerError)
 		io.WriteString(w, "test error")
 	})
@@ -107,6 +110,7 @@ func TestHttpClientJson(t *testing.T) {
 		if auth := r.Header.Get("Authorization"); !strings.HasPrefix(auth, "Qiniu TestAk:") {
 			t.Fatalf("Unexpected authorization: %s", auth)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		io.WriteString(w, "{\"Test\":\"AccessKey\"}")
 	})
 	server_1 := httptest.NewServer(mux_1)

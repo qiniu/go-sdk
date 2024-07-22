@@ -138,6 +138,7 @@ func TestDoOperations(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.Write(respBody)
 	})
 	server := httptest.NewServer(mux)
@@ -221,6 +222,7 @@ func TestDoOperationsRetries(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.Write(respBody)
 	})
 	server := httptest.NewServer(mux)
@@ -304,6 +306,7 @@ func TestDoOperationsDontRetry(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.Write(respBody)
 	})
 	server := httptest.NewServer(mux)
@@ -461,6 +464,7 @@ func TestWorkersManagerDoOperations573(t *testing.T) {
 		if err := r.ParseForm(); err != nil {
 			t.Fatal(err)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.WriteHeader(573)
 	})
 	server := httptest.NewServer(mux)

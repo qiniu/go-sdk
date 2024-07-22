@@ -2,6 +2,7 @@ package retrier
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/url"
@@ -108,6 +109,8 @@ func IsErrorRetryable(err error) bool {
 	}
 }
 
+var ErrMaliciousResponse = errors.New("malicious response")
+
 func getRetryDecisionForError(err error) RetryDecision {
 	if err == nil {
 		return DontRetry
@@ -139,6 +142,8 @@ func getRetryDecisionForError(err error) RetryDecision {
 	unwrapedErr := unwrapUnderlyingError(err)
 	if unwrapedErr == context.DeadlineExceeded {
 		return DontRetry
+	} else if unwrapedErr == ErrMaliciousResponse {
+		return RetryRequest
 	} else if os.IsTimeout(unwrapedErr) {
 		return RetryRequest
 	} else if dnsError, ok := unwrapedErr.(*net.DNSError); ok && isDnsNotFoundError(dnsError) {

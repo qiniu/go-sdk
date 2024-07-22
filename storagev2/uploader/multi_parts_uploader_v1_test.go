@@ -75,6 +75,7 @@ func TestMultiPartsUploaderV1(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.Write(jsonBody)
 	}).Methods(http.MethodPost)
 	serveMux.HandleFunc("/mkblk/1048576", func(w http.ResponseWriter, r *http.Request) {
@@ -102,6 +103,7 @@ func TestMultiPartsUploaderV1(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.Write(jsonBody)
 	}).Methods(http.MethodPost)
 	serveMux.PathPrefix("/mkfile/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -190,6 +192,7 @@ func TestMultiPartsUploaderV1(t *testing.T) {
 		if string(actualBody) != "testctx1,testctx2" {
 			t.Fatalf("unexpected body")
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.Write([]byte(`{"ok":true}`))
 	}).Methods(http.MethodPost)
 	server = httptest.NewServer(serveMux)
@@ -384,6 +387,7 @@ func TestMultiPartsUploaderV1Resuming(t *testing.T) {
 		if string(actualBody) != "testctx1,testctx2" {
 			t.Fatalf("unexpected body")
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.Write([]byte(`{"ok":true}`))
 	}).Methods(http.MethodPost)
 	server = httptest.NewServer(serveMux)

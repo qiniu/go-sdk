@@ -25,6 +25,7 @@ func TestDirectoryListEntriesWithoutRecurse(t *testing.T) {
 		switch r.Method {
 		case http.MethodGet:
 			if r.URL.Path == "/list" {
+				rw.Header().Add("X-ReqId", "fakereqid")
 				rw.Header().Set("Content-Type", "application/json")
 				var (
 					jsonData []byte
@@ -142,6 +143,7 @@ func TestDirectoryListEntriesWithRecurse(t *testing.T) {
 		case http.MethodGet:
 			if r.URL.Path == "/list" {
 				rw.Header().Set("Content-Type", "application/json")
+				rw.Header().Add("X-ReqId", "fakereqid")
 				var (
 					jsonData []byte
 					err      error
@@ -295,6 +297,7 @@ func TestDirectoryListEntriesWithSkipDir(t *testing.T) {
 		case http.MethodGet:
 			if r.URL.Path == "/list" {
 				rw.Header().Set("Content-Type", "application/json")
+				rw.Header().Add("X-ReqId", "fakereqid")
 				var (
 					jsonData []byte
 					err      error

@@ -59,6 +59,7 @@ func TestDownloadManagerDownloadDirectory(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.Write(jsonData)
 	})
 	rsfServer := httptest.NewServer(rsfMux)
@@ -68,6 +69,7 @@ func TestDownloadManagerDownloadDirectory(t *testing.T) {
 	ioMux.HandleFunc("/test1/file1", func(w http.ResponseWriter, r *http.Request) {
 		rander := rand.New(rand.NewSource(time.Now().UnixNano()))
 		w.Header().Set("Accept-Ranges", "bytes")
+		w.Header().Add("X-ReqId", "fakereqid")
 		switch r.Method {
 		case http.MethodHead:
 			w.Header().Set("Content-Type", "application/json")
@@ -85,6 +87,7 @@ func TestDownloadManagerDownloadDirectory(t *testing.T) {
 	ioMux.HandleFunc("/test2/file2", func(w http.ResponseWriter, r *http.Request) {
 		rander := rand.New(rand.NewSource(time.Now().UnixNano()))
 		w.Header().Set("Accept-Ranges", "bytes")
+		w.Header().Add("X-ReqId", "fakereqid")
 		switch r.Method {
 		case http.MethodHead:
 			w.Header().Set("Content-Type", "application/json")

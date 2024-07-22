@@ -27,6 +27,7 @@ func TestBucketRegionsQuery(t *testing.T) {
 		if gotBucketName := r.URL.Query().Get("bucket"); gotBucketName != bucketName {
 			t.Fatalf("Unexpected bucket: %s", gotBucketName)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		if _, err := io.WriteString(w, mockUcQueryResponseBody()); err != nil {
 			t.Fatal(err)
 		}

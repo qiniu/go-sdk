@@ -26,6 +26,7 @@ func TestObjectLister(t *testing.T) {
 		case http.MethodGet:
 			if r.URL.Path == "/list" {
 				rw.Header().Set("Content-Type", "application/json")
+				rw.Header().Add("X-ReqId", "fakereqid")
 				var (
 					jsonData []byte
 					err      error

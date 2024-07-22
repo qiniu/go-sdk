@@ -45,6 +45,7 @@ func TestObjectStat(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				rw.Header().Add("X-ReqId", "fakereqid")
 				rw.Write(jsonData)
 			} else {
 				t.Fatalf("unexpected path")
@@ -114,6 +115,7 @@ func TestObjectMoveTo(t *testing.T) {
 			if !strings.HasPrefix(r.Header.Get("Authorization"), "Qiniu testak:") {
 				t.Fatalf("unexpected authorization")
 			}
+			rw.Header().Add("X-ReqId", "fakereqid")
 		default:
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -142,6 +144,7 @@ func TestObjectCopyTo(t *testing.T) {
 			if !strings.HasPrefix(r.Header.Get("Authorization"), "Qiniu testak:") {
 				t.Fatalf("unexpected authorization")
 			}
+			rw.Header().Add("X-ReqId", "fakereqid")
 		default:
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -170,6 +173,7 @@ func TestObjectDelete(t *testing.T) {
 			if !strings.HasPrefix(r.Header.Get("Authorization"), "Qiniu testak:") {
 				t.Fatalf("unexpected authorization")
 			}
+			rw.Header().Add("X-ReqId", "fakereqid")
 		default:
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -198,6 +202,7 @@ func TestObjectRestore(t *testing.T) {
 			if !strings.HasPrefix(r.Header.Get("Authorization"), "Qiniu testak:") {
 				t.Fatalf("unexpected authorization")
 			}
+			rw.Header().Add("X-ReqId", "fakereqid")
 		default:
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -226,6 +231,7 @@ func TestObjectSetStorageClass(t *testing.T) {
 			if !strings.HasPrefix(r.Header.Get("Authorization"), "Qiniu testak:") {
 				t.Fatalf("unexpected authorization")
 			}
+			rw.Header().Add("X-ReqId", "fakereqid")
 		default:
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -254,6 +260,7 @@ func TestObjectSetStatus(t *testing.T) {
 			if !strings.HasPrefix(r.Header.Get("Authorization"), "Qiniu testak:") {
 				t.Fatalf("unexpected authorization")
 			}
+			rw.Header().Add("X-ReqId", "fakereqid")
 		default:
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -285,6 +292,7 @@ func TestObjectSetMetadata(t *testing.T) {
 			if !strings.HasPrefix(r.Header.Get("Authorization"), "Qiniu testak:") {
 				t.Fatalf("unexpected authorization")
 			}
+			rw.Header().Add("X-ReqId", "fakereqid")
 		default:
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -317,6 +325,7 @@ func TestObjectSetLifeCycle(t *testing.T) {
 			if !strings.HasPrefix(r.Header.Get("Authorization"), "Qiniu testak:") {
 				t.Fatalf("unexpected authorization")
 			}
+			rw.Header().Add("X-ReqId", "fakereqid")
 		default:
 			t.Fatalf("unexpected method: %s", r.Method)
 		}

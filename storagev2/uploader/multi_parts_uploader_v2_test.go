@@ -70,6 +70,7 @@ func TestMultiPartsUploaderV2(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.Write(jsonBytes)
 	}).Methods(http.MethodPost)
 	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadID}/{partNumber}", func(w http.ResponseWriter, r *http.Request) {
@@ -130,6 +131,7 @@ func TestMultiPartsUploaderV2(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.Write(jsonBody)
 	}).Methods(http.MethodPut)
 	serveMux.HandleFunc("/buckets/{bucketName}/objects/{encodedObjectName}/uploads/{uploadID}", func(w http.ResponseWriter, r *http.Request) {
@@ -185,6 +187,7 @@ func TestMultiPartsUploaderV2(t *testing.T) {
 		} else if body.CustomVars["x:c"] != "d" {
 			t.Fatalf("unexpected x:c")
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.Write([]byte(`{"ok":true}`))
 	}).Methods(http.MethodPost)
 	server := httptest.NewServer(serveMux)
@@ -345,6 +348,7 @@ func TestMultiPartsUploaderV2Resuming(t *testing.T) {
 		} else if body.CustomVars["x:c"] != "d" {
 			t.Fatalf("unexpected x:c")
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.Write([]byte(`{"ok":true}`))
 	}).Methods(http.MethodPost)
 	server := httptest.NewServer(serveMux)

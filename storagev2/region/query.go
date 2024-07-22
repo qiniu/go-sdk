@@ -335,6 +335,7 @@ func makeBucketQueryClient(
 	afterResponse func(*http.Response, *retrier.RetrierOptions, error),
 ) clientv2.Client {
 	is := []clientv2.Interceptor{
+		clientv2.NewAntiHijackingInterceptor(),
 		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
 			RetryMax:           len(bucketHosts.Preferred) + len(bucketHosts.Alternative),
 			HostFreezeDuration: hostFreezeDuration,

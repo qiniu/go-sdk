@@ -84,6 +84,7 @@ func TestFormUploader(t *testing.T) {
 				t.Fatalf("unexpected file content")
 			}
 		}
+		w.Header().Add("x-reqid", "fakereqid")
 		w.Write([]byte(`{"ok":true}`))
 	})
 	server := httptest.NewServer(serveMux)
@@ -189,6 +190,7 @@ func TestFormUploaderRetry(t *testing.T) {
 				t.Fatalf("unexpected file content")
 			}
 		}
+		w.Header().Add("x-reqid", "fakereqid")
 		w.Write([]byte(`{"ok":true}`))
 	})
 	server_1 := httptest.NewServer(serveMux_1)
@@ -200,6 +202,7 @@ func TestFormUploaderRetry(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
+		w.Header().Add("x-reqid", "fakereqid")
 		w.WriteHeader(599)
 	})
 	server_2 := httptest.NewServer(serveMux_2)
@@ -211,6 +214,7 @@ func TestFormUploaderRetry(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
+		w.Header().Add("x-reqid", "fakereqid")
 		w.WriteHeader(504)
 	})
 	server_3 := httptest.NewServer(serveMux_3)
@@ -223,6 +227,7 @@ func TestFormUploaderRetry(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
+		w.Header().Add("x-reqid", "fakereqid")
 		w.WriteHeader(612)
 	})
 	server_4 := httptest.NewServer(serveMux_4)

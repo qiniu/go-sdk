@@ -61,6 +61,7 @@ func TestDefaultSrcURLsProvider(t *testing.T) {
 		if gotBucketName := r.URL.Query().Get("bucket"); gotBucketName != bucketName {
 			t.Fatalf("Unexpected bucket: %s", gotBucketName)
 		}
+		w.Header().Add("x-reqid", "fakereqid")
 		if _, err := io.WriteString(w, `
 {
 	"hosts": [
@@ -123,6 +124,7 @@ func TestDomainsQueryURLsProvider(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		w.Header().Add("x-reqid", "fakereqid")
 		w.Write(bytes)
 	})
 	server := httptest.NewServer(mux)
