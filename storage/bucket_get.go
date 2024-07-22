@@ -114,7 +114,11 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 	if err != nil {
 		return nil, err
 	}
-	urlsProvider := downloader.NewDefaultSrcURLsProvider(m.Mac.AccessKey, &downloader.DefaultSrcURLsProviderOptions{
+	var accessKey string
+	if m.Mac != nil {
+		accessKey = m.Mac.AccessKey
+	}
+	urlsProvider := downloader.NewDefaultSrcURLsProvider(accessKey, &downloader.DefaultSrcURLsProviderOptions{
 		BucketRegionsQueryOptions: region.BucketRegionsQueryOptions{},
 		BucketHosts:               bucketHosts,
 	})

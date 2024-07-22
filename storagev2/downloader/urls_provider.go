@@ -247,7 +247,14 @@ func (g *defaultSrcURLsProvider) GetURLsIter(ctx context.Context, objectName str
 		return nil, err
 	}
 
-	regions, err := g.query.Query(g.accessKey, options.BucketName).GetRegions(ctx)
+	accessKey := g.accessKey
+	if accessKey == "" {
+		if defaultCreds := credentials.Default(); defaultCreds != nil {
+			accessKey = defaultCreds.AccessKey
+		}
+	}
+
+	regions, err := g.query.Query(accessKey, options.BucketName).GetRegions(ctx)
 	if err != nil {
 		return nil, err
 	}
