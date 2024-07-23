@@ -103,9 +103,9 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 
 	// 可能会被重试多次
 	for i := 0; ; i++ {
-		req, chosenIPs = interceptor.choose(req, resolvedIPs, hostname)
 		// Clone 防止后面 Handler 处理对 req 有污染
 		reqBefore := cloneReq(req)
+		req, chosenIPs = interceptor.choose(req, resolvedIPs, hostname)
 		resp, err = interceptor.callHandler(req, &retrier.RetrierOptions{Attempts: i}, handler)
 
 		retryDecision := interceptor.config.getRetryDecision(reqBefore, resp, err, i)
