@@ -24,7 +24,7 @@ import (
 type (
 	// 批处理执行器
 	BatchOpsExecutor interface {
-		ExecuteBatchOps(internal_context.Context, []Operation, *apis.Storage) error
+		ExecuteBatchOps(context.Context, []Operation, *apis.Storage) error
 	}
 
 	// 串行批处理执行器选项
@@ -95,7 +95,7 @@ func NewSerialBatchOpsExecutor(options *SerialBatchOpsExecutorOptions) BatchOpsE
 	return &serialBatchOpsExecutor{options}
 }
 
-func (executor *serialBatchOpsExecutor) ExecuteBatchOps(ctx internal_context.Context, operations []Operation, storage *apis.Storage) error {
+func (executor *serialBatchOpsExecutor) ExecuteBatchOps(ctx context.Context, operations []Operation, storage *apis.Storage) error {
 	ops := make([]*operation, len(operations))
 	for i, op := range operations {
 		ops[i] = &operation{Operation: op}
@@ -112,7 +112,7 @@ func NewConcurrentBatchOpsExecutor(options *ConcurrentBatchOpsExecutorOptions) B
 	return &concurrentBatchOpsExecutor{options}
 }
 
-func (executor *concurrentBatchOpsExecutor) ExecuteBatchOps(ctx internal_context.Context, operations []Operation, storage *apis.Storage) error {
+func (executor *concurrentBatchOpsExecutor) ExecuteBatchOps(ctx context.Context, operations []Operation, storage *apis.Storage) error {
 	rm, err := newRequestsManager(
 		storage,
 		executor.options.InitBatchSize,
