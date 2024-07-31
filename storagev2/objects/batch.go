@@ -69,6 +69,8 @@ type (
 		ticker                                                          *time.Ticker
 		resetTicker                                                     chan struct{}
 		cancelTicker                                                    internal_context.CancelCauseFunc
+		lastDecreaseBatchSizeTime                                       time.Time
+		lastDecreaseBatchSizeTimeMutex                                  sync.Mutex
 		waitGroup                                                       sync.WaitGroup
 	}
 
@@ -83,6 +85,8 @@ type (
 		ticker                                *time.Ticker
 		resetTicker                           chan struct{}
 		cancelTickerFunc                      internal_context.CancelCauseFunc
+		lastResetTickerTime                   time.Time
+		lastResetTickerTimeMutex              sync.Mutex
 		timerWaitGroup, asyncWorkersWaitGroup sync.WaitGroup
 	}
 )
@@ -254,6 +258,17 @@ func (rm *requestsManager) isOperationsEmpty() bool {
 	return len(rm.operations) == 0
 }
 
+func (rm *requestsManager) handleTimeoutError() {
+	rm.lastDecreaseBatchSizeTimeMutex.Lock()
+	defer rm.lastDecreaseBatchSizeTimeMutex.Unlock()
+
+	canDecrease := time.Since(rm.lastDecreaseBatchSizeTime) > time.Second
+	if canDecrease {
+		rm.decreaseBatchSize()
+		rm.lastDecreaseBatchSizeTime = time.Now()
+	}
+}
+
 func (rm *requestsManager) decreaseBatchSize() {
 	rm.lock.Lock()
 	defer rm.lock.Unlock()
@@ -366,7 +381,7 @@ func (wm *workersManager) doOperationsSync() error {
 			if operations, err := wm.doOperations(wm.parentCtx, operations); err != nil {
 				wm.requestsManager.putBackOperations(operations)
 				if isTimeoutError(err) {
-					wm.requestsManager.decreaseBatchSize()
+					wm.requestsManager.handleTimeoutError()
 				} else {
 					wm.setError(err)
 					return err
@@ -385,13 +400,12 @@ func (wm *workersManager) asyncWorker(ctx internal_context.Context, id uint) {
 			if operations, err := wm.doOperations(ctx, operations); err != nil {
 				wm.requestsManager.putBackOperations(operations)
 				if isTimeoutError(err) { // 超时，说明 batchSize 过大
-					wm.requestsManager.decreaseBatchSize()
-				} else if isOutOfQuotaError(err) { // 并发度过高，自杀减少并发度
-					wm.ticker.Stop()
-					wm.ticker = time.NewTicker(wm.addWorkerInterval)
-					wm.resetTicker <- struct{}{}
-					wm.killWorker(id, err)
-					return
+					wm.requestsManager.handleTimeoutError()
+				} else if isOutOfQuotaError(err) {
+					// 并发度过高，自杀减少并发度
+					if wm.handleOutOfQuotaError(id, err) {
+						return
+					}
 				} else {
 					wm.setError(err)
 					return
@@ -401,6 +415,21 @@ func (wm *workersManager) asyncWorker(ctx internal_context.Context, id uint) {
 			break
 		}
 	}
+}
+
+func (wm *workersManager) handleOutOfQuotaError(id uint, err error) bool {
+	wm.lastResetTickerTimeMutex.Lock()
+	defer wm.lastResetTickerTimeMutex.Unlock()
+
+	canReset := time.Since(wm.lastResetTickerTime) > time.Second
+	if canReset { // 这里禁止并行杀死 worker，防止杀死速度过快
+		wm.ticker.Stop()
+		wm.ticker = time.NewTicker(wm.addWorkerInterval)
+		wm.resetTicker <- struct{}{}
+		wm.killWorker(id, err)
+		wm.lastResetTickerTime = time.Now()
+	}
+	return canReset
 }
 
 func (wm *workersManager) doOperations(ctx internal_context.Context, operations []*operation) ([]*operation, error) {
