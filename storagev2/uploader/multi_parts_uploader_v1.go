@@ -228,3 +228,15 @@ func (initialized *multiPartsUploaderV1InitializedParts) Close() error {
 func (uploadedPart multiPartsUploaderV1UploadedPart) Offset() uint64 {
 	return uploadedPart.offset
 }
+
+func (uploadedPart multiPartsUploaderV1UploadedPart) Size() uint64 {
+	return uploadedPart.size
+}
+
+func (uploadedPart multiPartsUploaderV1UploadedPart) Crc32() uint32 {
+	return uploadedPart.crc32
+}
+
+func (uploadedPart multiPartsUploaderV1UploadedPart) Ctx() string {
+	return uploadedPart.ctx
+}

@@ -309,6 +309,22 @@ func (uploadedPart multiPartsUploaderV2UploadedPart) Offset() uint64 {
 	return uploadedPart.offset
 }
 
+func (uploadedPart multiPartsUploaderV2UploadedPart) PartNumber() uint64 {
+	return uploadedPart.partNumber
+}
+
+func (uploadedPart multiPartsUploaderV2UploadedPart) Size() uint64 {
+	return uploadedPart.size
+}
+
+func (uploadedPart multiPartsUploaderV2UploadedPart) Etag() string {
+	return uploadedPart.etag
+}
+
+func (uploadedPart multiPartsUploaderV2UploadedPart) MD5() [md5.Size]byte {
+	return uploadedPart.md5
+}
+
 func md5FromReadSeeker(r io.ReadSeeker) (md5Result [md5.Size]byte, err error) {
 	var offset int64
 
