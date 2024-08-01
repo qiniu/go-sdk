@@ -46,8 +46,14 @@ type (
 
 	// 已经上传的分片
 	UploadedPart interface {
+		// 分片编号
+		PartNumber() uint64
+
 		// 分片偏移量
 		Offset() uint64
+
+		// 分片大小
+		PartSize() uint64
 	}
 
 	// 分片上传调度器

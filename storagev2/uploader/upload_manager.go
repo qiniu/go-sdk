@@ -151,13 +151,13 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 					directoryOptions.BeforeObjectUpload(path, &objectOptions)
 				}
 				if directoryOptions.OnUploadingProgress != nil {
-					objectOptions.OnUploadingProgress = func(uploaded, totalSize uint64) {
-						directoryOptions.OnUploadingProgress(path, uploaded, totalSize)
+					objectOptions.OnUploadingProgress = func(progress *UploadingProgress) {
+						directoryOptions.OnUploadingProgress(path, progress)
 					}
 				}
 				err = uploadManager.UploadFile(ctx, path, &objectOptions, nil)
 				if err == nil && directoryOptions.OnObjectUploaded != nil {
-					directoryOptions.OnObjectUploaded(path, uint64(info.Size()))
+					directoryOptions.OnObjectUploaded(path, &UploadedObjectInfo{Size: uint64(info.Size())})
 				}
 			} else if directoryOptions.ShouldCreateDirectory && info.IsDir() {
 				if !strings.HasSuffix(objectName, pathSeparator) {

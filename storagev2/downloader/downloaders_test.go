@@ -103,12 +103,12 @@ func TestConcurrentDownloaderWithSinglePart(t *testing.T) {
 		downloader.NewURLsIter([]*url.URL{url1, url2, url3}),
 		destination.NewWriteCloserDestination(&buf, ""),
 		&downloader.DestinationDownloadOptions{
-			OnDownloadingProgress: func(downloaded, totalSize uint64) {
-				if downloaded < lastDownloaded {
+			OnDownloadingProgress: func(progress *downloader.DownloadingProgress) {
+				if progress.Downloaded < lastDownloaded {
 					t.Fatalf("unexpected downloaded progress")
 				}
-				lastDownloaded = downloaded
-				if totalSize != 1024*1024 {
+				lastDownloaded = progress.Downloaded
+				if progress.TotalSize != 1024*1024 {
 					t.Fatalf("unexpected downloaded progress")
 				}
 			},
@@ -200,12 +200,12 @@ func TestConcurrentDownloaderWithCompression(t *testing.T) {
 		context.Background(),
 		downloader.NewURLsIter([]*url.URL{url1}),
 		destination.NewWriteCloserDestination(&buf, ""), &downloader.DestinationDownloadOptions{
-			OnDownloadingProgress: func(downloaded, totalSize uint64) {
-				if downloaded < lastDownloaded {
+			OnDownloadingProgress: func(progress *downloader.DownloadingProgress) {
+				if progress.Downloaded < lastDownloaded {
 					t.Fatalf("unexpected downloaded progress")
 				}
-				lastDownloaded = downloaded
-				if totalSize != 0 {
+				lastDownloaded = progress.Downloaded
+				if progress.TotalSize != 0 {
 					t.Fatalf("unexpected downloaded progress")
 				}
 			},
@@ -285,12 +285,12 @@ func TestConcurrentDownloaderWithMultipleParts(t *testing.T) {
 		downloader.NewURLsIter([]*url.URL{url1}),
 		dest,
 		&downloader.DestinationDownloadOptions{
-			OnDownloadingProgress: func(downloaded, totalSize uint64) {
-				if downloaded < atomic.LoadUint64(&lastDownloaded) {
+			OnDownloadingProgress: func(progress *downloader.DownloadingProgress) {
+				if progress.Downloaded < atomic.LoadUint64(&lastDownloaded) {
 					t.Fatalf("unexpected downloaded progress")
 				}
-				atomic.StoreUint64(&lastDownloaded, downloaded)
-				if totalSize != SIZE {
+				atomic.StoreUint64(&lastDownloaded, progress.Downloaded)
+				if progress.TotalSize != SIZE {
 					t.Fatalf("unexpected downloaded progress")
 				}
 			},
@@ -383,12 +383,12 @@ func TestConcurrentDownloaderWithMultiplePartsAndRange(t *testing.T) {
 		dest,
 		&downloader.DestinationDownloadOptions{
 			Header: http.Header{"Range": []string{fmt.Sprintf("bytes=%d-", SIZE-REQUEST_SIZE)}},
-			OnDownloadingProgress: func(downloaded, totalSize uint64) {
-				if downloaded < atomic.LoadUint64(&lastDownloaded) {
+			OnDownloadingProgress: func(progress *downloader.DownloadingProgress) {
+				if progress.Downloaded < atomic.LoadUint64(&lastDownloaded) {
 					t.Fatalf("unexpected downloaded progress")
 				}
-				atomic.StoreUint64(&lastDownloaded, downloaded)
-				if totalSize != REQUEST_SIZE {
+				atomic.StoreUint64(&lastDownloaded, progress.Downloaded)
+				if progress.TotalSize != REQUEST_SIZE {
 					t.Fatalf("unexpected downloaded progress")
 				}
 			},
@@ -533,12 +533,12 @@ func TestConcurrentDownloaderWithResumableRecorder(t *testing.T) {
 		downloader.NewURLsIter([]*url.URL{url1}),
 		dest,
 		&downloader.DestinationDownloadOptions{
-			OnDownloadingProgress: func(downloaded, totalSize uint64) {
-				if downloaded < lastDownloaded {
+			OnDownloadingProgress: func(progress *downloader.DownloadingProgress) {
+				if progress.Downloaded < lastDownloaded {
 					t.Fatalf("unexpected downloaded progress")
 				}
-				lastDownloaded = downloaded
-				if totalSize != 10*1024*1024 {
+				lastDownloaded = progress.Downloaded
+				if progress.TotalSize != 10*1024*1024 {
 					t.Fatalf("unexpected downloaded progress")
 				}
 			},

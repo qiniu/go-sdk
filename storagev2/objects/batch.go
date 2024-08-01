@@ -398,6 +398,7 @@ func (wm *workersManager) asyncWorker(ctx internal_context.Context, id uint) {
 	for getCtxError(wm.parentCtx) == nil {
 		if operations := wm.requestsManager.takeOperations(); len(operations) > 0 {
 			if operations, err := wm.doOperations(ctx, operations); err != nil {
+				// 确定错误是否可以重试
 				wm.requestsManager.putBackOperations(operations)
 				if isTimeoutError(err) { // 超时，说明 batchSize 过大
 					wm.requestsManager.handleTimeoutError()

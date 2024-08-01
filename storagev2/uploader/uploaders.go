@@ -77,8 +77,14 @@ func (uploader formUploader) UploadFile(ctx context.Context, path string, object
 	if err != nil {
 		return err
 	}
+	var onRequestProgress func(uploaded, totalSize uint64)
+	if onUploadingProgress := objectOptions.OnUploadingProgress; onUploadingProgress != nil {
+		onRequestProgress = func(uploaded, totalSize uint64) {
+			onUploadingProgress(&UploadingProgress{Uploaded: uploaded, TotalSize: totalSize})
+		}
+	}
 	return uploader.upload(ctx, file, fileSize, upToken, objectOptions.BucketName, objectOptions.ObjectName, objectOptions.FileName, objectOptions.ContentType,
-		crc32, mergeCustomVarsAndMetadata(objectOptions.Metadata, objectOptions.CustomVars), objectOptions.OnUploadingProgress, returnValue)
+		crc32, mergeCustomVarsAndMetadata(objectOptions.Metadata, objectOptions.CustomVars), onRequestProgress, returnValue)
 }
 
 func (uploader formUploader) UploadReader(ctx context.Context, reader io.Reader, objectOptions *ObjectOptions, returnValue interface{}) error {
@@ -110,8 +116,14 @@ func (uploader formUploader) UploadReader(ctx context.Context, reader io.Reader,
 	if err != nil {
 		return err
 	}
+	var onRequestProgress func(uploaded, totalSize uint64)
+	if onUploadingProgress := objectOptions.OnUploadingProgress; onUploadingProgress != nil {
+		onRequestProgress = func(uploaded, totalSize uint64) {
+			onUploadingProgress(&UploadingProgress{Uploaded: uploaded, TotalSize: totalSize})
+		}
+	}
 	return uploader.upload(ctx, rsc, size, upToken, objectOptions.BucketName, objectOptions.ObjectName, objectOptions.FileName, objectOptions.ContentType,
-		crc32, mergeCustomVarsAndMetadata(objectOptions.Metadata, objectOptions.CustomVars), objectOptions.OnUploadingProgress, returnValue)
+		crc32, mergeCustomVarsAndMetadata(objectOptions.Metadata, objectOptions.CustomVars), onRequestProgress, returnValue)
 }
 
 func (uploader formUploader) upload(
@@ -282,13 +294,14 @@ func (uploader multiPartsUploader) uploadPartsAndComplete(ctx context.Context, s
 	var uploadPartsOptions UploadPartsOptions
 	if objectOptions.OnUploadingProgress != nil {
 		progress := newUploadingPartsProgress()
-		uploadPartsOptions.OnUploadingProgress = func(partNumber, uploaded, _ uint64) {
-			progress.setPartUploadingProgress(partNumber, uploaded)
-			objectOptions.OnUploadingProgress(progress.totalUploaded(), size)
+		uploadPartsOptions.OnUploadingProgress = func(partNumber uint64, p *UploadingPartProgress) {
+			progress.setPartUploadingProgress(partNumber, p.Uploaded)
+			objectOptions.OnUploadingProgress(&UploadingProgress{Uploaded: progress.totalUploaded(), TotalSize: size})
 		}
-		uploadPartsOptions.OnPartUploaded = func(partNumber, partSize uint64) {
-			progress.partUploaded(partNumber, partSize)
-			objectOptions.OnUploadingProgress(progress.totalUploaded(), size)
+		uploadPartsOptions.OnPartUploaded = func(part UploadedPart) error {
+			progress.partUploaded(part.PartNumber(), part.PartSize())
+			objectOptions.OnUploadingProgress(&UploadingProgress{Uploaded: progress.totalUploaded(), TotalSize: size})
+			return nil
 		}
 	}
 	uploadParts, err := uploader.scheduler.UploadParts(ctx, initializedParts, src, &uploadPartsOptions)

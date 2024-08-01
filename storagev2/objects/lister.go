@@ -21,6 +21,9 @@ type (
 
 		// 获取错误信息
 		Error() error
+
+		// 获取位置标记
+		Marker() string
 	}
 
 	listerV1 struct {
@@ -61,6 +64,10 @@ func (v1 *listerV1) Next(object *ObjectDetails) bool {
 		return false
 	}
 	return true
+}
+
+func (v1 *listerV1) Marker() string {
+	return v1.marker
 }
 
 func (v1 *listerV1) callListApi() error {

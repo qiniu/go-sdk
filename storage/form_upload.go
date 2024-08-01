@@ -198,8 +198,8 @@ func (p *FormUploader) newObjectParams(upToken string, key string, hasKey bool, 
 	}
 	objectParams.Metadata, objectParams.CustomVars = splitParams(extra.Params)
 	if extra.OnProgress != nil {
-		objectParams.OnUploadingProgress = func(uploaded, fileSize uint64) {
-			extra.OnProgress(int64(fileSize), int64(uploaded))
+		objectParams.OnUploadingProgress = func(progress *uploader.UploadingProgress) {
+			extra.OnProgress(int64(progress.TotalSize), int64(progress.Uploaded))
 		}
 	}
 	return &objectParams

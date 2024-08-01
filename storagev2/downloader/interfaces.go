@@ -32,12 +32,18 @@ type (
 		Sign(context.Context, *url.URL, *SignOptions) error
 	}
 
+	// 下载进度
+	DownloadingProgress struct {
+		Downloaded uint64 // 已经下载的数据量，单位为字节
+		TotalSize  uint64 // 总数据量，单位为字节
+	}
+
 	// 目标下载选项
 	DestinationDownloadOptions struct {
 		// 对象下载附加 HTTP Header
 		Header http.Header
 		// 对象下载进度
-		OnDownloadingProgress func(downloaded, totalSize uint64)
+		OnDownloadingProgress func(*DownloadingProgress)
 		// 对象 Header 获取回调
 		OnResponseHeader func(http.Header)
 	}

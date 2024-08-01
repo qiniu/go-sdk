@@ -171,7 +171,7 @@ func (uploader *multiPartsUploaderV2) UploadPart(ctx context.Context, initialize
 		if record, ok := initializedParts.records[part.PartNumber()]; ok {
 			if record.offset == part.Offset() && record.size == part.Size() {
 				if options != nil && options.OnUploadingProgress != nil {
-					options.OnUploadingProgress(record.size, record.size)
+					options.OnUploadingProgress(&UploadingPartProgress{Uploaded: record.size, PartSize: record.size})
 				}
 				return multiPartsUploaderV2UploadedPart{
 					partNumber: record.partNumber,
@@ -191,7 +191,9 @@ func (uploader *multiPartsUploaderV2) uploadPart(ctx context.Context, initialize
 		OverwrittenRegion: initialized.multiPartsObjectOptions.RegionsProvider,
 	}
 	if options != nil && options.OnUploadingProgress != nil {
-		apisOptions.OnRequestProgress = options.OnUploadingProgress
+		apisOptions.OnRequestProgress = func(uploaded, partSize uint64) {
+			options.OnUploadingProgress(&UploadingPartProgress{Uploaded: uploaded, PartSize: partSize})
+		}
 	}
 	upToken, err := getUpToken(uploader.options.Credentials, &initialized.multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
 	if err != nil {
@@ -313,7 +315,7 @@ func (uploadedPart multiPartsUploaderV2UploadedPart) PartNumber() uint64 {
 	return uploadedPart.partNumber
 }
 
-func (uploadedPart multiPartsUploaderV2UploadedPart) Size() uint64 {
+func (uploadedPart multiPartsUploaderV2UploadedPart) PartSize() uint64 {
 	return uploadedPart.size
 }
 

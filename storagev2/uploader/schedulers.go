@@ -82,8 +82,8 @@ func (scheduler serialMultiPartsUploaderScheduler) UploadParts(ctx context.Conte
 		}
 		var uploadPartParam UploadPartOptions
 		if options != nil && options.OnUploadingProgress != nil {
-			uploadPartParam.OnUploadingProgress = func(uploaded, partSize uint64) {
-				options.OnUploadingProgress(part.PartNumber(), uploaded, part.Size())
+			uploadPartParam.OnUploadingProgress = func(progress *UploadingPartProgress) {
+				options.OnUploadingProgress(part.PartNumber(), &UploadingPartProgress{Uploaded: progress.Uploaded, PartSize: part.Size()})
 			}
 		}
 		uploadedPart, err := scheduler.uploader.UploadPart(ctx, initialized, part, &uploadPartParam)
@@ -91,7 +91,9 @@ func (scheduler serialMultiPartsUploaderScheduler) UploadParts(ctx context.Conte
 			return nil, err
 		}
 		if options != nil && options.OnPartUploaded != nil {
-			options.OnPartUploaded(part.PartNumber(), part.Size())
+			if err = options.OnPartUploaded(uploadedPart); err != nil {
+				return nil, err
+			}
 		}
 		parts = append(parts, uploadedPart)
 	}
@@ -133,10 +135,10 @@ func (scheduler concurrentMultiPartsUploaderScheduler) UploadParts(ctx context.C
 		g.Go(func() error {
 			var uploadPartParam UploadPartOptions
 			if options != nil && options.OnUploadingProgress != nil {
-				uploadPartParam.OnUploadingProgress = func(uploaded, partSize uint64) {
+				uploadPartParam.OnUploadingProgress = func(progress *UploadingPartProgress) {
 					onUploadingProgressMutex.Lock()
 					defer onUploadingProgressMutex.Unlock()
-					options.OnUploadingProgress(part.PartNumber(), uploaded, partSize)
+					options.OnUploadingProgress(part.PartNumber(), progress)
 				}
 			}
 			uploadedPart, err := scheduler.uploader.UploadPart(ctx, initialized, part, &uploadPartParam)
@@ -144,7 +146,9 @@ func (scheduler concurrentMultiPartsUploaderScheduler) UploadParts(ctx context.C
 				return err
 			}
 			if options != nil && options.OnPartUploaded != nil {
-				options.OnPartUploaded(part.PartNumber(), part.Size())
+				if err = options.OnPartUploaded(uploadedPart); err != nil {
+					return err
+				}
 			}
 
 			partsLock.Lock()

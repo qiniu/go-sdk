@@ -74,16 +74,21 @@ type (
 		BeforeObjectDownload func(objectName string, objectOptions *ObjectOptions)
 
 		// 下载进度
-		OnDownloadingProgress func(objectName string, downloaded, totalSize uint64)
+		OnDownloadingProgress func(objectName string, progress *DownloadingProgress)
 
 		// 对象下载成功后回调
-		OnObjectDownloaded func(objectName string, size uint64)
+		OnObjectDownloaded func(objectName string, info *DownloadedObjectInfo)
 
 		// 是否下载指定对象
 		ShouldDownloadObject func(objectName string) bool
 
 		// 分隔符，默认为 /
 		PathSeparator string
+	}
+
+	// 已经下载的对象信息
+	DownloadedObjectInfo struct {
+		Size uint64 // 对象大小
 	}
 
 	writeSeekCloser struct {
@@ -202,8 +207,8 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 			g.Go(func() error {
 				var destinationDownloadOptions DestinationDownloadOptions
 				if onDownloadingProgress := options.OnDownloadingProgress; onDownloadingProgress != nil {
-					destinationDownloadOptions.OnDownloadingProgress = func(downloaded, totalSize uint64) {
-						onDownloadingProgress(objectName, downloaded, totalSize)
+					destinationDownloadOptions.OnDownloadingProgress = func(progress *DownloadingProgress) {
+						onDownloadingProgress(objectName, progress)
 					}
 				}
 				objectOptions := ObjectOptions{
@@ -222,7 +227,7 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 				}
 				n, err := downloadManager.DownloadToFile(ctx, objectName, fullPath, &objectOptions)
 				if err == nil && options.OnObjectDownloaded != nil {
-					options.OnObjectDownloaded(objectName, n)
+					options.OnObjectDownloaded(objectName, &DownloadedObjectInfo{Size: n})
 				}
 				return err
 			})

@@ -133,7 +133,7 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urlsIter UR
 		var progress func(uint64)
 		if onDownloadingProgress := options.OnDownloadingProgress; onDownloadingProgress != nil {
 			progress = func(downloaded uint64) {
-				onDownloadingProgress(downloaded, 0)
+				onDownloadingProgress(&DownloadingProgress{Downloaded: downloaded})
 			}
 		}
 		return downloadToPartReader(ctx, urlsIter, etag, options.Header, downloader.client, dest, progress)
@@ -198,13 +198,13 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urlsIter UR
 			n, err := downloader.downloadToPart(ctx, urlsIterClone, etag, offset, options.Header, p, writeableMedium, &downloadingProgressMutex, func(downloaded uint64) {
 				downloadingProgress.setPartDownloadingProgress(p.Offset(), downloaded)
 				if onDownloadingProgress := options.OnDownloadingProgress; onDownloadingProgress != nil {
-					onDownloadingProgress(downloadingProgress.totalDownloaded(), needToDownload)
+					onDownloadingProgress(&DownloadingProgress{Downloaded: downloadingProgress.totalDownloaded(), TotalSize: needToDownload})
 				}
 			})
 			if n > 0 {
 				downloadingProgress.partDownloaded(p.Offset(), n)
 				if onDownloadingProgress := options.OnDownloadingProgress; onDownloadingProgress != nil {
-					onDownloadingProgress(downloadingProgress.totalDownloaded(), needToDownload)
+					onDownloadingProgress(&DownloadingProgress{Downloaded: downloadingProgress.totalDownloaded(), TotalSize: needToDownload})
 				}
 			}
 			return err

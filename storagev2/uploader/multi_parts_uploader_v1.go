@@ -28,9 +28,9 @@ type (
 	}
 
 	multiPartsUploaderV1UploadedPart struct {
-		ctx          string
-		crc32        uint32
-		offset, size uint64
+		ctx                      string
+		crc32                    uint32
+		partNumber, offset, size uint64
 	}
 
 	resumedMultiPartsUploaderV1Record struct {
@@ -103,13 +103,14 @@ func (uploader *multiPartsUploaderV1) UploadPart(ctx context.Context, initialize
 		if record, ok := initializedParts.records[part.PartNumber()]; ok {
 			if record.offset == part.Offset() && record.size == part.Size() {
 				if options != nil && options.OnUploadingProgress != nil {
-					options.OnUploadingProgress(record.size, record.size)
+					options.OnUploadingProgress(&UploadingPartProgress{Uploaded: record.size, PartSize: record.size})
 				}
 				return multiPartsUploaderV1UploadedPart{
-					ctx:    record.ctx,
-					crc32:  record.crc32,
-					offset: record.offset,
-					size:   record.size,
+					ctx:        record.ctx,
+					crc32:      record.crc32,
+					offset:     record.offset,
+					size:       record.size,
+					partNumber: part.PartNumber(),
 				}, nil
 			}
 		}
@@ -122,7 +123,9 @@ func (uploader *multiPartsUploaderV1) uploadPart(ctx context.Context, initialize
 		OverwrittenRegion: initialized.multiPartsObjectOptions.RegionsProvider,
 	}
 	if options != nil && options.OnUploadingProgress != nil {
-		apisOptions.OnRequestProgress = options.OnUploadingProgress
+		apisOptions.OnRequestProgress = func(uploaded, totalSize uint64) {
+			options.OnUploadingProgress(&UploadingPartProgress{Uploaded: uploaded, PartSize: totalSize})
+		}
 	}
 	upToken, err := getUpToken(uploader.options.Credentials, &initialized.multiPartsObjectOptions.ObjectOptions, uploader.options.UpTokenProvider)
 	if err != nil {
@@ -161,10 +164,11 @@ func (uploader *multiPartsUploaderV1) uploadPart(ctx context.Context, initialize
 	}
 
 	return multiPartsUploaderV1UploadedPart{
-		ctx:    response.Ctx,
-		crc32:  uint32(response.Crc32),
-		offset: part.Offset(),
-		size:   part.Size(),
+		ctx:        response.Ctx,
+		crc32:      uint32(response.Crc32),
+		offset:     part.Offset(),
+		size:       part.Size(),
+		partNumber: part.PartNumber(),
 	}, nil
 }
 
@@ -229,7 +233,11 @@ func (uploadedPart multiPartsUploaderV1UploadedPart) Offset() uint64 {
 	return uploadedPart.offset
 }
 
-func (uploadedPart multiPartsUploaderV1UploadedPart) Size() uint64 {
+func (uploadedPart multiPartsUploaderV1UploadedPart) PartNumber() uint64 {
+	return uploadedPart.partNumber
+}
+
+func (uploadedPart multiPartsUploaderV1UploadedPart) PartSize() uint64 {
 	return uploadedPart.size
 }
 

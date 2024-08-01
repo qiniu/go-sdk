@@ -232,14 +232,14 @@ func TestMultiPartsUploaderV1(t *testing.T) {
 	}
 	lastUploaded := uint64(0)
 	uploadedPart_1, err := multiPartsUploaderV1.UploadPart(context.Background(), initializedPart, part, &uploader.UploadPartOptions{
-		OnUploadingProgress: func(uploaded, partSize uint64) {
-			if partSize != 4*1024*1024 {
+		OnUploadingProgress: func(progress *uploader.UploadingPartProgress) {
+			if progress.PartSize != 4*1024*1024 {
 				t.Fatalf("unexpected partSize")
 			}
-			if uploaded < lastUploaded || uploaded > partSize {
+			if progress.Uploaded < lastUploaded || progress.Uploaded > progress.PartSize {
 				t.Fatalf("unexpected uploaded")
 			}
-			lastUploaded = uploaded
+			lastUploaded = progress.Uploaded
 		},
 	})
 	if err != nil {
@@ -252,14 +252,14 @@ func TestMultiPartsUploaderV1(t *testing.T) {
 	}
 	lastUploaded = 0
 	uploadedPart_2, err := multiPartsUploaderV1.UploadPart(context.Background(), initializedPart, part, &uploader.UploadPartOptions{
-		OnUploadingProgress: func(uploaded, partSize uint64) {
-			if partSize != 1*1024*1024 {
+		OnUploadingProgress: func(progress *uploader.UploadingPartProgress) {
+			if progress.PartSize != 1*1024*1024 {
 				t.Fatalf("unexpected partSize")
 			}
-			if uploaded < lastUploaded || uploaded > partSize {
+			if progress.Uploaded < lastUploaded || progress.Uploaded > progress.PartSize {
 				t.Fatalf("unexpected uploaded")
 			}
-			lastUploaded = uploaded
+			lastUploaded = progress.Uploaded
 		},
 	})
 	if err != nil {
@@ -465,11 +465,11 @@ func TestMultiPartsUploaderV1Resuming(t *testing.T) {
 		t.Fatal(err)
 	}
 	uploadedPart_1, err := multiPartsUploaderV1.UploadPart(context.Background(), initializedPart, part, &uploader.UploadPartOptions{
-		OnUploadingProgress: func(uploaded, partSize uint64) {
-			if partSize != 4*1024*1024 {
+		OnUploadingProgress: func(progress *uploader.UploadingPartProgress) {
+			if progress.PartSize != 4*1024*1024 {
 				t.Fatalf("unexpected partSize")
 			}
-			if uploaded != 4*1024*1024 {
+			if progress.Uploaded != 4*1024*1024 {
 				t.Fatalf("unexpected uploaded")
 			}
 		},
@@ -483,11 +483,11 @@ func TestMultiPartsUploaderV1Resuming(t *testing.T) {
 		t.Fatal(err)
 	}
 	uploadedPart_2, err := multiPartsUploaderV1.UploadPart(context.Background(), initializedPart, part, &uploader.UploadPartOptions{
-		OnUploadingProgress: func(uploaded, partSize uint64) {
-			if partSize != 1024*1024 {
+		OnUploadingProgress: func(progress *uploader.UploadingPartProgress) {
+			if progress.PartSize != 1024*1024 {
 				t.Fatalf("unexpected partSize")
 			}
-			if uploaded != 1024*1024 {
+			if progress.Uploaded != 1024*1024 {
 				t.Fatalf("unexpected uploaded")
 			}
 		},

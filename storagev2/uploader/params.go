@@ -33,7 +33,7 @@ type (
 		CustomVars map[string]string
 
 		// 对象上传进度
-		OnUploadingProgress func(uploaded, totalSize uint64)
+		OnUploadingProgress func(*UploadingProgress)
 	}
 
 	// 分片上传对象上传选项
@@ -45,18 +45,30 @@ type (
 		PartSize uint64
 	}
 
+	// 分片上传进度
+	UploadingPartProgress struct {
+		Uploaded uint64 // 已经上传的数据量，单位为字节
+		PartSize uint64 // 分片大小，单位为字节
+	}
+
+	// 对象上传进度
+	UploadingProgress struct {
+		Uploaded  uint64 // 已经上传的数据量，单位为字节
+		TotalSize uint64 // 总数据量，单位为字节
+	}
+
 	// 上传分片列表选项
 	UploadPartsOptions struct {
 		// 分片上传进度
-		OnUploadingProgress func(partNumber, uploaded, partSize uint64)
+		OnUploadingProgress func(partNumber uint64, progress *UploadingPartProgress)
 		// 分片上传成功后回调函数
-		OnPartUploaded func(partNumber, partSize uint64)
+		OnPartUploaded func(UploadedPart) error
 	}
 
 	// 上传分片选项
 	UploadPartOptions struct {
 		// 分片上传进度
-		OnUploadingProgress func(uploaded, partSize uint64)
+		OnUploadingProgress func(*UploadingPartProgress)
 	}
 
 	DirectoryOptions struct {
@@ -76,10 +88,10 @@ type (
 		BeforeObjectUpload func(filePath string, objectOptions *ObjectOptions)
 
 		// 上传进度
-		OnUploadingProgress func(filePath string, uploaded, totalSize uint64)
+		OnUploadingProgress func(filePath string, progress *UploadingProgress)
 
 		// 对象上传成功后回调
-		OnObjectUploaded func(filePath string, size uint64)
+		OnObjectUploaded func(filePath string, info *UploadedObjectInfo)
 
 		// 是否在空间内创建目录
 		ShouldCreateDirectory bool
@@ -92,5 +104,10 @@ type (
 
 		// 分隔符，默认为 /
 		PathSeparator string
+	}
+
+	// 已经上传的对象信息
+	UploadedObjectInfo struct {
+		Size uint64 // 对象大小
 	}
 )

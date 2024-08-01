@@ -589,22 +589,22 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 				t.Fatalf("unexpected filePath")
 			}
 		},
-		OnUploadingProgress: func(filePath string, uploaded uint64, totalSize uint64) {
-			if totalSize != 1024*1024 {
+		OnUploadingProgress: func(filePath string, progress *uploader.UploadingProgress) {
+			if progress.TotalSize != 1024*1024 {
 				t.Fatalf("unexpected totalSize")
 			}
 			if lastUploadedValue, ok := localFiles.Load(filePath); !ok {
 				t.Fatalf("unexpected filePath")
 			} else if lastUploaded, ok := lastUploadedValue.(uint64); !ok {
 				t.Fatalf("unexpected filePath")
-			} else if uploaded < lastUploaded {
+			} else if progress.Uploaded < lastUploaded {
 				t.Fatalf("unexpected uploaded")
 			} else {
-				localFiles.Store(filePath, uploaded)
+				localFiles.Store(filePath, progress.Uploaded)
 			}
 		},
-		OnObjectUploaded: func(filePath string, size uint64) {
-			if size != 1024*1024 {
+		OnObjectUploaded: func(filePath string, info *uploader.UploadedObjectInfo) {
+			if info.Size != 1024*1024 {
 				t.Fatalf("unexpected size")
 			}
 			if _, ok := localFiles.Load(filePath); !ok {

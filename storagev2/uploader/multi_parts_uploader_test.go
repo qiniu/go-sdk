@@ -220,12 +220,12 @@ func TestMultiPartsUploader(t *testing.T) {
 		ContentType: "application/json",
 		Metadata:    map[string]string{"a": "b", "c": "d"},
 		CustomVars:  map[string]string{"a": "b", "c": "d"},
-		OnUploadingProgress: func(uploaded uint64, fileSize uint64) {
-			if fileSize != 5*1024*1024 {
+		OnUploadingProgress: func(progress *UploadingProgress) {
+			if progress.TotalSize != 5*1024*1024 {
 				t.Fatalf("unexpected file size")
-			} else if uploaded > fileSize {
+			} else if progress.Uploaded > progress.TotalSize {
 				t.Fatalf("unexpected uploaded")
-			} else if lu := atomic.SwapUint64(&lastUploaded, uploaded); lu > uploaded || lu > fileSize {
+			} else if lu := atomic.SwapUint64(&lastUploaded, progress.Uploaded); lu > progress.Uploaded || lu > progress.TotalSize {
 				t.Fatalf("unexpected uploaded")
 			}
 		},
@@ -414,12 +414,12 @@ func TestMultiPartsUploaderResuming(t *testing.T) {
 		ContentType: "application/json",
 		Metadata:    map[string]string{"a": "b", "c": "d"},
 		CustomVars:  map[string]string{"a": "b", "c": "d"},
-		OnUploadingProgress: func(uploaded uint64, fileSize uint64) {
-			if fileSize != 5*1024*1024 {
+		OnUploadingProgress: func(progress *UploadingProgress) {
+			if progress.TotalSize != 5*1024*1024 {
 				t.Fatalf("unexpected file size")
-			} else if uploaded > fileSize {
+			} else if progress.Uploaded > progress.TotalSize {
 				t.Fatalf("unexpected uploaded")
-			} else if lu := atomic.SwapUint64(&lastUploaded, uploaded); lu > uploaded || lu > fileSize {
+			} else if lu := atomic.SwapUint64(&lastUploaded, progress.Uploaded); lu > progress.Uploaded || lu > progress.TotalSize {
 				t.Fatalf("unexpected uploaded")
 			}
 		},
@@ -644,11 +644,11 @@ func TestMultiPartsUploaderRetry(t *testing.T) {
 		ContentType: "application/json",
 		Metadata:    map[string]string{"a": "b", "c": "d"},
 		CustomVars:  map[string]string{"a": "b", "c": "d"},
-		OnUploadingProgress: func(uploaded uint64, fileSize uint64) {
-			if fileSize != 5*1024*1024 {
+		OnUploadingProgress: func(progress *UploadingProgress) {
+			if progress.TotalSize != 5*1024*1024 {
 				t.Fatalf("unexpected file size")
 			}
-			atomic.StoreUint64(&lastUploaded, uploaded)
+			atomic.StoreUint64(&lastUploaded, progress.Uploaded)
 		},
 	}, &returnValue); err != nil {
 		t.Fatal(err)

@@ -234,22 +234,23 @@ func TestMultiPartsUploaderScheduler(t *testing.T) {
 		var lastUploaded [2]uint64
 		var uploadedPartSizes [2]uint64
 		uploadedParts, err := scheduler.UploadParts(context.Background(), initializedPart, src, &UploadPartsOptions{
-			OnUploadingProgress: func(partNumber uint64, uploaded uint64, partSize uint64) {
-				if partNumber == 1 && partSize != 4*1024*1024 {
+			OnUploadingProgress: func(partNumber uint64, progress *UploadingPartProgress) {
+				if partNumber == 1 && progress.PartSize != 4*1024*1024 {
 					t.Fatalf("unexpected partSize")
-				} else if partNumber == 2 && partSize != 1024*1024 {
+				} else if partNumber == 2 && progress.PartSize != 1024*1024 {
 					t.Fatalf("unexpected partSize")
-				} else if uploaded < lastUploaded[partNumber-1] || uploaded > partSize {
+				} else if progress.Uploaded < lastUploaded[partNumber-1] || progress.Uploaded > progress.PartSize {
 					t.Fatalf("unexpected uploaded")
 				}
-				lastUploaded[partNumber-1] = uploaded
+				lastUploaded[partNumber-1] = progress.Uploaded
 			},
-			OnPartUploaded: func(partNumber uint64, partSize uint64) {
-				if uploadedPartSizes[partNumber-1] > 0 {
+			OnPartUploaded: func(part UploadedPart) error {
+				if uploadedPartSizes[part.PartNumber()-1] > 0 {
 					t.Fatalf("unexpected OnPartUploaded call")
 				} else {
-					uploadedPartSizes[partNumber-1] = partSize
+					uploadedPartSizes[part.PartNumber()-1] = part.PartSize()
 				}
+				return nil
 			},
 		})
 		if err != nil {
