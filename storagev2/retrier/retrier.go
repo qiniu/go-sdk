@@ -87,7 +87,7 @@ func IsStatusCodeRetryable(statusCode int) bool {
 		return false
 	}
 
-	if statusCode == 501 || statusCode == 509 || statusCode == 573 || statusCode == 579 ||
+	if statusCode == 501 || statusCode == 509 || statusCode == 579 ||
 		statusCode == 608 || statusCode == 612 || statusCode == 614 || statusCode == 616 || statusCode == 618 ||
 		statusCode == 630 || statusCode == 631 || statusCode == 632 || statusCode == 640 || statusCode == 701 {
 		return false
