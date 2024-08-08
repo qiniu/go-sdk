@@ -87,107 +87,111 @@ func TestUploadManagerUplogForm(t *testing.T) {
 		}
 		uplogs = append(uplogs, uplog)
 	}
-	if len(uplogs) != 4 {
+	if len(uplogs) != 10 {
 		t.Fatalf("unexpected uplog count:%v", len(uplogs))
 	}
-	if uplogs[0]["log_type"] != "request" {
-		t.Fatalf("unexpected uplog log_type:%v", uplogs[0]["log_type"])
+	for i := 0; i < 4; i++ {
+		if uplogs[i]["log_type"] != "request" {
+			t.Fatalf("unexpected uplog log_type:%v", uplogs[i]["log_type"])
+		}
+		if uplogs[i]["api_type"] != "kodo" {
+			t.Fatalf("unexpected uplog api_type:%v", uplogs[i]["api_type"])
+		}
+		if uplogs[i]["api_name"] != "postObject" {
+			t.Fatalf("unexpected uplog api_name:%v", uplogs[i]["api_name"])
+		}
+		if uplogs[i]["error_type"] != "unknown_host" {
+			t.Fatalf("unexpected uplog error_type:%v", uplogs[i]["error_type"])
+		}
+		if uplogs[i]["host"] != "mock03.qiniu.com" {
+			t.Fatalf("unexpected uplog host:%v", uplogs[i]["host"])
+		}
+		if uplogs[i]["path"] != "/" {
+			t.Fatalf("unexpected uplog path:%v", uplogs[i]["path"])
+		}
+		if uplogs[i]["method"] != "POST" {
+			t.Fatalf("unexpected uplog method:%v", uplogs[i]["method"])
+		}
+		if uplogs[i]["target_bucket"] != testBucket {
+			t.Fatalf("unexpected uplog target_bucket:%v", uplogs[i]["target_bucket"])
+		}
 	}
-	if uplogs[0]["api_type"] != "kodo" {
-		t.Fatalf("unexpected uplog api_type:%v", uplogs[0]["api_type"])
+	for i := 4; i < 8; i++ {
+		if uplogs[i]["log_type"] != "request" {
+			t.Fatalf("unexpected uplog log_type:%v", uplogs[i]["log_type"])
+		}
+		if uplogs[i]["api_type"] != "kodo" {
+			t.Fatalf("unexpected uplog api_type:%v", uplogs[i]["api_type"])
+		}
+		if uplogs[i]["api_name"] != "postObject" {
+			t.Fatalf("unexpected uplog api_name:%v", uplogs[i]["api_name"])
+		}
+		if uplogs[i]["error_type"] != "unknown_host" {
+			t.Fatalf("unexpected uplog error_type:%v", uplogs[i]["error_type"])
+		}
+		if uplogs[i]["host"] != "mock04.qiniu.com" {
+			t.Fatalf("unexpected uplog host:%v", uplogs[i]["host"])
+		}
+		if uplogs[i]["target_bucket"] != testBucket {
+			t.Fatalf("unexpected uplog target_bucket:%v", uplogs[i]["target_bucket"])
+		}
+		if uplogs[i]["path"] != "/" {
+			t.Fatalf("unexpected uplog path:%v", uplogs[i]["path"])
+		}
+		if uplogs[i]["method"] != "POST" {
+			t.Fatalf("unexpected uplog method:%v", uplogs[i]["method"])
+		}
 	}
-	if uplogs[0]["api_name"] != "postObject" {
-		t.Fatalf("unexpected uplog api_name:%v", uplogs[0]["api_name"])
+	if uplogs[8]["log_type"] != "request" {
+		t.Fatalf("unexpected uplog log_type:%v", uplogs[8]["log_type"])
 	}
-	if uplogs[0]["error_type"] != "unknown_host" {
-		t.Fatalf("unexpected uplog error_type:%v", uplogs[0]["error_type"])
+	if uplogs[8]["api_type"] != "kodo" {
+		t.Fatalf("unexpected uplog api_type:%v", uplogs[8]["api_type"])
 	}
-	if uplogs[0]["host"] != "mock03.qiniu.com" {
-		t.Fatalf("unexpected uplog host:%v", uplogs[0]["host"])
+	if uplogs[8]["api_name"] != "postObject" {
+		t.Fatalf("unexpected uplog api_name:%v", uplogs[8]["api_name"])
 	}
-	if uplogs[0]["path"] != "/" {
-		t.Fatalf("unexpected uplog path:%v", uplogs[0]["path"])
+	if uplogs[8]["error_type"] != nil {
+		t.Fatalf("unexpected uplog error_type:%v", uplogs[8]["error_type"])
 	}
-	if uplogs[0]["method"] != "POST" {
-		t.Fatalf("unexpected uplog method:%v", uplogs[0]["method"])
+	if uplogs[8]["port"] != float64(443) {
+		t.Fatalf("unexpected uplog port:%v", uplogs[8]["port"])
 	}
-	if uplogs[0]["target_bucket"] != testBucket {
-		t.Fatalf("unexpected uplog target_bucket:%v", uplogs[0]["target_bucket"])
+	if uplogs[8]["remote_ip"] == nil {
+		t.Fatalf("unexpected uplog remote_ip:%v", uplogs[8]["remote_ip"])
 	}
-	if uplogs[1]["log_type"] != "request" {
-		t.Fatalf("unexpected uplog log_type:%v", uplogs[1]["log_type"])
+	if uplogs[8]["target_bucket"] != testBucket {
+		t.Fatalf("unexpected uplog target_bucket:%v", uplogs[8]["target_bucket"])
 	}
-	if uplogs[1]["api_type"] != "kodo" {
-		t.Fatalf("unexpected uplog api_type:%v", uplogs[1]["api_type"])
+	if uplogs[8]["path"] != "/" {
+		t.Fatalf("unexpected uplog path:%v", uplogs[8]["path"])
 	}
-	if uplogs[1]["api_name"] != "postObject" {
-		t.Fatalf("unexpected uplog api_name:%v", uplogs[1]["api_name"])
+	if uplogs[8]["method"] != "POST" {
+		t.Fatalf("unexpected uplog method:%v", uplogs[8]["method"])
 	}
-	if uplogs[1]["error_type"] != "unknown_host" {
-		t.Fatalf("unexpected uplog error_type:%v", uplogs[1]["error_type"])
+	if uplogs[8]["status_code"] != float64(200) {
+		t.Fatalf("unexpected uplog status_code:%v", uplogs[8]["status_code"])
 	}
-	if uplogs[1]["host"] != "mock04.qiniu.com" {
-		t.Fatalf("unexpected uplog host:%v", uplogs[1]["host"])
+	if uplogs[9]["log_type"] != "quality" {
+		t.Fatalf("unexpected uplog log_type:%v", uplogs[9]["log_type"])
 	}
-	if uplogs[1]["target_bucket"] != testBucket {
-		t.Fatalf("unexpected uplog target_bucket:%v", uplogs[1]["target_bucket"])
+	if uplogs[9]["result"] != "ok" {
+		t.Fatalf("unexpected uplog result:%v", uplogs[9]["result"])
 	}
-	if uplogs[1]["path"] != "/" {
-		t.Fatalf("unexpected uplog path:%v", uplogs[1]["path"])
+	if uplogs[9]["up_type"] != "form" {
+		t.Fatalf("unexpected uplog up_type:%v", uplogs[9]["up_type"])
 	}
-	if uplogs[1]["method"] != "POST" {
-		t.Fatalf("unexpected uplog method:%v", uplogs[1]["method"])
+	if uplogs[9]["regions_count"] != float64(2) {
+		t.Fatalf("unexpected uplog regions_count:%v", uplogs[9]["regions_count"])
 	}
-	if uplogs[2]["log_type"] != "request" {
-		t.Fatalf("unexpected uplog log_type:%v", uplogs[2]["log_type"])
+	if uplogs[9]["api_type"] != "kodo" {
+		t.Fatalf("unexpected uplog api_type:%v", uplogs[9]["api_type"])
 	}
-	if uplogs[2]["api_type"] != "kodo" {
-		t.Fatalf("unexpected uplog api_type:%v", uplogs[2]["api_type"])
+	if uplogs[9]["file_size"] != float64(dataLen) {
+		t.Fatalf("unexpected uplog file_size:%v", uplogs[9]["file_size"])
 	}
-	if uplogs[2]["api_name"] != "postObject" {
-		t.Fatalf("unexpected uplog api_name:%v", uplogs[2]["api_name"])
-	}
-	if uplogs[2]["error_type"] != nil {
-		t.Fatalf("unexpected uplog error_type:%v", uplogs[2]["error_type"])
-	}
-	if uplogs[2]["port"] != float64(443) {
-		t.Fatalf("unexpected uplog port:%v", uplogs[2]["port"])
-	}
-	if uplogs[2]["remote_ip"] == nil {
-		t.Fatalf("unexpected uplog remote_ip:%v", uplogs[2]["remote_ip"])
-	}
-	if uplogs[2]["target_bucket"] != testBucket {
-		t.Fatalf("unexpected uplog target_bucket:%v", uplogs[2]["target_bucket"])
-	}
-	if uplogs[2]["path"] != "/" {
-		t.Fatalf("unexpected uplog path:%v", uplogs[2]["path"])
-	}
-	if uplogs[2]["method"] != "POST" {
-		t.Fatalf("unexpected uplog method:%v", uplogs[2]["method"])
-	}
-	if uplogs[2]["status_code"] != float64(200) {
-		t.Fatalf("unexpected uplog status_code:%v", uplogs[2]["status_code"])
-	}
-	if uplogs[3]["log_type"] != "quality" {
-		t.Fatalf("unexpected uplog log_type:%v", uplogs[3]["log_type"])
-	}
-	if uplogs[3]["result"] != "ok" {
-		t.Fatalf("unexpected uplog result:%v", uplogs[3]["result"])
-	}
-	if uplogs[3]["up_type"] != "form" {
-		t.Fatalf("unexpected uplog up_type:%v", uplogs[3]["up_type"])
-	}
-	if uplogs[3]["regions_count"] != float64(2) {
-		t.Fatalf("unexpected uplog regions_count:%v", uplogs[3]["regions_count"])
-	}
-	if uplogs[3]["api_type"] != "kodo" {
-		t.Fatalf("unexpected uplog api_type:%v", uplogs[3]["api_type"])
-	}
-	if uplogs[3]["file_size"] != float64(dataLen) {
-		t.Fatalf("unexpected uplog file_size:%v", uplogs[3]["file_size"])
-	}
-	if uplogs[3]["target_bucket"] != testBucket {
-		t.Fatalf("unexpected uplog target_bucket:%v", uplogs[3]["target_bucket"])
+	if uplogs[9]["target_bucket"] != testBucket {
+		t.Fatalf("unexpected uplog target_bucket:%v", uplogs[9]["target_bucket"])
 	}
 }
 

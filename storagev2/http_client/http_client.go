@@ -385,19 +385,28 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 	}
 
 	interceptors := make([]Interceptor, 0, 3)
-	hostsRetryConfig := httpClient.hostsRetryConfig
-	if hostsRetryConfig == nil {
-		hostsRetryConfig = &RetryConfig{
-			RetryMax: len(endpoints.Preferred) + len(endpoints.Alternative),
-		}
+
+	var hostsRetryConfig, hostRetryConfig clientv2.RetryConfig
+	if httpClient.hostsRetryConfig != nil {
+		hostsRetryConfig = *httpClient.hostsRetryConfig
 	}
-	hostRetryConfig := httpClient.hostRetryConfig
-	if hostRetryConfig == nil {
-		hostRetryConfig = &RetryConfig{
-			RetryMax: 3,
-			Retrier:  retrier.NewErrorRetrier(),
-		}
+	if hostsRetryConfig.RetryMax <= 0 {
+		hostsRetryConfig.RetryMax = len(endpoints.Preferred) + len(endpoints.Alternative)
 	}
+	if hostsRetryConfig.Retrier == nil {
+		hostsRetryConfig.Retrier = retrier.NewErrorRetrier()
+	}
+
+	if httpClient.hostRetryConfig != nil {
+		hostRetryConfig = *httpClient.hostRetryConfig
+	}
+	if hostRetryConfig.RetryMax <= 0 {
+		hostRetryConfig.RetryMax = 3
+	}
+	if hostRetryConfig.Retrier == nil {
+		hostRetryConfig.Retrier = retrier.NewErrorRetrier()
+	}
+
 	interceptors = append(interceptors, clientv2.NewBufferResponseInterceptor())
 	interceptors = append(interceptors, clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
 		RetryMax:           hostsRetryConfig.RetryMax,

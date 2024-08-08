@@ -116,6 +116,13 @@ func detectErrorType(err error) ErrorType {
 		default:
 			return ErrorTypeUnexpectedSyscallError
 		}
+	} else if errno, ok := unwrapedErr.(syscall.Errno); ok {
+		switch errno {
+		case syscall.ECONNREFUSED, syscall.ECONNABORTED, syscall.ECONNRESET:
+			return ErrorTypeCannotConnectToHost
+		default:
+			return ErrorTypeUnexpectedSyscallError
+		}
 	} else if unwrapedErr == context.Canceled {
 		return ErrorTypeUserCanceled
 	} else {

@@ -94,12 +94,12 @@ func TestHttpClient(t *testing.T) {
 			t.Fatalf("Unexpected status code: %d", clientErr.Code)
 		}
 	}
-	if len(reqs) != 3 {
+	if len(reqs) != 12 {
 		t.Fatalf("Unexpected reqs: %#v", reqs)
 	}
 	for i, req := range reqs {
-		if i+1 != req.id || req.url.String() != "/test?fakeRawQuery&x-query-1=x-value-1&x-query-2=x-value-2" {
-			t.Fatalf("Unexpected req: %#v", req)
+		if i/4+1 != req.id || req.url.String() != "/test?fakeRawQuery&x-query-1=x-value-1&x-query-2=x-value-2" {
+			t.Fatalf("Unexpected req: %d, %d, %s", i, req.id, req.url)
 		}
 	}
 }

@@ -83,7 +83,8 @@ func (interceptor *hostsRetryInterceptor) Intercept(req *http.Request, handler H
 
 		resp, err = handler(req)
 
-		if interceptor.options.getRetryDecision(reqBefore, resp, err, i) == retrier.DontRetry {
+		retryDecision := interceptor.options.getRetryDecision(reqBefore, resp, err, i)
+		if retryDecision == retrier.DontRetry {
 			return resp, err
 		}
 

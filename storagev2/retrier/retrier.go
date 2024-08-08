@@ -155,6 +155,13 @@ func getRetryDecisionForError(err error) RetryDecision {
 		default:
 			return DontRetry
 		}
+	} else if errno, ok := unwrapedErr.(syscall.Errno); ok {
+		switch errno {
+		case syscall.ECONNREFUSED, syscall.ECONNABORTED, syscall.ECONNRESET:
+			return TryNextHost
+		default:
+			return DontRetry
+		}
 	} else if unwrapedErr == context.Canceled {
 		return DontRetry
 	} else if clientErr, ok := unwrapedErr.(*clientv1.ErrorInfo); ok {
