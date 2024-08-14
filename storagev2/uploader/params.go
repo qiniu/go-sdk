@@ -12,9 +12,10 @@ type (
 		RegionsProvider region.RegionsProvider
 
 		// 上传凭证接口，可选
+		// 但如果不传值，则必须给出 BucketName，并且配合 Uploader 的 Credentials 自动生成 UpToken
 		UpToken uptoken.Provider
 
-		// 空间名称，可选
+		// 空间名称，可选，但如果不传值，则必须给出 UpToken
 		BucketName string
 
 		// 对象名称

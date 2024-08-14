@@ -87,11 +87,11 @@ type UcQueryServerInfo struct {
 func (io UcQueryServerInfo) toMapWithoutInfo() map[string][]string {
 
 	ret := make(map[string][]string)
-	if io.Main != nil && len(io.Main) > 0 {
+	if len(io.Main) > 0 {
 		ret["main"] = io.Main
 	}
 
-	if io.Backup != nil && len(io.Backup) > 0 {
+	if len(io.Backup) > 0 {
 		ret["backup"] = io.Backup
 	}
 
