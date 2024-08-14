@@ -75,6 +75,9 @@ type PutPolicy struct {
 	// 转码队列名。资源上传成功后，触发转码时指定独立的队列进行转码。为空则表示使用公用队列，处理速度比较慢。建议使用专用队列。
 	PersistentPipeline string `json:"persistentPipeline,omitempty"`
 
+	// 任务类型。0: 普通任务，1: 闲时任务
+	PersistentType int64 `json:"persistentType,omitempty"`
+
 	// saveKey 的优先级设置。为 true 时，saveKey不能为空，会忽略客户端指定的key，强制使用saveKey进行文件命名。参数不设置时，
 	// 默认值为false
 	ForceSaveKey bool `json:"forceSaveKey,omitempty"` //

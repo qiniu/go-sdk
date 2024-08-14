@@ -26,6 +26,7 @@ const (
 	putPolicyKeyPersistentOps       = "persistentOps"
 	putPolicyKeyPersistentNotifyUrl = "persistentNotifyUrl"
 	putPolicyKeyPersistentPipeline  = "persistentPipeline"
+	putPolicyKeyPersistentType      = "persistentType"
 	putPolicyKeyForceSaveKey        = "forceSaveKey"
 	putPolicyKeySaveKey             = "saveKey"
 	putPolicyKeyFsizeMin            = "fsizeMin"
@@ -234,6 +235,17 @@ func (putPolicy PutPolicy) GetPersistentPipeline() (string, bool) {
 // SetPersistentPipeline 指定转码队列名
 func (putPolicy PutPolicy) SetPersistentPipeline(value string) PutPolicy {
 	_ = putPolicy.Set(putPolicyKeyPersistentPipeline, value)
+	return putPolicy
+}
+
+// GetPersistentType 获取任务类型
+func (putPolicy PutPolicy) GetPersistentType() (int64, bool) {
+	return putPolicy.getInt64(putPolicyKeyPersistentType)
+}
+
+// SetPersistentType 指定任务类型
+func (putPolicy PutPolicy) SetPersistentType(value int64) PutPolicy {
+	_ = putPolicy.Set(putPolicyKeyPersistentType, value)
 	return putPolicy
 }
 
