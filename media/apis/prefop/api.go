@@ -25,6 +25,7 @@ type Response struct {
 	Pipeline     string        // 云处理操作的处理队列
 	RequestId    string        // 云处理请求的请求 ID
 	Type         int64         // 任务类型，支持 `0` 表示普通任务，`1` 表示闲时任务
+	CreatedAt    string        // 任务创建时间
 	Items        PfopTaskItems // 云处理操作列表
 }
 
@@ -96,22 +97,23 @@ type PfopTaskItems = []PfopTaskItem
 // 返回的持久化数据处理任务信息
 type PfopTask = Response
 type jsonResponse struct {
-	PersistentId string        `json:"id"`             // 持久化数据处理任务 ID
-	Code         int64         `json:"code"`           // 持久化数据处理任务状态码
-	Description  string        `json:"desc"`           // 与状态码相对应的详细描述
-	ObjectName   string        `json:"inputKey"`       // 源对象名称
-	BucketName   string        `json:"inputBucket"`    // 源空间名称
-	Pipeline     string        `json:"pipeline"`       // 云处理操作的处理队列
-	RequestId    string        `json:"reqid"`          // 云处理请求的请求 ID
-	Type         int64         `json:"type,omitempty"` // 任务类型，支持 `0` 表示普通任务，`1` 表示闲时任务
-	Items        PfopTaskItems `json:"items"`          // 云处理操作列表
+	PersistentId string        `json:"id"`                     // 持久化数据处理任务 ID
+	Code         int64         `json:"code"`                   // 持久化数据处理任务状态码
+	Description  string        `json:"desc"`                   // 与状态码相对应的详细描述
+	ObjectName   string        `json:"inputKey"`               // 源对象名称
+	BucketName   string        `json:"inputBucket"`            // 源空间名称
+	Pipeline     string        `json:"pipeline"`               // 云处理操作的处理队列
+	RequestId    string        `json:"reqid"`                  // 云处理请求的请求 ID
+	Type         int64         `json:"type,omitempty"`         // 任务类型，支持 `0` 表示普通任务，`1` 表示闲时任务
+	CreatedAt    string        `json:"creationDate,omitempty"` // 任务创建时间
+	Items        PfopTaskItems `json:"items"`                  // 云处理操作列表
 }
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(&jsonResponse{PersistentId: j.PersistentId, Code: j.Code, Description: j.Description, ObjectName: j.ObjectName, BucketName: j.BucketName, Pipeline: j.Pipeline, RequestId: j.RequestId, Type: j.Type, Items: j.Items})
+	return json.Marshal(&jsonResponse{PersistentId: j.PersistentId, Code: j.Code, Description: j.Description, ObjectName: j.ObjectName, BucketName: j.BucketName, Pipeline: j.Pipeline, RequestId: j.RequestId, Type: j.Type, CreatedAt: j.CreatedAt, Items: j.Items})
 }
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
@@ -126,6 +128,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Pipeline = nj.Pipeline
 	j.RequestId = nj.RequestId
 	j.Type = nj.Type
+	j.CreatedAt = nj.CreatedAt
 	j.Items = nj.Items
 	return nil
 }

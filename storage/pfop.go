@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/client"
@@ -63,14 +64,15 @@ type PfopRet struct {
 
 // PrefopRet 为数据处理请求的状态查询回复内容
 type PrefopRet struct {
-	ID          string `json:"id"`
-	Code        int    `json:"code"`
-	Desc        string `json:"desc"`
-	Type        int64  `json:"type,omitempty"`
-	InputBucket string `json:"inputBucket,omitempty"`
-	InputKey    string `json:"inputKey,omitempty"`
-	Pipeline    string `json:"pipeline,omitempty"`
-	Reqid       string `json:"reqid,omitempty"`
+	ID          string    `json:"id"`
+	Code        int       `json:"code"`
+	Desc        string    `json:"desc"`
+	Type        int64     `json:"type,omitempty"`
+	InputBucket string    `json:"inputBucket,omitempty"`
+	InputKey    string    `json:"inputKey,omitempty"`
+	Pipeline    string    `json:"pipeline,omitempty"`
+	Reqid       string    `json:"reqid,omitempty"`
+	CreatedAt   time.Time `json:"creationDate,omitempty"`
 	Items       []FopResult
 }
 
@@ -90,6 +92,9 @@ func (r *PrefopRet) String() string {
 	}
 	if r.Reqid != "" {
 		strData += fmt.Sprintf("Reqid: %s\n", r.Reqid)
+	}
+	if !r.CreatedAt.IsZero() {
+		strData += fmt.Sprintf("CreatedAt: %s\n", r.CreatedAt)
 	}
 
 	strData = fmt.Sprintln(strData)
@@ -131,13 +136,13 @@ type PfopRequest struct {
 
 // FopResult 云处理操作列表，包含每个云处理操作的状态信息
 type FopResult struct {
-	Cmd        string   `json:"cmd"`
-	Code       int      `json:"code"`
-	Desc       string   `json:"desc"`
-	Error      string   `json:"error,omitempty"`
-	Hash       string   `json:"hash,omitempty"`
-	Key        string   `json:"key,omitempty"`
-	Keys       []string `json:"keys,omitempty"`
+	Cmd   string   `json:"cmd"`
+	Code  int      `json:"code"`
+	Desc  string   `json:"desc"`
+	Error string   `json:"error,omitempty"`
+	Hash  string   `json:"hash,omitempty"`
+	Key   string   `json:"key,omitempty"`
+	Keys  []string `json:"keys,omitempty"`
 }
 
 // Pfop 持久化数据处理
@@ -193,6 +198,10 @@ func (m *OperationManager) Prefop(persistentID string) (PrefopRet, error) {
 	if err != nil {
 		return PrefopRet{}, err
 	}
+	createdAt, err := time.Parse(time.RFC3339, response.CreatedAt)
+	if err != nil {
+		return PrefopRet{}, err
+	}
 	ret := PrefopRet{
 		ID:          response.PersistentId,
 		Code:        int(response.Code),
@@ -202,16 +211,17 @@ func (m *OperationManager) Prefop(persistentID string) (PrefopRet, error) {
 		InputKey:    response.ObjectName,
 		Pipeline:    response.Pipeline,
 		Reqid:       response.RequestId,
+		CreatedAt:   createdAt,
 		Items:       make([]FopResult, 0, len(response.Items)),
 	}
 	for _, item := range response.Items {
 		ret.Items = append(ret.Items, FopResult{
-			Cmd:        item.Command,
-			Code:       int(item.Code),
-			Desc:       item.Description,
-			Error:      item.Error,
-			Hash:       item.Hash,
-			Key:        item.ObjectName,
+			Cmd:   item.Command,
+			Code:  int(item.Code),
+			Desc:  item.Description,
+			Error: item.Error,
+			Hash:  item.Hash,
+			Key:   item.ObjectName,
 		})
 	}
 	return ret, nil
