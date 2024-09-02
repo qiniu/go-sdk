@@ -196,7 +196,7 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 			relativePath = strings.Replace(relativePath, pathSeparator, string(filepath.Separator), -1)
 		}
 		fullPath := filepath.Join(targetDirPath, relativePath)
-		if strings.HasSuffix(fullPath, string(filepath.Separator)) {
+		if strings.HasSuffix(relativePath, string(filepath.Separator)) {
 			if err = os.MkdirAll(fullPath, 0700); err != nil {
 				return err
 			}
