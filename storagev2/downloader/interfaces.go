@@ -55,7 +55,7 @@ type (
 
 	// 对象下载 URL 生成选项
 	GenerateOptions struct {
-		// 对象名称，可选
+		// 空间名称，可选
 		BucketName string
 
 		// 文件处理命令，可选
