@@ -2,6 +2,7 @@ package retrier
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/url"
@@ -78,15 +79,15 @@ func isResponseRetryable(resp *http.Response) bool {
 	if resp == nil {
 		return false
 	}
-	return isStatusCodeRetryable(resp.StatusCode)
+	return IsStatusCodeRetryable(resp.StatusCode)
 }
 
-func isStatusCodeRetryable(statusCode int) bool {
+func IsStatusCodeRetryable(statusCode int) bool {
 	if statusCode < 500 {
 		return false
 	}
 
-	if statusCode == 501 || statusCode == 509 || statusCode == 573 || statusCode == 579 ||
+	if statusCode == 501 || statusCode == 509 || statusCode == 579 ||
 		statusCode == 608 || statusCode == 612 || statusCode == 614 || statusCode == 616 || statusCode == 618 ||
 		statusCode == 630 || statusCode == 631 || statusCode == 632 || statusCode == 640 || statusCode == 701 {
 		return false
@@ -107,6 +108,8 @@ func IsErrorRetryable(err error) bool {
 		return false
 	}
 }
+
+var ErrMaliciousResponse = errors.New("malicious response")
 
 func getRetryDecisionForError(err error) RetryDecision {
 	if err == nil {
@@ -137,7 +140,11 @@ func getRetryDecisionForError(err error) RetryDecision {
 	}
 
 	unwrapedErr := unwrapUnderlyingError(err)
-	if os.IsTimeout(unwrapedErr) {
+	if unwrapedErr == context.DeadlineExceeded {
+		return DontRetry
+	} else if unwrapedErr == ErrMaliciousResponse {
+		return RetryRequest
+	} else if os.IsTimeout(unwrapedErr) {
 		return RetryRequest
 	} else if dnsError, ok := unwrapedErr.(*net.DNSError); ok && isDnsNotFoundError(dnsError) {
 		return TryNextHost
@@ -148,10 +155,17 @@ func getRetryDecisionForError(err error) RetryDecision {
 		default:
 			return DontRetry
 		}
+	} else if errno, ok := unwrapedErr.(syscall.Errno); ok {
+		switch errno {
+		case syscall.ECONNREFUSED, syscall.ECONNABORTED, syscall.ECONNRESET:
+			return TryNextHost
+		default:
+			return DontRetry
+		}
 	} else if unwrapedErr == context.Canceled {
 		return DontRetry
 	} else if clientErr, ok := unwrapedErr.(*clientv1.ErrorInfo); ok {
-		if isStatusCodeRetryable(clientErr.Code) {
+		if IsStatusCodeRetryable(clientErr.Code) {
 			return RetryRequest
 		} else {
 			return DontRetry

@@ -2,7 +2,9 @@ package clientv2
 
 import (
 	"net/http"
+	"reflect"
 	"sort"
+	"sync"
 
 	clientV1 "github.com/qiniu/go-sdk/v7/client"
 	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
@@ -15,8 +17,9 @@ type Client interface {
 type Handler func(req *http.Request) (*http.Response, error)
 
 type client struct {
-	coreClient   Client
-	interceptors interceptorList
+	coreClient        Client
+	interceptors      interceptorList
+	interceptorsMutex sync.RWMutex
 }
 
 func NewClient(cli Client, interceptors ...Interceptor) Client {
@@ -27,28 +30,61 @@ func NewClient(cli Client, interceptors ...Interceptor) Client {
 	var is interceptorList = interceptors
 	is = append(is, newDefaultHeaderInterceptor())
 	is = append(is, newDebugInterceptor())
-	sort.Sort(is)
 
+	if c, ok := cli.(*client); ok {
+		c.addInterceptors(is)
+		return c
+	}
+
+	sort.Sort(is)
 	return &client{
 		coreClient:   cli,
 		interceptors: is,
 	}
 }
 
+func (c *client) addInterceptors(is interceptorList) {
+	c.interceptorsMutex.Lock()
+	defer c.interceptorsMutex.Unlock()
+
+	for _, i := range is {
+		c.addInterceptor(i)
+	}
+	sort.Sort(c.interceptors)
+}
+
+func (c *client) addInterceptor(interceptor Interceptor) {
+	for _, i := range c.interceptors {
+		if reflect.TypeOf(i) == reflect.TypeOf(interceptor) {
+			return
+		}
+	}
+	c.interceptors = append(c.interceptors, interceptor)
+}
+
+func (c *client) mergeInterceptors(req *http.Request) interceptorList {
+	c.interceptorsMutex.RLock()
+	defer c.interceptorsMutex.RUnlock()
+
+	intercetorsFromRequest := getIntercetorsFromRequest(req)
+	newInterceptorList := make(interceptorList, 0, len(c.interceptors)+len(intercetorsFromRequest))
+	if len(intercetorsFromRequest) == 0 {
+		newInterceptorList = append(newInterceptorList, c.interceptors...)
+	} else if len(c.interceptors) == 0 {
+		newInterceptorList = intercetorsFromRequest
+	} else {
+		newInterceptorList = append(newInterceptorList, c.interceptors...)
+		newInterceptorList = append(newInterceptorList, intercetorsFromRequest...)
+		sort.Sort(newInterceptorList)
+	}
+	return newInterceptorList
+}
+
 func (c *client) Do(req *http.Request) (*http.Response, error) {
 	handler := func(req *http.Request) (*http.Response, error) {
 		return c.coreClient.Do(req)
 	}
-	var newInterceptorList interceptorList
-	if intercetorsFromRequest := getIntercetorsFromRequest(req); len(intercetorsFromRequest) == 0 {
-		newInterceptorList = c.interceptors
-	} else if len(c.interceptors) == 0 {
-		newInterceptorList = intercetorsFromRequest
-	} else {
-		newInterceptorList = append(c.interceptors, intercetorsFromRequest...)
-		sort.Sort(newInterceptorList)
-	}
-
+	newInterceptorList := c.mergeInterceptors(req)
 	for _, interceptor := range newInterceptorList {
 		h := handler
 		i := interceptor

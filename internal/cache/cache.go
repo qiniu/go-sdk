@@ -376,9 +376,12 @@ func saveCacheMapTo(w io.Writer, m map[string]cacheValue) error {
 	return nil
 }
 
-func lockCachePersistentFile(lockFilePath string, ex bool, handleError func(error)) (context.CancelFunc, error) {
-	lockFile := flock.New(lockFilePath)
-	var err error
+func lockCachePersistentFile(cacheFilePath string, ex bool, handleError func(error)) (context.CancelFunc, error) {
+	var (
+		lockFilePath = cacheFilePath + ".lock"
+		lockFile     = flock.New(lockFilePath)
+		err          error
+	)
 	if ex {
 		err = lockFile.Lock()
 	} else {

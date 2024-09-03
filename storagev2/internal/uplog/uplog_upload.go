@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
@@ -72,8 +73,32 @@ func uploadAllClosedFileBuffers() {
 	}
 
 	if err = uploadUplogLog(archivedPaths); err == nil {
-		for _, archarchivedPath := range archivedPaths {
-			os.Remove(archarchivedPath)
+		for _, archivedPath := range archivedPaths {
+			os.Remove(archivedPath)
+		}
+	} else {
+		sort.Strings(archivedPaths)
+		var (
+			archivedPathsLen        = len(archivedPaths)
+			totalSize        uint64 = 0
+			deleteAllRest    bool   = false
+		)
+		for i := range archivedPaths {
+			archivedPath := archivedPaths[archivedPathsLen-i-1]
+			if !deleteAllRest {
+				fileInfo, err := os.Stat(archivedPath)
+				if err != nil {
+					return
+				}
+				if totalSize+uint64(fileInfo.Size()) > GetUplogMaxStorageBytes() {
+					deleteAllRest = true
+				} else {
+					totalSize += uint64(fileInfo.Size())
+				}
+			}
+			if deleteAllRest {
+				os.Remove(archivedPath)
+			}
 		}
 	}
 }

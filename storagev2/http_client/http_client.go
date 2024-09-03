@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -166,7 +167,7 @@ type (
 		// 授权类型
 		AuthType auth.TokenType
 
-		// 上传凭证提供者
+		// 上传凭证接口
 		UpToken uptoken.UpTokenProvider
 
 		// 是否缓存响应
@@ -174,6 +175,9 @@ type (
 
 		// 拦截器追加列表
 		Interceptors []Interceptor
+
+		// 请求进度回调函数
+		OnRequestProgress func(uint64, uint64)
 	}
 )
 
@@ -185,15 +189,18 @@ func NewClient(options *Options) *Client {
 			options.UseInsecureProtocol = isDisabled
 		}
 	}
-	if options.HostFreezeDuration < time.Millisecond {
-		options.HostFreezeDuration = 600 * time.Second
+	hostFreezeDuration := options.HostFreezeDuration
+	if hostFreezeDuration < time.Millisecond {
+		hostFreezeDuration = 600 * time.Second
 	}
-	if options.ShouldFreezeHost == nil {
-		options.ShouldFreezeHost = defaultShouldFreezeHost
+	shouldFreezeHost := options.ShouldFreezeHost
+	if shouldFreezeHost == nil {
+		shouldFreezeHost = defaultShouldFreezeHost
 	}
-	if options.Credentials == nil {
-		if defaultAuth := auth.Default(); defaultAuth != nil {
-			options.Credentials = defaultAuth
+	creds := options.Credentials
+	if creds == nil {
+		if defaultCreds := credentials.Default(); defaultCreds != nil {
+			creds = defaultCreds
 		}
 	}
 
@@ -202,13 +209,13 @@ func NewClient(options *Options) *Client {
 		basicHTTPClient:    clientv2.NewClient(options.BasicHTTPClient, options.Interceptors...),
 		bucketQuery:        options.BucketQuery,
 		regions:            options.Regions,
-		credentials:        options.Credentials,
+		credentials:        creds,
 		resolver:           options.Resolver,
 		chooser:            options.Chooser,
 		hostRetryConfig:    options.HostRetryConfig,
 		hostsRetryConfig:   options.HostsRetryConfig,
-		hostFreezeDuration: options.HostFreezeDuration,
-		shouldFreezeHost:   options.ShouldFreezeHost,
+		hostFreezeDuration: hostFreezeDuration,
+		shouldFreezeHost:   shouldFreezeHost,
 		beforeSign:         options.BeforeSign,
 		afterSign:          options.AfterSign,
 		signError:          options.SignError,
@@ -228,28 +235,34 @@ func (httpClient *Client) Do(ctx context.Context, request *Request) (*http.Respo
 	if err != nil {
 		return nil, err
 	}
-	if upTokenProvider := request.UpToken; upTokenProvider != nil {
-		if upToken, err := upTokenProvider.GetUpToken(ctx); err != nil {
-			return nil, err
+	req = clientv2.WithInterceptors(req, clientv2.NewAntiHijackingInterceptor())
+	if !isSignatureDisabled(ctx) {
+		if upTokenProvider := request.UpToken; upTokenProvider != nil {
+			req = clientv2.WithInterceptors(req, clientv2.NewUpTokenInterceptor(clientv2.UpTokenConfig{
+				UpToken: upTokenProvider,
+			}))
 		} else {
-			req.Header.Set("Authorization", "UpToken "+upToken)
-		}
-	} else {
-		credentialsProvider := request.Credentials
-		if credentialsProvider == nil {
-			credentialsProvider = httpClient.credentials
-		}
-		if credentialsProvider != nil {
-			if credentials, err := credentialsProvider.Get(ctx); err != nil {
-				return nil, err
-			} else {
-				req = clientv2.WithInterceptors(req, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
-					Credentials: credentials,
-					TokenType:   request.AuthType,
-					BeforeSign:  httpClient.beforeSign,
-					AfterSign:   httpClient.afterSign,
-					SignError:   httpClient.signError,
-				}))
+			credentialsProvider := request.Credentials
+			if credentialsProvider == nil {
+				credentialsProvider = httpClient.credentials
+			}
+			if credentialsProvider == nil {
+				if defaultCreds := credentials.Default(); defaultCreds != nil {
+					credentialsProvider = defaultCreds
+				}
+			}
+			if credentialsProvider != nil {
+				if creds, err := credentialsProvider.Get(ctx); err != nil {
+					return nil, err
+				} else {
+					req = clientv2.WithInterceptors(req, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
+						Credentials: creds,
+						TokenType:   request.AuthType,
+						BeforeSign:  httpClient.beforeSign,
+						AfterSign:   httpClient.afterSign,
+						SignError:   httpClient.signError,
+					}))
+				}
 			}
 		}
 	}
@@ -300,6 +313,42 @@ func (httpClient *Client) GetHostsRetryConfig() *RetryConfig {
 	return httpClient.hostsRetryConfig
 }
 
+func (httpClient *Client) GetResolver() resolver.Resolver {
+	return httpClient.resolver
+}
+
+func (httpClient *Client) GetChooser() chooser.Chooser {
+	return httpClient.chooser
+}
+
+func (httpClient *Client) GetBeforeResolveCallback() func(*http.Request) {
+	return httpClient.beforeResolve
+}
+
+func (httpClient *Client) GetAfterResolveCallback() func(*http.Request, []net.IP) {
+	return httpClient.afterResolve
+}
+
+func (httpClient *Client) GetResolveErrorCallback() func(*http.Request, error) {
+	return httpClient.resolveError
+}
+
+func (httpClient *Client) GetBeforeBackoffCallback() func(*http.Request, *retrier.RetrierOptions, time.Duration) {
+	return httpClient.beforeBackoff
+}
+
+func (httpClient *Client) GetAfterBackoffCallback() func(*http.Request, *retrier.RetrierOptions, time.Duration) {
+	return httpClient.afterBackoff
+}
+
+func (httpClient *Client) GetBeforeRequestCallback() func(*http.Request, *retrier.RetrierOptions) {
+	return httpClient.beforeRequest
+}
+
+func (httpClient *Client) GetAfterResponseCallback() func(*http.Response, *retrier.RetrierOptions, error) {
+	return httpClient.afterResponse
+}
+
 func (httpClient *Client) getEndpoints(ctx context.Context, request *Request) (region.Endpoints, error) {
 	getEndpointsFromEndpointsProvider := func(ctx context.Context, endpoints region.EndpointsProvider) (region.Endpoints, error) {
 		return endpoints.GetEndpoints(ctx)
@@ -336,58 +385,63 @@ func (httpClient *Client) makeReq(ctx context.Context, request *Request) (*http.
 	}
 
 	interceptors := make([]Interceptor, 0, 3)
-	hostsRetryConfig := httpClient.hostsRetryConfig
-	if hostsRetryConfig == nil {
-		hostsRetryConfig = &RetryConfig{
-			RetryMax: len(endpoints.Preferred) + len(endpoints.Alternative),
-		}
+
+	var hostsRetryConfig, hostRetryConfig clientv2.RetryConfig
+	if httpClient.hostsRetryConfig != nil {
+		hostsRetryConfig = *httpClient.hostsRetryConfig
 	}
-	r := httpClient.resolver
-	if r == nil {
-		if r, err = resolver.NewCacheResolver(nil, nil); err != nil {
-			return nil, err
-		}
+	if hostsRetryConfig.RetryMax <= 0 {
+		hostsRetryConfig.RetryMax = len(endpoints.Preferred) + len(endpoints.Alternative)
 	}
-	cs := httpClient.chooser
-	if cs == nil {
-		cs = chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil))
+	if hostsRetryConfig.Retrier == nil {
+		hostsRetryConfig.Retrier = retrier.NewErrorRetrier()
 	}
+
+	if httpClient.hostRetryConfig != nil {
+		hostRetryConfig = *httpClient.hostRetryConfig
+	}
+	if hostRetryConfig.RetryMax <= 0 {
+		hostRetryConfig.RetryMax = 3
+	}
+	if hostRetryConfig.Retrier == nil {
+		hostRetryConfig.Retrier = retrier.NewErrorRetrier()
+	}
+
 	interceptors = append(interceptors, clientv2.NewBufferResponseInterceptor())
 	interceptors = append(interceptors, clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
 		RetryMax:           hostsRetryConfig.RetryMax,
 		ShouldRetry:        hostsRetryConfig.ShouldRetry,
 		Retrier:            hostsRetryConfig.Retrier,
 		HostFreezeDuration: httpClient.hostFreezeDuration,
-		HostProvider:       hostProvider,
 		ShouldFreezeHost:   httpClient.shouldFreezeHost,
+		HostProvider:       hostProvider,
 	}))
-	if httpClient.hostRetryConfig != nil {
-		interceptors = append(interceptors, clientv2.NewSimpleRetryInterceptor(
-			clientv2.SimpleRetryConfig{
-				RetryMax:      httpClient.hostRetryConfig.RetryMax,
-				RetryInterval: httpClient.hostRetryConfig.RetryInterval,
-				Backoff:       httpClient.hostRetryConfig.Backoff,
-				ShouldRetry:   httpClient.hostRetryConfig.ShouldRetry,
-				Resolver:      r,
-				Chooser:       cs,
-				Retrier:       httpClient.hostRetryConfig.Retrier,
-				BeforeResolve: httpClient.beforeResolve,
-				AfterResolve:  httpClient.afterResolve,
-				ResolveError:  httpClient.resolveError,
-				BeforeBackoff: httpClient.beforeBackoff,
-				AfterBackoff:  httpClient.afterBackoff,
-				BeforeRequest: httpClient.beforeRequest,
-				AfterResponse: httpClient.afterResponse,
-			},
-		))
-	}
+	interceptors = append(interceptors, clientv2.NewSimpleRetryInterceptor(
+		clientv2.SimpleRetryConfig{
+			RetryMax:      hostRetryConfig.RetryMax,
+			RetryInterval: hostRetryConfig.RetryInterval,
+			Backoff:       hostRetryConfig.Backoff,
+			ShouldRetry:   hostRetryConfig.ShouldRetry,
+			Retrier:       hostRetryConfig.Retrier,
+			Resolver:      httpClient.resolver,
+			Chooser:       httpClient.chooser,
+			BeforeResolve: httpClient.beforeResolve,
+			AfterResolve:  httpClient.afterResolve,
+			ResolveError:  httpClient.resolveError,
+			BeforeBackoff: httpClient.beforeBackoff,
+			AfterBackoff:  httpClient.afterBackoff,
+			BeforeRequest: httpClient.beforeRequest,
+			AfterResponse: httpClient.afterResponse,
+		},
+	))
 	req, err := clientv2.NewRequest(clientv2.RequestParams{
-		Context:        ctx,
-		Method:         request.Method,
-		Url:            url,
-		Header:         request.Header,
-		GetBody:        request.RequestBody,
-		BufferResponse: request.BufferResponse,
+		Context:           ctx,
+		Method:            request.Method,
+		Url:               url,
+		Header:            request.Header,
+		GetBody:           request.RequestBody,
+		BufferResponse:    request.BufferResponse,
+		OnRequestProgress: request.OnRequestProgress,
 	})
 	if err != nil {
 		return nil, err
@@ -457,8 +511,14 @@ func GetMultipartFormRequestBody(info *MultipartForm) GetRequestBody {
 
 // GetMultipartFormRequestBody 将二进制数据请求 Body 发送
 func GetRequestBodyFromReadSeekCloser(r compatible_io.ReadSeekCloser) GetRequestBody {
-	return func(*clientv2.RequestParams) (io.ReadCloser, error) {
-		_, err := r.Seek(0, io.SeekStart)
+	return func(params *clientv2.RequestParams) (io.ReadCloser, error) {
+		params.Header.Set("Content-Type", "application/octet-stream")
+		totalSize, err := r.Seek(0, io.SeekEnd)
+		if err != nil {
+			return r, err
+		}
+		params.Header.Set("Content-Length", strconv.FormatInt(totalSize, 10))
+		_, err = r.Seek(0, io.SeekStart)
 		return r, err
 	}
 }

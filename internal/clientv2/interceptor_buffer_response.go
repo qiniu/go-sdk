@@ -14,7 +14,7 @@ func (interceptor bufferResponseInterceptor) Priority() InterceptorPriority {
 }
 
 func (interceptor bufferResponseInterceptor) Intercept(req *http.Request, handler Handler) (resp *http.Response, err error) {
-	toBufferResponse := req.Context().Value(contextKeyBufferResponse{}) != nil
+	toBufferResponse := req.Context().Value(bufferResponseContextKey{}) != nil
 	resp, err = handler(req)
 	if err == nil && toBufferResponse {
 		err = bufferResponse(resp)

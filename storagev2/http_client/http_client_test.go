@@ -29,6 +29,7 @@ func TestHttpClient(t *testing.T) {
 		if auth := r.Header.Get("Authorization"); !strings.HasPrefix(auth, "Qiniu TestAk:") {
 			t.Fatalf("Unexpected authorization: %s", auth)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.WriteHeader(http.StatusInternalServerError)
 		io.WriteString(w, "test error")
 	})
@@ -41,6 +42,7 @@ func TestHttpClient(t *testing.T) {
 		if auth := r.Header.Get("Authorization"); !strings.HasPrefix(auth, "Qiniu TestAk:") {
 			t.Fatalf("Unexpected authorization: %s", auth)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.WriteHeader(http.StatusInternalServerError)
 		io.WriteString(w, "test error")
 	})
@@ -53,6 +55,7 @@ func TestHttpClient(t *testing.T) {
 		if auth := r.Header.Get("Authorization"); !strings.HasPrefix(auth, "Qiniu TestAk:") {
 			t.Fatalf("Unexpected authorization: %s", auth)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		w.WriteHeader(http.StatusInternalServerError)
 		io.WriteString(w, "test error")
 	})
@@ -60,6 +63,7 @@ func TestHttpClient(t *testing.T) {
 	defer server_3.Close()
 
 	httpClient := NewClient(&Options{
+		HostRetryConfig: &RetryConfig{},
 		Regions: &region.Region{
 			Api: region.Endpoints{
 				Preferred:   []string{server_1.URL, server_2.URL},
@@ -90,12 +94,12 @@ func TestHttpClient(t *testing.T) {
 			t.Fatalf("Unexpected status code: %d", clientErr.Code)
 		}
 	}
-	if len(reqs) != 3 {
+	if len(reqs) != 12 {
 		t.Fatalf("Unexpected reqs: %#v", reqs)
 	}
 	for i, req := range reqs {
-		if i+1 != req.id || req.url.String() != "/test?fakeRawQuery&x-query-1=x-value-1&x-query-2=x-value-2" {
-			t.Fatalf("Unexpected req: %#v", req)
+		if i/4+1 != req.id || req.url.String() != "/test?fakeRawQuery&x-query-1=x-value-1&x-query-2=x-value-2" {
+			t.Fatalf("Unexpected req: %d, %d, %s", i, req.id, req.url)
 		}
 	}
 }
@@ -106,6 +110,7 @@ func TestHttpClientJson(t *testing.T) {
 		if auth := r.Header.Get("Authorization"); !strings.HasPrefix(auth, "Qiniu TestAk:") {
 			t.Fatalf("Unexpected authorization: %s", auth)
 		}
+		w.Header().Add("X-ReqId", "fakereqid")
 		io.WriteString(w, "{\"Test\":\"AccessKey\"}")
 	})
 	server_1 := httptest.NewServer(mux_1)

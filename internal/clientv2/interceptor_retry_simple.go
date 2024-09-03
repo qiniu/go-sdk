@@ -2,9 +2,11 @@ package clientv2
 
 import (
 	"context"
+	"io"
 	"math/rand"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
@@ -16,7 +18,7 @@ import (
 )
 
 type (
-	contextKeyBufferResponse struct{}
+	bufferResponseContextKey struct{}
 
 	SimpleRetryConfig struct {
 		RetryMax      int                  // 最大重试次数
@@ -101,9 +103,9 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 
 	// 可能会被重试多次
 	for i := 0; ; i++ {
-		req, chosenIPs = interceptor.choose(req, resolvedIPs, hostname)
 		// Clone 防止后面 Handler 处理对 req 有污染
 		reqBefore := cloneReq(req)
+		req, chosenIPs = interceptor.choose(req, resolvedIPs, hostname)
 		resp, err = interceptor.callHandler(req, &retrier.RetrierOptions{Attempts: i}, handler)
 
 		retryDecision := interceptor.config.getRetryDecision(reqBefore, resp, err, i)
@@ -119,12 +121,21 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 			break
 		}
 
+		if req.Body != nil && req.GetBody != nil {
+			if closer, ok := req.Body.(io.Closer); ok {
+				closer.Close()
+			}
+			if req.Body, err = req.GetBody(); err != nil {
+				return
+			}
+		}
+
 		if resp != nil && resp.Body != nil {
 			_ = internal_io.SinkAll(resp.Body)
 			resp.Body.Close()
 		}
 
-		interceptor.backoff(req, i)
+		interceptor.wait(req, i)
 	}
 	return resp, err
 }
@@ -140,31 +151,61 @@ func (interceptor *simpleRetryInterceptor) callHandler(req *http.Request, option
 	return
 }
 
+var (
+	defaultResolver     resolver.Resolver
+	defaultResolverOnce sync.Once
+)
+
+func (interceptor *simpleRetryInterceptor) resolver() resolver.Resolver {
+	var r resolver.Resolver
+	if r = interceptor.config.Resolver; r == nil {
+		defaultResolverOnce.Do(func() {
+			defaultResolver, _ = resolver.NewCacheResolver(nil, nil)
+		})
+		r = defaultResolver
+	}
+	return r
+}
+
 func (interceptor *simpleRetryInterceptor) resolve(req *http.Request, hostname string) []net.IP {
 	var (
 		ips []net.IP
 		err error
 	)
-	if resolver := interceptor.config.Resolver; resolver != nil {
+	if r := interceptor.resolver(); r != nil {
 		if interceptor.config.BeforeResolve != nil {
 			interceptor.config.BeforeResolve(req)
 		}
-		if ips, err = resolver.Resolve(req.Context(), hostname); err == nil {
+		if ips, err = r.Resolve(req.Context(), hostname); err == nil {
 			if interceptor.config.AfterResolve != nil {
 				interceptor.config.AfterResolve(req, ips)
 			}
-		} else if err != nil && interceptor.config.ResolveError != nil {
+		} else if interceptor.config.ResolveError != nil {
 			interceptor.config.ResolveError(req, err)
 		}
 	}
 	return ips
 }
 
+var (
+	defaultChooser     chooser.Chooser
+	defaultChooserOnce sync.Once
+)
+
+func (interceptor *simpleRetryInterceptor) chooser() chooser.Chooser {
+	var cs chooser.Chooser
+	if cs = interceptor.config.Chooser; cs == nil {
+		defaultChooserOnce.Do(func() {
+			defaultChooser = chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil))
+		})
+		cs = defaultChooser
+	}
+	return cs
+}
+
 func (interceptor *simpleRetryInterceptor) choose(req *http.Request, ips []net.IP, hostname string) (*http.Request, []net.IP) {
 	if len(ips) > 0 {
-		if cs := interceptor.config.Chooser; cs != nil {
-			ips = cs.Choose(req.Context(), ips, &chooser.ChooseOptions{Domain: hostname})
-		}
+		ips = interceptor.chooser().Choose(req.Context(), ips, &chooser.ChooseOptions{Domain: hostname})
 		req = req.WithContext(clientv1.WithResolvedIPs(req.Context(), hostname, ips))
 	}
 	return req, ips
@@ -172,21 +213,17 @@ func (interceptor *simpleRetryInterceptor) choose(req *http.Request, ips []net.I
 
 func (interceptor *simpleRetryInterceptor) feedbackGood(req *http.Request, hostname string, ips []net.IP) {
 	if len(ips) > 0 {
-		if cs := interceptor.config.Chooser; cs != nil {
-			cs.FeedbackGood(req.Context(), ips, &chooser.FeedbackOptions{Domain: hostname})
-		}
+		interceptor.chooser().FeedbackGood(req.Context(), ips, &chooser.FeedbackOptions{Domain: hostname})
 	}
 }
 
 func (interceptor *simpleRetryInterceptor) feedbackBad(req *http.Request, hostname string, ips []net.IP) {
 	if len(ips) > 0 {
-		if cs := interceptor.config.Chooser; cs != nil {
-			cs.FeedbackBad(req.Context(), ips, &chooser.FeedbackOptions{Domain: hostname})
-		}
+		interceptor.chooser().FeedbackBad(req.Context(), ips, &chooser.FeedbackOptions{Domain: hostname})
 	}
 }
 
-func (interceptor *simpleRetryInterceptor) backoff(req *http.Request, attempts int) {
+func (interceptor *simpleRetryInterceptor) wait(req *http.Request, attempts int) {
 	retryInterval := interceptor.config.getRetryInterval(req.Context(), attempts)
 	if interceptor.config.BeforeBackoff != nil {
 		interceptor.config.BeforeBackoff(req, &retrier.RetrierOptions{Attempts: attempts}, retryInterval)

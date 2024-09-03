@@ -306,10 +306,6 @@ func makeApiOptionsFromUpEndpoints(upEndpoints region.EndpointsProvider) *apis.O
 	return nil
 }
 
-func makeApiOptionsFromUpHost(upHost string) *apis.Options {
-	return makeApiOptionsFromUpEndpoints(makeEndpointsFromUpHost(upHost))
-}
-
 func makeKeyForUploading(key string, hasKey bool) *string {
 	if hasKey {
 		return &key

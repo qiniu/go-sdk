@@ -13,7 +13,8 @@ const (
 	InterceptorPrioritySetHeader      InterceptorPriority = 400
 	InterceptorPriorityNormal         InterceptorPriority = 500
 	InterceptorPriorityAuth           InterceptorPriority = 600
-	InterceptorPriorityDebug          InterceptorPriority = 700
+	InterceptorPriorityAntiHijacking  InterceptorPriority = 700
+	InterceptorPriorityDebug          InterceptorPriority = 800
 )
 
 type InterceptorPriority int

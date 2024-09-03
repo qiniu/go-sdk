@@ -225,9 +225,9 @@ var regionMap = map[RegionID]Region{
 }
 
 const (
-	defaultApiHost = "api.qiniu.com"
-	defaultUcHost0 = "kodo-config.qiniuapi.com"
-	defaultUcHost1 = "uc.qbox.me"
+	defaultUcHost0 = "uc.qiniuapi.com"
+	defaultUcHost1 = "kodo-config.qiniuapi.com"
+	defaultUcHost2 = "uc.qbox.me"
 )
 
 // UcHost 为查询空间相关域名的 API 服务地址
@@ -235,9 +235,7 @@ const (
 // Deprecated 使用 SetUcHosts 替换
 var UcHost = ""
 
-// 公有云包括 defaultApiHost，非 uc query api 使用时需要移除 defaultApiHost
-// 用户配置时，不能配置 api 域名
-var ucHosts = []string{defaultUcHost0, defaultUcHost1, defaultApiHost}
+var ucHosts = []string{defaultUcHost0, defaultUcHost1, defaultUcHost2}
 
 func init() {
 	if defaultUcHosts, err := defaults.BucketURLs(); err == nil && len(defaultUcHosts) > 0 {

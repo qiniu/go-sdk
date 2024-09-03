@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
@@ -23,6 +22,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_domains_v3"
 	"github.com/qiniu/go-sdk/v7/storagev2/backoff"
 	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
+	"github.com/qiniu/go-sdk/v7/storagev2/downloader"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
@@ -343,11 +343,12 @@ type BucketManagerOptions struct {
 
 // BucketManager 提供了对资源进行管理的操作
 type BucketManager struct {
-	Client    *clientv1.Client
-	Mac       *auth.Credentials
-	Cfg       *Config
-	options   BucketManagerOptions
-	apiClient *apis.Storage
+	Client          *clientv1.Client
+	Mac             *auth.Credentials
+	Cfg             *Config
+	options         BucketManagerOptions
+	apiClient       *apis.Storage
+	downloadManager *downloader.DownloadManager
 }
 
 // NewBucketManager 用来构建一个新的资源管理对象
@@ -401,11 +402,12 @@ func NewBucketManagerExWithOptions(mac *auth.Credentials, cfg *Config, clt *clie
 	}
 
 	return &BucketManager{
-		Client:    clt,
-		Mac:       mac,
-		Cfg:       cfg,
-		options:   options,
-		apiClient: apis.NewStorage(&opts),
+		Client:          clt,
+		Mac:             mac,
+		Cfg:             cfg,
+		options:         options,
+		apiClient:       apis.NewStorage(&opts),
+		downloadManager: downloader.NewDownloadManager(&downloader.DownloadManagerOptions{Options: opts}),
 	}
 }
 
@@ -1109,58 +1111,6 @@ func (m *BucketManager) Zone(bucket string) (z *Zone, err error) {
 
 func (m *BucketManager) makeRequestOptions() *apis.Options {
 	return &apis.Options{OverwrittenBucketHosts: getUcEndpoint(m.Cfg.UseHTTPS, nil)}
-}
-
-var (
-	defaultResolver      resolver.Resolver
-	defaultResolverMutex sync.Mutex
-)
-
-func (m *BucketManager) resolver() (resolver.Resolver, error) {
-	var err error
-
-	if m.options.Resolver != nil {
-		return m.options.Resolver, nil
-	}
-	defaultResolverMutex.Lock()
-	defer defaultResolverMutex.Unlock()
-
-	if defaultResolver != nil {
-		return defaultResolver, nil
-	}
-
-	if defaultResolver, err = resolver.NewCacheResolver(nil, nil); err != nil {
-		return nil, err
-	} else {
-		return defaultResolver, nil
-	}
-}
-
-var (
-	defaultChooser      chooser.Chooser
-	defaultChooserMutex sync.Mutex
-)
-
-func (m *BucketManager) chooser() chooser.Chooser {
-	if m.options.Chooser != nil {
-		return m.options.Chooser
-	}
-	defaultChooserMutex.Lock()
-	defer defaultChooserMutex.Unlock()
-
-	if defaultChooser != nil {
-		return defaultChooser
-	}
-	defaultChooser = chooser.NewShuffleChooser(chooser.NewSmartIPChooser(nil))
-	return defaultChooser
-}
-
-func (m *BucketManager) backoff() backoff.Backoff {
-	return m.options.Backoff
-}
-
-func (m *BucketManager) retrier() retrier.Retrier {
-	return m.options.Retrier
 }
 
 // 构建op的方法，导出的方法支持在Batch操作中使用

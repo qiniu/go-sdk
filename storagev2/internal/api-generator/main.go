@@ -163,6 +163,10 @@ func generateApiClient(group *jen.Group) {
 			group.Add(jen.Id("OverwrittenBucketName").String())
 			group.Add(jen.Id("OverwrittenEndpoints").Qual(PackageNameRegion, "EndpointsProvider"))
 			group.Add(jen.Id("OverwrittenRegion").Qual(PackageNameRegion, "RegionsProvider"))
+			group.Add(jen.Id("OnRequestProgress").Func().Params(
+				jen.Uint64(),
+				jen.Uint64(),
+			))
 		}),
 	)
 }

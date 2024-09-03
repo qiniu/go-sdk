@@ -3,14 +3,16 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
-	clientV1 "github.com/qiniu/go-sdk/v7/client"
+	"github.com/qiniu/go-sdk/v7/storagev2/downloader"
+	"github.com/qiniu/go-sdk/v7/storagev2/region"
 )
 
 type GetObjectInput struct {
@@ -46,6 +48,51 @@ func (g *GetObjectOutput) Close() error {
 	return g.Body.Close()
 }
 
+type (
+	trafficLimitDownloadURLsProvider struct {
+		base         downloader.DownloadURLsProvider
+		trafficLimit uint64
+	}
+	trafficLimitURLsIter struct {
+		iter         downloader.URLsIter
+		trafficLimit uint64
+	}
+)
+
+func (p trafficLimitURLsIter) Peek(u *url.URL) (bool, error) {
+	if ok, err := p.iter.Peek(u); err != nil {
+		return ok, err
+	} else if !ok {
+		return false, nil
+	} else {
+		if u.RawQuery != "" {
+			u.RawQuery += "&"
+		}
+		u.RawQuery += fmt.Sprintf("X-Qiniu-Traffic-Limit=%d", p.trafficLimit)
+		return true, nil
+	}
+}
+
+func (p trafficLimitURLsIter) Next() {
+	p.iter.Next()
+}
+
+func (p trafficLimitURLsIter) Reset() {
+	p.iter.Reset()
+}
+
+func (p trafficLimitURLsIter) Clone() downloader.URLsIter {
+	return trafficLimitURLsIter{p.iter.Clone(), p.trafficLimit}
+}
+
+func (p trafficLimitDownloadURLsProvider) GetURLsIter(ctx context.Context, objectName string, options *downloader.GenerateOptions) (downloader.URLsIter, error) {
+	if urlsIter, err := p.base.GetURLsIter(ctx, objectName, options); err != nil {
+		return nil, err
+	} else {
+		return trafficLimitURLsIter{urlsIter, p.trafficLimit}, nil
+	}
+}
+
 // Get
 //
 //	@Description: 下载文件
@@ -57,119 +104,110 @@ func (g *GetObjectOutput) Close() error {
 //	@return error 请求错误信息
 func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetObjectOutput, error) {
 	if options == nil {
-		options = &GetObjectInput{
-			DownloadDomains: nil,
-			PresignUrl:      false,
-			Range:           "",
-		}
+		options = &GetObjectInput{}
 	}
-
-	domain := ""
-	if len(options.DownloadDomains) > 0 {
-		// 使用用户配置域名
-		domain = options.DownloadDomains[0]
-	} else {
-		resolver, e := m.resolver()
-		if e != nil {
-			return nil, e
-		}
-		// 查源站域名
-		if rg, e := getRegionByV4(m.Mac.AccessKey, bucket, UCApiOptions{
-			UseHttps:           m.Cfg.UseHTTPS,
-			RetryMax:           m.options.RetryMax,
-			HostFreezeDuration: m.options.HostFreezeDuration,
-			Resolver:           resolver,
-			Chooser:            m.chooser(),
-			Backoff:            m.backoff(),
-			Retrier:            m.retrier(),
-		}); e != nil {
-			return nil, e
-		} else if len(rg.regions) == 0 {
-			return nil, errors.New("can't get region with bucket")
-		} else {
-			domain = rg.regions[0].IoSrcHost
-		}
-		options.PresignUrl = true
-	}
-
-	if len(domain) == 0 {
-		return nil, errors.New("download domain is empty")
-	}
-
-	query := url.Values{}
-	if options.TrafficLimit > 0 {
-		query.Add("X-Qiniu-Traffic-Limit", strconv.FormatUint(options.TrafficLimit, 10))
-	}
-	downloadUrl := endpoint(m.Cfg.UseHTTPS, domain)
-	if options.PresignUrl {
-		deadline := time.Now().Unix() + 3*60
-		downloadUrl = MakePrivateURLv2WithQuery(m.Mac, downloadUrl, key, query, deadline)
-	} else {
-		downloadUrl = MakePublicURLv2WithQuery(key, downloadUrl, query)
-	}
-
-	resp, err := m.getWithDownloadUrl(options.Context, downloadUrl, options.Range, options.TrafficLimit)
-	if err == nil && resp == nil {
-		return nil, errors.New("response is empty")
-	}
-
-	// err 和 resp 必须有一个有值
-	var output *GetObjectOutput = nil
-	if resp != nil {
-		output = &GetObjectOutput{
-			ContentType:   "",
-			ContentLength: resp.ContentLength,
-			ETag:          "",
-			Metadata:      nil,
-			LastModified:  time.Time{},
-			Body:          resp.Body,
-		}
-	}
-
-	if err != nil {
-		return output, err
-	}
-
-	// err 为空， resp 必有值
-	if resp.StatusCode/100 != 2 {
-		return output, ResponseError(resp)
-	}
-
-	if resp.Header != nil {
-		output.ContentType = resp.Header.Get("Content-Type")
-		output.ETag = parseEtag(resp.Header.Get("ETag"))
-
-		lm := resp.Header.Get("Last-Modified")
-		if len(lm) > 0 {
-			if t, e := time.Parse(time.RFC1123, lm); e == nil {
-				output.LastModified = t
-			}
-		}
-
-		metaData := make(map[string]string)
-		for k, v := range resp.Header {
-			if len(v) > 0 && strings.HasPrefix(strings.ToLower(k), "x-qn-meta-") {
-				metaData[k] = v[0]
-			}
-		}
-		output.Metadata = metaData
-	}
-
-	return output, nil
-}
-
-func (m *BucketManager) getWithDownloadUrl(ctx context.Context, downloadUrl string, contentRange string, trafficLimit uint64) (*http.Response, error) {
+	ctx := options.Context
 	if ctx == nil {
 		ctx = context.Background()
 	}
-
-	req, err := http.NewRequest(http.MethodGet, downloadUrl, nil)
+	bucketHosts, err := getUcEndpoint(m.Cfg.UseHTTPS, nil).GetEndpoints(ctx)
 	if err != nil {
 		return nil, err
 	}
-	req = req.WithContext(ctx)
+	var accessKey string
+	if m.Mac != nil {
+		accessKey = m.Mac.AccessKey
+	}
+	urlsProvider := downloader.NewDefaultSrcURLsProvider(accessKey, &downloader.DefaultSrcURLsProviderOptions{
+		BucketRegionsQueryOptions: region.BucketRegionsQueryOptions{},
+		BucketHosts:               bucketHosts,
+	})
+	urlsProvider = m.applyPresignOnUrlsProvider(m.applyTrafficLimitOnUrlsProvider(urlsProvider, options.TrafficLimit))
+	if len(options.DownloadDomains) > 0 {
+		staticDomainBasedURLsProvider := downloader.NewStaticDomainBasedURLsProvider(options.DownloadDomains)
+		staticDomainBasedURLsProvider = m.applyTrafficLimitOnUrlsProvider(staticDomainBasedURLsProvider, options.TrafficLimit)
+		if options.PresignUrl {
+			staticDomainBasedURLsProvider = m.applyPresignOnUrlsProvider(staticDomainBasedURLsProvider)
+		}
+		urlsProvider = downloader.CombineDownloadURLsProviders(staticDomainBasedURLsProvider, urlsProvider)
+	}
+	reqHeaders := make(http.Header)
+	if options.Range != "" {
+		reqHeaders.Set("Range", options.Range)
+	}
+	var (
+		getObjectOutput GetObjectOutput
+		headerChan      = make(chan struct{})
+		errChan         = make(chan error)
+		areChansClosed  int32
+	)
+	defer func() {
+		atomic.StoreInt32(&areChansClosed, 1)
+		close(headerChan)
+		close(errChan)
+	}()
 
-	clientV1.AddHttpHeaderRange(req.Header, contentRange)
+	objectOptions := downloader.ObjectOptions{
+		DestinationDownloadOptions: downloader.DestinationDownloadOptions{
+			Header: reqHeaders,
+			OnResponseHeader: func(h http.Header) {
+				defer func() {
+					if atomic.LoadInt32(&areChansClosed) == 0 {
+						headerChan <- struct{}{}
+					}
+				}()
+				getObjectOutput.ContentType = h.Get("Content-Type")
+				getObjectOutput.ETag = parseEtag(h.Get("ETag"))
 
-	return m.Client.Do(ctx, req)
+				lm := h.Get("Last-Modified")
+				if len(lm) > 0 {
+					if t, e := time.Parse(time.RFC1123, lm); e == nil {
+						getObjectOutput.LastModified = t
+					}
+				}
+
+				metaData := make(map[string]string)
+				for k, v := range h {
+					if len(v) > 0 && strings.HasPrefix(strings.ToLower(k), "x-qn-meta-") {
+						metaData[k] = v[0]
+					}
+				}
+				getObjectOutput.Metadata = metaData
+			}},
+		GenerateOptions: downloader.GenerateOptions{
+			BucketName:          bucket,
+			UseInsecureProtocol: !m.Cfg.UseHTTPS,
+		},
+		DownloadURLsProvider: urlsProvider,
+	}
+
+	pipeR, pipeW := io.Pipe()
+	getObjectOutput.Body = pipeR
+	go func() {
+		n, err := m.downloadManager.DownloadToWriter(ctx, key, pipeW, &objectOptions)
+		getObjectOutput.ContentLength = int64(n)
+		if atomic.LoadInt32(&areChansClosed) == 0 {
+			errChan <- err
+		}
+		pipeW.CloseWithError(err)
+	}()
+
+	select {
+	case <-headerChan:
+		return &getObjectOutput, nil
+	case err := <-errChan:
+		return &getObjectOutput, err
+	}
+}
+
+func (m *BucketManager) applyTrafficLimitOnUrlsProvider(urlsProvider downloader.DownloadURLsProvider, trafficLimit uint64) downloader.DownloadURLsProvider {
+	if trafficLimit > 0 {
+		urlsProvider = trafficLimitDownloadURLsProvider{urlsProvider, trafficLimit}
+	}
+	return urlsProvider
+}
+
+func (m *BucketManager) applyPresignOnUrlsProvider(urlsProvider downloader.DownloadURLsProvider) downloader.DownloadURLsProvider {
+	signOptions := downloader.SignOptions{TTL: 3 * time.Minute}
+	return downloader.SignURLsProvider(urlsProvider, downloader.NewCredentialsSigner(m.Mac), &signOptions)
 }

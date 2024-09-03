@@ -65,12 +65,6 @@ func (j *Response) validate() error {
 	if j.Checksum == "" {
 		return errors.MissingRequiredFieldError{Name: "Checksum"}
 	}
-	if j.Crc32 == 0 {
-		return errors.MissingRequiredFieldError{Name: "Crc32"}
-	}
-	if j.Offset == 0 {
-		return errors.MissingRequiredFieldError{Name: "Offset"}
-	}
 	if j.Host == "" {
 		return errors.MissingRequiredFieldError{Name: "Host"}
 	}

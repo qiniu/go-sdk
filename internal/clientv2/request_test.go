@@ -26,6 +26,8 @@ func TestGetJsonRequestBody(t *testing.T) {
 			t.Fatal("invalid body")
 		} else if params.Header.Get("Content-Type") != "application/json" {
 			t.Fatal("invalid header")
+		} else if params.Header.Get("Content-Length") != "21" {
+			t.Fatal("invalid header")
 		} else if err = readCloser.Close(); err != nil {
 			t.Fatal(err)
 		}
@@ -60,6 +62,8 @@ func TestGetFormRequestBody(t *testing.T) {
 		if string(buf[:n]) != `v=value&v2=1&v2=2&v2=3` {
 			t.Fatal("invalid body")
 		} else if params.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {
+			t.Fatal("invalid header")
+		} else if params.Header.Get("Content-Length") != "22" {
 			t.Fatal("invalid header")
 		} else if err = readCloser.Close(); err != nil {
 			t.Fatal(err)

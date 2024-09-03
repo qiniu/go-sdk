@@ -31,7 +31,11 @@ func defaultDialFunc(ctx context.Context, network string, address string) (net.C
 		keepAliveInterval = 15 * time.Second
 	}
 	if resolved, ok := ctx.Value(resolverContextKey{}).(resolverContextValue); ok && len(resolved.ips) > 0 && resolved.domain == host {
-		dialer := net.Dialer{Timeout: dialTimeout / time.Duration(len(resolved.ips)), KeepAlive: keepAliveInterval}
+		dialTimeout = dialTimeout / time.Duration(len(resolved.ips))
+		if dialTimeout < 3*time.Second {
+			dialTimeout = 3 * time.Second
+		}
+		dialer := net.Dialer{Timeout: dialTimeout, KeepAlive: keepAliveInterval}
 		for _, ip := range resolved.ips {
 			newAddr := ip.String()
 			if port != "" {

@@ -9,7 +9,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/matishsiao/goInfo"
+	sysinfo "github.com/elastic/go-sysinfo"
+	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 )
 
 type (
@@ -30,6 +31,7 @@ const (
 	ErrorTypeUnknownError           ErrorType    = "unknown_error"
 	ErrorTypeTimeout                ErrorType    = "timeout"
 	ErrorTypeUnknownHost            ErrorType    = "unknown_host"
+	ErrorTypeMaliciousResponse      ErrorType    = "malicious_response"
 	ErrorTypeCannotConnectToHost    ErrorType    = "cannot_connect_to_host"
 	ErrorTypeSSLError               ErrorType    = "ssl_error"
 	ErrorTypeTransmissionError      ErrorType    = "transmission_error"
@@ -49,6 +51,7 @@ const (
 	LogResultUnknownError           LogResult    = "unknown_error"
 	LogResultTimeout                LogResult    = "timeout"
 	LogResultUnknownHost            LogResult    = "unknown_host"
+	LogResultMaliciousResponse      LogResult    = "malicious_response"
 	LogResultCannotConnectToHost    LogResult    = "cannot_connect_to_host"
 	LogResultSSLError               LogResult    = "ssl_error"
 	LogResultTransmissionError      LogResult    = "transmission_error"
@@ -66,8 +69,8 @@ var (
 
 func getOsVersion() string {
 	osVersionOnce.Do(func() {
-		if osInfo, err := goInfo.GetInfo(); err == nil {
-			osVersion = osInfo.Core
+		if hostInfo, err := sysinfo.Host(); err == nil {
+			osVersion = hostInfo.Info().KernelVersion
 		}
 	})
 	return osVersion
@@ -98,7 +101,9 @@ func detectErrorType(err error) ErrorType {
 	}
 
 	unwrapedErr := unwrapUnderlyingError(err)
-	if os.IsTimeout(unwrapedErr) {
+	if unwrapedErr == retrier.ErrMaliciousResponse {
+		return ErrorTypeMaliciousResponse
+	} else if os.IsTimeout(unwrapedErr) {
 		return ErrorTypeTimeout
 	} else if dnsError, ok := unwrapedErr.(*net.DNSError); ok && isDnsNotFoundError(dnsError) {
 		return ErrorTypeUnknownHost
@@ -106,6 +111,13 @@ func detectErrorType(err error) ErrorType {
 		return ErrorTypeLocalIoError
 	} else if syscallError, ok := unwrapedErr.(*os.SyscallError); ok {
 		switch syscallError.Err {
+		case syscall.ECONNREFUSED, syscall.ECONNABORTED, syscall.ECONNRESET:
+			return ErrorTypeCannotConnectToHost
+		default:
+			return ErrorTypeUnexpectedSyscallError
+		}
+	} else if errno, ok := unwrapedErr.(syscall.Errno); ok {
+		switch errno {
 		case syscall.ECONNREFUSED, syscall.ECONNABORTED, syscall.ECONNRESET:
 			return ErrorTypeCannotConnectToHost
 		default:

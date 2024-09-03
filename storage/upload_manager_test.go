@@ -58,10 +58,9 @@ func TestUploadManagerFormUpload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create temp file error:%v", err)
 	}
-	defer func() {
-		tempFile.Close()
-		os.Remove(tempFile.Name())
-	}()
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
 	tempFile.Write(data)
 	size := int64(len(data))
 
@@ -149,14 +148,14 @@ func TestUploadManagerResumeV1Upload(t *testing.T) {
 	data := make([]byte, length, length)
 	data[0] = 8
 	data[length-1] = 8
+
 	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut")
 	if err != nil {
 		t.Fatalf("create temp file error:%v", err)
 	}
-	defer func() {
-		tempFile.Close()
-		os.ReadFile(tempFile.Name())
-	}()
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
 	tempFile.Write(data)
 	size := int64(len(data))
 
@@ -247,14 +246,14 @@ func TestUploadManagerResumeV1UploadRecord(t *testing.T) {
 	data := make([]byte, length, length)
 	data[0] = 8
 	data[length-1] = 8
+
 	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut")
 	if err != nil {
 		t.Fatalf("create temp file error:%v", err)
 	}
-	defer func() {
-		tempFile.Close()
-		os.ReadFile(tempFile.Name())
-	}()
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
 	tempFile.Write(data)
 
 	params := make(map[string]string)
@@ -327,14 +326,14 @@ func TestUploadManagerResumeV2Upload(t *testing.T) {
 	data := make([]byte, length, length)
 	data[0] = 8
 	data[length-1] = 8
+
 	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut")
 	if err != nil {
 		t.Fatalf("create temp file error:%v", err)
 	}
-	defer func() {
-		tempFile.Close()
-		os.ReadFile(tempFile.Name())
-	}()
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
 	tempFile.Write(data)
 	size := int64(len(data))
 
@@ -425,14 +424,14 @@ func TestUploadManagerResumeV2UploadRecord(t *testing.T) {
 	data := make([]byte, length, length)
 	data[0] = 8
 	data[length-1] = 8
+
 	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut")
 	if err != nil {
 		t.Fatalf("create temp file error:%v", err)
 	}
-	defer func() {
-		tempFile.Close()
-		os.ReadFile(tempFile.Name())
-	}()
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
 	tempFile.Write(data)
 
 	params := make(map[string]string)

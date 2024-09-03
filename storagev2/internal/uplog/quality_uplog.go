@@ -102,6 +102,8 @@ func detectLogResult(err error) LogResult {
 			return LogResultTimeout
 		case ErrorTypeUnknownHost:
 			return LogResultUnknownHost
+		case ErrorTypeMaliciousResponse:
+			return LogResultMaliciousResponse
 		case ErrorTypeCannotConnectToHost:
 			return LogResultCannotConnectToHost
 		case ErrorTypeUserCanceled:
