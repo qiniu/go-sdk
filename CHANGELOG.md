@@ -1,5 +1,17 @@
 # Changelog
 
+## 7.22.0
+* 新增
+  * 新版存储客户端库 storagev2 包，包含
+    * 新的 [uploader](github.com/qiniu/go-sdk/v7/storagev2/uploader) 包设计，提供更好的对象上传接口
+    * 新的 [downloader](github.com/qiniu/go-sdk/v7/storagev2/downloader) 包设计，提供更好的对象下载接口
+    * 新的 [objects](github.com/qiniu/go-sdk/v7/storagev2/objects) 包设计，提供更好的对象管理接口
+  * 为 HTTP 客户端新增防劫持能力
+* 调整
+  * 查询区域主备域名
+* 修复
+  * Go SDK v7.21.1 可能出现崩溃的问题
+
 ## 7.21.1
 * 修复
   * 修复通过 ResumeUploaderV2 上传的文件无法正确设置 Content-Type 的问题
