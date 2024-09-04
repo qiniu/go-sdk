@@ -191,15 +191,16 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 	var object objects.ObjectDetails
 	for lister.Next(&object) {
 		objectName := object.Name
+		if options.ShouldDownloadObject != nil && !options.ShouldDownloadObject(objectName) {
+			continue
+		}
+
 		relativePath := strings.TrimPrefix(objectName, options.ObjectPrefix)
 		if pathSeparator != string(filepath.Separator) {
 			relativePath = strings.Replace(relativePath, pathSeparator, string(filepath.Separator), -1)
 		}
 		fullPath := filepath.Join(targetDirPath, relativePath)
 		if relativePath == "" || strings.HasSuffix(relativePath, string(filepath.Separator)) {
-			if options.ShouldDownloadObject != nil && !options.ShouldDownloadObject(objectName) {
-				continue
-			}
 			if err = os.MkdirAll(fullPath, 0700); err != nil {
 				return err
 			}
@@ -221,9 +222,6 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 						UseInsecureProtocol: options.UseInsecureProtocol,
 					},
 					DownloadURLsProvider: options.DownloadURLsProvider,
-				}
-				if options.ShouldDownloadObject != nil && !options.ShouldDownloadObject(objectName) {
-					return nil
 				}
 				if options.BeforeObjectDownload != nil {
 					options.BeforeObjectDownload(objectName, &objectOptions)

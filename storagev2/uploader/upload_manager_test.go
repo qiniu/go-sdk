@@ -617,3 +617,78 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 		t.Fatal(err)
 	}
 }
+
+func TestUploadManagerUploadDirectoryWithFilter(t *testing.T) {
+	tmpDir_1, err := ioutil.TempDir("", "multi-parts-uploader-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir_1)
+
+	tmpFile_1, err := ioutil.TempFile(tmpDir_1, "multi-parts-uploader-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile_1.Name())
+	defer tmpFile_1.Close()
+
+	tmpFile_2, err := ioutil.TempFile(tmpDir_1, "multi-parts-uploader-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile_2.Name())
+	defer tmpFile_2.Close()
+
+	keys := make(map[string]struct{})
+	var keysMutex sync.Mutex
+
+	serveMux := http.NewServeMux()
+	serveMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if err := r.ParseMultipartForm(2 * 1024 * 1024); err != nil {
+			t.Fatal(err)
+		}
+		if values := r.MultipartForm.Value["token"]; len(values) != 1 || !strings.HasPrefix(values[0], "testak:") {
+			t.Fatalf("unexpected token")
+		}
+
+		key := r.MultipartForm.Value["key"][0]
+		keysMutex.Lock()
+		keys[key] = struct{}{}
+		keysMutex.Unlock()
+		w.Header().Add("X-ReqId", "fakereqid")
+		w.Write([]byte(`{"ok":true}`))
+	})
+	server := httptest.NewServer(serveMux)
+	defer server.Close()
+
+	var uploadManager = uploader.NewUploadManager(&uploader.UploadManagerOptions{
+		Options: http_client.Options{
+			Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
+			Credentials: credentials.NewCredentials("testak", "testsk"),
+		},
+	})
+
+	err = uploadManager.UploadDirectory(context.Background(), tmpDir_1, &uploader.DirectoryOptions{
+		BucketName:            "testbucket",
+		ShouldCreateDirectory: true,
+		ShouldUploadObject: func(_ string, objectOptions *uploader.ObjectOptions) bool {
+			return objectOptions != nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(keys) != 2 {
+		t.Fatalf("unexpected uploaded oject names count")
+	}
+	if _, ok := keys[filepath.Base(tmpFile_1.Name())]; !ok {
+		t.Fatalf("unexpected uploaded oject name")
+	}
+	if _, ok := keys[filepath.Base(tmpFile_2.Name())]; !ok {
+		t.Fatalf("unexpected uploaded oject name")
+	}
+}
