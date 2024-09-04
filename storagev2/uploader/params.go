@@ -97,7 +97,7 @@ type (
 		// 是否在空间内创建目录
 		ShouldCreateDirectory bool
 
-		// 是否上传指定对象
+		// 是否上传指定对象，如果 objectOptions 为 nil 则表示是目录
 		ShouldUploadObject func(filePath string, objectOptions *ObjectOptions) bool
 
 		// 更改对象名称

@@ -160,6 +160,9 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 					directoryOptions.OnObjectUploaded(path, &UploadedObjectInfo{Size: uint64(info.Size())})
 				}
 			} else if directoryOptions.ShouldCreateDirectory && info.IsDir() {
+				if directoryOptions.ShouldUploadObject != nil && !directoryOptions.ShouldUploadObject(path, nil) {
+					return nil
+				}
 				if !strings.HasSuffix(objectName, pathSeparator) {
 					objectName += pathSeparator
 				}
