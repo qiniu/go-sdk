@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"sync/atomic"
 	"testing"
@@ -28,25 +27,24 @@ func TestStaticDomainBasedURLsProvider(t *testing.T) {
 		"testc.com",
 	})
 
-	urlsIter, err := generator.GetURLsIter(context.Background(), "/!@#$%^&*()?", &downloader.GenerateOptions{
+	urls, err := downloader.GetURLStrings(context.Background(), generator, "/!@#$%^&*()?", &downloader.GenerateOptions{
 		Command: "test1|test2",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if peekURLsIter(t, urlsIter) != "http://testa.com//%21@%23$%25%5E&%2A%28%29%3F?test1|test2" {
+	if len(urls) != 3 {
+		t.Fatalf("unexpected urls count")
+	}
+	if urls[0] != "http://testa.com//%21@%23$%25%5E&%2A%28%29%3F?test1|test2" {
 		t.Fatalf("unexpected generated url")
 	}
-	urlsIter.Next()
-	if peekURLsIter(t, urlsIter) != "https://b.testb.com//%21@%23$%25%5E&%2A%28%29%3F?test1|test2" {
+	if urls[1] != "https://b.testb.com//%21@%23$%25%5E&%2A%28%29%3F?test1|test2" {
 		t.Fatalf("unexpected generated url")
 	}
-	urlsIter.Next()
-	if peekURLsIter(t, urlsIter) != "https://testc.com//%21@%23$%25%5E&%2A%28%29%3F?test1|test2" {
+	if urls[2] != "https://testc.com//%21@%23$%25%5E&%2A%28%29%3F?test1|test2" {
 		t.Fatalf("unexpected generated url")
 	}
-	urlsIter.Next()
-	assertURLsIterIsConsumed(t, urlsIter)
 }
 
 func TestDefaultSrcURLsProvider(t *testing.T) {
@@ -95,18 +93,19 @@ func TestDefaultSrcURLsProvider(t *testing.T) {
 			BucketHosts:               region.Endpoints{Preferred: []string{server.URL}},
 		},
 	)
-	urlsIter, err := urlsProvider.GetURLsIter(context.Background(), "/!@#$%^&*()?", &downloader.GenerateOptions{
+	urls, err := downloader.GetURLStrings(context.Background(), urlsProvider, "/!@#$%^&*()?", &downloader.GenerateOptions{
 		BucketName: bucketName,
 		Command:    "test1|test2",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if peekURLsIter(t, urlsIter) != "https://fakebucket.cn-east-1.qiniucs.com//%21@%23$%25%5E&%2A%28%29%3F?test1|test2" {
+	if len(urls) != 1 {
+		t.Fatalf("unexpected urls count")
+	}
+	if urls[0] != "https://fakebucket.cn-east-1.qiniucs.com//%21@%23$%25%5E&%2A%28%29%3F?test1|test2" {
 		t.Fatalf("unexpected generated url")
 	}
-	urlsIter.Next()
-	assertURLsIterIsConsumed(t, urlsIter)
 }
 
 func TestDomainsQueryURLsProvider(t *testing.T) {
@@ -148,43 +147,24 @@ func TestDomainsQueryURLsProvider(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < 2; i++ {
-		urlsIter, err := generator.GetURLsIter(context.Background(), "/!@#$%^&*()?", &downloader.GenerateOptions{
+		urls, err := downloader.GetURLStrings(context.Background(), generator, "/!@#$%^&*()?", &downloader.GenerateOptions{
 			BucketName: bucketName,
 			Command:    "test1|test2",
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if peekURLsIter(t, urlsIter) != "https://domain1.com//%21@%23$%25%5E&%2A%28%29%3F?test1|test2" {
+		if len(urls) != 2 {
+			t.Fatalf("unexpected urls count")
+		}
+		if urls[0] != "https://domain1.com//%21@%23$%25%5E&%2A%28%29%3F?test1|test2" {
 			t.Fatalf("unexpected generated url")
 		}
-		urlsIter.Next()
-		if peekURLsIter(t, urlsIter) != "https://domain2.com//%21@%23$%25%5E&%2A%28%29%3F?test1|test2" {
+		if urls[1] != "https://domain2.com//%21@%23$%25%5E&%2A%28%29%3F?test1|test2" {
 			t.Fatalf("unexpected generated url")
 		}
-		urlsIter.Next()
-		assertURLsIterIsConsumed(t, urlsIter)
 	}
 	if atomic.LoadUint64(&callCount) != 1 {
 		t.Fatalf("unexpected call count")
-	}
-}
-
-func peekURLsIter(t *testing.T, urlsIter downloader.URLsIter) string {
-	var u url.URL
-	if ok, err := urlsIter.Peek(&u); err != nil {
-		t.Fatal(err)
-	} else if !ok {
-		t.Fatalf("unexpected empty urls iter")
-	}
-	return u.String()
-}
-
-func assertURLsIterIsConsumed(t *testing.T, urlsIter downloader.URLsIter) {
-	var u url.URL
-	if ok, err := urlsIter.Peek(&u); err != nil {
-		t.Fatal(err)
-	} else if ok {
-		t.Fatalf("urls iter should be consumed")
 	}
 }
