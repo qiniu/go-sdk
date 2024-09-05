@@ -178,14 +178,20 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 						}
 					}
 				}
-				group.Add(jen.Id("pathSegments").Op(":=").Make(jen.Index().String(), jen.Lit(0), jen.Lit(guessPathSegmentsCount)))
+				if guessPathSegmentsCount > 0 {
+					group.Add(jen.Id("pathSegments").Op(":=").Make(jen.Index().String(), jen.Lit(0), jen.Lit(guessPathSegmentsCount)))
+				} else {
+					group.Add(jen.Id("pathSegments").Op(":=").Make(jen.Index().String(), jen.Lit(0)))
+				}
 				if description.BasePath != "" {
-					group.Add(jen.Id("pathSegments").Op("=").AppendFunc(func(group *jen.Group) {
-						group.Add(jen.Id("pathSegments"))
-						for _, pathSegment := range description.getBasePathSegments() {
-							group.Add(jen.Lit(pathSegment))
-						}
-					}))
+					if basePathSegments := description.getBasePathSegments(); len(basePathSegments) > 0 {
+						group.Add(jen.Id("pathSegments").Op("=").AppendFunc(func(group *jen.Group) {
+							group.Add(jen.Id("pathSegments"))
+							for _, pathSegment := range basePathSegments {
+								group.Add(jen.Lit(pathSegment))
+							}
+						}))
+					}
 				}
 				if description.Request.PathParams != nil {
 					group.Add(
@@ -207,14 +213,19 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 					)
 				}
 				if description.PathSuffix != "" {
-					group.Add(jen.Id("pathSegments").Op("=").AppendFunc(func(group *jen.Group) {
-						group.Add(jen.Id("pathSegments"))
-						for _, pathSegment := range description.getPathSuffixSegments() {
-							group.Add(jen.Lit(pathSegment))
-						}
-					}))
+					if suffixSegments := description.getPathSuffixSegments(); len(suffixSegments) > 0 {
+						group.Add(jen.Id("pathSegments").Op("=").AppendFunc(func(group *jen.Group) {
+							group.Add(jen.Id("pathSegments"))
+							for _, pathSegment := range suffixSegments {
+								group.Add(jen.Lit(pathSegment))
+							}
+						}))
+					}
 				}
 				group.Add(jen.Id("path").Op(":=").Lit("/").Op("+").Qual("strings", "Join").Call(jen.Id("pathSegments"), jen.Lit("/")))
+				if description.PathSuffix == "/" {
+					group.Add(jen.Id("path").Op("+=").Lit("/"))
+				}
 				if description.Command != "" {
 					group.Add(jen.Id("rawQuery").Op(":=").Lit(description.Command + "&"))
 				} else {
@@ -867,13 +878,27 @@ func (description *ApiDetailedDescription) addJsonMarshalerUnmarshaler(group *je
 func (description *ApiDetailedDescription) getBasePathSegments() []string {
 	basePath := strings.TrimPrefix(description.BasePath, "/")
 	basePath = strings.TrimSuffix(basePath, "/")
-	return strings.Split(basePath, "/")
+	segments := strings.Split(basePath, "/")
+	newSegments := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		if segment != "" {
+			newSegments = append(newSegments, segment)
+		}
+	}
+	return newSegments
 }
 
 func (description *ApiDetailedDescription) getPathSuffixSegments() []string {
 	pathSuffix := strings.TrimPrefix(description.PathSuffix, "/")
 	pathSuffix = strings.TrimSuffix(pathSuffix, "/")
-	return strings.Split(pathSuffix, "/")
+	segments := strings.Split(pathSuffix, "/")
+	newSegments := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		if segment != "" {
+			newSegments = append(newSegments, segment)
+		}
+	}
+	return newSegments
 }
 
 func (description *ApiDetailedDescription) isBucketService() bool {

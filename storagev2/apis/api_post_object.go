@@ -81,8 +81,7 @@ func (storage *Storage) PostObject(ctx context.Context, request *PostObjectReque
 	}
 	innerRequest := (*innerPostObjectRequest)(request)
 	serviceNames := []region.ServiceName{region.ServiceUp}
-	pathSegments := make([]string, 0, 1)
-	pathSegments = append(pathSegments, "")
+	pathSegments := make([]string, 0)
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
 	body, err := innerRequest.build(ctx)

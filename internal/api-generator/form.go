@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/dave/jennifer/jen"
@@ -217,9 +216,6 @@ func (form *FormUrlencodedRequestStruct) addSetCall(group *jen.Group, field Form
 	)
 	fieldName := field.camelCaseName()
 	if field.Multiple {
-		if field.Optional.ToOptionalType() != OptionalTypeRequired {
-			return errors.New("multiple field must be required")
-		}
 		valueConvertCode, err = field.Type.GenerateConvertCodeToString(jen.Id("value"))
 		if err != nil {
 			return err

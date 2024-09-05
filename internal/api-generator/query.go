@@ -191,23 +191,22 @@ func (names QueryNames) generateSetCall(group *jen.Group, queryName QueryName, q
 	fieldName := queryName.camelCaseName()
 	field := jen.Id("query").Dot(fieldName)
 	if queryName.Multiple {
-		if queryName.Optional.ToOptionalType() != OptionalTypeRequired {
-			return errors.New("multiple field must be required")
-		}
 		valueConvertCode, err = queryName.QueryType.GenerateConvertCodeToString(jen.Id("value"))
 		if err != nil {
 			return err
 		}
-		group.Add(jen.If(jen.Len(jen.Id("query").Dot(fieldName)).Op(">").Lit(0)).
+		code := jen.If(jen.Len(jen.Id("query").Dot(fieldName)).Op(">").Lit(0)).
 			BlockFunc(func(group *jen.Group) {
 				group.Add(
 					jen.For(jen.List(jen.Id("_"), jen.Id("value")).Op(":=").Range().Add(jen.Id("query").Dot(fieldName))).BlockFunc(func(group *jen.Group) {
 						group.Add(jen.Id(queryVarName).Dot("Add").Call(jen.Lit(queryName.QueryName), valueConvertCode))
 					}),
 				)
-			}).
-			Else().
-			BlockFunc(appendMissingRequiredFieldErrorFunc(fieldName)))
+			})
+		if queryName.Optional.ToOptionalType() == OptionalTypeRequired {
+			code = code.Else().BlockFunc(appendMissingRequiredFieldErrorFunc(fieldName))
+		}
+		group.Add(code)
 	} else {
 		if queryName.Optional.ToOptionalType() == OptionalTypeNullable {
 			valueConvertCode, err = queryName.QueryType.GenerateConvertCodeToString(jen.Op("*").Add(field))

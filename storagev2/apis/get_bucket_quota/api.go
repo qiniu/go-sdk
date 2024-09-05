@@ -19,6 +19,9 @@ type Response struct {
 	Size  int64 // 空间存储量配额
 	Count int64 // 空间文件数配额
 }
+
+// Bucket 配额信息
+type BucketQuota = Response
 type jsonResponse struct {
 	Size  int64 `json:"size,omitempty"`  // 空间存储量配额
 	Count int64 `json:"count,omitempty"` // 空间文件数配额

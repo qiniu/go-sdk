@@ -6,6 +6,7 @@
   * 多媒体处理库 [media](github.com/qiniu/go-sdk/v7/media/apis) 包，提供多媒体处理接口
   * IAM [iam](github.com/qiniu/go-sdk/v7/iam/apis) 包，提供权限管理系统接口
   * 获取下载 URL 的实用方法
+  * 提供文件夹分享接口
 * 修复
   * `downloader.DownloadDirectory` 下载根目录出错的 Bug
 

@@ -15,6 +15,9 @@ type Request struct {
 	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HTTPClientOptions 中的 CredentialsProvider
 	Remark      string                          // 空间备注信息, 字符长度不能超过 100, 允许为空
 }
+
+// 空间备注信息
+type BucketRemark = Request
 type jsonRequest struct {
 	Remark string `json:"remark"` // 空间备注信息, 字符长度不能超过 100, 允许为空
 }
