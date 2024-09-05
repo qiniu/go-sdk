@@ -19,8 +19,8 @@ type Request struct {
 // 添加给用户分组的授权策略别名集合
 type PolicyAliases = []string
 
-// 为用户分组添加授权策略参数
-type AddedGroupIamPoliciesParam = Request
+// 为用户分组修改授权策略参数
+type ModifiedGroupIamPoliciesParam = Request
 type jsonRequest struct {
 	PolicyAliases PolicyAliases `json:"policy_aliases"` // 授权策略别名集合
 }

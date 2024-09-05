@@ -19,8 +19,8 @@ type Request struct {
 // 添加给用户分组的 IAM 子账号别名集合
 type UserAliases = []string
 
-// 为用户分组添加 IAM 子账号参数
-type AddedGroupIamUsersParam = Request
+// 为用户分组修改 IAM 子账号参数
+type ModifiedGroupIamUsersParam = Request
 type jsonRequest struct {
 	UserAliases UserAliases `json:"user_aliases"` // IAM 子账号别名集合
 }

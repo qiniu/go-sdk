@@ -19,7 +19,7 @@ type Request struct {
 type GroupAliases = []string
 
 // 为用户重新分配分组参数
-type UpdateIamUserGroupsParam = Request
+type UpdatedIamUserGroupsParam = Request
 type jsonRequest struct {
 	GroupAliases GroupAliases `json:"group_aliases,omitempty"` // 分组别名集合
 }

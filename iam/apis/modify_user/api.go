@@ -18,7 +18,7 @@ type Request struct {
 }
 
 // 修改 IAM 子账号参数
-type ModifyIamUserParam = Request
+type ModifiedIamUserParam = Request
 type jsonRequest struct {
 	Enabled  bool   `json:"enabled"`            // 子账号是否启用
 	Password string `json:"password,omitempty"` // 子账号密码

@@ -19,7 +19,7 @@ type Request struct {
 type PolicyAliases = []string
 
 // 为子账号重新分配授权策略参数
-type UpdateIamUserPoliciesParam = Request
+type UpdatedIamUserPoliciesParam = Request
 type jsonRequest struct {
 	PolicyAliases PolicyAliases `json:"policy_aliases,omitempty"` // 授权策略别名集合
 }

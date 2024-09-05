@@ -20,7 +20,7 @@ type Request struct {
 type PolicyAliases = []string
 
 // 为子账号删除授权策略参数
-type UpdateIamUserPoliciesParam = Request
+type DeletedIamUserPoliciesParam = Request
 type jsonRequest struct {
 	PolicyAliases PolicyAliases `json:"policy_aliases"` // 授权策略别名集合
 }
