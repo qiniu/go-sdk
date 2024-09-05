@@ -13,6 +13,7 @@ import (
 type Request struct {
 	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HTTPClientOptions 中的 CredentialsProvider
 	Alias       string                          // 授权策略别名，由 `A-Za-z0-9` 组成
+	EditType    int64                           // 1：是通过自定义 JSON 编辑的策略 2：是通过 UI 编辑的策略
 	Description string                          // 授权策略描述
 	Statement   CreateStatements                // 授权策略规则集合
 }
@@ -25,13 +26,13 @@ type CreateResources = []string
 
 // 授权策略规则
 type CreateStatement struct {
-	Actions   CreateActions   // 授权策略规则的操作集合
-	Resources CreateResources // 授权策略规则的资源集合
+	Actions   CreateActions   // 授权策略规则的操作集合，action 查询参考 action 接口，格式为 service/action_alias
+	Resources CreateResources // 授权策略规则的资源集合，格式为 qrn:product:region:uid:[resource-type/]resource-id ；可以简写为 qrn:product:::resource-id
 	Effect    string          // 授权策略规则的生效类型，允许访问或拒绝访问
 }
 type jsonCreateStatement struct {
-	Actions   CreateActions   `json:"action"`   // 授权策略规则的操作集合
-	Resources CreateResources `json:"resource"` // 授权策略规则的资源集合
+	Actions   CreateActions   `json:"action"`   // 授权策略规则的操作集合，action 查询参考 action 接口，格式为 service/action_alias
+	Resources CreateResources `json:"resource"` // 授权策略规则的资源集合，格式为 qrn:product:region:uid:[resource-type/]resource-id ；可以简写为 qrn:product:::resource-id
 	Effect    string          `json:"effect"`   // 授权策略规则的生效类型，允许访问或拒绝访问
 }
 
@@ -71,6 +72,7 @@ type CreateStatements = []CreateStatement
 type CreatePolicyParam = Request
 type jsonRequest struct {
 	Alias       string           `json:"alias,omitempty"`       // 授权策略别名，由 `A-Za-z0-9` 组成
+	EditType    int64            `json:"edit_type,omitempty"`   // 1：是通过自定义 JSON 编辑的策略 2：是通过 UI 编辑的策略
 	Description string           `json:"description,omitempty"` // 授权策略描述
 	Statement   CreateStatements `json:"statement"`             // 授权策略规则集合
 }
@@ -79,7 +81,7 @@ func (j *Request) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(&jsonRequest{Alias: j.Alias, Description: j.Description, Statement: j.Statement})
+	return json.Marshal(&jsonRequest{Alias: j.Alias, EditType: j.EditType, Description: j.Description, Statement: j.Statement})
 }
 func (j *Request) UnmarshalJSON(data []byte) error {
 	var nj jsonRequest
@@ -87,6 +89,7 @@ func (j *Request) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	j.Alias = nj.Alias
+	j.EditType = nj.EditType
 	j.Description = nj.Description
 	j.Statement = nj.Statement
 	return nil

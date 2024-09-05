@@ -26,13 +26,13 @@ type ModifyResources = []string
 
 // 授权策略规则
 type ModifyStatement struct {
-	Actions   ModifyActions   // 授权策略规则的操作集合
-	Resources ModifyResources // 授权策略规则的资源集合
+	Actions   ModifyActions   // 授权策略规则的操作集合，action 查询参考 action 接口，格式为 service/action_alias
+	Resources ModifyResources // 授权策略规则的资源集合，格式为 qrn:product:region:uid:[resource-type/]resource-id ；可以简写为 qrn:product:::resource-id
 	Effect    string          // 授权策略规则的生效类型，允许访问或拒绝访问
 }
 type jsonModifyStatement struct {
-	Actions   ModifyActions   `json:"action"`   // 授权策略规则的操作集合
-	Resources ModifyResources `json:"resource"` // 授权策略规则的资源集合
+	Actions   ModifyActions   `json:"action"`   // 授权策略规则的操作集合，action 查询参考 action 接口，格式为 service/action_alias
+	Resources ModifyResources `json:"resource"` // 授权策略规则的资源集合，格式为 qrn:product:region:uid:[resource-type/]resource-id ；可以简写为 qrn:product:::resource-id
 	Effect    string          `json:"effect"`   // 授权策略规则的生效类型，允许访问或拒绝访问
 }
 
