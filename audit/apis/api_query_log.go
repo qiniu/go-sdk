@@ -12,6 +12,7 @@ import (
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -44,8 +45,8 @@ func (query *innerQueryLogRequest) buildQuery() (url.Values, error) {
 	if query.AccessKeyId != "" {
 		allQuery.Set("access_key_id", query.AccessKeyId)
 	}
-	if query.Limit != "" {
-		allQuery.Set("limit", query.Limit)
+	if query.Limit != 0 {
+		allQuery.Set("limit", strconv.FormatInt(query.Limit, 10))
 	}
 	if query.NextMark != "" {
 		allQuery.Set("next_mark", query.NextMark)

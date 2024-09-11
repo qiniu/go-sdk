@@ -17,7 +17,7 @@ type Request struct {
 	EventNames  []string                        // 事件名称集合，参考 https://developer.qiniu.com/af/12434/audit-log-events
 	PrincipalId string                          // 请求者的 ID，参考 https://developer.qiniu.com/af/manual/12433/audit-log-object
 	AccessKeyId string                          // 请求身份所属的 AccessKey ID
-	Limit       string                          // 允许返回的最大结果数目，取值范围：1~50，不传值默认为：20
+	Limit       int64                           // 允许返回的最大结果数目，取值范围：1~50，不传值默认为：20
 	NextMark    string                          // 用于请求下一页检索的结果
 	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HTTPClientOptions 中的 CredentialsProvider
 }

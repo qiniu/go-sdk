@@ -4,7 +4,6 @@ package apis
 
 import (
 	"context"
-	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getuserpolicies "github.com/qiniu/go-sdk/v7/iam/apis/get_user_policies"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
@@ -39,12 +38,6 @@ func (query *innerGetUserPoliciesRequest) buildQuery() (url.Values, error) {
 	}
 	return allQuery, nil
 }
-func (j *innerGetUserPoliciesRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal((*getuserpolicies.Request)(j))
-}
-func (j *innerGetUserPoliciesRequest) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*getuserpolicies.Request)(j))
-}
 
 type GetUserPoliciesRequest = getuserpolicies.Request
 type GetUserPoliciesResponse = getuserpolicies.Response
@@ -74,10 +67,6 @@ func (iam *Iam) GetUserPolicies(ctx context.Context, request *GetUserPoliciesReq
 	} else {
 		rawQuery += query.Encode()
 	}
-	body, err := httpclient.GetJsonRequestBody(&innerRequest)
-	if err != nil {
-		return nil, err
-	}
 	uplogInterceptor, err := uplog.NewRequestUplog("getUserPolicies", "", "", func() (string, error) {
 		credentials := innerRequest.Credentials
 		if credentials == nil {
@@ -92,7 +81,7 @@ func (iam *Iam) GetUserPolicies(ctx context.Context, request *GetUserPoliciesReq
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: body, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && iam.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 
@@ -117,9 +106,9 @@ func (iam *Iam) GetUserPolicies(ctx context.Context, request *GetUserPoliciesReq
 			}
 		}
 	}
-	resp, err := iam.client.Do(ctx, &req)
-	if err != nil {
+	var respBody GetUserPoliciesResponse
+	if err := iam.client.DoAndAcceptJSON(ctx, &req, &respBody); err != nil {
 		return nil, err
 	}
-	return &GetUserPoliciesResponse{}, resp.Body.Close()
+	return &respBody, nil
 }

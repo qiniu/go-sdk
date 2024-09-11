@@ -19,7 +19,7 @@ type Request struct {
 
 // 获取 API 所用的响应
 type Response struct {
-	Data GetGroupServiceActionResourcesData // 用户分组指定服务操作下的可访问资源列表信息
+	Data GetGroupServiceActionResources // 用户分组指定服务操作下的可访问资源列表信息
 }
 
 // 可用资源列表
@@ -28,24 +28,27 @@ type AllowedResources = []string
 // 禁用资源列表
 type DeniedResources = []string
 
-// 返回的用户分组指定服务操作下的可访问资源列表信息
-type GetGroupServiceActionResources struct {
+// 用户分组指定服务操作下的可访问资源列表信息
+type Data struct {
 	AllowedResources AllowedResources // 可用资源
 	DeniedResources  DeniedResources  // 禁用资源
 }
-type jsonGetGroupServiceActionResources struct {
+
+// 返回的用户分组指定服务操作下的可访问资源列表信息
+type GetGroupServiceActionResources = Data
+type jsonData struct {
 	AllowedResources AllowedResources `json:"allow"` // 可用资源
 	DeniedResources  DeniedResources  `json:"deny"`  // 禁用资源
 }
 
-func (j *GetGroupServiceActionResources) MarshalJSON() ([]byte, error) {
+func (j *Data) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(&jsonGetGroupServiceActionResources{AllowedResources: j.AllowedResources, DeniedResources: j.DeniedResources})
+	return json.Marshal(&jsonData{AllowedResources: j.AllowedResources, DeniedResources: j.DeniedResources})
 }
-func (j *GetGroupServiceActionResources) UnmarshalJSON(data []byte) error {
-	var nj jsonGetGroupServiceActionResources
+func (j *Data) UnmarshalJSON(data []byte) error {
+	var nj jsonData
 	if err := json.Unmarshal(data, &nj); err != nil {
 		return err
 	}
@@ -53,7 +56,7 @@ func (j *GetGroupServiceActionResources) UnmarshalJSON(data []byte) error {
 	j.DeniedResources = nj.DeniedResources
 	return nil
 }
-func (j *GetGroupServiceActionResources) validate() error {
+func (j *Data) validate() error {
 	if len(j.AllowedResources) == 0 {
 		return errors.MissingRequiredFieldError{Name: "AllowedResources"}
 	}
@@ -63,13 +66,10 @@ func (j *GetGroupServiceActionResources) validate() error {
 	return nil
 }
 
-// 返回的用户分组指定服务操作下的可访问资源列表信息
-type GetGroupServiceActionResourcesData = []GetGroupServiceActionResources
-
 // 返回的用户分组指定服务操作下的可访问资源列表响应
 type GetGroupServiceActionResourcesResp = Response
 type jsonResponse struct {
-	Data GetGroupServiceActionResourcesData `json:"data"` // 用户分组指定服务操作下的可访问资源列表信息
+	Data GetGroupServiceActionResources `json:"data"` // 用户分组指定服务操作下的可访问资源列表信息
 }
 
 func (j *Response) MarshalJSON() ([]byte, error) {
@@ -87,13 +87,8 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	return nil
 }
 func (j *Response) validate() error {
-	if len(j.Data) == 0 {
-		return errors.MissingRequiredFieldError{Name: "Data"}
-	}
-	for _, value := range j.Data {
-		if err := value.validate(); err != nil {
-			return err
-		}
+	if err := j.Data.validate(); err != nil {
+		return err
 	}
 	return nil
 }

@@ -15,7 +15,11 @@ type Request struct {
 	Page        int64                           // 分页页号，从 1 开始，默认 1
 	PageSize    int64                           // 分页大小，默认 20，最大 2000
 	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HTTPClientOptions 中的 CredentialsProvider
-	Data        GetIamUserPoliciesData          // IAM 子账号的授权策略信息
+}
+
+// 获取 API 所用的响应
+type Response struct {
+	Data GetIamUserPoliciesData // IAM 子账号的授权策略信息
 }
 
 // 授权策略规则的操作集合
@@ -188,31 +192,28 @@ func (j *Data) validate() error {
 }
 
 // 返回的 IAM 子账号的授权策略列表响应
-type GetIamUserPoliciesResp = Request
-type jsonRequest struct {
+type GetIamUserPoliciesResp = Response
+type jsonResponse struct {
 	Data GetIamUserPoliciesData `json:"data"` // IAM 子账号的授权策略信息
 }
 
-func (j *Request) MarshalJSON() ([]byte, error) {
+func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(&jsonRequest{Data: j.Data})
+	return json.Marshal(&jsonResponse{Data: j.Data})
 }
-func (j *Request) UnmarshalJSON(data []byte) error {
-	var nj jsonRequest
+func (j *Response) UnmarshalJSON(data []byte) error {
+	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
 		return err
 	}
 	j.Data = nj.Data
 	return nil
 }
-func (j *Request) validate() error {
+func (j *Response) validate() error {
 	if err := j.Data.validate(); err != nil {
 		return err
 	}
 	return nil
 }
-
-// 获取 API 所用的响应
-type Response struct{}
