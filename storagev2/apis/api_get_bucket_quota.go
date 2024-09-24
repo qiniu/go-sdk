@@ -5,10 +5,10 @@ package apis
 import (
 	"context"
 	auth "github.com/qiniu/go-sdk/v7/auth"
+	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	getbucketquota "github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_quota"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	uplog "github.com/qiniu/go-sdk/v7/storagev2/internal/uplog"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 	"strings"
@@ -21,23 +21,13 @@ func (pp *innerGetBucketQuotaRequest) getBucketName(ctx context.Context) (string
 	return pp.Bucket, nil
 }
 func (path *innerGetBucketQuotaRequest) buildPath() ([]string, error) {
-	var allSegments []string
+	allSegments := make([]string, 0, 1)
 	if path.Bucket != "" {
 		allSegments = append(allSegments, path.Bucket)
 	} else {
 		return nil, errors.MissingRequiredFieldError{Name: "Bucket"}
 	}
 	return allSegments, nil
-}
-func (request *innerGetBucketQuotaRequest) getAccessKey(ctx context.Context) (string, error) {
-	if request.Credentials != nil {
-		if credentials, err := request.Credentials.Get(ctx); err != nil {
-			return "", err
-		} else {
-			return credentials.AccessKey, nil
-		}
-	}
-	return "", nil
 }
 
 type GetBucketQuotaRequest = getbucketquota.Request
@@ -53,7 +43,7 @@ func (storage *Storage) GetBucketQuota(ctx context.Context, request *GetBucketQu
 	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
 		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
 	}
-	var pathSegments []string
+	pathSegments := make([]string, 0, 2)
 	pathSegments = append(pathSegments, "getbucketquota")
 	if segments, err := innerRequest.buildPath(); err != nil {
 		return nil, err
@@ -69,8 +59,7 @@ func (storage *Storage) GetBucketQuota(ctx context.Context, request *GetBucketQu
 			return nil, err
 		}
 	}
-	var objectName string
-	uplogInterceptor, err := uplog.NewRequestUplog("getBucketQuota", bucketName, objectName, func() (string, error) {
+	uplogInterceptor, err := uplog.NewRequestUplog("getBucketQuota", bucketName, "", func() (string, error) {
 		credentials := innerRequest.Credentials
 		if credentials == nil {
 			credentials = storage.client.GetCredentials()
@@ -86,33 +75,11 @@ func (storage *Storage) GetBucketQuota(ctx context.Context, request *GetBucketQu
 	}
 	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
-		query := storage.client.GetBucketQuery()
-		if query == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			if options.OverwrittenBucketHosts != nil {
-				req.Endpoints = options.OverwrittenBucketHosts
-			} else {
-				req.Endpoints = bucketHosts
-			}
-		}
-		if query != nil {
-			var accessKey string
-			var err error
-			if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
-				return nil, err
-			}
-			if accessKey == "" {
-				if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
-					if creds, err := credentialsProvider.Get(ctx); err != nil {
-						return nil, err
-					} else if creds != nil {
-						accessKey = creds.AccessKey
-					}
-				}
-			}
-			if accessKey != "" && bucketName != "" {
-				req.Region = query.Query(accessKey, bucketName)
-			}
+		bucketHosts := httpclient.DefaultBucketHosts()
+		if options.OverwrittenBucketHosts != nil {
+			req.Endpoints = options.OverwrittenBucketHosts
+		} else {
+			req.Endpoints = bucketHosts
 		}
 	}
 	var respBody GetBucketQuotaResponse

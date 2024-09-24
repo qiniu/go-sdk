@@ -191,12 +191,16 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 	var object objects.ObjectDetails
 	for lister.Next(&object) {
 		objectName := object.Name
+		if options.ShouldDownloadObject != nil && !options.ShouldDownloadObject(objectName) {
+			continue
+		}
+
 		relativePath := strings.TrimPrefix(objectName, options.ObjectPrefix)
 		if pathSeparator != string(filepath.Separator) {
 			relativePath = strings.Replace(relativePath, pathSeparator, string(filepath.Separator), -1)
 		}
 		fullPath := filepath.Join(targetDirPath, relativePath)
-		if strings.HasSuffix(relativePath, string(filepath.Separator)) {
+		if relativePath == "" || strings.HasSuffix(relativePath, string(filepath.Separator)) {
 			if err = os.MkdirAll(fullPath, 0700); err != nil {
 				return err
 			}
@@ -218,9 +222,6 @@ func (downloadManager *DownloadManager) DownloadDirectory(ctx context.Context, t
 						UseInsecureProtocol: options.UseInsecureProtocol,
 					},
 					DownloadURLsProvider: options.DownloadURLsProvider,
-				}
-				if options.ShouldDownloadObject != nil && !options.ShouldDownloadObject(objectName) {
-					return nil
 				}
 				if options.BeforeObjectDownload != nil {
 					options.BeforeObjectDownload(objectName, &objectOptions)
@@ -260,6 +261,7 @@ func (downloadManager *DownloadManager) initDownloadURLsProvider(ctx context.Con
 					AfterBackoff:        downloadManager.options.AfterBackoff,
 					BeforeRequest:       downloadManager.options.BeforeRequest,
 					AfterResponse:       downloadManager.options.AfterResponse,
+					AccelerateUploading: downloadManager.options.AccelerateUploading,
 				}
 				if hostRetryConfig := downloadManager.options.HostRetryConfig; hostRetryConfig != nil {
 					bucketRegionsQueryOptions.RetryMax = hostRetryConfig.RetryMax

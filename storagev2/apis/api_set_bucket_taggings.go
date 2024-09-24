@@ -6,10 +6,10 @@ import (
 	"context"
 	"encoding/json"
 	auth "github.com/qiniu/go-sdk/v7/auth"
+	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	setbuckettaggings "github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_taggings"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	uplog "github.com/qiniu/go-sdk/v7/storagev2/internal/uplog"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 	"net/url"
@@ -37,16 +37,6 @@ func (j *innerSetBucketTaggingsRequest) MarshalJSON() ([]byte, error) {
 func (j *innerSetBucketTaggingsRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*setbuckettaggings.Request)(j))
 }
-func (request *innerSetBucketTaggingsRequest) getAccessKey(ctx context.Context) (string, error) {
-	if request.Credentials != nil {
-		if credentials, err := request.Credentials.Get(ctx); err != nil {
-			return "", err
-		} else {
-			return credentials.AccessKey, nil
-		}
-	}
-	return "", nil
-}
 
 type SetBucketTaggingsRequest = setbuckettaggings.Request
 type SetBucketTaggingsResponse = setbuckettaggings.Response
@@ -61,7 +51,7 @@ func (storage *Storage) SetBucketTaggings(ctx context.Context, request *SetBucke
 	if innerRequest.Credentials == nil && storage.client.GetCredentials() == nil {
 		return nil, errors.MissingRequiredFieldError{Name: "Credentials"}
 	}
-	var pathSegments []string
+	pathSegments := make([]string, 0, 1)
 	pathSegments = append(pathSegments, "bucketTagging")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
@@ -81,8 +71,7 @@ func (storage *Storage) SetBucketTaggings(ctx context.Context, request *SetBucke
 			return nil, err
 		}
 	}
-	var objectName string
-	uplogInterceptor, err := uplog.NewRequestUplog("setBucketTaggings", bucketName, objectName, func() (string, error) {
+	uplogInterceptor, err := uplog.NewRequestUplog("setBucketTaggings", bucketName, "", func() (string, error) {
 		credentials := innerRequest.Credentials
 		if credentials == nil {
 			credentials = storage.client.GetCredentials()
@@ -98,33 +87,11 @@ func (storage *Storage) SetBucketTaggings(ctx context.Context, request *SetBucke
 	}
 	req := httpclient.Request{Method: "PUT", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: body, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
-		query := storage.client.GetBucketQuery()
-		if query == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			if options.OverwrittenBucketHosts != nil {
-				req.Endpoints = options.OverwrittenBucketHosts
-			} else {
-				req.Endpoints = bucketHosts
-			}
-		}
-		if query != nil {
-			var accessKey string
-			var err error
-			if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
-				return nil, err
-			}
-			if accessKey == "" {
-				if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
-					if creds, err := credentialsProvider.Get(ctx); err != nil {
-						return nil, err
-					} else if creds != nil {
-						accessKey = creds.AccessKey
-					}
-				}
-			}
-			if accessKey != "" && bucketName != "" {
-				req.Region = query.Query(accessKey, bucketName)
-			}
+		bucketHosts := httpclient.DefaultBucketHosts()
+		if options.OverwrittenBucketHosts != nil {
+			req.Endpoints = options.OverwrittenBucketHosts
+		} else {
+			req.Endpoints = bucketHosts
 		}
 	}
 	resp, err := storage.client.Do(ctx, &req)

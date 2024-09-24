@@ -131,8 +131,7 @@ func mockUcQueryResponseBody() string {
 					"domains": ["api-z1.qiniu.com"]
 				}
 			}
-		],
-		"ttl": 86400
+		]
 	}
 	`
 }

@@ -4,18 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
+	"time"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/client"
-	"github.com/qiniu/go-sdk/v7/conf"
+	"github.com/qiniu/go-sdk/v7/internal/clientv2"
+	"github.com/qiniu/go-sdk/v7/media/apis"
+	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 )
 
 // OperationManager 提供了数据处理相关的方法
 type OperationManager struct {
-	Client *client.Client
-	Mac    *auth.Credentials
-	Cfg    *Config
+	Client    *client.Client
+	Mac       *auth.Credentials
+	Cfg       *Config
+	apiClient *apis.Media
 }
 
 // NewOperationManager 用来构建一个新的数据处理对象
@@ -36,10 +39,21 @@ func NewOperationManagerEx(mac *auth.Credentials, cfg *Config, clt *client.Clien
 		clt = &client.DefaultClient
 	}
 
+	opts := http_client.Options{
+		BasicHTTPClient:     clt.Client,
+		Credentials:         mac,
+		Interceptors:        []clientv2.Interceptor{},
+		UseInsecureProtocol: !cfg.UseHTTPS,
+	}
+	if region := cfg.GetRegion(); region != nil {
+		opts.Regions = region
+	}
+
 	return &OperationManager{
-		Client: clt,
-		Mac:    mac,
-		Cfg:    cfg,
+		Client:    clt,
+		Mac:       mac,
+		Cfg:       cfg,
+		apiClient: apis.NewMedia(&opts),
 	}
 }
 
@@ -50,13 +64,15 @@ type PfopRet struct {
 
 // PrefopRet 为数据处理请求的状态查询回复内容
 type PrefopRet struct {
-	ID          string `json:"id"`
-	Code        int    `json:"code"`
-	Desc        string `json:"desc"`
-	InputBucket string `json:"inputBucket,omitempty"`
-	InputKey    string `json:"inputKey,omitempty"`
-	Pipeline    string `json:"pipeline,omitempty"`
-	Reqid       string `json:"reqid,omitempty"`
+	ID          string    `json:"id"`
+	Code        int       `json:"code"`
+	Desc        string    `json:"desc"`
+	Type        int64     `json:"type,omitempty"`
+	InputBucket string    `json:"inputBucket,omitempty"`
+	InputKey    string    `json:"inputKey,omitempty"`
+	Pipeline    string    `json:"pipeline,omitempty"`
+	Reqid       string    `json:"reqid,omitempty"`
+	CreatedAt   time.Time `json:"creationDate,omitempty"`
 	Items       []FopResult
 }
 
@@ -71,8 +87,14 @@ func (r *PrefopRet) String() string {
 	if r.Pipeline != "" {
 		strData += fmt.Sprintf("Pipeline: %s\n", r.Pipeline)
 	}
+	if r.Type != 0 {
+		strData += fmt.Sprintf("Type: %d\n", r.Type)
+	}
 	if r.Reqid != "" {
 		strData += fmt.Sprintf("Reqid: %s\n", r.Reqid)
+	}
+	if !r.CreatedAt.IsZero() {
+		strData += fmt.Sprintf("CreatedAt: %s\n", r.CreatedAt)
 	}
 
 	strData = fmt.Sprintln(strData)
@@ -102,6 +124,16 @@ func (r *PrefopRet) String() string {
 	return strData
 }
 
+type PfopRequest struct {
+	BucketName string // 空间名称
+	ObjectName string // 对象名称
+	Fops       string // 数据处理命令列表，以 `;` 分隔，可以指定多个数据处理命令，与 `workflowTemplateID` 二选一
+	NotifyUrl  string // 处理结果通知接收 URL
+	Force      int64  // 强制执行数据处理，设为 `1`，则可强制执行数据处理并覆盖原结果
+	Type       int64  // 任务类型，支持 `0` 表示普通任务，`1` 表示闲时任务
+	Pipeline   string // 对列名，仅适用于普通任务
+}
+
 // FopResult 云处理操作列表，包含每个云处理操作的状态信息
 type FopResult struct {
 	Cmd   string   `json:"cmd"`
@@ -122,54 +154,80 @@ type FopResult struct {
 //	pipeline	多媒体处理队列名称
 //	force		强制执行数据处理
 func (m *OperationManager) Pfop(bucket, key, fops, pipeline, notifyURL string,
-	force bool) (persistentID string, err error) {
-	pfopParams := map[string][]string{
-		"bucket": {bucket},
-		"key":    {key},
-		"fops":   {fops},
-	}
-
-	if pipeline != "" {
-		pfopParams["pipeline"] = []string{pipeline}
-	}
-
-	if notifyURL != "" {
-		pfopParams["notifyURL"] = []string{notifyURL}
-	}
-
+	force bool) (string, error) {
+	var forceNumber int64
 	if force {
-		pfopParams["force"] = []string{"1"}
+		forceNumber = 1
 	}
-	var ret PfopRet
-	ctx := auth.WithCredentialsType(context.TODO(), m.Mac, auth.TokenQiniu)
-	reqHost, reqErr := m.ApiHost(bucket)
-	if reqErr != nil {
-		err = reqErr
-		return
-	}
-	reqURL := fmt.Sprintf("%s/pfop/", reqHost)
-	headers := http.Header{}
-	headers.Add("Content-Type", conf.CONTENT_TYPE_FORM)
-	err = m.Client.CallWithForm(ctx, &ret, "POST", reqURL, headers, pfopParams)
+	response, err := m.apiClient.Pfop(context.Background(), &apis.PfopRequest{
+		BucketName: bucket,
+		ObjectName: key,
+		Fops:       fops,
+		NotifyUrl:  notifyURL,
+		Force:      forceNumber,
+		Pipeline:   pipeline,
+	}, nil)
 	if err != nil {
-		return
+		return "", err
 	}
+	return response.PersistentId, nil
+}
 
-	persistentID = ret.PersistentID
-	return
+// Pfop 持久化数据处理 v2
+func (m *OperationManager) PfopV2(ctx context.Context, pfopRequest *PfopRequest) (*PfopRet, error) {
+	response, err := m.apiClient.Pfop(context.Background(), &apis.PfopRequest{
+		BucketName: pfopRequest.BucketName,
+		ObjectName: pfopRequest.ObjectName,
+		Fops:       pfopRequest.Fops,
+		NotifyUrl:  pfopRequest.NotifyUrl,
+		Force:      pfopRequest.Force,
+		Type:       pfopRequest.Type,
+		Pipeline:   pfopRequest.Pipeline,
+	}, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &PfopRet{PersistentID: response.PersistentId}, nil
 }
 
 // Prefop 持久化处理状态查询
-func (m *OperationManager) Prefop(persistentID string) (ret PrefopRet, err error) {
-	reqHost := m.PrefopApiHost(persistentID)
-	reqURL := fmt.Sprintf("%s/status/get/prefop?id=%s", reqHost, persistentID)
-	headers := http.Header{}
-	headers.Add("Content-Type", conf.CONTENT_TYPE_FORM)
-	ctx := auth.WithCredentialsType(context.TODO(), m.Mac, auth.TokenQiniu)
-	err = m.Client.Call(ctx, &ret, "GET", reqURL, headers)
-	return
+func (m *OperationManager) Prefop(persistentID string) (PrefopRet, error) {
+	response, err := m.apiClient.Prefop(context.Background(), &apis.PrefopRequest{
+		PersistentId: persistentID,
+	}, nil)
+	if err != nil {
+		return PrefopRet{}, err
+	}
+	createdAt, err := time.Parse(time.RFC3339, response.CreatedAt)
+	if err != nil {
+		return PrefopRet{}, err
+	}
+	ret := PrefopRet{
+		ID:          response.PersistentId,
+		Code:        int(response.Code),
+		Desc:        response.Description,
+		Type:        response.Type,
+		InputBucket: response.BucketName,
+		InputKey:    response.ObjectName,
+		Pipeline:    response.Pipeline,
+		Reqid:       response.RequestId,
+		CreatedAt:   createdAt,
+		Items:       make([]FopResult, 0, len(response.Items)),
+	}
+	for _, item := range response.Items {
+		ret.Items = append(ret.Items, FopResult{
+			Cmd:   item.Command,
+			Code:  int(item.Code),
+			Desc:  item.Description,
+			Error: item.Error,
+			Hash:  item.Hash,
+			Key:   item.ObjectName,
+		})
+	}
+	return ret, nil
 }
 
+// Deprecated
 func (m *OperationManager) ApiHost(bucket string) (apiHost string, err error) {
 	var zone *Zone
 	if m.Cfg.Zone != nil {
@@ -191,6 +249,7 @@ func (m *OperationManager) ApiHost(bucket string) (apiHost string, err error) {
 	return
 }
 
+// Deprecated
 func (m *OperationManager) PrefopApiHost(persistentID string) (apiHost string) {
 	apiHost = "api.qiniu.com"
 	if m.Cfg.Zone != nil {

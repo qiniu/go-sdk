@@ -5,10 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	resumableuploadv2uploadpart "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v2_upload_part"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
-	uplog "github.com/qiniu/go-sdk/v7/storagev2/internal/uplog"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"net/http"
 	"strconv"
@@ -28,7 +28,7 @@ func (request *innerResumableUploadV2UploadPartRequest) getBucketName(ctx contex
 	return "", nil
 }
 func (path *innerResumableUploadV2UploadPartRequest) buildPath() ([]string, error) {
-	var allSegments []string
+	allSegments := make([]string, 0, 6)
 	if path.BucketName != "" {
 		allSegments = append(allSegments, path.BucketName)
 	} else {
@@ -82,7 +82,7 @@ func (storage *Storage) ResumableUploadV2UploadPart(ctx context.Context, request
 	if err != nil {
 		return nil, err
 	}
-	var pathSegments []string
+	pathSegments := make([]string, 0, 7)
 	pathSegments = append(pathSegments, "buckets")
 	if segments, err := innerRequest.buildPath(); err != nil {
 		return nil, err
@@ -102,8 +102,7 @@ func (storage *Storage) ResumableUploadV2UploadPart(ctx context.Context, request
 			return nil, err
 		}
 	}
-	var objectName string
-	uplogInterceptor, err := uplog.NewRequestUplog("resumableUploadV2UploadPart", bucketName, objectName, func() (string, error) {
+	uplogInterceptor, err := uplog.NewRequestUplog("resumableUploadV2UploadPart", bucketName, "", func() (string, error) {
 		return innerRequest.UpToken.GetUpToken(ctx)
 	})
 	if err != nil {
@@ -111,40 +110,42 @@ func (storage *Storage) ResumableUploadV2UploadPart(ctx context.Context, request
 	}
 	req := httpclient.Request{Method: "PUT", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, UpToken: innerRequest.UpToken, BufferResponse: true, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(body), OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
-		query := storage.client.GetBucketQuery()
-		if query == nil {
-			bucketHosts := httpclient.DefaultBucketHosts()
-			if options.OverwrittenBucketHosts != nil {
-				if bucketHosts, err = options.OverwrittenBucketHosts.GetEndpoints(ctx); err != nil {
+		bucketHosts := httpclient.DefaultBucketHosts()
+		if bucketName != "" {
+			query := storage.client.GetBucketQuery()
+			if query == nil {
+				if options.OverwrittenBucketHosts != nil {
+					if bucketHosts, err = options.OverwrittenBucketHosts.GetEndpoints(ctx); err != nil {
+						return nil, err
+					}
+				}
+				queryOptions := region.BucketRegionsQueryOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), AccelerateUploading: storage.client.AccelerateUploadingEnabled(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Resolver: storage.client.GetResolver(), Chooser: storage.client.GetChooser(), BeforeResolve: storage.client.GetBeforeResolveCallback(), AfterResolve: storage.client.GetAfterResolveCallback(), ResolveError: storage.client.GetResolveErrorCallback(), BeforeBackoff: storage.client.GetBeforeBackoffCallback(), AfterBackoff: storage.client.GetAfterBackoffCallback(), BeforeRequest: storage.client.GetBeforeRequestCallback(), AfterResponse: storage.client.GetAfterResponseCallback()}
+				if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
+					queryOptions.RetryMax = hostRetryConfig.RetryMax
+					queryOptions.Backoff = hostRetryConfig.Backoff
+				}
+				if query, err = region.NewBucketRegionsQuery(bucketHosts, &queryOptions); err != nil {
 					return nil, err
 				}
 			}
-			queryOptions := region.BucketRegionsQueryOptions{UseInsecureProtocol: storage.client.UseInsecureProtocol(), HostFreezeDuration: storage.client.GetHostFreezeDuration(), Client: storage.client.GetClient(), Resolver: storage.client.GetResolver(), Chooser: storage.client.GetChooser(), BeforeResolve: storage.client.GetBeforeResolveCallback(), AfterResolve: storage.client.GetAfterResolveCallback(), ResolveError: storage.client.GetResolveErrorCallback(), BeforeBackoff: storage.client.GetBeforeBackoffCallback(), AfterBackoff: storage.client.GetAfterBackoffCallback(), BeforeRequest: storage.client.GetBeforeRequestCallback(), AfterResponse: storage.client.GetAfterResponseCallback()}
-			if hostRetryConfig := storage.client.GetHostRetryConfig(); hostRetryConfig != nil {
-				queryOptions.RetryMax = hostRetryConfig.RetryMax
-				queryOptions.Backoff = hostRetryConfig.Backoff
-			}
-			if query, err = region.NewBucketRegionsQuery(bucketHosts, &queryOptions); err != nil {
-				return nil, err
-			}
-		}
-		if query != nil {
-			var accessKey string
-			var err error
-			if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
-				return nil, err
-			}
-			if accessKey == "" {
-				if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
-					if creds, err := credentialsProvider.Get(ctx); err != nil {
-						return nil, err
-					} else if creds != nil {
-						accessKey = creds.AccessKey
+			if query != nil {
+				var accessKey string
+				var err error
+				if accessKey, err = innerRequest.getAccessKey(ctx); err != nil {
+					return nil, err
+				}
+				if accessKey == "" {
+					if credentialsProvider := storage.client.GetCredentials(); credentialsProvider != nil {
+						if creds, err := credentialsProvider.Get(ctx); err != nil {
+							return nil, err
+						} else if creds != nil {
+							accessKey = creds.AccessKey
+						}
 					}
 				}
-			}
-			if accessKey != "" && bucketName != "" {
-				req.Region = query.Query(accessKey, bucketName)
+				if accessKey != "" {
+					req.Region = query.Query(accessKey, bucketName)
+				}
 			}
 		}
 	}

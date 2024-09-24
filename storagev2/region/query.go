@@ -17,12 +17,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/internal/cache"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/internal/hostprovider"
 	"github.com/qiniu/go-sdk/v7/internal/log"
 	"github.com/qiniu/go-sdk/v7/storagev2/backoff"
 	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
+	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 )
@@ -34,16 +36,20 @@ type (
 	}
 
 	bucketRegionsQuery struct {
-		bucketHosts Endpoints
-		cache       *cache.Cache
-		client      clientv2.Client
-		useHttps    bool
+		bucketHosts         Endpoints
+		cache               *cache.Cache
+		client              clientv2.Client
+		useHttps            bool
+		accelerateUploading bool
 	}
 
-	// BucketRegionsQuery 空间区域查询器选项
+	// BucketRegionsQueryOptions 空间区域查询器选项
 	BucketRegionsQueryOptions struct {
 		// 使用 HTTP 协议
 		UseInsecureProtocol bool
+
+		// 是否加速上传
+		AccelerateUploading bool
 
 		// 压缩周期（默认：60s）
 		CompactInterval time.Duration
@@ -95,10 +101,11 @@ type (
 	}
 
 	bucketRegionsProvider struct {
-		accessKey  string
-		bucketName string
-		cacheKey   string
-		query      *bucketRegionsQuery
+		accessKey           string
+		bucketName          string
+		cacheKey            string
+		query               *bucketRegionsQuery
+		accelerateUploading bool
 	}
 
 	v4QueryCacheValue struct {
@@ -107,8 +114,9 @@ type (
 	}
 
 	v4QueryServiceHosts struct {
-		Domains []string `json:"domains"`
-		Old     []string `json:"old"`
+		Domains    []string `json:"domains"`
+		Old        []string `json:"old"`
+		AccDomains []string `json:"acc_domains"`
 	}
 
 	v4QueryRegion struct {
@@ -128,7 +136,7 @@ type (
 	}
 )
 
-const cacheFileName = "query_v4_01.cache.json"
+const bucketRegionsQueryCacheFileName = "query_v4_01.cache.json"
 
 var (
 	persistentCaches     map[uint64]*cache.Cache
@@ -150,7 +158,7 @@ func NewBucketRegionsQuery(bucketHosts Endpoints, opts *BucketRegionsQueryOption
 	}
 	persistentFilePath := opts.PersistentFilePath
 	if persistentFilePath == "" {
-		persistentFilePath = filepath.Join(os.TempDir(), "qiniu-golang-sdk", cacheFileName)
+		persistentFilePath = filepath.Join(os.TempDir(), "qiniu-golang-sdk", bucketRegionsQueryCacheFileName)
 	}
 	persistentDuration := opts.PersistentDuration
 	if persistentDuration == time.Duration(0) {
@@ -166,7 +174,7 @@ func NewBucketRegionsQuery(bucketHosts Endpoints, opts *BucketRegionsQueryOption
 		bucketHosts: bucketHosts,
 		cache:       persistentCache,
 		client: makeBucketQueryClient(
-			opts.Client,
+			opts.Client, nil,
 			bucketHosts,
 			!opts.UseInsecureProtocol,
 			retryMax,
@@ -181,8 +189,10 @@ func NewBucketRegionsQuery(bucketHosts Endpoints, opts *BucketRegionsQueryOption
 			opts.AfterBackoff,
 			opts.BeforeRequest,
 			opts.AfterResponse,
+			nil, nil, nil,
 		),
-		useHttps: !opts.UseInsecureProtocol,
+		useHttps:            !opts.UseInsecureProtocol,
+		accelerateUploading: opts.AccelerateUploading,
 	}, nil
 }
 
@@ -220,10 +230,11 @@ func getPersistentCache(persistentFilePath string, compactInterval, persistentDu
 // Query 查询空间区域，返回 region.RegionsProvider
 func (query *bucketRegionsQuery) Query(accessKey, bucketName string) RegionsProvider {
 	return &bucketRegionsProvider{
-		accessKey:  accessKey,
-		bucketName: bucketName,
-		query:      query,
-		cacheKey:   makeRegionCacheKey(accessKey, bucketName, query.bucketHosts),
+		accessKey:           accessKey,
+		bucketName:          bucketName,
+		query:               query,
+		cacheKey:            makeRegionCacheKey(accessKey, bucketName, query.accelerateUploading, query.bucketHosts),
+		accelerateUploading: query.accelerateUploading,
 	}
 }
 
@@ -233,13 +244,14 @@ func (provider *bucketRegionsProvider) GetRegions(ctx context.Context) ([]*Regio
 		var ret v4QueryResponse
 		url := fmt.Sprintf("%s/v4/query?ak=%s&bucket=%s", provider.query.bucketHosts.firstUrl(provider.query.useHttps), provider.accessKey, provider.bucketName)
 		if err = clientv2.DoAndDecodeJsonResponse(provider.query.client, clientv2.RequestParams{
-			Context: ctx,
-			Method:  clientv2.RequestMethodGet,
-			Url:     url,
+			Context:        ctx,
+			Method:         clientv2.RequestMethodGet,
+			Url:            url,
+			BufferResponse: true,
 		}, &ret); err != nil {
 			return nil, err
 		}
-		return ret.toCacheValue(), nil
+		return ret.toCacheValue(provider.accelerateUploading), nil
 	})
 	if status == cache.NoResultGot {
 		return nil, err
@@ -266,13 +278,13 @@ func (left *v4QueryCacheValue) IsValid() bool {
 	return time.Now().Before(left.ExpiredAt)
 }
 
-func (response *v4QueryResponse) toCacheValue() *v4QueryCacheValue {
+func (response *v4QueryResponse) toCacheValue(accelerateUploading bool) *v4QueryCacheValue {
 	var (
 		minTtl  = int64(math.MaxInt64)
 		regions = make([]*Region, 0, len(response.Hosts))
 	)
 	for _, host := range response.Hosts {
-		regions = append(regions, host.toCacheValue())
+		regions = append(regions, host.toCacheValue(accelerateUploading))
 		if host.Ttl < minTtl {
 			minTtl = host.Ttl
 		}
@@ -283,8 +295,8 @@ func (response *v4QueryResponse) toCacheValue() *v4QueryCacheValue {
 	}
 }
 
-func (response *v4QueryRegion) toCacheValue() *Region {
-	return &Region{
+func (response *v4QueryRegion) toCacheValue(accelerateUploading bool) *Region {
+	region := Region{
 		RegionID: response.RegionId,
 		Up:       response.Up.toCacheValue(),
 		Io:       response.Io.toCacheValue(),
@@ -294,21 +306,31 @@ func (response *v4QueryRegion) toCacheValue() *Region {
 		Api:      response.Api.toCacheValue(),
 		Bucket:   response.Uc.toCacheValue(),
 	}
+	if !accelerateUploading {
+		region.Up.Accelerated = nil
+	}
+
+	return &region
 }
 
 func (response *v4QueryServiceHosts) toCacheValue() Endpoints {
 	return Endpoints{
+		Accelerated: response.AccDomains,
 		Preferred:   response.Domains,
 		Alternative: response.Old,
 	}
 }
 
-func makeRegionCacheKey(accessKey, bucketName string, bucketHosts Endpoints) string {
-	return fmt.Sprintf("%s:%s:%s", accessKey, bucketName, makeBucketHostsCacheKey(bucketHosts))
+func makeRegionCacheKey(accessKey, bucketName string, accelerateUploading bool, bucketHosts Endpoints) string {
+	enableAcceleration := uint8(0)
+	if accelerateUploading {
+		enableAcceleration = 1
+	}
+	return fmt.Sprintf("%s:%s:%d:%s", accessKey, bucketName, enableAcceleration, makeBucketHostsCacheKey(bucketHosts))
 }
 
 func makeBucketHostsCacheKey(serviceHosts Endpoints) string {
-	return fmt.Sprintf("%s:%s", makeHostsCacheKey(serviceHosts.Preferred), makeHostsCacheKey(serviceHosts.Alternative))
+	return fmt.Sprintf("%s:%s:%s", makeHostsCacheKey(serviceHosts.Preferred), makeHostsCacheKey(serviceHosts.Alternative), makeHostsCacheKey(serviceHosts.Accelerated))
 }
 
 func makeHostsCacheKey(hosts []string) string {
@@ -319,6 +341,7 @@ func makeHostsCacheKey(hosts []string) string {
 
 func makeBucketQueryClient(
 	client clientv2.Client,
+	credentials credentials.CredentialsProvider,
 	bucketHosts Endpoints,
 	useHttps bool,
 	retryMax int,
@@ -333,11 +356,13 @@ func makeBucketQueryClient(
 	afterBackoff func(*http.Request, *retrier.RetrierOptions, time.Duration),
 	beforeRequest func(*http.Request, *retrier.RetrierOptions),
 	afterResponse func(*http.Response, *retrier.RetrierOptions, error),
+	beforeSign, afterSign func(*http.Request),
+	signError func(*http.Request, error),
 ) clientv2.Client {
 	is := []clientv2.Interceptor{
 		clientv2.NewAntiHijackingInterceptor(),
 		clientv2.NewHostsRetryInterceptor(clientv2.HostsRetryConfig{
-			RetryMax:           len(bucketHosts.Preferred) + len(bucketHosts.Alternative),
+			RetryMax:           bucketHosts.HostsLength(),
 			HostFreezeDuration: hostFreezeDuration,
 			HostProvider:       hostprovider.NewWithHosts(bucketHosts.allUrls(useHttps)),
 		}),
@@ -355,6 +380,15 @@ func makeBucketQueryClient(
 			AfterResponse: afterResponse,
 		}),
 		clientv2.NewBufferResponseInterceptor(),
+	}
+	if credentials != nil {
+		is = append(is, clientv2.NewAuthInterceptor(clientv2.AuthConfig{
+			Credentials: credentials,
+			TokenType:   auth.TokenQiniu,
+			BeforeSign:  beforeSign,
+			AfterSign:   afterSign,
+			SignError:   signError,
+		}))
 	}
 	return clientv2.NewClient(client, is...)
 }

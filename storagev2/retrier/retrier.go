@@ -68,10 +68,12 @@ func NewErrorRetrier() Retrier {
 }
 
 func (errorRetrier) Retry(response *http.Response, err error, _ *RetrierOptions) RetryDecision {
-	if isResponseRetryable(response) || IsErrorRetryable(err) {
+	if isResponseRetryable(response) {
 		return RetryRequest
-	} else {
+	} else if err == nil {
 		return DontRetry
+	} else {
+		return getRetryDecisionForError(err)
 	}
 }
 
@@ -165,7 +167,9 @@ func getRetryDecisionForError(err error) RetryDecision {
 	} else if unwrapedErr == context.Canceled {
 		return DontRetry
 	} else if clientErr, ok := unwrapedErr.(*clientv1.ErrorInfo); ok {
-		if IsStatusCodeRetryable(clientErr.Code) {
+		if clientErr.Code == http.StatusBadRequest && strings.Contains(unwrapedErr.Error(), "transfer acceleration is not configured on this bucket") {
+			return TryNextHost
+		} else if IsStatusCodeRetryable(clientErr.Code) {
 			return RetryRequest
 		} else {
 			return DontRetry

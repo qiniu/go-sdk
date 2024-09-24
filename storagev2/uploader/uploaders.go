@@ -403,6 +403,7 @@ func getRegions(ctx context.Context, upToken uptoken.Provider, bucketName string
 				UseInsecureProtocol: options.UseInsecureProtocol,
 				HostFreezeDuration:  options.HostFreezeDuration,
 				Client:              options.BasicHTTPClient,
+				AccelerateUploading: options.AccelerateUploading,
 			}
 			if hostRetryConfig := options.HostRetryConfig; hostRetryConfig != nil {
 				queryOptions.RetryMax = hostRetryConfig.RetryMax

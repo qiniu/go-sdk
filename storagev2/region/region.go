@@ -17,8 +17,9 @@ type (
 	//
 	// 可以存储域名或 IP，端口和协议可选
 	Endpoints struct {
-		Preferred   []string `json:"preferred,omitempty"`
-		Alternative []string `json:"alternative,omitempty"`
+		Preferred   []string `json:"preferred,omitempty"`   // 首选服务地址
+		Alternative []string `json:"alternative,omitempty"` // 备选服务地址
+		Accelerated []string `json:"accelerated,omitempty"` // 加速服务地址
 	}
 
 	// 区域信息
@@ -30,7 +31,7 @@ type (
 		RegionID string    `json:"region_id,omitempty"` // 区域 ID
 		Up       Endpoints `json:"up,omitempty"`        // Up 服务域名
 		Io       Endpoints `json:"io,omitempty"`        // Io 服务域名
-		IoSrc    Endpoints `json:"io_src,omitempty"`    // IoSrc 服务域名
+		IoSrc    Endpoints `json:"io_src,omitempty"`    // Io 源站服务域名
 		Rs       Endpoints `json:"rs,omitempty"`        // Rs 服务域名
 		Rsf      Endpoints `json:"rsf,omitempty"`       // Rsf 服务域名
 		Api      Endpoints `json:"api,omitempty"`       // Api 服务域名
@@ -45,11 +46,13 @@ type (
 	// 服务名称
 	ServiceName string
 
+	endpointsStatus uint8
+
 	// 服务地址迭代器
 	EndpointsIter struct {
-		endpoints     Endpoints
-		index         int
-		isAlternative bool
+		endpoints Endpoints
+		index     int
+		current   endpointsStatus
 	}
 
 	// 服务地址提供者
@@ -65,11 +68,17 @@ type (
 )
 
 const (
+	endpointsStatusAccelerated endpointsStatus = iota
+	endpointsStatusPreferred
+	endpointsStatusAlternative
+)
+
+const (
 	// Up 服务
 	ServiceUp ServiceName = "up"
 	// Io 服务
 	ServiceIo ServiceName = "io"
-	// IoSrc 服务
+	// Io 源站服务
 	ServiceIoSrc ServiceName = "io_src"
 	// Rs 服务
 	ServiceRs ServiceName = "rs"
@@ -164,35 +173,37 @@ func (left *Region) IsEqual(right *Region) bool {
 func (left Endpoints) Join(rights ...Endpoints) Endpoints {
 	newEndpoint := left
 	for _, right := range rights {
-		if len(newEndpoint.Preferred) == 0 {
-			newEndpoint.Preferred = right.Preferred
-		} else {
-			newEndpoint.Preferred = append(newEndpoint.Preferred, right.Preferred...)
-		}
-		if len(newEndpoint.Alternative) == 0 {
-			newEndpoint.Alternative = right.Alternative
-		} else {
-			newEndpoint.Alternative = append(newEndpoint.Alternative, right.Alternative...)
-		}
+		newEndpoint.Accelerated = append(newEndpoint.Accelerated, right.Accelerated...)
+		newEndpoint.Preferred = append(newEndpoint.Preferred, right.Preferred...)
+		newEndpoint.Alternative = append(newEndpoint.Alternative, right.Alternative...)
 	}
 
 	return newEndpoint
 }
 
 func (left Endpoints) IsEqual(right Endpoints) bool {
-	return reflect.DeepEqual(left.Preferred, right.Preferred) &&
+	return reflect.DeepEqual(left.Accelerated, right.Accelerated) &&
+		reflect.DeepEqual(left.Preferred, right.Preferred) &&
 		reflect.DeepEqual(left.Alternative, right.Alternative)
+
 }
 
 func (hosts Endpoints) Iter() *EndpointsIter {
 	return &EndpointsIter{endpoints: hosts}
 }
 
+func (endpoints Endpoints) HostsLength() int {
+	return len(endpoints.Accelerated) + len(endpoints.Preferred) + len(endpoints.Alternative)
+}
+
 func (endpoints Endpoints) IsEmpty() bool {
-	return len(endpoints.Preferred) == 0 && len(endpoints.Alternative) == 0
+	return len(endpoints.Accelerated) == 0 && len(endpoints.Preferred) == 0 && len(endpoints.Alternative) == 0
 }
 
 func (endpoints Endpoints) firstUrl(useHttps bool) string {
+	for _, accelerated := range endpoints.Accelerated {
+		return makeUrlFromHost(accelerated, useHttps)
+	}
 	for _, preferred := range endpoints.Preferred {
 		return makeUrlFromHost(preferred, useHttps)
 	}
@@ -207,7 +218,10 @@ func (endpoints Endpoints) GetEndpoints(context.Context) (Endpoints, error) {
 }
 
 func (endpoints Endpoints) allUrls(useHttps bool) []string {
-	allHosts := make([]string, 0, len(endpoints.Preferred)+len(endpoints.Alternative))
+	allHosts := make([]string, 0, len(endpoints.Accelerated)+len(endpoints.Preferred)+len(endpoints.Alternative))
+	for _, accelerated := range endpoints.Accelerated {
+		allHosts = append(allHosts, makeUrlFromHost(accelerated, useHttps))
+	}
 	for _, preferred := range endpoints.Preferred {
 		allHosts = append(allHosts, makeUrlFromHost(preferred, useHttps))
 	}
@@ -228,6 +242,7 @@ func (endpoints Endpoints) Clone() Endpoints {
 	return Endpoints{
 		Preferred:   append([]string{}, endpoints.Preferred...),
 		Alternative: append([]string{}, endpoints.Alternative...),
+		Accelerated: append([]string{}, endpoints.Accelerated...),
 	}
 }
 
@@ -243,38 +258,71 @@ func makeUrlFromHost(host string, useHttps bool) string {
 }
 
 func (iter *EndpointsIter) Next(nextHost *string) bool {
-	if iter.isAlternative {
-		if iter.index >= len(iter.endpoints.Alternative) {
+	for {
+		switch iter.current {
+		case endpointsStatusAccelerated:
+			if iter.index >= len(iter.endpoints.Accelerated) {
+				iter.current = endpointsStatusPreferred
+				iter.index = 0
+				continue
+			}
+			host := iter.endpoints.Accelerated[iter.index]
+			iter.index += 1
+			*nextHost = host
+			return true
+		case endpointsStatusPreferred:
+			if iter.index >= len(iter.endpoints.Preferred) {
+				iter.current = endpointsStatusAlternative
+				iter.index = 0
+				continue
+			}
+			host := iter.endpoints.Preferred[iter.index]
+			iter.index += 1
+			*nextHost = host
+			return true
+		case endpointsStatusAlternative:
+			if iter.index >= len(iter.endpoints.Alternative) {
+				return false
+			}
+			host := iter.endpoints.Alternative[iter.index]
+			iter.index += 1
+			*nextHost = host
+			return true
+		default:
 			return false
 		}
-		host := iter.endpoints.Alternative[iter.index]
-		iter.index += 1
-		*nextHost = host
-		return true
 	}
-	if iter.index >= len(iter.endpoints.Preferred) {
-		iter.isAlternative = true
-		iter.index = 0
-		return iter.Next(nextHost)
-	}
-	host := iter.endpoints.Preferred[iter.index]
-	iter.index += 1
-	*nextHost = host
-	return true
 }
 
 func (iter *EndpointsIter) More() bool {
-	if iter.isAlternative {
+	switch iter.current {
+	case endpointsStatusAccelerated:
+		if iter.index >= len(iter.endpoints.Accelerated) {
+			return len(iter.endpoints.Preferred) > 0
+		}
+		return true
+	case endpointsStatusPreferred:
+		if iter.index >= len(iter.endpoints.Preferred) {
+			return len(iter.endpoints.Alternative) > 0
+		}
+		return true
+	case endpointsStatusAlternative:
 		return iter.index < len(iter.endpoints.Alternative)
-	} else if iter.index >= len(iter.endpoints.Preferred) {
-		return len(iter.endpoints.Alternative) > 0
+	default:
+		return false
 	}
-	return true
 }
 
 func (iter *EndpointsIter) SwitchToAlternative() {
-	if len(iter.endpoints.Alternative) > 0 && !iter.isAlternative {
-		iter.isAlternative = true
+	if len(iter.endpoints.Alternative) > 0 && iter.current != endpointsStatusAlternative {
+		iter.current = endpointsStatusAlternative
+		iter.index = 0
+	}
+}
+
+func (iter *EndpointsIter) SwitchToPreferred() {
+	if len(iter.endpoints.Preferred) > 0 && iter.current != endpointsStatusPreferred {
+		iter.current = endpointsStatusPreferred
 		iter.index = 0
 	}
 }
