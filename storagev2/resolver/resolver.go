@@ -57,9 +57,10 @@ func (resolver *defaultResolver) Resolve(ctx context.Context, host string) ([]ne
 
 type (
 	cacheResolver struct {
-		resolver      Resolver
-		cache         *cache.Cache
-		cacheLifetime time.Duration
+		resolver          Resolver
+		cache             *cache.Cache
+		cacheLifetime     time.Duration
+		cacheRefreshAfter time.Duration
 	}
 
 	// CacheResolverConfig 缓存域名解析器选项
@@ -75,11 +76,15 @@ type (
 
 		// 缓存有效期（默认：120s）
 		CacheLifetime time.Duration
+
+		// 缓存刷新时间（默认：80s）
+		CacheRefreshAfter time.Duration
 	}
 
 	resolverCacheValue struct {
-		IPs       []net.IP  `json:"ips"`
-		ExpiredAt time.Time `json:"expired_at"`
+		IPs          []net.IP  `json:"ips"`
+		RefreshAfter time.Time `json:"refresh_after"`
+		ExpiredAt    time.Time `json:"expired_at"`
 	}
 )
 
@@ -112,6 +117,10 @@ func NewCacheResolver(resolver Resolver, opts *CacheResolverConfig) (Resolver, e
 	if cacheLifetime == time.Duration(0) {
 		cacheLifetime = 120 * time.Second
 	}
+	cacheRefreshAfter := opts.CacheRefreshAfter
+	if cacheRefreshAfter == time.Duration(0) {
+		cacheRefreshAfter = 80 * time.Second
+	}
 	if resolver == nil {
 		resolver = staticDefaultResolver
 	}
@@ -121,9 +130,10 @@ func NewCacheResolver(resolver Resolver, opts *CacheResolverConfig) (Resolver, e
 		return nil, err
 	}
 	return &cacheResolver{
-		cache:         persistentCache,
-		resolver:      resolver,
-		cacheLifetime: cacheLifetime,
+		cache:             persistentCache,
+		resolver:          resolver,
+		cacheLifetime:     cacheLifetime,
+		cacheRefreshAfter: cacheRefreshAfter,
 	}, nil
 }
 
@@ -168,10 +178,15 @@ func (resolver *cacheResolver) Resolve(ctx context.Context, host string) ([]net.
 		if ips, err = resolver.resolver.Resolve(ctx, host); err != nil {
 			return nil, err
 		} else {
-			return &resolverCacheValue{IPs: ips, ExpiredAt: time.Now().Add(resolver.cacheLifetime)}, nil
+			now := time.Now()
+			return &resolverCacheValue{
+				IPs:          ips,
+				RefreshAfter: now.Add(resolver.cacheRefreshAfter),
+				ExpiredAt:    now.Add(resolver.cacheLifetime),
+			}, nil
 		}
 	})
-	if status == cache.NoResultGot {
+	if status == cache.NoResultGot || status == cache.GetResultFromInvalidCache {
 		return nil, err
 	}
 	return cacheValue.(*resolverCacheValue).IPs, nil
@@ -194,6 +209,10 @@ func (left *resolverCacheValue) IsEqual(rightValue cache.CacheValue) bool {
 
 func (left *resolverCacheValue) IsValid() bool {
 	return time.Now().Before(left.ExpiredAt)
+}
+
+func (left *resolverCacheValue) ShouldRefresh() bool {
+	return time.Now().After(left.RefreshAfter)
 }
 
 func (*cacheResolver) localIp(host string) (string, error) {
