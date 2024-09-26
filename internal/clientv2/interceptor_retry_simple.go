@@ -217,12 +217,14 @@ func (interceptor *simpleRetryInterceptor) choose(req *http.Request, ips []net.I
 
 func (interceptor *simpleRetryInterceptor) feedbackGood(req *http.Request, hostname string, ips []net.IP) {
 	if len(ips) > 0 {
+		interceptor.resolver().FeedbackGood(req.Context(), hostname, ips)
 		interceptor.chooser().FeedbackGood(req.Context(), ips, &chooser.FeedbackOptions{Domain: hostname})
 	}
 }
 
 func (interceptor *simpleRetryInterceptor) feedbackBad(req *http.Request, hostname string, ips []net.IP) {
 	if len(ips) > 0 {
+		interceptor.resolver().FeedbackBad(req.Context(), hostname, ips)
 		interceptor.chooser().FeedbackBad(req.Context(), ips, &chooser.FeedbackOptions{Domain: hostname})
 	}
 }
