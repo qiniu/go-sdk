@@ -10,6 +10,9 @@ type (
 	ChooseOptions struct {
 		// Domain 是待选择的域名
 		Domain string
+
+		// 如果找不到合适的域名就直接返回空
+		FailFast bool
 	}
 
 	// FeedbackOptions 反馈的选项

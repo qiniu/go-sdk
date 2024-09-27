@@ -99,13 +99,15 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 	interceptor.config.init()
 
 	hostname := req.URL.Hostname()
-	resolvedIPs := interceptor.resolve(req, hostname)
+	resolvedIPs := interceptor.resolve(req, hostname, false)
+	resolvedIPsMap := make(map[string]struct{}, len(resolvedIPs))
+	addIPsToMap(resolvedIPsMap, resolvedIPs)
 
 	// 可能会被重试多次
 	for i := 0; ; i++ {
 		// Clone 防止后面 Handler 处理对 req 有污染
 		reqBefore := cloneReq(req)
-		req, chosenIPs = interceptor.choose(req, resolvedIPs, hostname)
+		req, chosenIPs = interceptor.ensureChoose(req, hostname, resolvedIPs, resolvedIPsMap)
 		resp, err = interceptor.callHandler(req, &retrier.RetrierOptions{Attempts: i}, handler)
 
 		if err == nil && resp.StatusCode/100 >= 4 {
@@ -144,6 +146,24 @@ func (interceptor *simpleRetryInterceptor) Intercept(req *http.Request, handler 
 	return resp, err
 }
 
+func (interceptor *simpleRetryInterceptor) ensureChoose(req *http.Request, hostname string, resolvedIPs []net.IP, resolvedIPsMap map[string]struct{}) (*http.Request, []net.IP) {
+	var chosenIPs []net.IP
+beforeChoose:
+	req, chosenIPs = interceptor.choose(req, resolvedIPs, hostname, true)
+	for len(chosenIPs) == 0 {
+		newResolvedIPs := interceptor.resolve(req, hostname, true)
+		if len(newResolvedIPs) > 0 && !isAllIPsInMap(resolvedIPsMap, newResolvedIPs) { // 但凡能拿到新的 IP 就尝试新的 IP
+			addIPsToMap(resolvedIPsMap, newResolvedIPs)
+			resolvedIPs = mergeIPs(resolvedIPs, newResolvedIPs)
+			goto beforeChoose
+		} else { // 如果拿不到新的 IP，只能从已有的 IP 集合里选择
+			req, chosenIPs = interceptor.choose(req, resolvedIPs, hostname, false)
+			break
+		}
+	}
+	return req, chosenIPs
+}
+
 func (interceptor *simpleRetryInterceptor) callHandler(req *http.Request, options *retrier.RetrierOptions, handler Handler) (resp *http.Response, err error) {
 	if interceptor.config.BeforeRequest != nil {
 		interceptor.config.BeforeRequest(req, options)
@@ -171,8 +191,9 @@ func (interceptor *simpleRetryInterceptor) resolver() resolver.Resolver {
 	return r
 }
 
-func (interceptor *simpleRetryInterceptor) resolve(req *http.Request, hostname string) []net.IP {
+func (interceptor *simpleRetryInterceptor) resolve(req *http.Request, hostname string, bypassCache bool) []net.IP {
 	var (
+		ctx context.Context
 		ips []net.IP
 		err error
 	)
@@ -180,7 +201,11 @@ func (interceptor *simpleRetryInterceptor) resolve(req *http.Request, hostname s
 		if interceptor.config.BeforeResolve != nil {
 			interceptor.config.BeforeResolve(req)
 		}
-		if ips, err = r.Resolve(req.Context(), hostname); err == nil {
+		ctx = req.Context()
+		if bypassCache {
+			ctx = resolver.WithByPassResolverCache(ctx)
+		}
+		if ips, err = r.Resolve(ctx, hostname); err == nil {
 			if interceptor.config.AfterResolve != nil {
 				interceptor.config.AfterResolve(req, ips)
 			}
@@ -207,10 +232,12 @@ func (interceptor *simpleRetryInterceptor) chooser() chooser.Chooser {
 	return cs
 }
 
-func (interceptor *simpleRetryInterceptor) choose(req *http.Request, ips []net.IP, hostname string) (*http.Request, []net.IP) {
+func (interceptor *simpleRetryInterceptor) choose(req *http.Request, ips []net.IP, hostname string, failFast bool) (*http.Request, []net.IP) {
 	if len(ips) > 0 {
-		ips = interceptor.chooser().Choose(req.Context(), ips, &chooser.ChooseOptions{Domain: hostname})
-		req = req.WithContext(clientv1.WithResolvedIPs(req.Context(), hostname, ips))
+		ips = interceptor.chooser().Choose(req.Context(), ips, &chooser.ChooseOptions{Domain: hostname, FailFast: failFast})
+		if len(ips) > 0 {
+			req = req.WithContext(clientv1.WithResolvedIPs(req.Context(), hostname, ips))
+		}
 	}
 	return req, ips
 }
@@ -253,4 +280,34 @@ func bufferResponse(resp *http.Response) error {
 
 func defaultRetryInterval() time.Duration {
 	return time.Duration(50+rand.Int()%50) * time.Millisecond
+}
+
+func addIPsToMap(m map[string]struct{}, ips []net.IP) {
+	for _, ip := range ips {
+		m[string(ip.To16())] = struct{}{}
+	}
+}
+
+func isAllIPsInMap(m map[string]struct{}, ips []net.IP) bool {
+	for _, ip := range ips {
+		if _, ok := m[string(ip.To16())]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func mergeIPs(ips1, ips2 []net.IP) []net.IP {
+	newIPs := make([]net.IP, 0, len(ips1)+len(ips2))
+	newIPs = append(newIPs, ips1...)
+loop:
+	for _, ip2 := range ips2 {
+		for _, ip1 := range ips1 {
+			if ip1.Equal(ip2) {
+				continue loop
+			}
+		}
+		newIPs = append(newIPs, ip2)
+	}
+	return newIPs
 }

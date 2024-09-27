@@ -185,34 +185,46 @@ func getPersistentCache(persistentFilePath string, compactInterval, persistentDu
 	return persistentCache, nil
 }
 
+func (resolver *cacheResolver) resolve(ctx context.Context, host string) (*resolverCacheValue, error) {
+	if ips, err := resolver.resolver.Resolve(ctx, host); err != nil {
+		return nil, err
+	} else {
+		now := time.Now()
+		cacheValueIPs := make([]resolverCacheValueIP, len(ips))
+		for i, ip := range ips {
+			cacheValueIPs[i] = resolverCacheValueIP{IP: ip, ExpiredAt: now.Add(resolver.cacheLifetime)}
+		}
+		return &resolverCacheValue{
+			IPs:          cacheValueIPs,
+			RefreshAfter: now.Add(resolver.cacheRefreshAfter),
+			ExpiredAt:    now.Add(resolver.cacheLifetime),
+		}, nil
+	}
+}
+
 func (resolver *cacheResolver) Resolve(ctx context.Context, host string) ([]net.IP, error) {
 	lip, err := resolver.localIp(host)
 	if err != nil {
 		return nil, err
 	}
 	cacheKey := lip + ":" + host
-	cacheValue, status := resolver.cache.Get(cacheKey, func() (cache.CacheValue, error) {
-		var ips []net.IP
-		if ips, err = resolver.resolver.Resolve(ctx, host); err != nil {
+	var rcv *resolverCacheValue
+	if shouldByPassResolveCache(ctx) {
+		if rcv, err = resolver.resolve(ctx, host); err != nil {
 			return nil, err
-		} else {
-			now := time.Now()
-			cacheValueIPs := make([]resolverCacheValueIP, len(ips))
-			for i, ip := range ips {
-				cacheValueIPs[i] = resolverCacheValueIP{IP: ip, ExpiredAt: now.Add(resolver.cacheLifetime)}
-			}
-			return &resolverCacheValue{
-				IPs:          cacheValueIPs,
-				RefreshAfter: now.Add(resolver.cacheRefreshAfter),
-				ExpiredAt:    now.Add(resolver.cacheLifetime),
-			}, nil
 		}
-	})
-	if status == cache.NoResultGot || status == cache.GetResultFromInvalidCache {
-		return nil, err
+	} else {
+		cacheValue, status := resolver.cache.Get(cacheKey, func() (cache.CacheValue, error) {
+			var cacheValue cache.CacheValue
+			cacheValue, err = resolver.resolve(ctx, host)
+			return cacheValue, err
+		})
+		if status == cache.NoResultGot || status == cache.GetResultFromInvalidCache {
+			return nil, err
+		}
+		rcv = cacheValue.(*resolverCacheValue)
 	}
 	now := time.Now()
-	rcv := cacheValue.(*resolverCacheValue)
 	ips := make([]net.IP, 0, len(rcv.IPs))
 	for _, cacheValueIP := range rcv.IPs {
 		if cacheValueIP.ExpiredAt.After(now) {
@@ -296,6 +308,21 @@ func (*cacheResolver) localIp(host string) (string, error) {
 	defer conn.Close()
 
 	return conn.LocalAddr().(*net.UDPAddr).IP.String(), nil
+}
+
+type (
+	byPassResolverCacheContextKey   struct{}
+	byPassResolverCacheContextValue struct{}
+)
+
+// WithByPassResolverCache 设置 Context 绕过 Resolver 内部缓存
+func WithByPassResolverCache(ctx context.Context) context.Context {
+	return context.WithValue(ctx, byPassResolverCacheContextKey{}, byPassResolverCacheContextValue{})
+}
+
+func shouldByPassResolveCache(ctx context.Context) bool {
+	_, ok := ctx.Value(byPassResolverCacheContextKey{}).(byPassResolverCacheContextValue)
+	return ok
 }
 
 func calcPersistentCacheCrc64(persistentFilePath string, compactInterval, persistentDuration time.Duration) uint64 {
