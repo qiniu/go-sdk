@@ -12,28 +12,29 @@ import (
 type PutPolicy map[string]interface{}
 
 const (
-	putPolicyKeyScope               = "scope"
-	putPolicyKeyDeadline            = "deadline"
-	putPolicyKeyIsPrefixalScope     = "isPrefixalScope"
-	putPolicyKeyInsertOnly          = "insertOnly"
-	putPolicyKeyEndUser             = "endUser"
-	putPolicyKeyReturnUrl           = "returnUrl"
-	putPolicyKeyReturnBody          = "returnBody"
-	putPolicyKeyCallbackUrl         = "callbackUrl"
-	putPolicyKeyCallbackHost        = "callbackHost"
-	putPolicyKeyCallbackBody        = "callbackBody"
-	putPolicyKeyCallbackBodyType    = "callbackBodyType"
-	putPolicyKeyPersistentOps       = "persistentOps"
-	putPolicyKeyPersistentNotifyUrl = "persistentNotifyUrl"
-	putPolicyKeyPersistentPipeline  = "persistentPipeline"
-	putPolicyKeyPersistentType      = "persistentType"
-	putPolicyKeyForceSaveKey        = "forceSaveKey"
-	putPolicyKeySaveKey             = "saveKey"
-	putPolicyKeyFsizeMin            = "fsizeMin"
-	putPolicyKeyFsizeLimit          = "fsizeLimit"
-	putPolicyKeyDetectMime          = "detectMime"
-	putPolicyKeyMimeLimit           = "mimeLimit"
-	putPolicyKeyFileType            = "fileType"
+	putPolicyKeyScope                        = "scope"
+	putPolicyKeyDeadline                     = "deadline"
+	putPolicyKeyIsPrefixalScope              = "isPrefixalScope"
+	putPolicyKeyInsertOnly                   = "insertOnly"
+	putPolicyKeyEndUser                      = "endUser"
+	putPolicyKeyReturnUrl                    = "returnUrl"
+	putPolicyKeyReturnBody                   = "returnBody"
+	putPolicyKeyCallbackUrl                  = "callbackUrl"
+	putPolicyKeyCallbackHost                 = "callbackHost"
+	putPolicyKeyCallbackBody                 = "callbackBody"
+	putPolicyKeyCallbackBodyType             = "callbackBodyType"
+	putPolicyKeyPersistentOps                = "persistentOps"
+	putPolicyKeyPersistentNotifyUrl          = "persistentNotifyUrl"
+	putPolicyKeyPersistentPipeline           = "persistentPipeline"
+	putPolicyKeyPersistentType               = "persistentType"
+	putPolicyKeyPersistentWorkflowTemplateID = "persistentWorkflowTemplateID"
+	putPolicyKeyForceSaveKey                 = "forceSaveKey"
+	putPolicyKeySaveKey                      = "saveKey"
+	putPolicyKeyFsizeMin                     = "fsizeMin"
+	putPolicyKeyFsizeLimit                   = "fsizeLimit"
+	putPolicyKeyDetectMime                   = "detectMime"
+	putPolicyKeyMimeLimit                    = "mimeLimit"
+	putPolicyKeyFileType                     = "fileType"
 )
 
 var (
@@ -246,6 +247,17 @@ func (putPolicy PutPolicy) GetPersistentType() (int64, bool) {
 // SetPersistentType 指定任务类型
 func (putPolicy PutPolicy) SetPersistentType(value int64) PutPolicy {
 	_ = putPolicy.Set(putPolicyKeyPersistentType, value)
+	return putPolicy
+}
+
+// GetPersistentWorkflowTemplateID 获取工作流模版 ID
+func (putPolicy PutPolicy) GetPersistentWorkflowTemplateID() (string, bool) {
+	return putPolicy.getString(putPolicyKeyPersistentWorkflowTemplateID)
+}
+
+// SetPersistentWorkflowTemplateID 指定工作流模版 ID
+func (putPolicy PutPolicy) SetPersistentWorkflowTemplateID(value string) PutPolicy {
+	_ = putPolicy.Set(putPolicyKeyPersistentWorkflowTemplateID, value)
 	return putPolicy
 }
 
