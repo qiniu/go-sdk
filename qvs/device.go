@@ -6,22 +6,35 @@ import (
 )
 
 type Device struct {
-	NamespaceId     string `json:"nsId"`
-	Name            string `json:"name"`
-	GBId            string `json:"gbId"`
-	Type            int    `json:"type"`
-	Username        string `json:"username"`
-	Password        string `json:"password"`
-	PullIfRegister  bool   `json:"pullIfRegister"` //按需拉流
-	Desc            string `json:"desc"`
-	NamespaceName   string `json:"nsName"`
-	State           string `json:"state"`
-	Channels        int    `json:"channels"`
-	Vendor          string `json:"vendor"`
-	CreatedAt       int64  `json:"createdAt"`
-	UpdatedAt       int64  `json:"updatedAt"`
-	LastRegisterAt  int64  `json:"lastRegisterAt"`
-	LastKeepaliveAt int64  `json:"lastKeepaliveAt"`
+	NamespaceId       string   `json:"nsId"`
+	Name              string   `json:"name"`
+	GBId              string   `json:"gbId"`
+	Type              int      `json:"type"`
+	Username          string   `json:"username"`
+	Password          string   `json:"password"`
+	PullIfRegister    bool     `json:"pullIfRegister"` // 注册成功后启动拉流
+	OnDemandPull      bool     `json:"onDemandPull"`   // 按需拉流
+	Desc              string   `json:"desc"`
+	NamespaceName     string   `json:"nsName"`
+	State             string   `json:"state"`
+	Channels          int      `json:"channels"`
+	Vendor            string   `json:"vendor"`
+	RTPProtocol       string   `json:"rtpProtocol"`
+	RTPAudio          bool     `json:"rtpAudio"`
+	RTPAudioTranscode bool     `json:"rtpAudioTranscode"`
+	Location          Location `json:"location"`
+	CreatedAt         int64    `json:"createdAt"`
+	UpdatedAt         int64    `json:"updatedAt"`
+	LastRegisterAt    int64    `json:"lastRegisterAt"`
+	LastKeepaliveAt   int64    `json:"lastKeepaliveAt"`
+}
+
+type Location struct {
+	Enable    bool    `json:"enable"`
+	Type      int     `json:"type"`
+	Interval  int     `json:"interval"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
 }
 
 type QueryChannelsArgs struct {
@@ -53,6 +66,15 @@ type deviceVideoItem struct {
 	Start    int           `json:"start"`
 	End      int           `json:"end"`
 	Type     string        `json:"type"`
+}
+
+type DeviceLocation struct {
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	Speed     float64 `json:"speed"`
+	Direction float64 `json:"direction"`
+	Altitude  int     `json:"altitude"`
+	UpdatedAt int64   `json:"updatedAt"`
 }
 
 /*
@@ -190,6 +212,18 @@ func (manager *Manager) DeleteChannel(nsId, gbId, channelId string) error {
 func (manager *Manager) QueryGBRecordHistories(nsId, gbId, chId string, start, end int) (*DeviceVideoItems, error) {
 	var ret DeviceVideoItems
 	err := manager.client.Call(context.Background(), &ret, "GET", manager.url("/namespaces/%s/devices/%s/recordhistories?start=%d&end=%d&chId=%s", nsId, gbId, start, end, chId), nil)
+	if err != nil {
+		return nil, err
+	}
+	return &ret, nil
+}
+
+/*
+获取设备地理位置
+*/
+func (manager *Manager) QueryDeviceLocation(nsId, gbId string) (*DeviceLocation, error) {
+	var ret DeviceLocation
+	err := manager.client.Call(context.Background(), &ret, "GET", manager.url("/namespaces/%s/devices/%s/location", nsId, gbId), nil)
 	if err != nil {
 		return nil, err
 	}
