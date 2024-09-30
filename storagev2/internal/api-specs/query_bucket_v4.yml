@@ -49,6 +49,14 @@ response:
                             name: UpDomains
                             documentation: 上传域名
                             fields:
+                              - field_name: accelerated_up_domains
+                                key: acc_domains
+                                documentation: 加速上传域名列表
+                                type:
+                                  array:
+                                    name: AcceleratedUpDomains
+                                    documentation: 加速上传域名列表
+                                    type: string
                               - field_name: prefered_up_domains
                                 key: domains
                                 documentation: 主上传域名列表

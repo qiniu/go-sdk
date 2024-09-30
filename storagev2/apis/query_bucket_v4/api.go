@@ -19,6 +19,9 @@ type Response struct {
 	Hosts BucketQueryHosts // 存储空间服务域名
 }
 
+// 加速上传域名列表
+type AcceleratedUpDomains = []string
+
 // 主上传域名列表
 type PreferedUpDomains = []string
 
@@ -27,30 +30,36 @@ type AlternativeUpDomains = []string
 
 // 上传域名
 type UpDomains struct {
+	AcceleratedUpDomains AcceleratedUpDomains // 加速上传域名列表
 	PreferedUpDomains    PreferedUpDomains    // 主上传域名列表
 	AlternativeUpDomains AlternativeUpDomains // 备选上传域名列表
 }
 type jsonUpDomains struct {
-	PreferedUpDomains    PreferedUpDomains    `json:"domains"` // 主上传域名列表
-	AlternativeUpDomains AlternativeUpDomains `json:"old"`     // 备选上传域名列表
+	AcceleratedUpDomains AcceleratedUpDomains `json:"acc_domains"` // 加速上传域名列表
+	PreferedUpDomains    PreferedUpDomains    `json:"domains"`     // 主上传域名列表
+	AlternativeUpDomains AlternativeUpDomains `json:"old"`         // 备选上传域名列表
 }
 
 func (j *UpDomains) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(&jsonUpDomains{PreferedUpDomains: j.PreferedUpDomains, AlternativeUpDomains: j.AlternativeUpDomains})
+	return json.Marshal(&jsonUpDomains{AcceleratedUpDomains: j.AcceleratedUpDomains, PreferedUpDomains: j.PreferedUpDomains, AlternativeUpDomains: j.AlternativeUpDomains})
 }
 func (j *UpDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonUpDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
 		return err
 	}
+	j.AcceleratedUpDomains = nj.AcceleratedUpDomains
 	j.PreferedUpDomains = nj.PreferedUpDomains
 	j.AlternativeUpDomains = nj.AlternativeUpDomains
 	return nil
 }
 func (j *UpDomains) validate() error {
+	if len(j.AcceleratedUpDomains) == 0 {
+		return errors.MissingRequiredFieldError{Name: "AcceleratedUpDomains"}
+	}
 	if len(j.PreferedUpDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "PreferedUpDomains"}
 	}

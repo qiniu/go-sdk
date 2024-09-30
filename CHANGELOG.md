@@ -3,6 +3,7 @@
 ## 7.24.0
 * 新增
   * 支持工作流模版
+  * 在 [storage](github.com/qiniu/go-sdk/v7/storage) 包中支持上传加速
 * 优化
   * 超时连接重试机制
   * 域名解析请求机制
