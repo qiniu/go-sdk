@@ -13,8 +13,13 @@ import (
 )
 
 type integerCacheValue struct {
-	Value     int       `json:"value"`
-	ExpiredAt time.Time `json:"expired_at"`
+	Value        int       `json:"value"`
+	RefreshAfter time.Time `json:"refresh_after"`
+	ExpiredAt    time.Time `json:"expired_at"`
+}
+
+func (v integerCacheValue) ShouldRefresh() bool {
+	return time.Now().After(v.RefreshAfter)
 }
 
 func (v integerCacheValue) IsValid() bool {
@@ -32,7 +37,11 @@ func (left integerCacheValue) IsEqual(rightV CacheValue) bool {
 func TestCache(t *testing.T) {
 	cache := NewCache(200 * time.Millisecond)
 	if value, result := cache.Get("key_1", func() (CacheValue, error) {
-		return integerCacheValue{Value: 1, ExpiredAt: time.Now().Add(100 * time.Millisecond)}, nil
+		return integerCacheValue{
+			Value:        1,
+			RefreshAfter: time.Now().Add(50 * time.Millisecond),
+			ExpiredAt:    time.Now().Add(100 * time.Millisecond),
+		}, nil
 	}); result != GetResultFromFallback {
 		t.Fatalf("unexpected result: %v", result)
 	} else if v := value.(integerCacheValue).Value; v != 1 {
@@ -48,12 +57,25 @@ func TestCache(t *testing.T) {
 		t.Fatalf("unexpected cache value: %v", v)
 	}
 
-	time.Sleep(150 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
+	if value, result := cache.Get("key_1", func() (CacheValue, error) {
+		return integerCacheValue{
+			Value:        2,
+			RefreshAfter: time.Now().Add(50 * time.Millisecond),
+			ExpiredAt:    time.Now().Add(100 * time.Millisecond),
+		}, nil
+	}); result != GetResultFromCacheAndRefreshAsync {
+		t.Fatalf("unexpected result: %v", result)
+	} else if v := value.(integerCacheValue).Value; v != 1 {
+		t.Fatalf("unexpected cache value: %v", v)
+	}
+
+	time.Sleep(250 * time.Millisecond)
 	if value, result := cache.Get("key_1", func() (CacheValue, error) {
 		return nil, errors.New("test error")
 	}); result != GetResultFromInvalidCache {
 		t.Fatalf("unexpected result: %v", result)
-	} else if v := value.(integerCacheValue).Value; v != 1 {
+	} else if v := value.(integerCacheValue).Value; v != 2 {
 		t.Fatalf("unexpected cache value: %v", v)
 	}
 	time.Sleep(150 * time.Millisecond)
@@ -65,18 +87,18 @@ func TestCache(t *testing.T) {
 	}
 
 	if value, result := cache.Get("key_2", func() (CacheValue, error) {
-		return integerCacheValue{Value: 2, ExpiredAt: time.Now().Add(-100 * time.Millisecond)}, nil
+		return integerCacheValue{Value: 3, ExpiredAt: time.Now().Add(-100 * time.Millisecond)}, nil
 	}); result != GetResultFromFallback {
 		t.Fatalf("unexpected result: %v", result)
-	} else if v := value.(integerCacheValue).Value; v != 2 {
+	} else if v := value.(integerCacheValue).Value; v != 3 {
 		t.Fatalf("unexpected cache value: %v", v)
 	}
 
 	if value, result := cache.Get("key_3", func() (CacheValue, error) {
-		return integerCacheValue{Value: 3, ExpiredAt: time.Now().Add(100 * time.Millisecond)}, nil
+		return integerCacheValue{Value: 4, ExpiredAt: time.Now().Add(100 * time.Millisecond)}, nil
 	}); result != GetResultFromFallback {
 		t.Fatal("unexpected ok")
-	} else if v := value.(integerCacheValue).Value; v != 3 {
+	} else if v := value.(integerCacheValue).Value; v != 4 {
 		t.Fatalf("unexpected cache value: %v", v)
 	}
 	cache.Delete("key_3")
@@ -122,7 +144,11 @@ func TestCachePersist(t *testing.T) {
 		t.Fatal(err)
 	}
 	if value, result := cache.Get("key_1", func() (CacheValue, error) {
-		return integerCacheValue{Value: 1, ExpiredAt: time.Now().Add(200 * time.Millisecond)}, nil
+		return integerCacheValue{
+			Value:        1,
+			RefreshAfter: time.Now().Add(100 * time.Millisecond),
+			ExpiredAt:    time.Now().Add(200 * time.Millisecond),
+		}, nil
 	}); result != GetResultFromFallback {
 		t.Fatal("unexpected ok")
 	} else if v := value.(integerCacheValue).Value; v != 1 {

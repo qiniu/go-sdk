@@ -4,6 +4,8 @@ import (
 	"context"
 	"net"
 	"time"
+
+	"github.com/qiniu/go-sdk/v7/internal/dialer"
 )
 
 type (
@@ -31,20 +33,7 @@ func defaultDialFunc(ctx context.Context, network string, address string) (net.C
 		keepAliveInterval = 15 * time.Second
 	}
 	if resolved, ok := ctx.Value(resolverContextKey{}).(resolverContextValue); ok && len(resolved.ips) > 0 && resolved.domain == host {
-		dialTimeout = dialTimeout / time.Duration(len(resolved.ips))
-		if dialTimeout < 3*time.Second {
-			dialTimeout = 3 * time.Second
-		}
-		dialer := net.Dialer{Timeout: dialTimeout, KeepAlive: keepAliveInterval}
-		for _, ip := range resolved.ips {
-			newAddr := ip.String()
-			if port != "" {
-				newAddr = net.JoinHostPort(newAddr, port)
-			}
-			if conn, err := dialer.DialContext(ctx, network, newAddr); err == nil {
-				return conn, nil
-			}
-		}
+		return dialer.DialContext(ctx, network, resolved.ips, port, dialer.DialOptions{Timeout: dialTimeout, KeepAlive: keepAliveInterval})
 	}
 	return (&net.Dialer{Timeout: dialTimeout, KeepAlive: keepAliveInterval}).DialContext(ctx, network, address)
 }

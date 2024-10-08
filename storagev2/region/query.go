@@ -109,8 +109,9 @@ type (
 	}
 
 	v4QueryCacheValue struct {
-		Regions   []*Region `json:"regions"`
-		ExpiredAt time.Time `json:"expired_at"`
+		Regions      []*Region `json:"regions"`
+		RefreshAfter time.Time `json:"refresh_after"`
+		ExpiredAt    time.Time `json:"expired_at"`
 	}
 
 	v4QueryServiceHosts struct {
@@ -278,6 +279,10 @@ func (left *v4QueryCacheValue) IsValid() bool {
 	return time.Now().Before(left.ExpiredAt)
 }
 
+func (left *v4QueryCacheValue) ShouldRefresh() bool {
+	return time.Now().After(left.RefreshAfter)
+}
+
 func (response *v4QueryResponse) toCacheValue(accelerateUploading bool) *v4QueryCacheValue {
 	var (
 		minTtl  = int64(math.MaxInt64)
@@ -289,9 +294,11 @@ func (response *v4QueryResponse) toCacheValue(accelerateUploading bool) *v4Query
 			minTtl = host.Ttl
 		}
 	}
+	now := time.Now()
 	return &v4QueryCacheValue{
-		Regions:   regions,
-		ExpiredAt: time.Now().Add(time.Duration(minTtl) * time.Second),
+		Regions:      regions,
+		RefreshAfter: now.Add(time.Duration(minTtl) * time.Second / 2),
+		ExpiredAt:    now.Add(time.Duration(minTtl) * time.Second),
 	}
 }
 

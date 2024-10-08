@@ -71,6 +71,7 @@ type PrefopRet struct {
 	InputBucket string    `json:"inputBucket,omitempty"`
 	InputKey    string    `json:"inputKey,omitempty"`
 	Pipeline    string    `json:"pipeline,omitempty"`
+	TaskFrom    string    `json:"taskFrom,omitempty"`
 	Reqid       string    `json:"reqid,omitempty"`
 	CreatedAt   time.Time `json:"creationDate,omitempty"`
 	Items       []FopResult
@@ -86,6 +87,9 @@ func (r *PrefopRet) String() string {
 	}
 	if r.Pipeline != "" {
 		strData += fmt.Sprintf("Pipeline: %s\n", r.Pipeline)
+	}
+	if r.TaskFrom != "" {
+		strData += fmt.Sprintf("TaskFrom: %s\n", r.TaskFrom)
 	}
 	if r.Type != 0 {
 		strData += fmt.Sprintf("Type: %d\n", r.Type)
@@ -125,13 +129,14 @@ func (r *PrefopRet) String() string {
 }
 
 type PfopRequest struct {
-	BucketName string // 空间名称
-	ObjectName string // 对象名称
-	Fops       string // 数据处理命令列表，以 `;` 分隔，可以指定多个数据处理命令，与 `workflowTemplateID` 二选一
-	NotifyUrl  string // 处理结果通知接收 URL
-	Force      int64  // 强制执行数据处理，设为 `1`，则可强制执行数据处理并覆盖原结果
-	Type       int64  // 任务类型，支持 `0` 表示普通任务，`1` 表示闲时任务
-	Pipeline   string // 对列名，仅适用于普通任务
+	BucketName         string // 空间名称
+	ObjectName         string // 对象名称
+	Fops               string // 数据处理命令列表，以 `;` 分隔，可以指定多个数据处理命令，与 `workflowTemplateID` 二选一
+	NotifyUrl          string // 处理结果通知接收 URL
+	Force              int64  // 强制执行数据处理，设为 `1`，则可强制执行数据处理并覆盖原结果
+	Type               int64  // 任务类型，支持 `0` 表示普通任务，`1` 表示闲时任务
+	Pipeline           string // 对列名，仅适用于普通任务
+	WorkflowTemplateID string // 工作流模板 ID
 }
 
 // FopResult 云处理操作列表，包含每个云处理操作的状态信息
@@ -176,13 +181,14 @@ func (m *OperationManager) Pfop(bucket, key, fops, pipeline, notifyURL string,
 // Pfop 持久化数据处理 v2
 func (m *OperationManager) PfopV2(ctx context.Context, pfopRequest *PfopRequest) (*PfopRet, error) {
 	response, err := m.apiClient.Pfop(context.Background(), &apis.PfopRequest{
-		BucketName: pfopRequest.BucketName,
-		ObjectName: pfopRequest.ObjectName,
-		Fops:       pfopRequest.Fops,
-		NotifyUrl:  pfopRequest.NotifyUrl,
-		Force:      pfopRequest.Force,
-		Type:       pfopRequest.Type,
-		Pipeline:   pfopRequest.Pipeline,
+		BucketName:         pfopRequest.BucketName,
+		ObjectName:         pfopRequest.ObjectName,
+		Fops:               pfopRequest.Fops,
+		NotifyUrl:          pfopRequest.NotifyUrl,
+		Force:              pfopRequest.Force,
+		Type:               pfopRequest.Type,
+		Pipeline:           pfopRequest.Pipeline,
+		WorkflowTemplateId: pfopRequest.WorkflowTemplateID,
 	}, nil)
 	if err != nil {
 		return nil, err
@@ -210,6 +216,7 @@ func (m *OperationManager) Prefop(persistentID string) (PrefopRet, error) {
 		InputBucket: response.BucketName,
 		InputKey:    response.ObjectName,
 		Pipeline:    response.Pipeline,
+		TaskFrom:    response.TaskFrom,
 		Reqid:       response.RequestId,
 		CreatedAt:   createdAt,
 		Items:       make([]FopResult, 0, len(response.Items)),

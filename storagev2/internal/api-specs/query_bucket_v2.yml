@@ -37,6 +37,30 @@ response:
                 name: UpDomains
                 documentation: 上传域名
                 fields:
+                  - field_name: bucket_accelerated_up_domains
+                    key: bucket_acc
+                    documentation: 空间级别的加速上传域名
+                    type:
+                      struct:
+                        name: BucketAcceleratedUpDomains
+                        documentation: 空间级别的加速上传域名
+                        fields:
+                          - field_name: main_accelerated_up_domains
+                            key: main
+                            documentation: 空间级别的主加速上传域名列表
+                            type:
+                              array:
+                                name: MainBucketAcceleratedUpDomains
+                                documentation: 空间级别的主加速上传域名列表
+                                type: string
+                          - field_name: backup_accelerated_up_domains
+                            key: backup
+                            documentation: 空间级别的备用加速上传域名列表
+                            type:
+                              array:
+                                name: BackupBucketAcceleratedUpDomains
+                                documentation: 空间级别的备用加速上传域名列表
+                                type: string
                   - field_name: accelerated_up_domains
                     key: acc
                     documentation: 加速上传域名

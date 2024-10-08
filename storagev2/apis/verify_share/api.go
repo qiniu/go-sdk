@@ -16,6 +16,7 @@ type Request struct {
 	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HTTPClientOptions 中的 CredentialsProvider
 	ExtractCode string                          // 提取码
 }
+type VerifyShareParam = Request
 type jsonRequest struct {
 	ExtractCode string `json:"extract_code"` // 提取码
 }

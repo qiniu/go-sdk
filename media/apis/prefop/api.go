@@ -23,6 +23,7 @@ type Response struct {
 	ObjectName   string        // 源对象名称
 	BucketName   string        // 源空间名称
 	Pipeline     string        // 云处理操作的处理队列
+	TaskFrom     string        // 如果没有，则表示通过 `api+fops` 命令提交的任务，否则遵循规则 `<source>: <source_id>`，其中 `<source>` 当前可选 `workflow` 或 `trigger`
 	RequestId    string        // 云处理请求的请求 ID
 	Type         int64         // 任务类型，支持 `0` 表示普通任务，`1` 表示闲时任务
 	CreatedAt    string        // 任务创建时间
@@ -102,7 +103,8 @@ type jsonResponse struct {
 	Description  string        `json:"desc"`                   // 与状态码相对应的详细描述
 	ObjectName   string        `json:"inputKey"`               // 源对象名称
 	BucketName   string        `json:"inputBucket"`            // 源空间名称
-	Pipeline     string        `json:"pipeline"`               // 云处理操作的处理队列
+	Pipeline     string        `json:"pipeline,omitempty"`     // 云处理操作的处理队列
+	TaskFrom     string        `json:"taskFrom,omitempty"`     // 如果没有，则表示通过 `api+fops` 命令提交的任务，否则遵循规则 `<source>: <source_id>`，其中 `<source>` 当前可选 `workflow` 或 `trigger`
 	RequestId    string        `json:"reqid"`                  // 云处理请求的请求 ID
 	Type         int64         `json:"type,omitempty"`         // 任务类型，支持 `0` 表示普通任务，`1` 表示闲时任务
 	CreatedAt    string        `json:"creationDate,omitempty"` // 任务创建时间
@@ -113,7 +115,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(&jsonResponse{PersistentId: j.PersistentId, Code: j.Code, Description: j.Description, ObjectName: j.ObjectName, BucketName: j.BucketName, Pipeline: j.Pipeline, RequestId: j.RequestId, Type: j.Type, CreatedAt: j.CreatedAt, Items: j.Items})
+	return json.Marshal(&jsonResponse{PersistentId: j.PersistentId, Code: j.Code, Description: j.Description, ObjectName: j.ObjectName, BucketName: j.BucketName, Pipeline: j.Pipeline, TaskFrom: j.TaskFrom, RequestId: j.RequestId, Type: j.Type, CreatedAt: j.CreatedAt, Items: j.Items})
 }
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
@@ -126,6 +128,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.ObjectName = nj.ObjectName
 	j.BucketName = nj.BucketName
 	j.Pipeline = nj.Pipeline
+	j.TaskFrom = nj.TaskFrom
 	j.RequestId = nj.RequestId
 	j.Type = nj.Type
 	j.CreatedAt = nj.CreatedAt
@@ -147,9 +150,6 @@ func (j *Response) validate() error {
 	}
 	if j.BucketName == "" {
 		return errors.MissingRequiredFieldError{Name: "BucketName"}
-	}
-	if j.Pipeline == "" {
-		return errors.MissingRequiredFieldError{Name: "Pipeline"}
 	}
 	if j.RequestId == "" {
 		return errors.MissingRequiredFieldError{Name: "RequestId"}

@@ -73,7 +73,7 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        go_version: ['1.11', '1.12', '1.13', '1.14', '1.15', '1.16', '1.17', '1.18', '1.19', '1.20', '1.21', '1.22']
+        go_version: ['1.11', '1.12', '1.13', '1.14', '1.15', '1.16', '1.17', '1.18', '1.19', '1.20', '1.21', '1.22', 'stable']
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -91,14 +91,14 @@ jobs:
           go-version: ${{ matrix.go_version }}
       - name: Format
         run: |
-          if [ "${{ matrix.go_version }}" = "1.22" ]; then
+          if [ "${{ matrix.go_version }}" = "stable" ]; then
             if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
               exit 1
             fi
           fi
       - name: Golint
         run: |
-          if [ "${{ matrix.go_version }}" = "1.22" ]; then
+          if [ "${{ matrix.go_version }}" = "stable" ]; then
             set -e
             go install honnef.co/go/tools/cmd/staticcheck@latest
             make staticcheck
@@ -106,9 +106,6 @@ jobs:
       - name: Run unit cases
         run: |
           set -e
-          if [ "${{ matrix.go_version }}" = "1.11" ] || [ "${{ matrix.go_version }}" = "1.12" ] || [ "${{ matrix.go_version }}" = "1.13" ] || [ "${{ matrix.go_version }}" = "1.14" ] || [ "${{ matrix.go_version }}" = "1.15" ]; then
-            go get modernc.org/fileutil@v1.0.0
-          fi
           make unittest
         env:
           GO111MODULE: 'on'

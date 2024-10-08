@@ -33,8 +33,6 @@ func (form *innerPfopRequest) build() (url.Values, error) {
 	}
 	if form.Fops != "" {
 		formValues.Set("fops", form.Fops)
-	} else {
-		return nil, errors.MissingRequiredFieldError{Name: "Fops"}
 	}
 	if form.NotifyUrl != "" {
 		formValues.Set("notifyURL", form.NotifyUrl)
@@ -47,6 +45,9 @@ func (form *innerPfopRequest) build() (url.Values, error) {
 	}
 	if form.Pipeline != "" {
 		formValues.Set("pipeline", form.Pipeline)
+	}
+	if form.WorkflowTemplateId != "" {
+		formValues.Set("workflowTemplateID", form.WorkflowTemplateId)
 	}
 	return formValues, nil
 }

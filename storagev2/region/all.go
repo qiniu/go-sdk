@@ -200,9 +200,11 @@ func (response *regionsResponse) toCacheValue() *v4QueryCacheValue {
 			minTtl = host.Ttl
 		}
 	}
+	now := time.Now()
 	return &v4QueryCacheValue{
-		Regions:   regions,
-		ExpiredAt: time.Now().Add(time.Duration(minTtl) * time.Second),
+		Regions:      regions,
+		RefreshAfter: now.Add(time.Duration(minTtl/2) * time.Second),
+		ExpiredAt:    now.Add(time.Duration(minTtl) * time.Second),
 	}
 }
 

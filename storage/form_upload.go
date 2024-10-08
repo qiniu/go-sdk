@@ -80,6 +80,7 @@ func NewFormUploaderEx(cfg *Config, clt *client.Client) *FormUploader {
 	opts := http_client.Options{
 		BasicHTTPClient:     clt.Client,
 		UseInsecureProtocol: !cfg.UseHTTPS,
+		AccelerateUploading: cfg.AccelerateUploading,
 		HostRetryConfig:     &clientv2.RetryConfig{},
 	}
 	if region := cfg.GetRegion(); region != nil {

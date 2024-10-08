@@ -48,10 +48,11 @@ type (
 	}
 
 	domainsQueryURLsProvider struct {
-		storage     *apis.Storage
-		cache       *cache.Cache
-		credentials credentials.CredentialsProvider
-		cacheTTL    time.Duration
+		storage           *apis.Storage
+		cache             *cache.Cache
+		credentials       credentials.CredentialsProvider
+		cacheTTL          time.Duration
+		cacheRefreshAfter time.Duration
 	}
 
 	combinedDownloadURLsProviders struct {
@@ -91,11 +92,15 @@ type (
 
 		// 缓存有效周期（默认：3600s）
 		CacheTTL time.Duration
+
+		// 缓存刷新时间（默认：1800s）
+		CacheRefreshAfter time.Duration
 	}
 
 	domainCacheValue struct {
-		Domains   []string  `json:"domains"`
-		ExpiredAt time.Time `json:"expired_at"`
+		Domains      []string  `json:"domains"`
+		RefreshAfter time.Time `json:"refresh_after"`
+		ExpiredAt    time.Time `json:"expired_at"`
 	}
 
 	signingCacheValue struct {
@@ -186,7 +191,11 @@ func (scv signingCacheValue) IsEqual(cv cache.CacheValue) bool {
 }
 
 func (scv signingCacheValue) IsValid() bool {
-	return scv.expiredAt.After(time.Now())
+	return time.Now().Before(scv.expiredAt)
+}
+
+func (scv signingCacheValue) ShouldRefresh() bool {
+	return false
 }
 
 // 创建静态域名下载 URL 生成器
@@ -305,13 +314,17 @@ func NewDomainsQueryURLsProvider(options *DomainsQueryURLsProviderOptions) (Down
 	if cacheTTL == time.Duration(0) {
 		cacheTTL = time.Hour
 	}
+	cacheRefreshAfter := options.CacheRefreshAfter
+	if cacheRefreshAfter == time.Duration(0) {
+		cacheRefreshAfter = time.Hour / 2
+	}
 	persistentCache, err := getPersistentCache(persistentFilePath, compactInterval, persistentDuration)
 	if err != nil {
 		return nil, err
 	}
 
 	storage := apis.NewStorage(&options.Options)
-	return &domainsQueryURLsProvider{storage, persistentCache, creds, cacheTTL}, nil
+	return &domainsQueryURLsProvider{storage, persistentCache, creds, cacheTTL, cacheRefreshAfter}, nil
 }
 
 func (g *domainsQueryURLsProvider) GetURLsIter(ctx context.Context, objectName string, options *GenerateOptions) (URLsIter, error) {
@@ -336,7 +349,12 @@ func (g *domainsQueryURLsProvider) GetURLsIter(ctx context.Context, objectName s
 		if err != nil {
 			return nil, err
 		} else {
-			return &domainCacheValue{Domains: response.Domains, ExpiredAt: time.Now().Add(g.cacheTTL)}, nil
+			now := time.Now()
+			return &domainCacheValue{
+				Domains:      response.Domains,
+				RefreshAfter: now.Add(g.cacheRefreshAfter),
+				ExpiredAt:    now.Add(g.cacheTTL),
+			}, nil
 		}
 	})
 	if status == cache.NoResultGot {
@@ -363,6 +381,10 @@ func (left *domainCacheValue) IsEqual(rightValue cache.CacheValue) bool {
 
 func (left *domainCacheValue) IsValid() bool {
 	return time.Now().Before(left.ExpiredAt)
+}
+
+func (left *domainCacheValue) ShouldRefresh() bool {
+	return time.Now().After(left.RefreshAfter)
 }
 
 func getPersistentCache(persistentFilePath string, compactInterval, persistentDuration time.Duration) (*cache.Cache, error) {
