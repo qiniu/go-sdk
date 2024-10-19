@@ -203,7 +203,7 @@ func (resolver *cacheResolver) resolve(ctx context.Context, host string) (*resol
 }
 
 func (resolver *cacheResolver) Resolve(ctx context.Context, host string) ([]net.IP, error) {
-	lip, err := resolver.localIp(host)
+	lip, err := resolver.localIp()
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +249,7 @@ func (resolver *cacheResolver) Resolve(ctx context.Context, host string) ([]net.
 }
 
 func (resolver cacheResolver) FeedbackGood(ctx context.Context, host string, ips []net.IP) {
-	lip, err := resolver.localIp(host)
+	lip, err := resolver.localIp()
 	if err != nil {
 		return
 	}
@@ -300,8 +300,8 @@ func (left *resolverCacheValue) ShouldRefresh() bool {
 	return time.Now().After(left.RefreshAfter)
 }
 
-func (*cacheResolver) localIp(host string) (string, error) {
-	conn, err := net.Dial("udp", host+":80")
+func (*cacheResolver) localIp() (string, error) {
+	conn, err := net.Dial("udp", "223.5.5.5:80")
 	if err != nil {
 		return "", err
 	}
