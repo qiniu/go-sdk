@@ -61,7 +61,7 @@ func (chooser *subnetChooser) Choose(_ context.Context, ips []net.IP, options *C
 			chosenIPs = append(chosenIPs, ip)
 		}
 	}
-	if len(chosenIPs) > 0 {
+	if len(chosenIPs) > 0 || options.FailFast {
 		return chosenIPs
 	}
 

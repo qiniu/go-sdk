@@ -110,7 +110,7 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 		}()
 	}
 
-	regionCacheKey := makeRegionCacheKey(ak, bucket, options.Hosts)
+	regionCacheKey := makeRegionCacheKey(ak, bucket, options.Hosts, options.AccelerateUploading)
 	// check from cache
 	if v, ok := regionV4Cache.Load(regionCacheKey); ok && time.Now().Before(v.(regionV4CacheValue).Deadline) {
 		cacheValue, _ := v.(regionV4CacheValue)
@@ -145,7 +145,12 @@ func getRegionByV4(ak, bucket string, options UCApiOptions) (*RegionGroup, error
 func _getRegionByV4WithoutCache(ak, bucket string, options UCApiOptions) ([]*Region, int64, error) {
 	toRegion := func(r *query_bucket_v4.BucketQueryHost) *Region {
 		var rsHost, rsfHost, apiHost, ioVipHost, ioSrcHost string
-		upDomains := append(r.UpDomains.PreferedUpDomains, r.UpDomains.AlternativeUpDomains...)
+		upDomains := make([]string, 0, len(r.UpDomains.AcceleratedUpDomains)+len(r.UpDomains.PreferedUpDomains)+len(r.UpDomains.AlternativeUpDomains))
+		if options.AccelerateUploading && len(r.UpDomains.AcceleratedUpDomains) > 0 {
+			upDomains = append(upDomains, r.UpDomains.AcceleratedUpDomains...)
+		}
+		upDomains = append(upDomains, r.UpDomains.PreferedUpDomains...)
+		upDomains = append(upDomains, r.UpDomains.AlternativeUpDomains...)
 		if len(r.RsDomains.PreferedRsDomains) > 0 {
 			rsHost = r.RsDomains.PreferedRsDomains[0]
 		}

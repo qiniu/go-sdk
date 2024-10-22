@@ -45,6 +45,7 @@ func NewResumeUploaderV2Ex(cfg *Config, clt *client.Client) *ResumeUploaderV2 {
 	opts := http_client.Options{
 		BasicHTTPClient:     clt.Client,
 		UseInsecureProtocol: !cfg.UseHTTPS,
+		AccelerateUploading: cfg.AccelerateUploading,
 		HostRetryConfig:     &clientv2.RetryConfig{},
 	}
 	if region := cfg.GetRegion(); region != nil {
@@ -245,6 +246,7 @@ func newResumeUploaderV2Impl(resumeUploader *ResumeUploaderV2, bucket, key strin
 	opts := http_client.Options{
 		BasicHTTPClient:     resumeUploader.Client.Client,
 		UseInsecureProtocol: !resumeUploader.Cfg.UseHTTPS,
+		AccelerateUploading: resumeUploader.Cfg.AccelerateUploading,
 		HostRetryConfig:     &clientv2.RetryConfig{},
 	}
 	if region := resumeUploader.Cfg.GetRegion(); region != nil {

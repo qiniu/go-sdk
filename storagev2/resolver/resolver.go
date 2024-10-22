@@ -21,6 +21,12 @@ type (
 	Resolver interface {
 		// Resolve 解析域名的 IP 地址
 		Resolve(context.Context, string) ([]net.IP, error)
+
+		// FeedbackGood 反馈一批 IP 地址请求成功
+		FeedbackGood(context.Context, string, []net.IP)
+
+		// FeedbackBad 反馈一批 IP 地址请求失败
+		FeedbackBad(context.Context, string, []net.IP)
 	}
 
 	defaultResolver    struct{}
@@ -37,6 +43,9 @@ func NewResolver(fn func(context.Context, string) ([]net.IP, error)) Resolver {
 func (resolver customizedResolver) Resolve(ctx context.Context, host string) ([]net.IP, error) {
 	return resolver.resolveFn(ctx, host)
 }
+
+func (resolver customizedResolver) FeedbackGood(context.Context, string, []net.IP) {}
+func (resolver customizedResolver) FeedbackBad(context.Context, string, []net.IP)  {}
 
 // NewDefaultResolver 创建默认的域名解析器
 func NewDefaultResolver() Resolver {
@@ -55,11 +64,15 @@ func (resolver *defaultResolver) Resolve(ctx context.Context, host string) ([]ne
 	return ips, nil
 }
 
+func (resolver defaultResolver) FeedbackGood(context.Context, string, []net.IP) {}
+func (resolver defaultResolver) FeedbackBad(context.Context, string, []net.IP)  {}
+
 type (
 	cacheResolver struct {
-		resolver      Resolver
-		cache         *cache.Cache
-		cacheLifetime time.Duration
+		resolver          Resolver
+		cache             *cache.Cache
+		cacheLifetime     time.Duration
+		cacheRefreshAfter time.Duration
 	}
 
 	// CacheResolverConfig 缓存域名解析器选项
@@ -75,11 +88,20 @@ type (
 
 		// 缓存有效期（默认：120s）
 		CacheLifetime time.Duration
+
+		// 缓存刷新时间（默认：80s）
+		CacheRefreshAfter time.Duration
+	}
+
+	resolverCacheValueIP struct {
+		IP        net.IP    `json:"ip"`
+		ExpiredAt time.Time `json:"expired_at"`
 	}
 
 	resolverCacheValue struct {
-		IPs       []net.IP  `json:"ips"`
-		ExpiredAt time.Time `json:"expired_at"`
+		IPs          []resolverCacheValueIP `json:"ips"`
+		RefreshAfter time.Time              `json:"refresh_after"`
+		ExpiredAt    time.Time              `json:"expired_at"`
 	}
 )
 
@@ -112,6 +134,10 @@ func NewCacheResolver(resolver Resolver, opts *CacheResolverConfig) (Resolver, e
 	if cacheLifetime == time.Duration(0) {
 		cacheLifetime = 120 * time.Second
 	}
+	cacheRefreshAfter := opts.CacheRefreshAfter
+	if cacheRefreshAfter == time.Duration(0) {
+		cacheRefreshAfter = 80 * time.Second
+	}
 	if resolver == nil {
 		resolver = staticDefaultResolver
 	}
@@ -121,9 +147,10 @@ func NewCacheResolver(resolver Resolver, opts *CacheResolverConfig) (Resolver, e
 		return nil, err
 	}
 	return &cacheResolver{
-		cache:         persistentCache,
-		resolver:      resolver,
-		cacheLifetime: cacheLifetime,
+		cache:             persistentCache,
+		resolver:          resolver,
+		cacheLifetime:     cacheLifetime,
+		cacheRefreshAfter: cacheRefreshAfter,
 	}, nil
 }
 
@@ -158,24 +185,97 @@ func getPersistentCache(persistentFilePath string, compactInterval, persistentDu
 	return persistentCache, nil
 }
 
+func (resolver *cacheResolver) resolve(ctx context.Context, host string) (*resolverCacheValue, error) {
+	if ips, err := resolver.resolver.Resolve(ctx, host); err != nil {
+		return nil, err
+	} else {
+		now := time.Now()
+		cacheValueIPs := make([]resolverCacheValueIP, len(ips))
+		for i, ip := range ips {
+			cacheValueIPs[i] = resolverCacheValueIP{IP: ip, ExpiredAt: now.Add(resolver.cacheLifetime)}
+		}
+		return &resolverCacheValue{
+			IPs:          cacheValueIPs,
+			RefreshAfter: now.Add(resolver.cacheRefreshAfter),
+			ExpiredAt:    now.Add(resolver.cacheLifetime),
+		}, nil
+	}
+}
+
 func (resolver *cacheResolver) Resolve(ctx context.Context, host string) ([]net.IP, error) {
-	lip, err := resolver.localIp(host)
+	lip, err := resolver.localIp()
 	if err != nil {
 		return nil, err
 	}
-	cacheValue, status := resolver.cache.Get(lip+":"+host, func() (cache.CacheValue, error) {
-		var ips []net.IP
-		if ips, err = resolver.resolver.Resolve(ctx, host); err != nil {
+	cacheKey := lip + ":" + host
+	var rcv *resolverCacheValue
+	if shouldByPassResolveCache(ctx) {
+		if rcv, err = resolver.resolve(ctx, host); err != nil {
 			return nil, err
-		} else {
-			return &resolverCacheValue{IPs: ips, ExpiredAt: time.Now().Add(resolver.cacheLifetime)}, nil
 		}
-	})
-	if status == cache.NoResultGot {
-		return nil, err
+	} else {
+		cacheValue, status := resolver.cache.Get(cacheKey, func() (cache.CacheValue, error) {
+			var cacheValue cache.CacheValue
+			cacheValue, err = resolver.resolve(ctx, host)
+			return cacheValue, err
+		})
+		if status == cache.NoResultGot || status == cache.GetResultFromInvalidCache {
+			return nil, err
+		}
+		rcv = cacheValue.(*resolverCacheValue)
 	}
-	return cacheValue.(*resolverCacheValue).IPs, nil
+	now := time.Now()
+	ips := make([]net.IP, 0, len(rcv.IPs))
+	for _, cacheValueIP := range rcv.IPs {
+		if cacheValueIP.ExpiredAt.After(now) {
+			ips = append(ips, cacheValueIP.IP)
+		}
+	}
+	if len(ips) < len(rcv.IPs) {
+		newCacheValue := &resolverCacheValue{
+			IPs:          make([]resolverCacheValueIP, 0, len(rcv.IPs)),
+			RefreshAfter: rcv.RefreshAfter,
+			ExpiredAt:    rcv.ExpiredAt,
+		}
+		for _, cacheValueIP := range rcv.IPs {
+			if cacheValueIP.ExpiredAt.After(now) {
+				newCacheValue.IPs = append(newCacheValue.IPs, cacheValueIP)
+			}
+		}
+		resolver.cache.Set(cacheKey, newCacheValue)
+	}
+
+	return ips, nil
 }
+
+func (resolver cacheResolver) FeedbackGood(ctx context.Context, host string, ips []net.IP) {
+	lip, err := resolver.localIp()
+	if err != nil {
+		return
+	}
+	cacheKey := lip + ":" + host
+	cacheValue, status := resolver.cache.Get(cacheKey, func() (cache.CacheValue, error) {
+		return nil, context.Canceled
+	})
+	if status == cache.GetResultFromCache || status == cache.GetResultFromCacheAndRefreshAsync {
+		rcv := cacheValue.(*resolverCacheValue)
+		now := time.Now()
+		anyIPLiveLonger := false
+		for i := range rcv.IPs {
+			if isIPContains(ips, rcv.IPs[i].IP) {
+				rcv.IPs[i].ExpiredAt = now.Add(resolver.cacheLifetime)
+				anyIPLiveLonger = true
+			}
+		}
+		if anyIPLiveLonger {
+			rcv.RefreshAfter = now.Add(resolver.cacheRefreshAfter)
+			rcv.ExpiredAt = now.Add(resolver.cacheLifetime)
+			resolver.cache.Set(cacheKey, rcv)
+		}
+	}
+}
+
+func (resolver cacheResolver) FeedbackBad(context.Context, string, []net.IP) {}
 
 func (left *resolverCacheValue) IsEqual(rightValue cache.CacheValue) bool {
 	if right, ok := rightValue.(*resolverCacheValue); ok {
@@ -183,7 +283,7 @@ func (left *resolverCacheValue) IsEqual(rightValue cache.CacheValue) bool {
 			return false
 		}
 		for idx := range left.IPs {
-			if !left.IPs[idx].Equal(right.IPs[idx]) {
+			if !left.IPs[idx].IP.Equal(right.IPs[idx].IP) || !left.IPs[idx].ExpiredAt.Equal(right.IPs[idx].ExpiredAt) {
 				return false
 			}
 		}
@@ -196,14 +296,33 @@ func (left *resolverCacheValue) IsValid() bool {
 	return time.Now().Before(left.ExpiredAt)
 }
 
-func (*cacheResolver) localIp(host string) (string, error) {
-	conn, err := net.Dial("udp", host+":80")
+func (left *resolverCacheValue) ShouldRefresh() bool {
+	return time.Now().After(left.RefreshAfter)
+}
+
+func (*cacheResolver) localIp() (string, error) {
+	conn, err := net.Dial("udp", "223.5.5.5:80")
 	if err != nil {
 		return "", err
 	}
 	defer conn.Close()
 
 	return conn.LocalAddr().(*net.UDPAddr).IP.String(), nil
+}
+
+type (
+	byPassResolverCacheContextKey   struct{}
+	byPassResolverCacheContextValue struct{}
+)
+
+// WithByPassResolverCache 设置 Context 绕过 Resolver 内部缓存
+func WithByPassResolverCache(ctx context.Context) context.Context {
+	return context.WithValue(ctx, byPassResolverCacheContextKey{}, byPassResolverCacheContextValue{})
+}
+
+func shouldByPassResolveCache(ctx context.Context) bool {
+	_, ok := ctx.Value(byPassResolverCacheContextKey{}).(byPassResolverCacheContextValue)
+	return ok
 }
 
 func calcPersistentCacheCrc64(persistentFilePath string, compactInterval, persistentDuration time.Duration) uint64 {
@@ -213,4 +332,13 @@ func calcPersistentCacheCrc64(persistentFilePath string, compactInterval, persis
 	bytes = append(bytes, []byte(persistentFilePath)...)
 	bytes = append(bytes, byte(0))
 	return crc64.Checksum(bytes, crc64.MakeTable(crc64.ISO))
+}
+
+func isIPContains(t []net.IP, i net.IP) bool {
+	for _, tt := range t {
+		if tt.Equal(i) {
+			return true
+		}
+	}
+	return false
 }

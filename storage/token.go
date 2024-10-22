@@ -78,6 +78,9 @@ type PutPolicy struct {
 	// 任务类型。0: 普通任务，1: 闲时任务
 	PersistentType int64 `json:"persistentType,omitempty"`
 
+	// 工作流模版 ID
+	PersistentWorkflowTemplateID string `json:"persistentWorkflowTemplateID,omitempty"`
+
 	// saveKey 的优先级设置。为 true 时，saveKey不能为空，会忽略客户端指定的key，强制使用saveKey进行文件命名。参数不设置时，
 	// 默认值为false
 	ForceSaveKey bool `json:"forceSaveKey,omitempty"` //

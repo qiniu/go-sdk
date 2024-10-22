@@ -13,8 +13,9 @@ func getUpHost(config *Config, retryMax int, hostFreezeDuration time.Duration, a
 	region := config.GetRegion()
 	if region == nil {
 		if region, err = GetRegionWithOptions(ak, bucket, UCApiOptions{
-			RetryMax:           retryMax,
-			HostFreezeDuration: hostFreezeDuration,
+			RetryMax:            retryMax,
+			HostFreezeDuration:  hostFreezeDuration,
+			AccelerateUploading: config.AccelerateUploading,
 		}); err != nil {
 			return "", err
 		}
@@ -24,7 +25,7 @@ func getUpHost(config *Config, retryMax int, hostFreezeDuration time.Duration, a
 		return "", errors.New("can't get region with bucket:" + bucket)
 	}
 
-	if config.UseCdnDomains {
+	if config.UseCdnDomains || config.AccelerateUploading {
 		if len(region.CdnUpHosts) == 0 {
 			return "", errors.New("can't get region cdn host with bucket:" + bucket)
 		}
@@ -46,8 +47,9 @@ func getUpHostProvider(config *Config, retryMax int, hostFreezeDuration time.Dur
 	var err error
 	if region == nil {
 		if region, err = GetRegionWithOptions(ak, bucket, UCApiOptions{
-			RetryMax:           retryMax,
-			HostFreezeDuration: hostFreezeDuration,
+			RetryMax:            retryMax,
+			HostFreezeDuration:  hostFreezeDuration,
+			AccelerateUploading: config.AccelerateUploading,
 		}); err != nil {
 			return nil, err
 		}

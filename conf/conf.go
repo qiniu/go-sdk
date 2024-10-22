@@ -4,7 +4,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/internal/env"
 )
 
-const Version = "7.23.0"
+const Version = "7.24.0"
 
 const (
 	CONTENT_TYPE_JSON      = "application/json"

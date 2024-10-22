@@ -208,6 +208,7 @@ func (j *LogInfo) validate() error {
 
 // 返回的审计日志列表
 type LogInfos = []LogInfo
+type QueryLogResp = Response
 type jsonResponse struct {
 	NextMark      string   `json:"next_mark,omitempty"` // 用于请求下一页检索的结果
 	AuditLogInfos LogInfos `json:"audit_log_infos"`     // 日志集合

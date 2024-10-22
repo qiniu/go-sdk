@@ -26,6 +26,47 @@ type Response struct {
 	ApiDomains   ApiDomains   // API 域名
 }
 
+// 空间级别的主加速上传域名列表
+type MainBucketAcceleratedUpDomains = []string
+
+// 空间级别的备用加速上传域名列表
+type BackupBucketAcceleratedUpDomains = []string
+
+// 空间级别的加速上传域名
+type BucketAcceleratedUpDomains struct {
+	MainAcceleratedUpDomains   MainBucketAcceleratedUpDomains   // 空间级别的主加速上传域名列表
+	BackupAcceleratedUpDomains BackupBucketAcceleratedUpDomains // 空间级别的备用加速上传域名列表
+}
+type jsonBucketAcceleratedUpDomains struct {
+	MainAcceleratedUpDomains   MainBucketAcceleratedUpDomains   `json:"main"`   // 空间级别的主加速上传域名列表
+	BackupAcceleratedUpDomains BackupBucketAcceleratedUpDomains `json:"backup"` // 空间级别的备用加速上传域名列表
+}
+
+func (j *BucketAcceleratedUpDomains) MarshalJSON() ([]byte, error) {
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonBucketAcceleratedUpDomains{MainAcceleratedUpDomains: j.MainAcceleratedUpDomains, BackupAcceleratedUpDomains: j.BackupAcceleratedUpDomains})
+}
+func (j *BucketAcceleratedUpDomains) UnmarshalJSON(data []byte) error {
+	var nj jsonBucketAcceleratedUpDomains
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.MainAcceleratedUpDomains = nj.MainAcceleratedUpDomains
+	j.BackupAcceleratedUpDomains = nj.BackupAcceleratedUpDomains
+	return nil
+}
+func (j *BucketAcceleratedUpDomains) validate() error {
+	if len(j.MainAcceleratedUpDomains) == 0 {
+		return errors.MissingRequiredFieldError{Name: "MainAcceleratedUpDomains"}
+	}
+	if len(j.BackupAcceleratedUpDomains) == 0 {
+		return errors.MissingRequiredFieldError{Name: "BackupAcceleratedUpDomains"}
+	}
+	return nil
+}
+
 // 主加速上传域名列表
 type MainAcceleratedUpDomains = []string
 
@@ -192,29 +233,32 @@ func (j *OldSourceDomains) validate() error {
 
 // 上传域名
 type UpDomains struct {
-	AcceleratedUpDomains  AcceleratedUpDomains    // 加速上传域名
-	SourceUpDomains       SourceUpDomains         // 源站上传域名
-	OldAcceleratedDomains OldAcceleratedUpDomains // 已经过时的加速上传域名
-	OldSourceDomains      OldSourceUpDomains      // 已经过时的源站上传域名
+	BucketAcceleratedUpDomains BucketAcceleratedUpDomains // 空间级别的加速上传域名
+	AcceleratedUpDomains       AcceleratedUpDomains       // 加速上传域名
+	SourceUpDomains            SourceUpDomains            // 源站上传域名
+	OldAcceleratedDomains      OldAcceleratedUpDomains    // 已经过时的加速上传域名
+	OldSourceDomains           OldSourceUpDomains         // 已经过时的源站上传域名
 }
 type jsonUpDomains struct {
-	AcceleratedUpDomains  AcceleratedUpDomains    `json:"acc"`     // 加速上传域名
-	SourceUpDomains       SourceUpDomains         `json:"src"`     // 源站上传域名
-	OldAcceleratedDomains OldAcceleratedUpDomains `json:"old_acc"` // 已经过时的加速上传域名
-	OldSourceDomains      OldSourceUpDomains      `json:"old_src"` // 已经过时的源站上传域名
+	BucketAcceleratedUpDomains BucketAcceleratedUpDomains `json:"bucket_acc"` // 空间级别的加速上传域名
+	AcceleratedUpDomains       AcceleratedUpDomains       `json:"acc"`        // 加速上传域名
+	SourceUpDomains            SourceUpDomains            `json:"src"`        // 源站上传域名
+	OldAcceleratedDomains      OldAcceleratedUpDomains    `json:"old_acc"`    // 已经过时的加速上传域名
+	OldSourceDomains           OldSourceUpDomains         `json:"old_src"`    // 已经过时的源站上传域名
 }
 
 func (j *UpDomains) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(&jsonUpDomains{AcceleratedUpDomains: j.AcceleratedUpDomains, SourceUpDomains: j.SourceUpDomains, OldAcceleratedDomains: j.OldAcceleratedDomains, OldSourceDomains: j.OldSourceDomains})
+	return json.Marshal(&jsonUpDomains{BucketAcceleratedUpDomains: j.BucketAcceleratedUpDomains, AcceleratedUpDomains: j.AcceleratedUpDomains, SourceUpDomains: j.SourceUpDomains, OldAcceleratedDomains: j.OldAcceleratedDomains, OldSourceDomains: j.OldSourceDomains})
 }
 func (j *UpDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonUpDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
 		return err
 	}
+	j.BucketAcceleratedUpDomains = nj.BucketAcceleratedUpDomains
 	j.AcceleratedUpDomains = nj.AcceleratedUpDomains
 	j.SourceUpDomains = nj.SourceUpDomains
 	j.OldAcceleratedDomains = nj.OldAcceleratedDomains
@@ -222,6 +266,9 @@ func (j *UpDomains) UnmarshalJSON(data []byte) error {
 	return nil
 }
 func (j *UpDomains) validate() error {
+	if err := j.BucketAcceleratedUpDomains.validate(); err != nil {
+		return err
+	}
 	if err := j.AcceleratedUpDomains.validate(); err != nil {
 		return err
 	}

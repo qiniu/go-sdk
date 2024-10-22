@@ -27,9 +27,10 @@ const (
 
 // UploadConfig 为 UploadManager 提供配置信息
 type UploadConfig struct {
-	UseHTTPS      bool
-	UseCdnDomains bool
-	Regions       *RegionGroup
+	UseHTTPS            bool
+	UseCdnDomains       bool
+	AccelerateUploading bool
+	Regions             *RegionGroup
 }
 
 // NewUploadConfig 创建默认的 UploadConfig 对象
@@ -434,31 +435,34 @@ func (manager *UploadManager) getRecoverRegion(key *string, upToken string, resu
 
 func (manager *UploadManager) getFormUploader(region *Region) *FormUploader {
 	return NewFormUploaderEx(&Config{
-		Zone:          region,
-		Region:        region,
-		UseHTTPS:      manager.cfg.UseHTTPS,
-		UseCdnDomains: manager.cfg.UseCdnDomains,
-		CentralRsHost: "",
+		Zone:                region,
+		Region:              region,
+		UseHTTPS:            manager.cfg.UseHTTPS,
+		UseCdnDomains:       manager.cfg.UseCdnDomains,
+		AccelerateUploading: manager.cfg.AccelerateUploading,
+		CentralRsHost:       "",
 	}, manager.client)
 }
 
 func (manager *UploadManager) getResumeV1Uploader(region *Region) *ResumeUploader {
 	return NewResumeUploaderEx(&Config{
-		Zone:          region,
-		Region:        region,
-		UseHTTPS:      manager.cfg.UseHTTPS,
-		UseCdnDomains: manager.cfg.UseCdnDomains,
-		CentralRsHost: "",
+		Zone:                region,
+		Region:              region,
+		UseHTTPS:            manager.cfg.UseHTTPS,
+		UseCdnDomains:       manager.cfg.UseCdnDomains,
+		AccelerateUploading: manager.cfg.AccelerateUploading,
+		CentralRsHost:       "",
 	}, manager.client)
 }
 
 func (manager *UploadManager) getResumeV2Uploader(region *Region) *ResumeUploaderV2 {
 	return NewResumeUploaderV2Ex(&Config{
-		Zone:          region,
-		Region:        region,
-		UseHTTPS:      manager.cfg.UseHTTPS,
-		UseCdnDomains: manager.cfg.UseCdnDomains,
-		CentralRsHost: "",
+		Zone:                region,
+		Region:              region,
+		UseHTTPS:            manager.cfg.UseHTTPS,
+		UseCdnDomains:       manager.cfg.UseCdnDomains,
+		AccelerateUploading: manager.cfg.AccelerateUploading,
+		CentralRsHost:       "",
 	}, manager.client)
 }
 
@@ -468,9 +472,10 @@ func (manager *UploadManager) getRegionGroupWithUploadToken(upToken string, extr
 		return nil, err
 	}
 	return getRegionGroupWithOptions(ak, bucket, UCApiOptions{
-		UseHttps:           manager.cfg.UseHTTPS,
-		RetryMax:           extra.TryTimes,
-		HostFreezeDuration: extra.HostFreezeDuration,
+		UseHttps:            manager.cfg.UseHTTPS,
+		AccelerateUploading: manager.cfg.AccelerateUploading,
+		RetryMax:            extra.TryTimes,
+		HostFreezeDuration:  extra.HostFreezeDuration,
 	})
 }
 

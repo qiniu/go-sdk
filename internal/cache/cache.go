@@ -20,6 +20,7 @@ import (
 type (
 	CacheValue interface {
 		IsEqual(CacheValue) bool
+		ShouldRefresh() bool
 		IsValid() bool
 	}
 
@@ -106,10 +107,11 @@ func NewPersistentCache(
 type GetResult uint8
 
 const (
-	GetResultFromCache        GetResult = 0
-	GetResultFromFallback     GetResult = 1
-	GetResultFromInvalidCache GetResult = 2
-	NoResultGot               GetResult = 3
+	GetResultFromCache                GetResult = 0
+	GetResultFromCacheAndRefreshAsync GetResult = 1
+	GetResultFromFallback             GetResult = 2
+	GetResultFromInvalidCache         GetResult = 3
+	NoResultGot                       GetResult = 4
 )
 
 func (cache *Cache) Get(key string, fallback func() (CacheValue, error)) (CacheValue, GetResult) {
@@ -122,7 +124,12 @@ func (cache *Cache) Get(key string, fallback func() (CacheValue, error)) (CacheV
 	}()
 
 	if ok && value.Value.IsValid() {
-		return value.Value, GetResultFromCache
+		if value.Value.ShouldRefresh() {
+			cache.doFallbackAsync(key, fallback)
+			return value.Value, GetResultFromCacheAndRefreshAsync
+		} else {
+			return value.Value, GetResultFromCache
+		}
 	}
 
 	newValue, err := cache.doFallback(key, fallback)
@@ -145,22 +152,32 @@ func (cache *Cache) doFallback(key string, fallback func() (CacheValue, error)) 
 	return newValue.(CacheValue), nil
 }
 
+func (cache *Cache) doFallbackAsync(key string, fallback func() (CacheValue, error)) {
+	go func() {
+		newValue, err := cache.doFallback(key, fallback)
+		if err == nil {
+			cache.Set(key, newValue)
+		}
+	}()
+}
+
 func (cache *Cache) Set(key string, value CacheValue) {
 	cache.set(key, value, true)
 }
 
 func (cache *Cache) set(key string, value CacheValue, willFlushAsync bool) {
-	if value.IsValid() {
-		cache.checkType(value)
+	cache.checkType(value)
+	if !value.IsValid() {
+		return
+	}
 
-		now := time.Now()
-		cache.cacheMapMutex.Lock()
-		cache.cacheMap[key] = cacheValue{Value: value, CreatedAt: now}
-		cache.cacheMapMutex.Unlock()
+	now := time.Now()
+	cache.cacheMapMutex.Lock()
+	cache.cacheMap[key] = cacheValue{Value: value, CreatedAt: now}
+	cache.cacheMapMutex.Unlock()
 
-		if willFlushAsync {
-			go cache.flush()
-		}
+	if willFlushAsync {
+		go cache.flush()
 	}
 }
 

@@ -172,6 +172,9 @@ type UCApiOptions struct {
 	// 是否使用 HTTPS 协议
 	UseHttps bool
 
+	// 是否加速上传
+	AccelerateUploading bool
+
 	// 单域名重试次数
 	RetryMax int
 
@@ -231,6 +234,7 @@ func (options *UCApiOptions) getApiStorageClient() *apis.Storage {
 	return apis.NewStorage(&http_client.Options{
 		Interceptors:        []clientv2.Interceptor{},
 		UseInsecureProtocol: !options.UseHttps,
+		AccelerateUploading: options.AccelerateUploading,
 		Resolver:            options.Resolver,
 		Chooser:             options.Chooser,
 		HostRetryConfig:     &clientv2.RetryConfig{RetryMax: options.RetryMax, Retrier: options.Retrier},
@@ -276,7 +280,7 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 		}()
 	}
 
-	regionCacheKey := makeRegionCacheKey(ak, bucket, options.Hosts)
+	regionCacheKey := makeRegionCacheKey(ak, bucket, options.Hosts, options.AccelerateUploading)
 	// check from cache
 	if v, ok := regionV2Cache.Load(regionCacheKey); ok && time.Now().Before(v.(regionV2CacheValue).Deadline) {
 		return v.(regionV2CacheValue).Region, nil
@@ -306,9 +310,13 @@ func getRegionByV2(ak, bucket string, options UCApiOptions) (*Region, error) {
 	return newRegion.(*Region), err
 }
 
-func makeRegionCacheKey(ak, bucket string, ucHosts []string) string {
+func makeRegionCacheKey(ak, bucket string, ucHosts []string, accelerateUploading bool) string {
 	hostStrings := fmt.Sprintf("%v", ucHosts)
-	return fmt.Sprintf("%s:%s:%x", ak, bucket, md5.Sum([]byte(hostStrings)))
+	s := fmt.Sprintf("%s:%s:%x", ak, bucket, md5.Sum([]byte(hostStrings)))
+	if accelerateUploading {
+		s += ":1"
+	}
+	return s
 }
 
 func _getRegionByV2WithoutCache(ak, bucket string, options UCApiOptions) (*Region, int64, error) {
@@ -323,11 +331,40 @@ func _getRegionByV2WithoutCache(ak, bucket string, options UCApiOptions) (*Regio
 	if err != nil {
 		return nil, 0, err
 	}
+	var srcUpHosts, cdnUpHosts []string
 	var rsHost, rsfHost, apiHost, ioVipHost, ioSrcHost string
-	srcUpHosts := append(response.UpDomains.SourceUpDomains.MainSourceUpDomains, response.UpDomains.SourceUpDomains.BackupSourceUpDomains...)
-	srcUpHosts = append(srcUpHosts, response.UpDomains.OldSourceDomains.OldMainSourceUpDomains...)
-	cdnUpHosts := append(response.UpDomains.AcceleratedUpDomains.MainAcceleratedUpDomains, response.UpDomains.AcceleratedUpDomains.BackupAcceleratedUpDomains...)
-	cdnUpHosts = append(cdnUpHosts, response.UpDomains.OldAcceleratedDomains.OldMainAcceleratedUpDomains...)
+	if options.AccelerateUploading && len(response.UpDomains.AcceleratedUpDomains.MainAcceleratedUpDomains) > 0 {
+		srcUpHosts = make([]string, 0,
+			len(response.UpDomains.AcceleratedUpDomains.MainAcceleratedUpDomains)+
+				len(response.UpDomains.AcceleratedUpDomains.BackupAcceleratedUpDomains)+
+				len(response.UpDomains.OldAcceleratedDomains.OldMainAcceleratedUpDomains)+
+				len(response.UpDomains.SourceUpDomains.MainSourceUpDomains)+
+				len(response.UpDomains.SourceUpDomains.BackupSourceUpDomains)+
+				len(response.UpDomains.OldSourceDomains.OldMainSourceUpDomains))
+		srcUpHosts = append(srcUpHosts, response.UpDomains.AcceleratedUpDomains.MainAcceleratedUpDomains...)
+		srcUpHosts = append(srcUpHosts, response.UpDomains.AcceleratedUpDomains.BackupAcceleratedUpDomains...)
+		srcUpHosts = append(srcUpHosts, response.UpDomains.OldAcceleratedDomains.OldMainAcceleratedUpDomains...)
+		srcUpHosts = append(srcUpHosts, response.UpDomains.SourceUpDomains.MainSourceUpDomains...)
+		srcUpHosts = append(srcUpHosts, response.UpDomains.SourceUpDomains.BackupSourceUpDomains...)
+		srcUpHosts = append(srcUpHosts, response.UpDomains.OldSourceDomains.OldMainSourceUpDomains...)
+		cdnUpHosts = make([]string, 0, len(response.UpDomains.AcceleratedUpDomains.MainAcceleratedUpDomains))
+		cdnUpHosts = append(cdnUpHosts, response.UpDomains.AcceleratedUpDomains.MainAcceleratedUpDomains...)
+	} else {
+		srcUpHosts = make([]string, 0,
+			len(response.UpDomains.SourceUpDomains.MainSourceUpDomains)+
+				len(response.UpDomains.SourceUpDomains.BackupSourceUpDomains)+
+				len(response.UpDomains.OldSourceDomains.OldMainSourceUpDomains))
+		srcUpHosts = append(srcUpHosts, response.UpDomains.SourceUpDomains.MainSourceUpDomains...)
+		srcUpHosts = append(srcUpHosts, response.UpDomains.SourceUpDomains.BackupSourceUpDomains...)
+		srcUpHosts = append(srcUpHosts, response.UpDomains.OldSourceDomains.OldMainSourceUpDomains...)
+		cdnUpHosts = make([]string, 0,
+			len(response.UpDomains.AcceleratedUpDomains.MainAcceleratedUpDomains)+
+				len(response.UpDomains.AcceleratedUpDomains.BackupAcceleratedUpDomains)+
+				len(response.UpDomains.OldAcceleratedDomains.OldMainAcceleratedUpDomains))
+		cdnUpHosts = append(cdnUpHosts, response.UpDomains.AcceleratedUpDomains.MainAcceleratedUpDomains...)
+		cdnUpHosts = append(cdnUpHosts, response.UpDomains.AcceleratedUpDomains.BackupAcceleratedUpDomains...)
+		cdnUpHosts = append(cdnUpHosts, response.UpDomains.OldAcceleratedDomains.OldMainAcceleratedUpDomains...)
+	}
 	if len(response.RsDomains.AcceleratedRsDomains.MainAcceleratedRsDomains) > 0 {
 		rsHost = response.RsDomains.AcceleratedRsDomains.MainAcceleratedRsDomains[0]
 	}
