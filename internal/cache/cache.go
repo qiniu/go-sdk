@@ -181,49 +181,6 @@ func (cache *Cache) set(key string, value CacheValue, willFlushAsync bool) {
 	}
 }
 
-func (cache *Cache) Delete(key string) {
-	cache.cacheMapMutex.Lock()
-	delete(cache.cacheMap, key)
-	cache.cacheMapMutex.Unlock()
-
-	go cache.flush()
-}
-
-func (cache *Cache) Clear() {
-	cache.cacheMapMutex.Lock()
-	cache.cacheMap = make(map[string]cacheValue)
-	cache.lastCompactTime = time.Now()
-	cache.cacheMapMutex.Unlock()
-
-	cache.clearPersistentFile()
-}
-
-func (cache *Cache) clearPersistentFile() {
-	if pf := cache.persistentFile; pf == nil {
-		return
-	}
-
-	var (
-		cacheFilePath = cache.persistentFile.cacheFilePath
-		handleError   = cache.persistentFile.handleError
-	)
-
-	unlockFunc, err := lockCachePersistentFile(cacheFilePath, true, handleError)
-	if err != nil {
-		return
-	}
-	defer unlockFunc()
-
-	if err := os.Truncate(cacheFilePath, 0); err != nil {
-		if handleError != nil {
-			handleError(err)
-		}
-		return
-	}
-
-	cache.persistentFile.lastPersistentTime = time.Now()
-}
-
 func (cache *Cache) checkType(cacheValue CacheValue) {
 	if pf := cache.persistentFile; pf != nil {
 		if cacheValueType := reflect.TypeOf(cacheValue); !cacheValueType.AssignableTo(pf.valueType) {

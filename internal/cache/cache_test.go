@@ -101,26 +101,6 @@ func TestCache(t *testing.T) {
 	} else if v := value.(integerCacheValue).Value; v != 4 {
 		t.Fatalf("unexpected cache value: %v", v)
 	}
-	cache.Delete("key_3")
-	if _, result := cache.Get("key_3", func() (CacheValue, error) {
-		return nil, errors.New("test error")
-	}); result != NoResultGot {
-		t.Fatalf("key_3 should be deleted")
-	}
-
-	if value, result := cache.Get("key_4", func() (CacheValue, error) {
-		return integerCacheValue{Value: 4, ExpiredAt: time.Now().Add(100 * time.Millisecond)}, nil
-	}); result != GetResultFromFallback {
-		t.Fatal("unexpected ok")
-	} else if v := value.(integerCacheValue).Value; v != 4 {
-		t.Fatalf("unexpected cache value: %v", v)
-	}
-	cache.Clear()
-	if _, result := cache.Get("key_4", func() (CacheValue, error) {
-		return nil, errors.New("test error")
-	}); result != NoResultGot {
-		t.Fatalf("key_4 should be deleted")
-	}
 }
 
 func TestCachePersist(t *testing.T) {
