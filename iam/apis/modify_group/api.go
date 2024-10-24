@@ -6,6 +6,7 @@ package modify_group
 import (
 	"encoding/json"
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
+	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
 
 // 调用 API 所用的请求
@@ -43,4 +44,98 @@ func (j *Request) validate() error {
 }
 
 // 获取 API 所用的响应
-type Response struct{}
+type Response struct {
+	Data ModifyGroupData // 用户分组信息
+}
+
+// 用户分组信息
+type Data struct {
+	Id          string // 记录 ID
+	RootUid     int64  // 根用户 uid
+	Alias       string // 用户分组别名
+	Description string // 用户分组描述
+	Enabled     bool   // 用户分组是否启用
+	CreatedAt   string // 用户分组创建时间
+	UpdatedAt   string // 用户分组上次更新时间
+}
+
+// 返回的用户分组信息
+type ModifyGroupData = Data
+type jsonData struct {
+	Id          string `json:"id"`          // 记录 ID
+	RootUid     int64  `json:"root_uid"`    // 根用户 uid
+	Alias       string `json:"alias"`       // 用户分组别名
+	Description string `json:"description"` // 用户分组描述
+	Enabled     bool   `json:"enabled"`     // 用户分组是否启用
+	CreatedAt   string `json:"created_at"`  // 用户分组创建时间
+	UpdatedAt   string `json:"updated_at"`  // 用户分组上次更新时间
+}
+
+func (j *Data) MarshalJSON() ([]byte, error) {
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonData{Id: j.Id, RootUid: j.RootUid, Alias: j.Alias, Description: j.Description, Enabled: j.Enabled, CreatedAt: j.CreatedAt, UpdatedAt: j.UpdatedAt})
+}
+func (j *Data) UnmarshalJSON(data []byte) error {
+	var nj jsonData
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.Id = nj.Id
+	j.RootUid = nj.RootUid
+	j.Alias = nj.Alias
+	j.Description = nj.Description
+	j.Enabled = nj.Enabled
+	j.CreatedAt = nj.CreatedAt
+	j.UpdatedAt = nj.UpdatedAt
+	return nil
+}
+func (j *Data) validate() error {
+	if j.Id == "" {
+		return errors.MissingRequiredFieldError{Name: "Id"}
+	}
+	if j.RootUid == 0 {
+		return errors.MissingRequiredFieldError{Name: "RootUid"}
+	}
+	if j.Alias == "" {
+		return errors.MissingRequiredFieldError{Name: "Alias"}
+	}
+	if j.Description == "" {
+		return errors.MissingRequiredFieldError{Name: "Description"}
+	}
+	if j.CreatedAt == "" {
+		return errors.MissingRequiredFieldError{Name: "CreatedAt"}
+	}
+	if j.UpdatedAt == "" {
+		return errors.MissingRequiredFieldError{Name: "UpdatedAt"}
+	}
+	return nil
+}
+
+// 返回的用户分组响应
+type ModifyGroupResp = Response
+type jsonResponse struct {
+	Data ModifyGroupData `json:"data"` // 用户分组信息
+}
+
+func (j *Response) MarshalJSON() ([]byte, error) {
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonResponse{Data: j.Data})
+}
+func (j *Response) UnmarshalJSON(data []byte) error {
+	var nj jsonResponse
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.Data = nj.Data
+	return nil
+}
+func (j *Response) validate() error {
+	if err := j.Data.validate(); err != nil {
+		return err
+	}
+	return nil
+}
