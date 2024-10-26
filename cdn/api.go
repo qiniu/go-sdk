@@ -36,11 +36,13 @@ func NewCdnManager(mac *auth.Credentials) *CdnManager {
 //	EndDate 	结束日期，格式例如：2016-07-03
 //	Granularity	取值粒度，取值可选值：5min/hour/day
 //	Domains 	域名列表，彼此用 ; 连接
+//	DataType        计量数据类型, 可选 'bandwidth'(静态cdn带宽,默认)..., 参考 [DataType]
 type TrafficReq struct {
 	StartDate   string `json:"startDate"`
 	EndDate     string `json:"endDate"`
 	Granularity string `json:"granularity"`
 	Domains     string `json:"domains"`
+	DataType    string `json:"type,omitempty"`
 }
 
 // TrafficResp 为带宽/流量查询响应内容
@@ -57,20 +59,48 @@ type TrafficData struct {
 	DomainOversea []int `json:"oversea"`
 }
 
+type options struct {
+	dataType DataType
+}
+
+func _WithDataType(dataType DataType) Option {
+	return OptionFunc(func(opt interface{}) {
+		opt.(*options).dataType = dataType
+	})
+}
+
+type BandwidthOption Option
+
+func WithBandwidthDataType(dataType DataType) BandwidthOption {
+	if DataTypeBandwidth <= dataType && dataType <= DataType302mBandwidth {
+		return _WithDataType(dataType)
+	}
+	panic("cdn: invalid DataType for GetBandwidthData: " + dataType.String())
+}
+
 // GetBandwidthData 方法用来获取域名访问带宽数据
 //
 //	StartDate	string		必须	开始日期，例如：2016-07-01
 //	EndDate		string		必须	结束日期，例如：2016-07-03
 //	Granularity	string		必须	粒度，取值：5min ／ hour ／day
 //	Domains		[]string	必须	域名列表
+//	Opts                            非必须   可选项
+
 func (m *CdnManager) GetBandwidthData(startDate, endDate, granularity string,
-	domainList []string) (bandwidthData TrafficResp, err error) {
+	domainList []string, opts ...BandwidthOption) (bandwidthData TrafficResp, err error) {
+	var options options
+	for _, opt := range opts {
+		opt.Apply(&options)
+	}
 	domains := strings.Join(domainList, ";")
 	reqBody := TrafficReq{
 		StartDate:   startDate,
 		EndDate:     endDate,
 		Granularity: granularity,
 		Domains:     domains,
+	}
+	if options.dataType.Valid() {
+		reqBody.DataType = options.dataType.String()
 	}
 
 	resData, reqErr := postRequest(m.mac, "/v2/tune/bandwidth", reqBody)
@@ -86,20 +116,37 @@ func (m *CdnManager) GetBandwidthData(startDate, endDate, granularity string,
 	return
 }
 
+type FluxOption Option
+
+func WithFluxDataType(dataType DataType) FluxOption {
+	if DataTypeFlow <= dataType && dataType <= DataType302mFlow {
+		return _WithDataType(dataType)
+	}
+	panic("cdn: invalid DataType for GetFluxData: " + dataType.String())
+}
+
 // GetFluxData 方法用来获取域名访问流量数据
 //
 //	StartDate	string		必须	开始日期，例如：2016-07-01
 //	EndDate		string		必须	结束日期，例如：2016-07-03
 //	Granularity	string		必须	粒度，取值：5min ／ hour ／day
 //	Domains		[]string	必须	域名列表
+//	Opts                            非必须   可选项
 func (m *CdnManager) GetFluxData(startDate, endDate, granularity string,
-	domainList []string) (fluxData TrafficResp, err error) {
+	domainList []string, opts ...FluxOption) (fluxData TrafficResp, err error) {
+	var options options
+	for _, opt := range opts {
+		opt.Apply(&options)
+	}
 	domains := strings.Join(domainList, ";")
 	reqBody := TrafficReq{
 		StartDate:   startDate,
 		EndDate:     endDate,
 		Granularity: granularity,
 		Domains:     domains,
+	}
+	if options.dataType.Valid() {
+		reqBody.DataType = options.dataType.String()
 	}
 
 	resData, reqErr := postRequest(m.mac, "/v2/tune/flux", reqBody)
@@ -280,6 +327,8 @@ func postRequest(mac *auth.Credentials, path string, body interface{}) (resData 
 		err = reqErr
 		return
 	}
+
+	fmt.Printf("Request body(raw)='%s'\n", reqData)
 
 	accessToken, signErr := mac.SignRequest(req)
 	if signErr != nil {
