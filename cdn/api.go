@@ -328,8 +328,6 @@ func postRequest(mac *auth.Credentials, path string, body interface{}) (resData 
 		return
 	}
 
-	fmt.Printf("Request body(raw)='%s'\n", reqData)
-
 	accessToken, signErr := mac.SignRequest(req)
 	if signErr != nil {
 		err = signErr
