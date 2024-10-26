@@ -52,6 +52,7 @@ func TestGetBandwidthData(t *testing.T) {
 		startDate   string
 		endDate     string
 		granularity string
+		dataType    DataType
 		domainList  []string
 	}
 
@@ -66,6 +67,7 @@ func TestGetBandwidthData(t *testing.T) {
 				startDate,
 				endDate,
 				"5min",
+				DataTypeBandwidth,
 				[]string{domain},
 			},
 			wantCode: 200,
@@ -75,7 +77,7 @@ func TestGetBandwidthData(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ret, err := cdnManager.GetBandwidthData(tc.args.startDate, tc.args.endDate,
-				tc.args.granularity, tc.args.domainList)
+				tc.args.granularity, tc.args.domainList, WithBandwidthDataType(tc.args.dataType))
 			if err != nil || ret.Code != tc.wantCode {
 				t.Errorf("GetBandwidth() error = %v, %v", err, ret.Error)
 				return
@@ -90,6 +92,7 @@ func TestGetFluxData(t *testing.T) {
 		startDate   string
 		endDate     string
 		granularity string
+		dataType    DataType
 		domainList  []string
 	}
 
@@ -104,6 +107,7 @@ func TestGetFluxData(t *testing.T) {
 				startDate,
 				endDate,
 				"5min",
+				DataTypeFlow,
 				[]string{domain},
 			},
 			wantCode: 200,
@@ -113,7 +117,7 @@ func TestGetFluxData(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ret, err := cdnManager.GetFluxData(tc.args.startDate, tc.args.endDate,
-				tc.args.granularity, tc.args.domainList)
+				tc.args.granularity, tc.args.domainList, WithFluxDataType(tc.args.dataType))
 			if err != nil || ret.Code != tc.wantCode {
 				t.Errorf("GetFlux() error = %v, %v", err, ret.Error)
 				return
@@ -189,8 +193,8 @@ func TestRefreshDirs(t *testing.T) {
 }
 
 /* 预取有额度限制
-//TestPrefetchUrls
-func TestPrefetchUrls(t *testing.T) {
+   //TestPrefetchUrls
+   func TestPrefetchUrls(t *testing.T) {
 	type args struct {
 		urls []string
 	}
@@ -218,7 +222,7 @@ func TestPrefetchUrls(t *testing.T) {
 			}
 		})
 	}
-}
+        }
 */
 
 // TestGetCdnLogList
