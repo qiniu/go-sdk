@@ -19,7 +19,7 @@ func (manager *Manager) DeleteStreamRecordHistories(nsId, streamId string, files
 	return manager.client.CallWithJson(context.Background(), nil, "DELETE", manager.url("/namespaces/%s/streams/%s/recordhistories", nsId, streamId), nil, M{"files": files})
 }
 
-type saveasArgs struct {
+type SaveasArgs struct {
 	Fname           string `json:"fname"`
 	Format          string `json:"format"`
 	Start           int    `json:"start"`
@@ -30,7 +30,7 @@ type saveasArgs struct {
 	DeleteAfterDays int    `json:"deleteAfterDays"`
 }
 
-type saveasReply struct {
+type SaveasReply struct {
 	Fname       string `json:"fname"`
 	PersistenId string `json:"persistentId,omitempty"`
 	Bucket      string `json:"bucket"`
@@ -38,8 +38,8 @@ type saveasReply struct {
 }
 
 // 录制视频片段合并
-func (manager *Manager) RecordClipsSaveas(nsId, streamId string, arg *saveasArgs) (*saveasReply, error) {
-	var ret saveasReply
+func (manager *Manager) RecordClipsSaveas(nsId, streamId string, arg *SaveasArgs) (*SaveasReply, error) {
+	var ret SaveasReply
 	err := manager.client.CallWithJson(context.Background(), &ret, "POST", manager.url("/namespaces/%s/streams/%s/saveas", nsId, streamId), nil, arg)
 	if err != nil {
 		return nil, err
