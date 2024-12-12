@@ -30,7 +30,7 @@ func TestRecordClipsSaveasAndDeleteRecord(t *testing.T) {
 	}
 	c := getTestManager()
 
-	ret, err := c.RecordClipsSaveas("2xenzw5o81ods", "31011500991320000356", &saveasArgs{
+	ret, err := c.RecordClipsSaveas("2xenzw5o81ods", "31011500991320000356", &SaveasArgs{
 		Format: "m3u8",
 		Start:  1604989846,
 		End:    1604990735,
