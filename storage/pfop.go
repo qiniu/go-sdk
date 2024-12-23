@@ -11,6 +11,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
 	"github.com/qiniu/go-sdk/v7/media/apis"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	"github.com/qiniu/go-sdk/v7/storagev2/region"
 )
 
 // OperationManager 提供了数据处理相关的方法
@@ -39,8 +40,14 @@ func NewOperationManagerEx(mac *auth.Credentials, cfg *Config, clt *client.Clien
 		clt = &client.DefaultClient
 	}
 
+	bucketQuery, _ := region.NewBucketRegionsQuery(getUcEndpoint(cfg.UseHTTPS, nil), &region.BucketRegionsQueryOptions{
+		UseInsecureProtocol: !cfg.UseHTTPS,
+		Client:              clt.Client,
+	})
+
 	opts := http_client.Options{
 		BasicHTTPClient:     clt.Client,
+		BucketQuery:         bucketQuery,
 		Credentials:         mac,
 		Interceptors:        []clientv2.Interceptor{},
 		UseInsecureProtocol: !cfg.UseHTTPS,
@@ -171,7 +178,7 @@ func (m *OperationManager) Pfop(bucket, key, fops, pipeline, notifyURL string,
 		NotifyUrl:  notifyURL,
 		Force:      forceNumber,
 		Pipeline:   pipeline,
-	}, nil)
+	}, m.makeRequestOptions())
 	if err != nil {
 		return "", err
 	}
@@ -189,7 +196,7 @@ func (m *OperationManager) PfopV2(ctx context.Context, pfopRequest *PfopRequest)
 		Type:               pfopRequest.Type,
 		Pipeline:           pfopRequest.Pipeline,
 		WorkflowTemplateId: pfopRequest.WorkflowTemplateID,
-	}, nil)
+	}, m.makeRequestOptions())
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +207,7 @@ func (m *OperationManager) PfopV2(ctx context.Context, pfopRequest *PfopRequest)
 func (m *OperationManager) Prefop(persistentID string) (PrefopRet, error) {
 	response, err := m.apiClient.Prefop(context.Background(), &apis.PrefopRequest{
 		PersistentId: persistentID,
-	}, nil)
+	}, m.makeRequestOptions())
 	if err != nil {
 		return PrefopRet{}, err
 	}
@@ -264,4 +271,8 @@ func (m *OperationManager) PrefopApiHost(persistentID string) (apiHost string) {
 	}
 	apiHost = endpoint(m.Cfg.UseHTTPS, apiHost)
 	return
+}
+
+func (m *OperationManager) makeRequestOptions() *apis.Options {
+	return &apis.Options{OverwrittenBucketHosts: getUcEndpointProvider(m.Cfg.UseHTTPS, nil)}
 }

@@ -6,10 +6,8 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"sync"
 	"syscall"
 
-	sysinfo "github.com/elastic/go-sysinfo"
 	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 )
 
@@ -63,16 +61,10 @@ const (
 )
 
 var (
-	osVersion     string
-	osVersionOnce sync.Once
+	osVersion string
 )
 
 func getOsVersion() string {
-	osVersionOnce.Do(func() {
-		if hostInfo, err := sysinfo.Host(); err == nil {
-			osVersion = hostInfo.Info().KernelVersion
-		}
-	})
 	return osVersion
 }
 

@@ -41,9 +41,15 @@ func NewResumeUploaderEx(cfg *Config, clt *client.Client) *ResumeUploader {
 		clt = &client.DefaultClient
 	}
 
+	bucketQuery, _ := region.NewBucketRegionsQuery(getUcEndpoint(cfg.UseHTTPS, nil), &region.BucketRegionsQueryOptions{
+		UseInsecureProtocol: !cfg.UseHTTPS,
+		Client:              clt.Client,
+	})
+
 	opts := http_client.Options{
 		BasicHTTPClient:     clt.Client,
 		UseInsecureProtocol: !cfg.UseHTTPS,
+		BucketQuery:         bucketQuery,
 		AccelerateUploading: cfg.AccelerateUploading,
 		HostRetryConfig:     &clientv2.RetryConfig{},
 	}
@@ -257,8 +263,13 @@ type (
 )
 
 func newResumeUploaderImpl(resumeUploader *ResumeUploader, bucket, key string, hasKey bool, upToken string, upEndpoints region.EndpointsProvider, fileInfo os.FileInfo, extra *RputExtra, ret interface{}, recorderKey string) *resumeUploaderImpl {
+	bucketQuery, _ := region.NewBucketRegionsQuery(getUcEndpoint(resumeUploader.Cfg.UseHTTPS, nil), &region.BucketRegionsQueryOptions{
+		UseInsecureProtocol: !resumeUploader.Cfg.UseHTTPS,
+		Client:              resumeUploader.Client.Client,
+	})
 	opts := http_client.Options{
 		BasicHTTPClient:     resumeUploader.Client.Client,
+		BucketQuery:         bucketQuery,
 		UseInsecureProtocol: !resumeUploader.Cfg.UseHTTPS,
 		AccelerateUploading: resumeUploader.Cfg.AccelerateUploading,
 		HostRetryConfig:     &clientv2.RetryConfig{},

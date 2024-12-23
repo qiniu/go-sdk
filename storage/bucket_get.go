@@ -110,7 +110,7 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	bucketHosts, err := getUcEndpoint(m.Cfg.UseHTTPS, nil).GetEndpoints(ctx)
+	bucketHosts, err := getUcEndpointProvider(m.Cfg.UseHTTPS, nil).GetEndpoints(ctx)
 	if err != nil {
 		return nil, err
 	}

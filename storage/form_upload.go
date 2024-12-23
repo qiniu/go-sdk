@@ -77,9 +77,16 @@ func NewFormUploaderEx(cfg *Config, clt *client.Client) *FormUploader {
 	if clt == nil {
 		clt = &client.DefaultClient
 	}
+
+	bucketQuery, _ := region.NewBucketRegionsQuery(getUcEndpoint(cfg.UseHTTPS, nil), &region.BucketRegionsQueryOptions{
+		UseInsecureProtocol: !cfg.UseHTTPS,
+		Client:              clt.Client,
+	})
+
 	opts := http_client.Options{
 		BasicHTTPClient:     clt.Client,
 		UseInsecureProtocol: !cfg.UseHTTPS,
+		BucketQuery:         bucketQuery,
 		AccelerateUploading: cfg.AccelerateUploading,
 		HostRetryConfig:     &clientv2.RetryConfig{},
 	}

@@ -264,7 +264,7 @@ func SetUcHosts(hosts ...string) {
 	ucHosts = newHosts
 }
 
-func getUcEndpoint(useHttps bool, hosts []string) region_v2.EndpointsProvider {
+func getUcEndpointProvider(useHttps bool, hosts []string) region_v2.EndpointsProvider {
 	if len(hosts) == 0 {
 		if len(UcHost) > 0 {
 			hosts = append(hosts, endpoint(useHttps, UcHost))
@@ -281,6 +281,19 @@ func getUcEndpoint(useHttps bool, hosts []string) region_v2.EndpointsProvider {
 		return region_v2.Endpoints{Preferred: hosts}
 	} else {
 		return nil
+	}
+}
+
+func getUcEndpoint(useHttps bool, hosts []string) region_v2.Endpoints {
+	provider := getUcEndpointProvider(useHttps, hosts)
+	if provider == nil {
+		return region_v2.Endpoints{}
+	}
+
+	if p, ok := provider.(region_v2.Endpoints); ok {
+		return p
+	} else {
+		return region_v2.Endpoints{}
 	}
 }
 
@@ -342,7 +355,7 @@ func GetRegionsInfoWithOptions(mac *auth.Credentials, options UCApiOptions) ([]R
 	}).GetRegions(
 		context.Background(),
 		&apis.GetRegionsRequest{Credentials: mac},
-		&apis.Options{OverwrittenBucketHosts: getUcEndpoint(options.UseHttps, options.Hosts)},
+		&apis.Options{OverwrittenBucketHosts: getUcEndpointProvider(options.UseHttps, options.Hosts)},
 	)
 	if err != nil {
 		return nil, err

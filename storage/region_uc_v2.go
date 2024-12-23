@@ -254,7 +254,7 @@ func (options *UCApiOptions) getApiStorageClient() *apis.Storage {
 }
 
 func (options *UCApiOptions) getApiOptions() *apis.Options {
-	return &apis.Options{OverwrittenBucketHosts: getUcEndpoint(options.UseHttps, options.Hosts)}
+	return &apis.Options{OverwrittenBucketHosts: getUcEndpointProvider(options.UseHttps, options.Hosts)}
 }
 
 func DefaultUCApiOptions() UCApiOptions {
