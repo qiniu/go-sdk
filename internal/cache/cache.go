@@ -69,28 +69,7 @@ func NewPersistentCache(
 	persistentDuration time.Duration,
 	handleError func(error),
 ) (*Cache, error) {
-	err := os.MkdirAll(filepath.Dir(persistentFilePath), 0700)
-	if err != nil {
-		return nil, err
-	}
-	unlockFunc, err := lockCachePersistentFile(persistentFilePath, false, handleError)
-	if err != nil {
-		return nil, err
-	}
-	defer unlockFunc()
-
-	file, closeFunc, err := openCachePersistentFile(persistentFilePath, handleError)
-	if err != nil {
-		return nil, err
-	}
-	defer closeFunc()
-
-	cacheMap, err := loadCacheMapFrom(valueType, file)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Cache{
+	c := &Cache{
 		persistentFile: &persistentFile{
 			valueType:          valueType,
 			cacheFilePath:      persistentFilePath,
@@ -98,10 +77,13 @@ func NewPersistentCache(
 			lastPersistentTime: time.Now(),
 			handleError:        handleError,
 		},
-		cacheMap:        cacheMap,
+		cacheMap:        nil,
 		compactInterval: compactInterval,
 		lastCompactTime: time.Now(),
-	}, nil
+	}
+	// 为了兼容上层接口，此处允许加载本地缓存文件失败
+	_ = c.loadLocalCache()
+	return c, nil
 }
 
 type GetResult uint8
@@ -113,6 +95,39 @@ const (
 	GetResultFromInvalidCache         GetResult = 3
 	NoResultGot                       GetResult = 4
 )
+
+func (cache *Cache) loadLocalCache() error {
+	defer func() {
+		if cache.cacheMap == nil {
+			cache.cacheMap = make(map[string]cacheValue)
+		}
+	}()
+
+	persistentFilePath := cache.persistentFile.cacheFilePath
+	err := os.MkdirAll(filepath.Dir(persistentFilePath), 0700)
+	if err != nil {
+		return err
+	}
+	unlockFunc, err := lockCachePersistentFile(persistentFilePath, false, cache.persistentFile.handleError)
+	if err != nil {
+		return err
+	}
+	defer unlockFunc()
+
+	file, closeFunc, err := openCachePersistentFile(persistentFilePath, cache.persistentFile.handleError)
+	if err != nil {
+		return err
+	}
+	defer closeFunc()
+
+	cacheMap, err := loadCacheMapFrom(cache.persistentFile.valueType, file)
+	if err != nil {
+		return err
+	}
+
+	cache.cacheMap = cacheMap
+	return nil
+}
 
 func (cache *Cache) Get(key string, fallback func() (CacheValue, error)) (CacheValue, GetResult) {
 	cache.cacheMapMutex.Lock()
