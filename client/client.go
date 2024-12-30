@@ -93,7 +93,16 @@ func newRequest(ctx context.Context, method, reqUrl string, headers http.Header,
 			},
 		}
 		req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
-		bs, bErr := httputil.DumpRequest(req, DeepDebugInfo)
+
+		var hasBody = DeepDebugInfo
+		switch {
+		case
+			req.Method == "POST" && req.Header.Get("Content-Type") != "application/json",
+			req.Header.Get("Content-Type") == "application/octet-stream":
+			hasBody = false
+		}
+
+		bs, bErr := httputil.DumpRequest(req, hasBody)
 		if bErr != nil {
 			err = bErr
 			return
@@ -293,7 +302,16 @@ func CallRet(ctx context.Context, ret interface{}, resp *http.Response) (err err
 	}()
 
 	if DebugMode {
-		bs, dErr := httputil.DumpResponse(resp, DeepDebugInfo)
+
+		var hasBody = DeepDebugInfo
+		switch {
+		case
+			resp.Header.Get("Content-Type") == "application/octet-stream",
+			resp.ContentLength > 1024*1024:
+			hasBody = false
+		}
+
+		bs, dErr := httputil.DumpResponse(resp, hasBody)
 		if dErr != nil {
 			err = dErr
 			return

@@ -120,7 +120,16 @@ func (interceptor *debugInterceptor) printRequest(label string, req *http.Reques
 	}
 
 	info := label + " request:\n"
-	d, dErr := httputil.DumpRequest(req, IsPrintRequestBody())
+
+	var hasBody = IsPrintRequestBody()
+	switch {
+	case
+		req.Method == "POST" && req.Header.Get("Content-Type") != "application/json",
+		req.Header.Get("Content-Type") == "application/octet-stream":
+		hasBody = false
+	}
+
+	d, dErr := httputil.DumpRequest(req, hasBody)
 	if dErr != nil {
 		return dErr
 	}
@@ -199,7 +208,16 @@ func (interceptor *debugInterceptor) printResponse(label string, resp *http.Resp
 	}
 
 	info := label + " response:\n"
-	d, dErr := httputil.DumpResponse(resp, IsPrintResponseBody())
+
+	var hasBody = IsPrintResponseBody()
+	switch {
+	case
+		resp.Header.Get("Content-Type") == "application/octet-stream",
+		resp.ContentLength > 1024*1024:
+		hasBody = false
+	}
+
+	d, dErr := httputil.DumpResponse(resp, hasBody)
 	if dErr != nil {
 		return dErr
 	}
