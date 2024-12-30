@@ -213,7 +213,7 @@ func (interceptor *debugInterceptor) printResponse(label string, resp *http.Resp
 	switch {
 	case
 		resp.Header.Get("Content-Type") == "application/octet-stream",
-		resp.ContentLength > 1024*1024:
+		resp.ContentLength == 0 || resp.ContentLength > 1024*1024:
 		hasBody = false
 	}
 

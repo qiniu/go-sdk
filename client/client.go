@@ -307,7 +307,7 @@ func CallRet(ctx context.Context, ret interface{}, resp *http.Response) (err err
 		switch {
 		case
 			resp.Header.Get("Content-Type") == "application/octet-stream",
-			resp.ContentLength > 1024*1024:
+			resp.ContentLength == 0 || resp.ContentLength > 1024*1024:
 			hasBody = false
 		}
 
