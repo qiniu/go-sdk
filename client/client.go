@@ -98,10 +98,7 @@ func newRequest(ctx context.Context, method, reqUrl string, headers http.Header,
 			hasBody     = DeepDebugInfo
 			contentType = req.Header.Get("Content-Type")
 		)
-		switch {
-		case
-			contentType == "" || contentType == "application/octet-stream",
-			(req.Method == "POST" || req.Method == "PUT" || req.Method == "PATCH") && contentType != "application/json":
+		if contentType != conf.CONTENT_TYPE_JSON && contentType != conf.CONTENT_TYPE_FORM {
 			hasBody = false
 		}
 
@@ -310,7 +307,7 @@ func CallRet(ctx context.Context, ret interface{}, resp *http.Response) (err err
 		switch {
 		case
 			resp.Header.Get("Content-Type") == "application/octet-stream",
-			resp.ContentLength == 0 || resp.ContentLength > 1024*1024:
+			resp.ContentLength <= 0 || resp.ContentLength > 1024*1024:
 			hasBody = false
 		}
 

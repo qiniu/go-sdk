@@ -8,6 +8,7 @@ import (
 	"net/http/httputil"
 
 	clientV1 "github.com/qiniu/go-sdk/v7/client"
+	"github.com/qiniu/go-sdk/v7/conf"
 	"github.com/qiniu/go-sdk/v7/internal/log"
 )
 
@@ -125,10 +126,7 @@ func (interceptor *debugInterceptor) printRequest(label string, req *http.Reques
 		hasBody     = IsPrintRequestBody()
 		contentType = req.Header.Get("Content-Type")
 	)
-	switch {
-	case
-		contentType == "" || contentType == "application/octet-stream",
-		(req.Method == "POST" || req.Method == "PUT" || req.Method == "PATCH") && contentType != "application/json":
+	if contentType != conf.CONTENT_TYPE_JSON && contentType != conf.CONTENT_TYPE_FORM {
 		hasBody = false
 	}
 
@@ -216,7 +214,7 @@ func (interceptor *debugInterceptor) printResponse(label string, resp *http.Resp
 	switch {
 	case
 		resp.Header.Get("Content-Type") == "application/octet-stream",
-		resp.ContentLength == 0 || resp.ContentLength > 1024*1024:
+		resp.ContentLength <= 0 || resp.ContentLength > 1024*1024:
 		hasBody = false
 	}
 
