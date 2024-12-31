@@ -94,11 +94,14 @@ func newRequest(ctx context.Context, method, reqUrl string, headers http.Header,
 		}
 		req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
 
-		var hasBody = DeepDebugInfo
+		var (
+			hasBody     = DeepDebugInfo
+			contentType = req.Header.Get("Content-Type")
+		)
 		switch {
 		case
-			req.Method == "POST" && req.Header.Get("Content-Type") != "application/json",
-			req.Header.Get("Content-Type") == "application/octet-stream":
+			contentType == "" || contentType == "application/octet-stream",
+			(req.Method == "POST" || req.Method == "PUT" || req.Method == "PATCH") && contentType != "application/json":
 			hasBody = false
 		}
 

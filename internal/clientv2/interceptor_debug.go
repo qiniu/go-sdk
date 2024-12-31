@@ -121,11 +121,14 @@ func (interceptor *debugInterceptor) printRequest(label string, req *http.Reques
 
 	info := label + " request:\n"
 
-	var hasBody = IsPrintRequestBody()
+	var (
+		hasBody     = IsPrintRequestBody()
+		contentType = req.Header.Get("Content-Type")
+	)
 	switch {
 	case
-		req.Method == "POST" && req.Header.Get("Content-Type") != "application/json",
-		req.Header.Get("Content-Type") == "application/octet-stream":
+		contentType == "" || contentType == "application/octet-stream",
+		(req.Method == "POST" || req.Method == "PUT" || req.Method == "PATCH") && contentType != "application/json":
 		hasBody = false
 	}
 
