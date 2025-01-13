@@ -154,3 +154,23 @@ response:
                                     name: PreferedApiDomains
                                     documentation: 主 API 域名列表
                                     type: string
+                      - field_name: s3_domains
+                        key: s3
+                        documentation: S3 域名
+                        type:
+                          struct:
+                            name: S3Domains
+                            documentation: S3 域名
+                            fields:
+                              - field_name: region_alias
+                                key: region_alias
+                                documentation: S3 Region
+                                type: string
+                              - field_name: prefered_api_domains
+                                key: domains
+                                documentation: 主 S3 域名列表
+                                type:
+                                  array:
+                                    name: PreferedS3Domains
+                                    documentation: 主 API 域名列表
+                                    type: string
