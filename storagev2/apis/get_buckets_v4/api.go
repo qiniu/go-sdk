@@ -74,8 +74,8 @@ type BucketsV4 = []BucketV4
 // 返回所有存储空间结果
 type BucketsResultV4 = Response
 type jsonResponse struct {
-	NextMarker  string    `json:"nextMarker"`  // 下一页开始的空间标识
-	IsTruncated bool      `json:"isTruncated"` // 是否所有的结果都已经返回
+	NextMarker  string    `json:"next_marker"`  // 下一页开始的空间标识
+	IsTruncated bool      `json:"is_truncated"` // 是否所有的结果都已经返回
 	Buckets     BucketsV4 `json:"buckets"`
 }
 
