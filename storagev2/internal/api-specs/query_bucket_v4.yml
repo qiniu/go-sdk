@@ -172,5 +172,5 @@ response:
                                 type:
                                   array:
                                     name: PreferedS3Domains
-                                    documentation: 主 API 域名列表
+                                    documentation: 主 S3 域名列表
                                     type: string

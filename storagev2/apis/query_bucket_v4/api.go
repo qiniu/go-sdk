@@ -229,7 +229,7 @@ func (j *ApiDomains) validate() error {
 	return nil
 }
 
-// 主 API 域名列表
+// 主 S3 域名列表
 type PreferedS3Domains = []string
 
 // S3 域名
