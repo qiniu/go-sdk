@@ -24,6 +24,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/chooser"
 	"github.com/qiniu/go-sdk/v7/storagev2/downloader"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	"github.com/qiniu/go-sdk/v7/storagev2/region"
 	"github.com/qiniu/go-sdk/v7/storagev2/resolver"
 	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 
@@ -376,8 +377,14 @@ func NewBucketManagerExWithOptions(mac *auth.Credentials, cfg *Config, clt *clie
 		cfg.CentralRsHost = DefaultRsHost
 	}
 
+	bucketQuery, _ := region.NewBucketRegionsQuery(getUcEndpoint(cfg.UseHTTPS, nil), &region.BucketRegionsQueryOptions{
+		UseInsecureProtocol: !cfg.UseHTTPS,
+		Client:              clt.Client,
+	})
+
 	opts := http_client.Options{
 		BasicHTTPClient:     clt.Client,
+		BucketQuery:         bucketQuery,
 		Credentials:         mac,
 		Interceptors:        []clientv2.Interceptor{},
 		UseInsecureProtocol: !cfg.UseHTTPS,
@@ -1110,7 +1117,7 @@ func (m *BucketManager) Zone(bucket string) (z *Zone, err error) {
 }
 
 func (m *BucketManager) makeRequestOptions() *apis.Options {
-	return &apis.Options{OverwrittenBucketHosts: getUcEndpoint(m.Cfg.UseHTTPS, nil)}
+	return &apis.Options{OverwrittenBucketHosts: getUcEndpointProvider(m.Cfg.UseHTTPS, nil)}
 }
 
 // 构建op的方法，导出的方法支持在Batch操作中使用

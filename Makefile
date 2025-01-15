@@ -1,5 +1,5 @@
 test:
-	go test -tags='unit integration' -failfast -count=1 -v -timeout 350m -coverprofile=coverage.txt `go list ./... | egrep -v 'examples|sms'`
+	go test -tags='unit integration' -failfast -count=1 -v -timeout 350m -coverprofile=coverage.txt `go list ./... | egrep -v 'examples|sms'` | tee -a test.log
 
 unittest:
 	go test -tags=unit -failfast -count=1 -v -coverprofile=coverage.txt `go list ./... | egrep -v 'examples|sms'`
