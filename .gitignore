@@ -33,6 +33,3 @@ coverage.txt
 
 # Go workspace file
 go.work
-
-# Log files
-*.log
