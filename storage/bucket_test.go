@@ -127,10 +127,21 @@ func TestBuckets(t *testing.T) {
 // Test get bucket list v4
 func TestBucketsV4(t *testing.T) {
 	var input BucketV4Input
-	for {
+	for i := 0; ; i++ {
 		output, err := bucketManager.BucketsV4(&input)
 		if err != nil {
 			t.Fatalf("Buckets() error, %s", err)
+		}
+
+		// 测试账号 bucket 较多，此处只测试第一页
+		// 如果测试账号 bucket 较少，未分页，则移除此处验证
+		if i == 0 {
+			if !output.IsTruncated {
+				t.Fatalf("Buckets() IsTruncated error, %s", err)
+			}
+			if len(output.NextMarker) == 0 {
+				t.Fatalf("Buckets() IsTruncated error, %s", err)
+			}
 		}
 
 		for _, bucket := range output.Buckets {
