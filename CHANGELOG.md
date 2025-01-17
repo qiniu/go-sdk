@@ -1,5 +1,16 @@
 # Changelog
 
+## 7.25.2
+
+* 优化
+  * 简化 Degbug 模式下日志输出
+* 修复
+  * storage 包上传接口配置 UC 域名未生效
+  * 处理 Windows 平台和 gomobile 因 go-sysinfo 依赖导致的兼容性问题
+  * 修复删除用户组策略问题
+  * 修复 bucket/v4 获取 buckets 不全问题
+
+
 ## 7.25.1
 
 * 修复
