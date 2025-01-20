@@ -229,6 +229,44 @@ func (j *ApiDomains) validate() error {
 	return nil
 }
 
+// 主 S3 域名列表
+type PreferedS3Domains = []string
+
+// S3 域名
+type S3Domains struct {
+	RegionAlias        string            // S3 Region
+	PreferedApiDomains PreferedS3Domains // 主 S3 域名列表
+}
+type jsonS3Domains struct {
+	RegionAlias        string            `json:"region_alias"` // S3 Region
+	PreferedApiDomains PreferedS3Domains `json:"domains"`      // 主 S3 域名列表
+}
+
+func (j *S3Domains) MarshalJSON() ([]byte, error) {
+	if err := j.validate(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(&jsonS3Domains{RegionAlias: j.RegionAlias, PreferedApiDomains: j.PreferedApiDomains})
+}
+func (j *S3Domains) UnmarshalJSON(data []byte) error {
+	var nj jsonS3Domains
+	if err := json.Unmarshal(data, &nj); err != nil {
+		return err
+	}
+	j.RegionAlias = nj.RegionAlias
+	j.PreferedApiDomains = nj.PreferedApiDomains
+	return nil
+}
+func (j *S3Domains) validate() error {
+	if j.RegionAlias == "" {
+		return errors.MissingRequiredFieldError{Name: "RegionAlias"}
+	}
+	if len(j.PreferedApiDomains) == 0 {
+		return errors.MissingRequiredFieldError{Name: "PreferedApiDomains"}
+	}
+	return nil
+}
+
 // 存储空间服务域名
 type BucketQueryHost struct {
 	RegionId     string       // 区域 ID
@@ -239,6 +277,7 @@ type BucketQueryHost struct {
 	RsDomains    RsDomains    // 对象管理域名
 	RsfDomains   RsfDomains   // 对象列举域名
 	ApiDomains   ApiDomains   // API 域名
+	S3Domains    S3Domains    // S3 域名
 }
 type jsonBucketQueryHost struct {
 	RegionId     string       `json:"region"`           // 区域 ID
@@ -249,13 +288,14 @@ type jsonBucketQueryHost struct {
 	RsDomains    RsDomains    `json:"rs"`               // 对象管理域名
 	RsfDomains   RsfDomains   `json:"rsf"`              // 对象列举域名
 	ApiDomains   ApiDomains   `json:"api"`              // API 域名
+	S3Domains    S3Domains    `json:"s3"`               // S3 域名
 }
 
 func (j *BucketQueryHost) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(&jsonBucketQueryHost{RegionId: j.RegionId, TimeToLive: j.TimeToLive, UpDomains: j.UpDomains, IoDomains: j.IoDomains, IoSrcDomains: j.IoSrcDomains, RsDomains: j.RsDomains, RsfDomains: j.RsfDomains, ApiDomains: j.ApiDomains})
+	return json.Marshal(&jsonBucketQueryHost{RegionId: j.RegionId, TimeToLive: j.TimeToLive, UpDomains: j.UpDomains, IoDomains: j.IoDomains, IoSrcDomains: j.IoSrcDomains, RsDomains: j.RsDomains, RsfDomains: j.RsfDomains, ApiDomains: j.ApiDomains, S3Domains: j.S3Domains})
 }
 func (j *BucketQueryHost) UnmarshalJSON(data []byte) error {
 	var nj jsonBucketQueryHost
@@ -270,6 +310,7 @@ func (j *BucketQueryHost) UnmarshalJSON(data []byte) error {
 	j.RsDomains = nj.RsDomains
 	j.RsfDomains = nj.RsfDomains
 	j.ApiDomains = nj.ApiDomains
+	j.S3Domains = nj.S3Domains
 	return nil
 }
 func (j *BucketQueryHost) validate() error {
@@ -292,6 +333,9 @@ func (j *BucketQueryHost) validate() error {
 		return err
 	}
 	if err := j.ApiDomains.validate(); err != nil {
+		return err
+	}
+	if err := j.S3Domains.validate(); err != nil {
 		return err
 	}
 	return nil
