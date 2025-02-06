@@ -18,6 +18,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/errors"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	"github.com/qiniu/go-sdk/v7/storagev2/uptoken"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -103,5 +104,24 @@ func TestCreateBucket(t *testing.T) {
 	}, nil)
 	if err == nil || err.(errors.MissingRequiredFieldError).Name != "Credentials" {
 		t.FailNow()
+	}
+}
+
+func TestQuery(t *testing.T) {
+	credentials := credentials.NewCredentials(testAK, testSK)
+
+	storage := apis.NewStorage(&http_client.Options{Credentials: credentials})
+
+	response, err := storage.QueryBucketV4(context.Background(), &apis.QueryBucketV4Request{
+		Bucket:    testBucket,
+		AccessKey: testAK,
+	}, nil)
+
+	require.NoError(t, err)
+
+	for _, host := range response.Hosts {
+		require.NotNil(t, host.S3Domains)
+		require.NotEmpty(t, host.S3Domains.RegionAlias)
+		require.NotEmpty(t, host.S3Domains.PreferedApiDomains)
 	}
 }
