@@ -1,3 +1,6 @@
+//go:build unit
+// +build unit
+
 package utils
 
 import (
@@ -7,7 +10,7 @@ import (
 	"net/http"
 	"testing"
 
-	internal_io "github.com/qiniu/go-sdk/v7/internal/io"
+	innerio "github.com/qiniu/go-sdk/v7/internal/io"
 )
 
 // 模拟 io.ReadSeekCloser 以模拟错误
@@ -29,7 +32,7 @@ func (e *errorSeeker) Seek(offset int64, whence int) (int64, error) {
 
 func TestHttpHeadAddContentLength_Success(t *testing.T) {
 	data := bytes.NewReader([]byte("test"))
-	dataS := internal_io.MakeReadSeekCloserFromLimitedReader(data, data.Size())
+	dataS := innerio.MakeReadSeekCloserFromLimitedReader(data, data.Size())
 
 	header := http.Header{}
 	err := HttpHeadAddContentLength(header, dataS)

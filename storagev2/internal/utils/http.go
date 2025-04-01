@@ -4,9 +4,11 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+
+	innerio "github.com/qiniu/go-sdk/v7/internal/io"
 )
 
-func HttpHeadAddContentLength(header http.Header, data io.ReadSeekCloser) error {
+func HttpHeadAddContentLength(header http.Header, data innerio.ReadSeekCloser) error {
 	_, err := data.Seek(0, io.SeekStart)
 	if err != nil {
 		return err

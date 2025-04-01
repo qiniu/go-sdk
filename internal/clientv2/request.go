@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -85,7 +86,7 @@ func (o *RequestParams) init() {
 func NewRequest(options RequestParams) (req *http.Request, err error) {
 	var (
 		bodyWrapper   *requestBodyWrapperWithProgress = nil
-		contentLength uint64
+		contentLength int64                           = 0
 	)
 
 	options.init()
@@ -94,11 +95,17 @@ func NewRequest(options RequestParams) (req *http.Request, err error) {
 	if err != nil {
 		return nil, err
 	}
-	if options.OnRequestProgress != nil && body != nil {
+
+	if body != nil {
 		if contentLengthHeaderValue := options.Header.Get("Content-Length"); contentLengthHeaderValue != "" {
-			contentLength, _ = strconv.ParseUint(contentLengthHeaderValue, 10, 64)
+			contentLength, err = strconv.ParseInt(contentLengthHeaderValue, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid Content-Length header value: %s, %w", contentLengthHeaderValue, err)
+			}
 		}
-		bodyWrapper = &requestBodyWrapperWithProgress{body: body, expectedSize: contentLength, callback: options.OnRequestProgress}
+		if options.OnRequestProgress != nil {
+			bodyWrapper = &requestBodyWrapperWithProgress{body: body, expectedSize: uint64(contentLength), callback: options.OnRequestProgress}
+		}
 	}
 	if bodyWrapper != nil {
 		req, err = http.NewRequest(options.Method, options.Url, bodyWrapper)
@@ -124,13 +131,16 @@ func NewRequest(options RequestParams) (req *http.Request, err error) {
 			if bodyWrapper != nil {
 				return &requestBodyWrapperWithProgress{
 					body:         reqBody,
-					expectedSize: contentLength,
+					expectedSize: uint64(contentLength),
 					callback:     options.OnRequestProgress,
 				}, nil
 			} else {
 				return reqBody, nil
 			}
 		}
+	}
+	if contentLength > 0 {
+		req.ContentLength = contentLength
 	}
 	return
 }
