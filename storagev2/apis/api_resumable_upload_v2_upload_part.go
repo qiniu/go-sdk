@@ -9,6 +9,7 @@ import (
 	resumableuploadv2uploadpart "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v2_upload_part"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	utils "github.com/qiniu/go-sdk/v7/storagev2/internal/utils"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	"net/http"
 	"strconv"
@@ -78,10 +79,6 @@ func (storage *Storage) ResumableUploadV2UploadPart(ctx context.Context, request
 	if innerRequest.UpToken == nil {
 		return nil, errors.MissingRequiredFieldError{Name: "UpToken"}
 	}
-	headers, err := innerRequest.buildHeaders()
-	if err != nil {
-		return nil, err
-	}
 	pathSegments := make([]string, 0, 7)
 	pathSegments = append(pathSegments, "buckets")
 	if segments, err := innerRequest.buildPath(); err != nil {
@@ -91,9 +88,17 @@ func (storage *Storage) ResumableUploadV2UploadPart(ctx context.Context, request
 	}
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
+	headers, err := innerRequest.buildHeaders()
+	if err != nil {
+		return nil, err
+	}
 	body := innerRequest.Body
 	if body == nil {
 		return nil, errors.MissingRequiredFieldError{Name: "Body"}
+	}
+	hErr := utils.HttpHeadAddContentLength(headers, body)
+	if hErr != nil {
+		return nil, hErr
 	}
 	bucketName := options.OverwrittenBucketName
 	if bucketName == "" {

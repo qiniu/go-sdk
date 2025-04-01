@@ -11,6 +11,7 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -75,6 +76,7 @@ func (storage *Storage) CheckShare(ctx context.Context, request *CheckShareReque
 	} else {
 		rawQuery += query.Encode()
 	}
+	headers := http.Header{}
 	bucketName := options.OverwrittenBucketName
 	uplogInterceptor, err := uplog.NewRequestUplog("checkShare", bucketName, "", func() (string, error) {
 		credentials := innerRequest.Credentials
@@ -90,7 +92,7 @@ func (storage *Storage) CheckShare(ctx context.Context, request *CheckShareReque
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 		if bucketName != "" {

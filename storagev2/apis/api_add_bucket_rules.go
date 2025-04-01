@@ -11,6 +11,7 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -60,6 +61,7 @@ func (storage *Storage) AddBucketRules(ctx context.Context, request *AddBucketRu
 	pathSegments = append(pathSegments, "rules", "add")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
+	headers := http.Header{}
 	body, err := innerRequest.build()
 	if err != nil {
 		return nil, err
@@ -85,7 +87,7 @@ func (storage *Storage) AddBucketRules(ctx context.Context, request *AddBucketRu
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: httpclient.GetFormRequestBody(body), OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: httpclient.GetFormRequestBody(body), OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 		if options.OverwrittenBucketHosts != nil {

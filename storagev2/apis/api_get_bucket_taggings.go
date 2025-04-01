@@ -11,6 +11,7 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -53,6 +54,7 @@ func (storage *Storage) GetBucketTaggings(ctx context.Context, request *GetBucke
 	} else {
 		rawQuery += query.Encode()
 	}
+	headers := http.Header{}
 	bucketName := options.OverwrittenBucketName
 	if bucketName == "" {
 		var err error
@@ -74,7 +76,7 @@ func (storage *Storage) GetBucketTaggings(ctx context.Context, request *GetBucke
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 		if options.OverwrittenBucketHosts != nil {

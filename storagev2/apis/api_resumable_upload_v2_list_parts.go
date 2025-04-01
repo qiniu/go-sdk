@@ -10,6 +10,7 @@ import (
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -90,6 +91,7 @@ func (storage *Storage) ResumableUploadV2ListParts(ctx context.Context, request 
 	} else {
 		rawQuery += query.Encode()
 	}
+	headers := http.Header{}
 	bucketName := options.OverwrittenBucketName
 	if bucketName == "" {
 		var err error
@@ -103,7 +105,7 @@ func (storage *Storage) ResumableUploadV2ListParts(ctx context.Context, request 
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, UpToken: innerRequest.UpToken, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, UpToken: innerRequest.UpToken, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 		if bucketName != "" {
