@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -13,7 +14,14 @@ func BytesFromRequest(r *http.Request) ([]byte, error) {
 	if bytesNopCloser, ok := r.Body.(*internal_io.BytesNopCloser); ok {
 		return bytesNopCloser.Bytes(), nil
 	}
-	buf := bytes.NewBuffer(make([]byte, 0, int(r.ContentLength)+1024))
+
+	// 不能大于10G
+	if r.ContentLength > 1024*1024*1024*10 {
+		return nil, fmt.Errorf("content length too large:%d", r.ContentLength)
+	}
+
+	contentLength := int(r.ContentLength) + 1024
+	buf := bytes.NewBuffer(make([]byte, 0, contentLength))
 	_, err := io.Copy(buf, r.Body)
 	if err != nil {
 		return nil, err

@@ -100,7 +100,7 @@ func NewRequest(options RequestParams) (req *http.Request, err error) {
 		if contentLengthHeaderValue := options.Header.Get("Content-Length"); contentLengthHeaderValue != "" {
 			contentLength, err = strconv.ParseInt(contentLengthHeaderValue, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("invalid Content-Length header value: %s, %w", contentLengthHeaderValue, err)
+				return nil, fmt.Errorf("invalid Content-Length header value: %s, %s", contentLengthHeaderValue, err)
 			}
 		}
 		if options.OnRequestProgress != nil {

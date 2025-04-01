@@ -1,4 +1,9 @@
 # Changelog
+## 7.25.3
+
+* 修复
+  * 分片上传请求头增加 Content-Length
+
 
 ## 7.25.2
 
