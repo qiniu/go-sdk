@@ -21,5 +21,6 @@ func HttpHeadAddContentLength(header http.Header, data innerio.ReadSeekCloser) e
 
 	header.Set("Content-Length", strconv.FormatInt(contentLength, 10))
 
-	return nil
+	_, err = data.Seek(0, io.SeekStart)
+	return err
 }
