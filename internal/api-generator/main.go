@@ -19,6 +19,7 @@ const (
 	PackageNameRegion      = "github.com/qiniu/go-sdk/v7/storagev2/region"
 	PackageNameUpToken     = "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 	PackageNameErrors      = "github.com/qiniu/go-sdk/v7/storagev2/errors"
+	PackageNameUtils       = "github.com/qiniu/go-sdk/v7/storagev2/internal/utils"
 	PackageNameUplog       = "github.com/qiniu/go-sdk/v7/internal/uplog"
 	PackageNameInternalIo  = "github.com/qiniu/go-sdk/v7/internal/io"
 )

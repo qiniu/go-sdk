@@ -8,7 +8,9 @@ import (
 	resumableuploadv1makeblock "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v1_make_block"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
+	utils "github.com/qiniu/go-sdk/v7/storagev2/internal/utils"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
+	"net/http"
 	"strconv"
 	"strings"
 )
@@ -63,9 +65,14 @@ func (storage *Storage) ResumableUploadV1MakeBlock(ctx context.Context, request 
 	}
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
+	headers := http.Header{}
 	body := innerRequest.Body
 	if body == nil {
 		return nil, errors.MissingRequiredFieldError{Name: "Body"}
+	}
+	hErr := utils.HttpHeadAddContentLength(headers, body)
+	if hErr != nil {
+		return nil, hErr
 	}
 	bucketName := options.OverwrittenBucketName
 	if bucketName == "" {
@@ -80,7 +87,7 @@ func (storage *Storage) ResumableUploadV1MakeBlock(ctx context.Context, request 
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, UpToken: innerRequest.UpToken, BufferResponse: true, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(body), OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, UpToken: innerRequest.UpToken, BufferResponse: true, RequestBody: httpclient.GetRequestBodyFromReadSeekCloser(body), OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 		if bucketName != "" {

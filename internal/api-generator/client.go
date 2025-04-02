@@ -151,18 +151,6 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							))
 						}))
 				}
-				if description.Request.HeaderNames != nil {
-					group.Add(
-						jen.List(jen.Id("headers"), jen.Err()).Op(":=").Id("innerRequest").Dot("buildHeaders").Call(),
-					)
-					group.Add(
-						jen.If(
-							jen.Err().Op("!=").Nil(),
-						).BlockFunc(func(group *jen.Group) {
-							group.Add(jen.Return(jen.Nil(), jen.Err()))
-						}),
-					)
-				}
 				guessPathSegmentsCount := 0
 				if description.BasePath != "" {
 					guessPathSegmentsCount += len(description.getBasePathSegments())
@@ -243,6 +231,22 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 						}),
 					)
 				}
+				if description.Request.HeaderNames != nil {
+					group.Add(
+						jen.List(jen.Id("headers"), jen.Err()).Op(":=").Id("innerRequest").Dot("buildHeaders").Call(),
+					)
+					group.Add(
+						jen.If(
+							jen.Err().Op("!=").Nil(),
+						).BlockFunc(func(group *jen.Group) {
+							group.Add(jen.Return(jen.Nil(), jen.Err()))
+						}),
+					)
+				} else {
+					group.Add(
+						jen.Id("headers").Op(":=").Qual("net/http", "Header").Values(jen.Dict{}),
+					)
+				}
 				if requestBody := description.Request.Body; requestBody != nil {
 					if json := requestBody.Json; json != nil {
 						group.Add(
@@ -300,6 +304,16 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 											}),
 									))
 								}),
+						)
+						group.Add(
+							jen.Id("hErr").Op(":=").Qual(PackageNameUtils, "HttpHeadAddContentLength").Call(jen.Id("headers"), jen.Id("body")),
+						)
+						group.Add(
+							jen.If(
+								jen.Id("hErr").Op("!=").Nil(),
+							).Block(
+								jen.Return(jen.Nil(), jen.Id("hErr")),
+							),
 						)
 					}
 				}
@@ -405,9 +419,7 @@ func (description *ApiDetailedDescription) generatePackage(group *jen.Group, opt
 							group.Add(jen.Id("Endpoints").Op(":").Id("options").Dot("OverwrittenEndpoints"))
 							group.Add(jen.Id("Region").Op(":").Id("options").Dot("OverwrittenRegion"))
 							group.Add(jen.Id("Interceptors").Op(":").Index().Qual(PackageNameHTTPClient, "Interceptor").Values(jen.Id("uplogInterceptor")))
-							if description.Request.HeaderNames != nil {
-								group.Add(jen.Id("Header").Op(":").Id("headers"))
-							}
+							group.Add(jen.Id("Header").Op(":").Id("headers"))
 							switch description.Request.Authorization.ToAuthorization() {
 							case AuthorizationQbox:
 								group.Add(jen.Id("AuthType").Op(":").Qual(PackageNameAuth, "TokenQBox"))

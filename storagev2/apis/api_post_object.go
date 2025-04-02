@@ -9,6 +9,7 @@ import (
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
+	"net/http"
 	"strconv"
 	"strings"
 )
@@ -84,6 +85,7 @@ func (storage *Storage) PostObject(ctx context.Context, request *PostObjectReque
 	pathSegments := make([]string, 0)
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
+	headers := http.Header{}
 	body, err := innerRequest.build(ctx)
 	if err != nil {
 		return nil, err
@@ -100,7 +102,7 @@ func (storage *Storage) PostObject(ctx context.Context, request *PostObjectReque
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, BufferResponse: true, RequestBody: httpclient.GetMultipartFormRequestBody(body), OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, BufferResponse: true, RequestBody: httpclient.GetMultipartFormRequestBody(body), OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && storage.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 		if bucketName != "" {
