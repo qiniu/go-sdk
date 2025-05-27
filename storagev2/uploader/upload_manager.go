@@ -191,6 +191,9 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 func (uploadManager *UploadManager) UploadFile(ctx context.Context, path string, objectOptions *ObjectOptions, returnValue interface{}) error {
 	if objectOptions == nil {
 		objectOptions = &ObjectOptions{}
+	} else {
+		tmp := *objectOptions
+		objectOptions = &tmp
 	}
 
 	fileInfo, err := os.Stat(path)
@@ -214,6 +217,9 @@ func (uploadManager *UploadManager) UploadReader(ctx context.Context, reader io.
 
 	if objectOptions == nil {
 		objectOptions = &ObjectOptions{}
+	} else {
+		tmp := *objectOptions
+		objectOptions = &tmp
 	}
 
 	if rscs, ok := reader.(io.ReadSeeker); ok && canSeekReally(rscs) {

@@ -51,6 +51,45 @@ func TestFormUploadPutFileWithoutExtra(t *testing.T) {
 	t.Logf("Key: %s, Hash:%s", putRet.Key, putRet.Hash)
 }
 
+func TestFormUploaderWithInvalidUpHost(t *testing.T) {
+	var putRet PutRet
+	ctx := context.TODO()
+	putPolicy := PutPolicy{
+		Scope:           testBucket,
+		DeleteAfterDays: 7,
+	}
+
+	// prepare file for test uploading
+	testLocalFile, err := ioutil.TempFile("", "TestFormUploadPutFile")
+	if err != nil {
+		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
+	}
+	defer os.Remove(testLocalFile.Name())
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	_, err = io.CopyN(testLocalFile, r, 1024)
+	if err != nil {
+		t.Fatalf("ioutil.TempFile file write failed, err: %v", err)
+	}
+	_, err = testLocalFile.Seek(0, io.SeekCurrent)
+	if err != nil {
+		t.Fatalf("ioutil.TempFile file seek failed, err: %v", err)
+	}
+
+	upToken := putPolicy.UploadToken(mac)
+	testKey := fmt.Sprintf("testPutFileWithoutExtra_%d", r.Int())
+
+	err = formUploader.PutFile(ctx, &putRet, upToken, testKey, testLocalFile.Name(), &PutExtra{
+		UpHost: "mock.upload.io",
+	})
+	if err == nil {
+		t.Fatalf("TestFormUploaderWithInvalidUpHost should error, %s", err)
+	}
+	if !strings.Contains(err.Error(), "lookup mock.upload.io: no such host") {
+		t.Fatalf("TestFormUploaderWithInvalidUpHost should use mock host, %s", err)
+	}
+}
+
 func TestFormUploadPutFile(t *testing.T) {
 	var putRet PutRet
 	ctx := context.TODO()
