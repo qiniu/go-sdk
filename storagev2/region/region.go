@@ -122,28 +122,28 @@ func makeHost(domain string, useHttps bool) string {
 	}
 }
 
-func (region *Region) GetRegions(context.Context) ([]*Region, error) {
-	return []*Region{region}, nil
+func (r *Region) GetRegions(context.Context) ([]*Region, error) {
+	return []*Region{r}, nil
 }
 
-func (region *Region) Endpoints(serviceNames []ServiceName) (Endpoints, error) {
+func (r *Region) Endpoints(serviceNames []ServiceName) (Endpoints, error) {
 	var endpoint Endpoints
 	for _, serviceName := range serviceNames {
 		switch serviceName {
 		case ServiceUp:
-			endpoint = endpoint.Join(region.Up)
+			endpoint = endpoint.Join(r.Up)
 		case ServiceIo:
-			endpoint = endpoint.Join(region.Io)
+			endpoint = endpoint.Join(r.Io)
 		case ServiceIoSrc:
-			endpoint = endpoint.Join(region.IoSrc)
+			endpoint = endpoint.Join(r.IoSrc)
 		case ServiceRs:
-			endpoint = endpoint.Join(region.Rs)
+			endpoint = endpoint.Join(r.Rs)
 		case ServiceRsf:
-			endpoint = endpoint.Join(region.Rsf)
+			endpoint = endpoint.Join(r.Rsf)
 		case ServiceApi:
-			endpoint = endpoint.Join(region.Api)
+			endpoint = endpoint.Join(r.Api)
 		case ServiceBucket:
-			endpoint = endpoint.Join(region.Bucket)
+			endpoint = endpoint.Join(r.Bucket)
 		default:
 			return endpoint, ErrUnrecognizedServiceName
 		}
@@ -151,27 +151,27 @@ func (region *Region) Endpoints(serviceNames []ServiceName) (Endpoints, error) {
 	return endpoint, nil
 }
 
-func (region *Region) EndpointsIter(serviceNames []ServiceName) (*EndpointsIter, error) {
-	endpoints, err := region.Endpoints(serviceNames)
+func (r *Region) EndpointsIter(serviceNames []ServiceName) (*EndpointsIter, error) {
+	endpoints, err := r.Endpoints(serviceNames)
 	if err != nil {
 		return nil, err
 	}
 	return endpoints.Iter(), nil
 }
 
-func (left *Region) IsEqual(right *Region) bool {
-	return left.RegionID == right.RegionID &&
-		left.Up.IsEqual(right.Up) &&
-		left.Io.IsEqual(right.Io) &&
-		left.IoSrc.IsEqual(right.IoSrc) &&
-		left.Rs.IsEqual(right.Rs) &&
-		left.Rsf.IsEqual(right.Rsf) &&
-		left.Api.IsEqual(right.Api) &&
-		left.Bucket.IsEqual(right.Bucket)
+func (r *Region) IsEqual(right *Region) bool {
+	return r.RegionID == right.RegionID &&
+		r.Up.IsEqual(right.Up) &&
+		r.Io.IsEqual(right.Io) &&
+		r.IoSrc.IsEqual(right.IoSrc) &&
+		r.Rs.IsEqual(right.Rs) &&
+		r.Rsf.IsEqual(right.Rsf) &&
+		r.Api.IsEqual(right.Api) &&
+		r.Bucket.IsEqual(right.Bucket)
 }
 
-func (left Endpoints) Join(rights ...Endpoints) Endpoints {
-	newEndpoint := left
+func (ep Endpoints) Join(rights ...Endpoints) Endpoints {
+	newEndpoint := ep
 	for _, right := range rights {
 		newEndpoint.Accelerated = append(newEndpoint.Accelerated, right.Accelerated...)
 		newEndpoint.Preferred = append(newEndpoint.Preferred, right.Preferred...)
@@ -181,68 +181,68 @@ func (left Endpoints) Join(rights ...Endpoints) Endpoints {
 	return newEndpoint
 }
 
-func (left Endpoints) IsEqual(right Endpoints) bool {
-	return reflect.DeepEqual(left.Accelerated, right.Accelerated) &&
-		reflect.DeepEqual(left.Preferred, right.Preferred) &&
-		reflect.DeepEqual(left.Alternative, right.Alternative)
+func (ep Endpoints) IsEqual(right Endpoints) bool {
+	return reflect.DeepEqual(ep.Accelerated, right.Accelerated) &&
+		reflect.DeepEqual(ep.Preferred, right.Preferred) &&
+		reflect.DeepEqual(ep.Alternative, right.Alternative)
 
 }
 
-func (hosts Endpoints) Iter() *EndpointsIter {
-	return &EndpointsIter{endpoints: hosts}
+func (ep Endpoints) Iter() *EndpointsIter {
+	return &EndpointsIter{endpoints: ep}
 }
 
-func (endpoints Endpoints) HostsLength() int {
-	return len(endpoints.Accelerated) + len(endpoints.Preferred) + len(endpoints.Alternative)
+func (ep Endpoints) HostsLength() int {
+	return len(ep.Accelerated) + len(ep.Preferred) + len(ep.Alternative)
 }
 
-func (endpoints Endpoints) IsEmpty() bool {
-	return len(endpoints.Accelerated) == 0 && len(endpoints.Preferred) == 0 && len(endpoints.Alternative) == 0
+func (ep Endpoints) IsEmpty() bool {
+	return len(ep.Accelerated) == 0 && len(ep.Preferred) == 0 && len(ep.Alternative) == 0
 }
 
-func (endpoints Endpoints) firstUrl(useHttps bool) string {
-	for _, accelerated := range endpoints.Accelerated {
+func (ep Endpoints) firstUrl(useHttps bool) string {
+	for _, accelerated := range ep.Accelerated {
 		return makeUrlFromHost(accelerated, useHttps)
 	}
-	for _, preferred := range endpoints.Preferred {
+	for _, preferred := range ep.Preferred {
 		return makeUrlFromHost(preferred, useHttps)
 	}
-	for _, alternative := range endpoints.Alternative {
+	for _, alternative := range ep.Alternative {
 		return makeUrlFromHost(alternative, useHttps)
 	}
 	return ""
 }
 
-func (endpoints Endpoints) GetEndpoints(context.Context) (Endpoints, error) {
-	return endpoints, nil
+func (ep Endpoints) GetEndpoints(context.Context) (Endpoints, error) {
+	return ep, nil
 }
 
-func (endpoints Endpoints) allUrls(useHttps bool) []string {
-	allHosts := make([]string, 0, len(endpoints.Accelerated)+len(endpoints.Preferred)+len(endpoints.Alternative))
-	for _, accelerated := range endpoints.Accelerated {
+func (ep Endpoints) allUrls(useHttps bool) []string {
+	allHosts := make([]string, 0, len(ep.Accelerated)+len(ep.Preferred)+len(ep.Alternative))
+	for _, accelerated := range ep.Accelerated {
 		allHosts = append(allHosts, makeUrlFromHost(accelerated, useHttps))
 	}
-	for _, preferred := range endpoints.Preferred {
+	for _, preferred := range ep.Preferred {
 		allHosts = append(allHosts, makeUrlFromHost(preferred, useHttps))
 	}
-	for _, alternative := range endpoints.Alternative {
+	for _, alternative := range ep.Alternative {
 		allHosts = append(allHosts, makeUrlFromHost(alternative, useHttps))
 	}
 	return allHosts
 }
 
-func (endpoints Endpoints) ToHostProvider() hostprovider.HostProvider {
+func (ep Endpoints) ToHostProvider() hostprovider.HostProvider {
 	return &endpointsHostProvider{
-		iter:    endpoints.Iter(),
+		iter:    ep.Iter(),
 		freezer: freezer.New(),
 	}
 }
 
-func (endpoints Endpoints) Clone() Endpoints {
+func (ep Endpoints) Clone() Endpoints {
 	return Endpoints{
-		Preferred:   append([]string{}, endpoints.Preferred...),
-		Alternative: append([]string{}, endpoints.Alternative...),
-		Accelerated: append([]string{}, endpoints.Accelerated...),
+		Preferred:   append([]string{}, ep.Preferred...),
+		Alternative: append([]string{}, ep.Alternative...),
+		Accelerated: append([]string{}, ep.Accelerated...),
 	}
 }
 

@@ -146,12 +146,14 @@ type (
 		Method string
 
 		// 请求服务名
+		// 注：应该是考虑同一个 API 有多个服务提供
 		ServiceNames []region.ServiceName
 
 		// 服务地址提供者
 		Endpoints region.EndpointsProvider
 
 		// 区域提供者
+		// 注：如果有多个只会使用第一个
 		Region region.RegionsProvider
 
 		// 请求路径
