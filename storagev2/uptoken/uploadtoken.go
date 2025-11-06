@@ -37,6 +37,7 @@ type (
 		putPolicy           PutPolicy
 		credentialsProvider credentials.CredentialsProvider
 		onceCredentials     sync.Once
+		onceUpToken         sync.Once
 		upToken             string
 		credentials         *credentials.Credentials
 	}
@@ -86,19 +87,20 @@ func (signer *signer) onceGetCredentials(ctx context.Context) (*credentials.Cred
 
 func (signer *signer) onceGetUpToken(ctx context.Context) (string, error) {
 	var err error
-	if signer.upToken != "" {
-		return signer.upToken, nil
-	}
-	credentials, err := signer.onceGetCredentials(ctx)
-	if err != nil {
-		return "", nil
-	}
-	putPolicyJson, err := json.Marshal(signer.putPolicy)
-	if err != nil {
-		return "", nil
-	}
-	signer.upToken = credentials.SignWithData(putPolicyJson)
-	return signer.upToken, nil
+	signer.onceUpToken.Do(func() {
+		var credentials *credentials.Credentials
+		credentials, err = signer.onceGetCredentials(ctx)
+		if err != nil {
+			return
+		}
+		var putPolicyJson []byte
+		putPolicyJson, err = json.Marshal(signer.putPolicy)
+		if err != nil {
+			return
+		}
+		signer.upToken = credentials.SignWithData(putPolicyJson)
+	})
+	return signer.upToken, err
 }
 
 // NewParser 创建上传凭证签发器
