@@ -261,16 +261,25 @@ func (resolver cacheResolver) FeedbackGood(ctx context.Context, host string, ips
 		rcv := cacheValue.(*resolverCacheValue)
 		now := time.Now()
 		anyIPLiveLonger := false
-		for i := range rcv.IPs {
-			if isIPContains(ips, rcv.IPs[i].IP) {
-				rcv.IPs[i].ExpiredAt = now.Add(resolver.cacheLifetime)
+
+		// Create a copy of the cache value to avoid race conditions
+		newRcv := &resolverCacheValue{
+			IPs:          make([]resolverCacheValueIP, len(rcv.IPs)),
+			RefreshAfter: rcv.RefreshAfter,
+			ExpiredAt:    rcv.ExpiredAt,
+		}
+		copy(newRcv.IPs, rcv.IPs)
+
+		for i := range newRcv.IPs {
+			if isIPContains(ips, newRcv.IPs[i].IP) {
+				newRcv.IPs[i].ExpiredAt = now.Add(resolver.cacheLifetime)
 				anyIPLiveLonger = true
 			}
 		}
 		if anyIPLiveLonger {
-			rcv.RefreshAfter = now.Add(resolver.cacheRefreshAfter)
-			rcv.ExpiredAt = now.Add(resolver.cacheLifetime)
-			resolver.cache.Set(cacheKey, rcv)
+			newRcv.RefreshAfter = now.Add(resolver.cacheRefreshAfter)
+			newRcv.ExpiredAt = now.Add(resolver.cacheLifetime)
+			resolver.cache.Set(cacheKey, newRcv)
 		}
 	}
 }
