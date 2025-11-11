@@ -134,7 +134,7 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 		},
 		GotFirstResponseByte: func() {
 			if !wroteRequestTime.IsZero() {
-				uplog.WaitElapsedTime = getElapsedTime(wroteRequestTime)
+				atomic.StoreUint64(&uplog.WaitElapsedTime, getElapsedTime(wroteRequestTime))
 			}
 			gotFirstResponseByteTime = time.Now()
 		},
@@ -143,7 +143,7 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 		},
 		DNSDone: func(info httptrace.DNSDoneInfo) {
 			if !dnsStartTime.IsZero() {
-				uplog.DNSElapsedTime = getElapsedTime(dnsStartTime)
+				atomic.StoreUint64(&uplog.DNSElapsedTime, getElapsedTime(dnsStartTime))
 			}
 		},
 		ConnectStart: func(network string, addr string) {
@@ -151,7 +151,7 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 		},
 		ConnectDone: func(network string, addr string, err error) {
 			if !connectStartTime.IsZero() {
-				uplog.ConnectElapsedTime = getElapsedTime(connectStartTime)
+				atomic.StoreUint64(&uplog.ConnectElapsedTime, getElapsedTime(connectStartTime))
 			}
 		},
 		TLSHandshakeStart: func() {
@@ -159,7 +159,7 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 		},
 		TLSHandshakeDone: func(tls.ConnectionState, error) {
 			if !tlsHandshakeStartTime.IsZero() {
-				uplog.TLSConnectElapsedTime = getElapsedTime(tlsHandshakeStartTime)
+				atomic.StoreUint64(&uplog.TLSConnectElapsedTime, getElapsedTime(tlsHandshakeStartTime))
 			}
 		},
 		WroteHeaders: func() {
@@ -167,7 +167,7 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 		},
 		WroteRequest: func(info httptrace.WroteRequestInfo) {
 			if !wroteHeadersTime.IsZero() {
-				uplog.RequestElapsedTime = getElapsedTime(wroteHeadersTime)
+				atomic.StoreUint64(&uplog.RequestElapsedTime, getElapsedTime(wroteHeadersTime))
 			}
 			wroteRequestTime = time.Now()
 		},
@@ -177,9 +177,9 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 	uplog.UpTime = beginAt.Unix()
 	resp, err = handler(req)
 	if !gotFirstResponseByteTime.IsZero() {
-		uplog.ResponseElapsedTime = getElapsedTime(gotFirstResponseByteTime)
+		atomic.StoreUint64(&uplog.ResponseElapsedTime, getElapsedTime(gotFirstResponseByteTime))
 	}
-	uplog.TotalElapsedTime = getElapsedTime(beginAt)
+	atomic.StoreUint64(&uplog.TotalElapsedTime, getElapsedTime(beginAt))
 	if err != nil {
 		uplog.ErrorType, uplog.ErrorDescription = uplog.detect(resp, err)
 		uplog.ErrorDescription = truncate(uplog.ErrorDescription, maxFieldValueLength)
@@ -208,17 +208,35 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 			}
 		}
 	}
-	if uplog.TotalElapsedTime > 0 {
+	totalElapsedTime := atomic.LoadUint64(&uplog.TotalElapsedTime)
+	if totalElapsedTime > 0 {
 		if uplog.BytesSent > uplog.BytesReceived {
-			uplog.PerceptiveSpeed = uplog.BytesSent * 1000 / int64(uplog.TotalElapsedTime)
+			uplog.PerceptiveSpeed = uplog.BytesSent * 1000 / int64(totalElapsedTime)
 		} else {
-			uplog.PerceptiveSpeed = uplog.BytesReceived * 1000 / int64(uplog.TotalElapsedTime)
+			uplog.PerceptiveSpeed = uplog.BytesReceived * 1000 / int64(totalElapsedTime)
 		}
 	}
-	if uplogBytes, jsonError := json.Marshal(uplog); jsonError == nil {
+	if uplogBytes, jsonError := json.Marshal(uplog.atomicSnapshot()); jsonError == nil {
 		uplogChan <- uplogSerializedEntry{serializedUplog: uplogBytes, getUpToken: uplog.getUpToken}
 	}
 	return
+}
+
+// atomicSnapshot creates a thread-safe copy of the RequestUplog struct by
+// atomically reading the timing fields that may be concurrently modified
+func (uplog *RequestUplog) atomicSnapshot() RequestUplog {
+	snapshot := *uplog // Copy all fields first
+
+	// Atomically read the timing fields that are modified concurrently
+	snapshot.TotalElapsedTime = atomic.LoadUint64(&uplog.TotalElapsedTime)
+	snapshot.DNSElapsedTime = atomic.LoadUint64(&uplog.DNSElapsedTime)
+	snapshot.ConnectElapsedTime = atomic.LoadUint64(&uplog.ConnectElapsedTime)
+	snapshot.TLSConnectElapsedTime = atomic.LoadUint64(&uplog.TLSConnectElapsedTime)
+	snapshot.RequestElapsedTime = atomic.LoadUint64(&uplog.RequestElapsedTime)
+	snapshot.WaitElapsedTime = atomic.LoadUint64(&uplog.WaitElapsedTime)
+	snapshot.ResponseElapsedTime = atomic.LoadUint64(&uplog.ResponseElapsedTime)
+
+	return snapshot
 }
 
 func (uplog *RequestUplog) detect(response *http.Response, err error) (errorType ErrorType, errorDescription string) {
