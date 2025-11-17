@@ -133,14 +133,15 @@ func (t *callbackTracker) update(updateFunc func(*RequestUplog)) {
 // This method is called either by the timer or explicitly
 // Once submitted, all subsequent updates are ignored
 func (t *callbackTracker) submit() {
-	t.onceSubmit.Do(func() {
-		// Ensure timer is cleared after submission to help GC
-		defer func() {
-			t.mu.Lock()
-			t.timer = nil
-			t.mu.Unlock()
-		}()
+	// Ensure timer is cleared after submission to help GC
+	// This defer is outside onceSubmit.Do so it runs every time submit() is called
+	defer func() {
+		t.mu.Lock()
+		t.timer = nil
+		t.mu.Unlock()
+	}()
 
+	t.onceSubmit.Do(func() {
 		t.mu.Lock()
 		t.submitted = true
 
