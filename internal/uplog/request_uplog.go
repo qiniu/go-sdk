@@ -166,9 +166,9 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 		return handler(req)
 	}
 
-	// Create callback tracker with 50ms delay for uplog submission
+	// Create callback tracker with 2s delay for uplog submission
 	// This allows capturing timing data from async callbacks
-	tracker := newCallbackTracker(uplog, uplog.getUpToken, 50*time.Millisecond)
+	tracker := newCallbackTracker(uplog, uplog.getUpToken, 2*time.Second)
 
 	var dnsStartTime, gotFirstResponseByteTime, connectStartTime, tlsHandshakeStartTime, wroteHeadersTime, wroteRequestTime time.Time
 
@@ -314,6 +314,9 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 	// Trigger uplog submission
 	// The timer will fire after delay unless more updates arrive
 	tracker.submit()
+
+	// Stop the timer to prevent unnecessary goroutine execution and memory leak
+	tracker.cancelTimer()
 
 	return
 }
