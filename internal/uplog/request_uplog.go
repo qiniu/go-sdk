@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -60,11 +61,16 @@ type (
 		getUpToken            GetUpToken `json:"-"`
 	}
 
-	// callbackTracker tracks async httptrace callbacks to ensure data completeness
+	// callbackTracker manages uplog data updates from concurrent httptrace callbacks
+	// and implements delayed uplog submission with timer reset mechanism
 	callbackTracker struct {
-		expectedCallbacks  int32
-		completedCallbacks int32
-		doneChan           chan struct{}
+		uplog       *RequestUplog
+		mu          sync.RWMutex
+		timer       *time.Timer
+		submitted   bool
+		submitDelay time.Duration
+		onceSubmit  sync.Once
+		getUpToken  GetUpToken
 	}
 )
 
@@ -91,15 +97,81 @@ func (uplog *RequestUplog) Priority() clientv2.InterceptorPriority {
 	return clientv2.InterceptorPriorityUplog
 }
 
+// newCallbackTracker creates a new tracker for managing uplog updates
+func newCallbackTracker(uplog *RequestUplog, getUpToken GetUpToken, submitDelay time.Duration) *callbackTracker {
+	return &callbackTracker{
+		uplog:       uplog,
+		getUpToken:  getUpToken,
+		submitDelay: submitDelay,
+	}
+}
+
+// update safely updates uplog data with read-write lock protection
+// and resets the submission timer if submission hasn't occurred yet
+func (t *callbackTracker) update(updateFunc func(*RequestUplog)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	// Ignore updates after submission
+	if t.submitted {
+		return
+	}
+
+	// Apply the update
+	updateFunc(t.uplog)
+
+	// Reset the timer
+	if t.timer != nil {
+		t.timer.Stop()
+	}
+	t.timer = time.AfterFunc(t.submitDelay, func() {
+		t.submit()
+	})
+}
+
+// submit triggers the final uplog submission
+// This method is called either by the timer or explicitly
+// Once submitted, all subsequent updates are ignored
+func (t *callbackTracker) submit() {
+	t.onceSubmit.Do(func() {
+		t.mu.Lock()
+		t.submitted = true
+
+		// Create a snapshot of the uplog data
+		snapshot := *t.uplog
+		t.mu.Unlock()
+
+		// Serialize and send asynchronously
+		go func() {
+			if uplogBytes, jsonError := json.Marshal(&snapshot); jsonError == nil {
+				uplogChan <- uplogSerializedEntry{
+					serializedUplog: uplogBytes,
+					getUpToken:      t.getUpToken,
+				}
+			}
+		}()
+	})
+}
+
+// cancelTimer stops the submission timer if it exists
+func (t *callbackTracker) cancelTimer() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.timer != nil {
+		t.timer.Stop()
+	}
+}
+
 func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler) (resp *http.Response, err error) {
 	if !IsUplogEnabled() {
 		return handler(req)
 	}
 
-	// Create callback tracker to ensure data completeness
-	tracker := &callbackTracker{
-		doneChan: make(chan struct{}),
-	}
+	// Create callback tracker with 50ms delay for uplog submission
+	// This allows capturing timing data from async callbacks
+	tracker := newCallbackTracker(uplog, uplog.getUpToken, 50*time.Millisecond)
+	defer tracker.cancelTimer()
 
 	var dnsStartTime, gotFirstResponseByteTime, connectStartTime, tlsHandshakeStartTime, wroteHeadersTime, wroteRequestTime time.Time
 
@@ -146,46 +218,50 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 		},
 		GotFirstResponseByte: func() {
 			if !wroteRequestTime.IsZero() {
-				atomic.StoreUint64(&uplog.WaitElapsedTime, getElapsedTime(wroteRequestTime))
+				tracker.update(func(l *RequestUplog) {
+					l.WaitElapsedTime = getElapsedTime(wroteRequestTime)
+				})
 			}
 			gotFirstResponseByteTime = time.Now()
 		},
 		DNSStart: func(httptrace.DNSStartInfo) {
-			atomic.AddInt32(&tracker.expectedCallbacks, 1)
 			dnsStartTime = time.Now()
 		},
 		DNSDone: func(info httptrace.DNSDoneInfo) {
 			if !dnsStartTime.IsZero() {
-				atomic.StoreUint64(&uplog.DNSElapsedTime, getElapsedTime(dnsStartTime))
+				tracker.update(func(l *RequestUplog) {
+					l.DNSElapsedTime = getElapsedTime(dnsStartTime)
+				})
 			}
-			tracker.markDone()
 		},
 		ConnectStart: func(network string, addr string) {
-			atomic.AddInt32(&tracker.expectedCallbacks, 1)
 			connectStartTime = time.Now()
 		},
 		ConnectDone: func(network string, addr string, err error) {
 			if !connectStartTime.IsZero() {
-				atomic.StoreUint64(&uplog.ConnectElapsedTime, getElapsedTime(connectStartTime))
+				tracker.update(func(l *RequestUplog) {
+					l.ConnectElapsedTime = getElapsedTime(connectStartTime)
+				})
 			}
-			tracker.markDone()
 		},
 		TLSHandshakeStart: func() {
-			atomic.AddInt32(&tracker.expectedCallbacks, 1)
 			tlsHandshakeStartTime = time.Now()
 		},
 		TLSHandshakeDone: func(tls.ConnectionState, error) {
 			if !tlsHandshakeStartTime.IsZero() {
-				atomic.StoreUint64(&uplog.TLSConnectElapsedTime, getElapsedTime(tlsHandshakeStartTime))
+				tracker.update(func(l *RequestUplog) {
+					l.TLSConnectElapsedTime = getElapsedTime(tlsHandshakeStartTime)
+				})
 			}
-			tracker.markDone()
 		},
 		WroteHeaders: func() {
 			wroteHeadersTime = time.Now()
 		},
 		WroteRequest: func(info httptrace.WroteRequestInfo) {
 			if !wroteHeadersTime.IsZero() {
-				atomic.StoreUint64(&uplog.RequestElapsedTime, getElapsedTime(wroteHeadersTime))
+				tracker.update(func(l *RequestUplog) {
+					l.RequestElapsedTime = getElapsedTime(wroteHeadersTime)
+				})
 			}
 			wroteRequestTime = time.Now()
 		},
@@ -194,14 +270,14 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 	beginAt := time.Now()
 	uplog.UpTime = beginAt.Unix()
 	resp, err = handler(req)
-
-	// Wait for async callbacks to complete (with timeout)
-	tracker.waitForCallbacks(500 * time.Millisecond)
-
 	if !gotFirstResponseByteTime.IsZero() {
-		atomic.StoreUint64(&uplog.ResponseElapsedTime, getElapsedTime(gotFirstResponseByteTime))
+		tracker.update(func(l *RequestUplog) {
+			l.ResponseElapsedTime = getElapsedTime(gotFirstResponseByteTime)
+		})
 	}
-	atomic.StoreUint64(&uplog.TotalElapsedTime, getElapsedTime(beginAt))
+	tracker.update(func(l *RequestUplog) {
+		l.TotalElapsedTime = getElapsedTime(beginAt)
+	})
 	if err != nil {
 		uplog.ErrorType, uplog.ErrorDescription = uplog.detect(resp, err)
 		uplog.ErrorDescription = truncate(uplog.ErrorDescription, maxFieldValueLength)
@@ -230,40 +306,19 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 			}
 		}
 	}
-	totalElapsedTime := atomic.LoadUint64(&uplog.TotalElapsedTime)
-	if totalElapsedTime > 0 {
+	if uplog.TotalElapsedTime > 0 {
 		if uplog.BytesSent > uplog.BytesReceived {
-			uplog.PerceptiveSpeed = uplog.BytesSent * 1000 / int64(totalElapsedTime)
+			uplog.PerceptiveSpeed = uplog.BytesSent * 1000 / int64(uplog.TotalElapsedTime)
 		} else {
-			uplog.PerceptiveSpeed = uplog.BytesReceived * 1000 / int64(totalElapsedTime)
+			uplog.PerceptiveSpeed = uplog.BytesReceived * 1000 / int64(uplog.TotalElapsedTime)
 		}
 	}
 
-	// Async uplog serialization and sending (optimization requested by YangSen-qn)
-	go func() {
-		if uplogBytes, jsonError := json.Marshal(uplog.atomicSnapshot()); jsonError == nil {
-			uplogChan <- uplogSerializedEntry{serializedUplog: uplogBytes, getUpToken: uplog.getUpToken}
-		}
-	}()
+	// Trigger uplog submission
+	// The timer will fire after delay unless more updates arrive
+	tracker.submit()
 
 	return
-}
-
-// atomicSnapshot creates a thread-safe copy of the RequestUplog struct by
-// atomically reading the timing fields that may be concurrently modified
-func (uplog *RequestUplog) atomicSnapshot() RequestUplog {
-	snapshot := *uplog // Copy all fields first
-
-	// Atomically read the timing fields that are modified concurrently
-	snapshot.TotalElapsedTime = atomic.LoadUint64(&uplog.TotalElapsedTime)
-	snapshot.DNSElapsedTime = atomic.LoadUint64(&uplog.DNSElapsedTime)
-	snapshot.ConnectElapsedTime = atomic.LoadUint64(&uplog.ConnectElapsedTime)
-	snapshot.TLSConnectElapsedTime = atomic.LoadUint64(&uplog.TLSConnectElapsedTime)
-	snapshot.RequestElapsedTime = atomic.LoadUint64(&uplog.RequestElapsedTime)
-	snapshot.WaitElapsedTime = atomic.LoadUint64(&uplog.WaitElapsedTime)
-	snapshot.ResponseElapsedTime = atomic.LoadUint64(&uplog.ResponseElapsedTime)
-
-	return snapshot
 }
 
 func (uplog *RequestUplog) detect(response *http.Response, err error) (errorType ErrorType, errorDescription string) {
@@ -306,36 +361,5 @@ func getElapsedTime(startTime time.Time) uint64 {
 func addCounter(c *uint64, n uint64) {
 	if c != nil {
 		atomic.AddUint64(c, n)
-	}
-}
-
-// markDone marks a callback as completed and signals if all expected callbacks are done
-func (t *callbackTracker) markDone() {
-	if atomic.AddInt32(&t.completedCallbacks, 1) == atomic.LoadInt32(&t.expectedCallbacks) {
-		select {
-		case t.doneChan <- struct{}{}:
-		default:
-			// Channel already signaled, do nothing
-		}
-	}
-}
-
-// waitForCallbacks waits for all async callbacks to complete or timeout
-func (t *callbackTracker) waitForCallbacks(timeout time.Duration) {
-	// If no callbacks are expected, return immediately
-	if atomic.LoadInt32(&t.expectedCallbacks) == 0 {
-		return
-	}
-
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-
-	select {
-	case <-t.doneChan:
-		// All async callbacks completed
-		return
-	case <-timer.C:
-		// Timeout reached, continue with current data
-		return
 	}
 }
