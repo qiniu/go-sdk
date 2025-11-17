@@ -134,6 +134,13 @@ func (t *callbackTracker) update(updateFunc func(*RequestUplog)) {
 // Once submitted, all subsequent updates are ignored
 func (t *callbackTracker) submit() {
 	t.onceSubmit.Do(func() {
+		// Ensure timer is cleared after submission to help GC
+		defer func() {
+			t.mu.Lock()
+			t.timer = nil
+			t.mu.Unlock()
+		}()
+
 		t.mu.Lock()
 		t.submitted = true
 
