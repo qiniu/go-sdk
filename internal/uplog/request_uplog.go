@@ -151,16 +151,6 @@ func (t *callbackTracker) submit() {
 	})
 }
 
-// cancelTimer stops the submission timer if it exists
-func (t *callbackTracker) cancelTimer() {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	if t.timer != nil {
-		t.timer.Stop()
-	}
-}
-
 func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler) (resp *http.Response, err error) {
 	if !IsUplogEnabled() {
 		return handler(req)
@@ -313,10 +303,10 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 
 	// Trigger uplog submission
 	// The timer will fire after delay unless more updates arrive
+	// Note: We allow the last timer to keep running to capture any late async callbacks
+	// Once submit() is called, no new timers will be created (checked in update()),
+	// allowing the tracker to be garbage collected after the timer fires.
 	tracker.submit()
-
-	// Stop the timer to prevent unnecessary goroutine execution and memory leak
-	tracker.cancelTimer()
 
 	return
 }
