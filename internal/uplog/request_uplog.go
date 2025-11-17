@@ -141,15 +141,13 @@ func (t *callbackTracker) submit() {
 		snapshot := *t.uplog
 		t.mu.Unlock()
 
-		// Serialize and send asynchronously
-		go func() {
-			if uplogBytes, jsonError := json.Marshal(&snapshot); jsonError == nil {
-				uplogChan <- uplogSerializedEntry{
-					serializedUplog: uplogBytes,
-					getUpToken:      t.getUpToken,
-				}
+		// Serialize and send to uplog channel
+		if uplogBytes, jsonError := json.Marshal(&snapshot); jsonError == nil {
+			uplogChan <- uplogSerializedEntry{
+				serializedUplog: uplogBytes,
+				getUpToken:      t.getUpToken,
 			}
-		}()
+		}
 	})
 }
 
@@ -171,7 +169,6 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 	// Create callback tracker with 50ms delay for uplog submission
 	// This allows capturing timing data from async callbacks
 	tracker := newCallbackTracker(uplog, uplog.getUpToken, 50*time.Millisecond)
-	defer tracker.cancelTimer()
 
 	var dnsStartTime, gotFirstResponseByteTime, connectStartTime, tlsHandshakeStartTime, wroteHeadersTime, wroteRequestTime time.Time
 
