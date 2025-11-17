@@ -59,6 +59,13 @@ type (
 		PerceptiveSpeed       int64      `json:"perceptive_speed,omitempty"`
 		getUpToken            GetUpToken `json:"-"`
 	}
+
+	// callbackTracker tracks async httptrace callbacks to ensure data completeness
+	callbackTracker struct {
+		expectedCallbacks  int32
+		completedCallbacks int32
+		doneChan           chan struct{}
+	}
 )
 
 func NewRequestUplog(apiName, targetBucket, targetKey string, getUpToken GetUpToken) (*RequestUplog, error) {
@@ -87,6 +94,11 @@ func (uplog *RequestUplog) Priority() clientv2.InterceptorPriority {
 func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler) (resp *http.Response, err error) {
 	if !IsUplogEnabled() {
 		return handler(req)
+	}
+
+	// Create callback tracker to ensure data completeness
+	tracker := &callbackTracker{
+		doneChan: make(chan struct{}),
 	}
 
 	var dnsStartTime, gotFirstResponseByteTime, connectStartTime, tlsHandshakeStartTime, wroteHeadersTime, wroteRequestTime time.Time
@@ -139,28 +151,34 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 			gotFirstResponseByteTime = time.Now()
 		},
 		DNSStart: func(httptrace.DNSStartInfo) {
+			atomic.AddInt32(&tracker.expectedCallbacks, 1)
 			dnsStartTime = time.Now()
 		},
 		DNSDone: func(info httptrace.DNSDoneInfo) {
 			if !dnsStartTime.IsZero() {
 				atomic.StoreUint64(&uplog.DNSElapsedTime, getElapsedTime(dnsStartTime))
 			}
+			tracker.markDone()
 		},
 		ConnectStart: func(network string, addr string) {
+			atomic.AddInt32(&tracker.expectedCallbacks, 1)
 			connectStartTime = time.Now()
 		},
 		ConnectDone: func(network string, addr string, err error) {
 			if !connectStartTime.IsZero() {
 				atomic.StoreUint64(&uplog.ConnectElapsedTime, getElapsedTime(connectStartTime))
 			}
+			tracker.markDone()
 		},
 		TLSHandshakeStart: func() {
+			atomic.AddInt32(&tracker.expectedCallbacks, 1)
 			tlsHandshakeStartTime = time.Now()
 		},
 		TLSHandshakeDone: func(tls.ConnectionState, error) {
 			if !tlsHandshakeStartTime.IsZero() {
 				atomic.StoreUint64(&uplog.TLSConnectElapsedTime, getElapsedTime(tlsHandshakeStartTime))
 			}
+			tracker.markDone()
 		},
 		WroteHeaders: func() {
 			wroteHeadersTime = time.Now()
@@ -176,6 +194,10 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 	beginAt := time.Now()
 	uplog.UpTime = beginAt.Unix()
 	resp, err = handler(req)
+
+	// Wait for async callbacks to complete (with timeout)
+	tracker.waitForCallbacks(500 * time.Millisecond)
+
 	if !gotFirstResponseByteTime.IsZero() {
 		atomic.StoreUint64(&uplog.ResponseElapsedTime, getElapsedTime(gotFirstResponseByteTime))
 	}
@@ -216,9 +238,14 @@ func (uplog *RequestUplog) Intercept(req *http.Request, handler clientv2.Handler
 			uplog.PerceptiveSpeed = uplog.BytesReceived * 1000 / int64(totalElapsedTime)
 		}
 	}
-	if uplogBytes, jsonError := json.Marshal(uplog.atomicSnapshot()); jsonError == nil {
-		uplogChan <- uplogSerializedEntry{serializedUplog: uplogBytes, getUpToken: uplog.getUpToken}
-	}
+
+	// Async uplog serialization and sending (optimization requested by YangSen-qn)
+	go func() {
+		if uplogBytes, jsonError := json.Marshal(uplog.atomicSnapshot()); jsonError == nil {
+			uplogChan <- uplogSerializedEntry{serializedUplog: uplogBytes, getUpToken: uplog.getUpToken}
+		}
+	}()
+
 	return
 }
 
@@ -279,5 +306,36 @@ func getElapsedTime(startTime time.Time) uint64 {
 func addCounter(c *uint64, n uint64) {
 	if c != nil {
 		atomic.AddUint64(c, n)
+	}
+}
+
+// markDone marks a callback as completed and signals if all expected callbacks are done
+func (t *callbackTracker) markDone() {
+	if atomic.AddInt32(&t.completedCallbacks, 1) == atomic.LoadInt32(&t.expectedCallbacks) {
+		select {
+		case t.doneChan <- struct{}{}:
+		default:
+			// Channel already signaled, do nothing
+		}
+	}
+}
+
+// waitForCallbacks waits for all async callbacks to complete or timeout
+func (t *callbackTracker) waitForCallbacks(timeout time.Duration) {
+	// If no callbacks are expected, return immediately
+	if atomic.LoadInt32(&t.expectedCallbacks) == 0 {
+		return
+	}
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case <-t.doneChan:
+		// All async callbacks completed
+		return
+	case <-timer.C:
+		// Timeout reached, continue with current data
+		return
 	}
 }
