@@ -1,4 +1,9 @@
 # Changelog
+## 7.25.5
+
+* 修复
+  * storage Region 添加 Bucket 域名
+  
 ## 7.25.4
 
 * 修复
