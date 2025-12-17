@@ -236,6 +236,7 @@ func (m *OperationManager) Prefop(persistentID string) (PrefopRet, error) {
 			Error: item.Error,
 			Hash:  item.Hash,
 			Key:   item.ObjectName,
+			Keys:  item.Keys,
 		})
 	}
 	return ret, nil
