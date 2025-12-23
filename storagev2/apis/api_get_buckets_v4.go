@@ -4,6 +4,12 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	getbucketsv4 "github.com/qiniu/go-sdk/v7/storagev2/apis/get_buckets_v4"
@@ -11,11 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerGetBucketsV4Request getbucketsv4.Request
@@ -34,8 +35,10 @@ func (query *innerGetBucketsV4Request) buildQuery() (url.Values, error) {
 	return allQuery, nil
 }
 
-type GetBucketsV4Request = getbucketsv4.Request
-type GetBucketsV4Response = getbucketsv4.Response
+type (
+	GetBucketsV4Request  = getbucketsv4.Request
+	GetBucketsV4Response = getbucketsv4.Response
+)
 
 // 获取拥有的所有存储空间列表
 func (storage *Storage) GetBucketsV4(ctx context.Context, request *GetBucketsV4Request, options *Options) (*GetBucketsV4Response, error) {

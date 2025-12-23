@@ -9,7 +9,8 @@ import (
 
 // CreateTimestampAntileechURL 用来构建七牛CDN时间戳防盗链的访问链接
 func CreateTimestampAntileechURL(urlStr string, encryptKey string,
-	durationInSeconds int64) (antileechURL string, err error) {
+	durationInSeconds int64,
+) (antileechURL string, err error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return

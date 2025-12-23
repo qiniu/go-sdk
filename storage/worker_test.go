@@ -87,5 +87,4 @@ func TestWorkerUpload(t *testing.T) {
 	}
 
 	wg.Wait()
-
 }

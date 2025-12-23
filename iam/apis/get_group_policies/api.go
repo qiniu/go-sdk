@@ -5,6 +5,7 @@ package get_group_policies
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -46,6 +47,7 @@ func (j *Statement) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonStatement{Actions: j.Actions, Resources: j.Resources, Effect: j.Effect})
 }
+
 func (j *Statement) UnmarshalJSON(data []byte) error {
 	var nj jsonStatement
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -56,6 +58,7 @@ func (j *Statement) UnmarshalJSON(data []byte) error {
 	j.Effect = nj.Effect
 	return nil
 }
+
 func (j *Statement) validate() error {
 	if len(j.Actions) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Actions"}
@@ -100,6 +103,7 @@ func (j *GroupPolicy) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonGroupPolicy{Id: j.Id, RootUid: j.RootUid, Alias: j.Alias, Description: j.Description, Enabled: j.Enabled, CreatedAt: j.CreatedAt, UpdatedAt: j.UpdatedAt, Statement: j.Statement})
 }
+
 func (j *GroupPolicy) UnmarshalJSON(data []byte) error {
 	var nj jsonGroupPolicy
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -115,6 +119,7 @@ func (j *GroupPolicy) UnmarshalJSON(data []byte) error {
 	j.Statement = nj.Statement
 	return nil
 }
+
 func (j *GroupPolicy) validate() error {
 	if j.Id == "" {
 		return errors.MissingRequiredFieldError{Name: "Id"}
@@ -155,11 +160,13 @@ type Data struct {
 }
 
 // 返回的用户分组下的授权策略列表信息
-type GetGroupPoliciesData = Data
-type jsonData struct {
-	Count int64            `json:"count"` // 用户分组下的授权策略数量
-	List  GetGroupPolicies `json:"list"`  // 用户分组下的授权策略列表
-}
+type (
+	GetGroupPoliciesData = Data
+	jsonData             struct {
+		Count int64            `json:"count"` // 用户分组下的授权策略数量
+		List  GetGroupPolicies `json:"list"`  // 用户分组下的授权策略列表
+	}
+)
 
 func (j *Data) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -167,6 +174,7 @@ func (j *Data) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonData{Count: j.Count, List: j.List})
 }
+
 func (j *Data) UnmarshalJSON(data []byte) error {
 	var nj jsonData
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -176,6 +184,7 @@ func (j *Data) UnmarshalJSON(data []byte) error {
 	j.List = nj.List
 	return nil
 }
+
 func (j *Data) validate() error {
 	if j.Count == 0 {
 		return errors.MissingRequiredFieldError{Name: "Count"}
@@ -192,10 +201,12 @@ func (j *Data) validate() error {
 }
 
 // 返回的用户分组下的授权策略列表响应
-type GetGroupPoliciesResp = Response
-type jsonResponse struct {
-	Data GetGroupPoliciesData `json:"data"` // 用户分组下的授权策略信息
-}
+type (
+	GetGroupPoliciesResp = Response
+	jsonResponse         struct {
+		Data GetGroupPoliciesData `json:"data"` // 用户分组下的授权策略信息
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -203,6 +214,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Data: j.Data})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -211,6 +223,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Data = nj.Data
 	return nil
 }
+
 func (j *Response) validate() error {
 	if err := j.Data.validate(); err != nil {
 		return err

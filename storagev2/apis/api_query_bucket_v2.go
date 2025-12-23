@@ -4,14 +4,15 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strings"
+
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	querybucketv2 "github.com/qiniu/go-sdk/v7/storagev2/apis/query_bucket_v2"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"net/http"
-	"net/url"
-	"strings"
 )
 
 type innerQueryBucketV2Request querybucketv2.Request
@@ -19,6 +20,7 @@ type innerQueryBucketV2Request querybucketv2.Request
 func (query *innerQueryBucketV2Request) getBucketName(ctx context.Context) (string, error) {
 	return query.Bucket, nil
 }
+
 func (query *innerQueryBucketV2Request) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.Bucket != "" {
@@ -34,8 +36,10 @@ func (query *innerQueryBucketV2Request) buildQuery() (url.Values, error) {
 	return allQuery, nil
 }
 
-type QueryBucketV2Request = querybucketv2.Request
-type QueryBucketV2Response = querybucketv2.Response
+type (
+	QueryBucketV2Request  = querybucketv2.Request
+	QueryBucketV2Response = querybucketv2.Response
+)
 
 // 查询存储空间服务域名
 func (storage *Storage) QueryBucketV2(ctx context.Context, request *QueryBucketV2Request, options *Options) (*QueryBucketV2Response, error) {

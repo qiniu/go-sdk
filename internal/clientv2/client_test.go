@@ -28,7 +28,6 @@ func (t testClient) Do(req *http.Request) (*http.Response, error) {
 }
 
 func TestInterceptor(t *testing.T) {
-
 	// 不配置拦截器
 	c := NewClient(&testClient{})
 	resp, _ := c.Do(&http.Request{

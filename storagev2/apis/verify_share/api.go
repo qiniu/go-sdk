@@ -5,6 +5,7 @@ package verify_share
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -16,10 +17,12 @@ type Request struct {
 	Credentials credentials.CredentialsProvider // 鉴权参数，用于生成鉴权凭证，如果为空，则使用 HTTPClientOptions 中的 CredentialsProvider
 	ExtractCode string                          // 提取码
 }
-type VerifyShareParam = Request
-type jsonRequest struct {
-	ExtractCode string `json:"extract_code"` // 提取码
-}
+type (
+	VerifyShareParam = Request
+	jsonRequest      struct {
+		ExtractCode string `json:"extract_code"` // 提取码
+	}
+)
 
 func (j *Request) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -27,6 +30,7 @@ func (j *Request) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonRequest{ExtractCode: j.ExtractCode})
 }
+
 func (j *Request) UnmarshalJSON(data []byte) error {
 	var nj jsonRequest
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -35,6 +39,7 @@ func (j *Request) UnmarshalJSON(data []byte) error {
 	j.ExtractCode = nj.ExtractCode
 	return nil
 }
+
 func (j *Request) validate() error {
 	if j.ExtractCode == "" {
 		return errors.MissingRequiredFieldError{Name: "ExtractCode"}
@@ -57,19 +62,21 @@ type Response struct {
 }
 
 // 返回的经过校验的分享信息
-type VerifiedShareInfo = Response
-type jsonResponse struct {
-	Endpoint     string `json:"endpoint"`      // 空间所用的 S3 域名
-	Region       string `json:"region"`        // 空间所在的 S3 区域 ID
-	BucketName   string `json:"bucket_name"`   // 空间名称
-	BucketId     string `json:"bucket_id"`     // 空间 ID
-	Prefix       string `json:"prefix"`        // 被分享的目录路径
-	Permission   string `json:"permission"`    // 权限，目前仅支持 READONLY，未来会支持 READWRITE
-	Expires      string `json:"expires"`       // 分享过期时间，遵循 ISO8601 风格，使用 UTC 0 时区时间
-	FederatedAk  string `json:"federated_ak"`  // S3 STS Access Key
-	FederatedSk  string `json:"federated_sk"`  // S3 STS Secret Key
-	SessionToken string `json:"session_token"` // S3 STS Session Token
-}
+type (
+	VerifiedShareInfo = Response
+	jsonResponse      struct {
+		Endpoint     string `json:"endpoint"`      // 空间所用的 S3 域名
+		Region       string `json:"region"`        // 空间所在的 S3 区域 ID
+		BucketName   string `json:"bucket_name"`   // 空间名称
+		BucketId     string `json:"bucket_id"`     // 空间 ID
+		Prefix       string `json:"prefix"`        // 被分享的目录路径
+		Permission   string `json:"permission"`    // 权限，目前仅支持 READONLY，未来会支持 READWRITE
+		Expires      string `json:"expires"`       // 分享过期时间，遵循 ISO8601 风格，使用 UTC 0 时区时间
+		FederatedAk  string `json:"federated_ak"`  // S3 STS Access Key
+		FederatedSk  string `json:"federated_sk"`  // S3 STS Secret Key
+		SessionToken string `json:"session_token"` // S3 STS Session Token
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -77,6 +84,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Endpoint: j.Endpoint, Region: j.Region, BucketName: j.BucketName, BucketId: j.BucketId, Prefix: j.Prefix, Permission: j.Permission, Expires: j.Expires, FederatedAk: j.FederatedAk, FederatedSk: j.FederatedSk, SessionToken: j.SessionToken})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -94,6 +102,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.SessionToken = nj.SessionToken
 	return nil
 }
+
 func (j *Response) validate() error {
 	if j.Endpoint == "" {
 		return errors.MissingRequiredFieldError{Name: "Endpoint"}

@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	setbucketremark "github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_remark"
@@ -12,9 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type innerSetBucketRemarkRequest setbucketremark.Request
@@ -22,6 +23,7 @@ type innerSetBucketRemarkRequest setbucketremark.Request
 func (pp *innerSetBucketRemarkRequest) getBucketName(ctx context.Context) (string, error) {
 	return pp.Bucket, nil
 }
+
 func (path *innerSetBucketRemarkRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 1)
 	if path.Bucket != "" {
@@ -31,15 +33,19 @@ func (path *innerSetBucketRemarkRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (j *innerSetBucketRemarkRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*setbucketremark.Request)(j))
 }
+
 func (j *innerSetBucketRemarkRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*setbucketremark.Request)(j))
 }
 
-type SetBucketRemarkRequest = setbucketremark.Request
-type SetBucketRemarkResponse = setbucketremark.Response
+type (
+	SetBucketRemarkRequest  = setbucketremark.Request
+	SetBucketRemarkResponse = setbucketremark.Response
+)
 
 // 设置空间备注
 func (storage *Storage) SetBucketRemark(ctx context.Context, request *SetBucketRemarkRequest, options *Options) (*SetBucketRemarkResponse, error) {

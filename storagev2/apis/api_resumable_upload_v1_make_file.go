@@ -5,15 +5,16 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strconv"
+	"strings"
+
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	resumableuploadv1makefile "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v1_make_file"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	utils "github.com/qiniu/go-sdk/v7/storagev2/internal/utils"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type innerResumableUploadV1MakeFileRequest resumableuploadv1makefile.Request
@@ -28,6 +29,7 @@ func (request *innerResumableUploadV1MakeFileRequest) getBucketName(ctx context.
 	}
 	return "", nil
 }
+
 func (path *innerResumableUploadV1MakeFileRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 7)
 	allSegments = append(allSegments, strconv.FormatInt(path.Size, 10))
@@ -46,6 +48,7 @@ func (path *innerResumableUploadV1MakeFileRequest) buildPath() ([]string, error)
 	}
 	return allSegments, nil
 }
+
 func (request *innerResumableUploadV1MakeFileRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
 		return request.UpToken.GetAccessKey(ctx)
@@ -53,8 +56,10 @@ func (request *innerResumableUploadV1MakeFileRequest) getAccessKey(ctx context.C
 	return "", nil
 }
 
-type ResumableUploadV1MakeFileRequest = resumableuploadv1makefile.Request
-type ResumableUploadV1MakeFileResponse = resumableuploadv1makefile.Response
+type (
+	ResumableUploadV1MakeFileRequest  = resumableuploadv1makefile.Request
+	ResumableUploadV1MakeFileResponse = resumableuploadv1makefile.Response
+)
 
 // 将上传好的所有数据块按指定顺序合并成一个资源文件
 func (storage *Storage) ResumableUploadV1MakeFile(ctx context.Context, request *ResumableUploadV1MakeFileRequest, options *Options) (*ResumableUploadV1MakeFileResponse, error) {

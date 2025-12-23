@@ -5,6 +5,11 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	copyobject "github.com/qiniu/go-sdk/v7/storagev2/apis/copy_object"
@@ -12,10 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerCopyObjectRequest copyobject.Request
@@ -23,6 +24,7 @@ type innerCopyObjectRequest copyobject.Request
 func (pp *innerCopyObjectRequest) getBucketName(ctx context.Context) (string, error) {
 	return strings.SplitN(pp.SrcEntry, ":", 2)[0], nil
 }
+
 func (pp *innerCopyObjectRequest) getObjectName() string {
 	parts := strings.SplitN(pp.SrcEntry, ":", 2)
 	if len(parts) > 1 {
@@ -30,6 +32,7 @@ func (pp *innerCopyObjectRequest) getObjectName() string {
 	}
 	return ""
 }
+
 func (path *innerCopyObjectRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 4)
 	if path.SrcEntry != "" {
@@ -47,6 +50,7 @@ func (path *innerCopyObjectRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (request *innerCopyObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -58,8 +62,10 @@ func (request *innerCopyObjectRequest) getAccessKey(ctx context.Context) (string
 	return "", nil
 }
 
-type CopyObjectRequest = copyobject.Request
-type CopyObjectResponse = copyobject.Response
+type (
+	CopyObjectRequest  = copyobject.Request
+	CopyObjectResponse = copyobject.Response
+)
 
 // 将源空间的指定对象复制到目标空间
 func (storage *Storage) CopyObject(ctx context.Context, request *CopyObjectRequest, options *Options) (*CopyObjectResponse, error) {

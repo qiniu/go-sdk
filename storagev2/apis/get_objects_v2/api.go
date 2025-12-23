@@ -4,8 +4,9 @@
 package get_objects_v2
 
 import (
-	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	"io"
+
+	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 )
 
 // 调用 API 所用的请求

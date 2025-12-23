@@ -5,6 +5,7 @@ package query_log
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -37,13 +38,15 @@ type UserIdentity struct {
 }
 
 // 返回的请求者的身份信息
-type UserIdentify = UserIdentity
-type jsonUserIdentity struct {
-	AccountId     string `json:"account_id"`     // 当前请求所属的七牛云账号 ID
-	PrincipalId   string `json:"principal_id"`   // 当前请求者的 ID，需结合 principal_type 来确认请求者身份
-	PrincipalType string `json:"principal_type"` // 请求者身份类型，仅支持 UNKNOWN 表示未知，ROOT_USER 表示七牛云账户 ID，IAM_USER 表示 IAM 子账户 ID，QINIU_ACCOUNT 表示当七牛云账号跨账号操作时，记录七牛云账号 ID
-	AccessKeyId   string `json:"access_key_id"`  // 当前请求身份所属的 AccessKey ID
-}
+type (
+	UserIdentify     = UserIdentity
+	jsonUserIdentity struct {
+		AccountId     string `json:"account_id"`     // 当前请求所属的七牛云账号 ID
+		PrincipalId   string `json:"principal_id"`   // 当前请求者的 ID，需结合 principal_type 来确认请求者身份
+		PrincipalType string `json:"principal_type"` // 请求者身份类型，仅支持 UNKNOWN 表示未知，ROOT_USER 表示七牛云账户 ID，IAM_USER 表示 IAM 子账户 ID，QINIU_ACCOUNT 表示当七牛云账号跨账号操作时，记录七牛云账号 ID
+		AccessKeyId   string `json:"access_key_id"`  // 当前请求身份所属的 AccessKey ID
+	}
+)
 
 func (j *UserIdentity) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -51,6 +54,7 @@ func (j *UserIdentity) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonUserIdentity{AccountId: j.AccountId, PrincipalId: j.PrincipalId, PrincipalType: j.PrincipalType, AccessKeyId: j.AccessKeyId})
 }
+
 func (j *UserIdentity) UnmarshalJSON(data []byte) error {
 	var nj jsonUserIdentity
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -62,6 +66,7 @@ func (j *UserIdentity) UnmarshalJSON(data []byte) error {
 	j.AccessKeyId = nj.AccessKeyId
 	return nil
 }
+
 func (j *UserIdentity) validate() error {
 	if j.AccountId == "" {
 		return errors.MissingRequiredFieldError{Name: "AccountId"}
@@ -127,6 +132,7 @@ func (j *LogInfo) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonLogInfo{EventId: j.EventId, EventType: j.EventType, EventTime: j.EventTime, UserIdentity: j.UserIdentity, EventRw: j.EventRw, ServiceName: j.ServiceName, EventName: j.EventName, SourceIp: j.SourceIp, UserAgent: j.UserAgent, ResourceNames: j.ResourceNames, RequestId: j.RequestId, RequestUrl: j.RequestUrl, RequestParams: j.RequestParams, ResponseData: j.ResponseData, ResponseCode: j.ResponseCode, ResponseMessage: j.ResponseMessage, AdditionalEventData: j.AdditionalEventData})
 }
+
 func (j *LogInfo) UnmarshalJSON(data []byte) error {
 	var nj jsonLogInfo
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -151,6 +157,7 @@ func (j *LogInfo) UnmarshalJSON(data []byte) error {
 	j.AdditionalEventData = nj.AdditionalEventData
 	return nil
 }
+
 func (j *LogInfo) validate() error {
 	if j.EventId == "" {
 		return errors.MissingRequiredFieldError{Name: "EventId"}
@@ -207,12 +214,14 @@ func (j *LogInfo) validate() error {
 }
 
 // 返回的审计日志列表
-type LogInfos = []LogInfo
-type QueryLogResp = Response
-type jsonResponse struct {
-	NextMark      string   `json:"next_mark,omitempty"` // 用于请求下一页检索的结果
-	AuditLogInfos LogInfos `json:"audit_log_infos"`     // 日志集合
-}
+type (
+	LogInfos     = []LogInfo
+	QueryLogResp = Response
+	jsonResponse struct {
+		NextMark      string   `json:"next_mark,omitempty"` // 用于请求下一页检索的结果
+		AuditLogInfos LogInfos `json:"audit_log_infos"`     // 日志集合
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -220,6 +229,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{NextMark: j.NextMark, AuditLogInfos: j.AuditLogInfos})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -229,6 +239,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.AuditLogInfos = nj.AuditLogInfos
 	return nil
 }
+
 func (j *Response) validate() error {
 	if len(j.AuditLogInfos) == 0 {
 		return errors.MissingRequiredFieldError{Name: "AuditLogInfos"}

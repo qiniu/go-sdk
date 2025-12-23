@@ -30,8 +30,10 @@ type readCloser struct {
 	io.Closer
 }
 
-var ErrNoBody = errors.New("no body")
-var ErrTooLargeBody = errors.New("too large body")
+var (
+	ErrNoBody       = errors.New("no body")
+	ErrTooLargeBody = errors.New("too large body")
+)
 
 const MaxBodyLength int64 = 16 * 1024 * 1024
 

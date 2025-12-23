@@ -215,7 +215,6 @@ func TestHostsRetryInterceptorByRequest(t *testing.T) {
 		Header:  nil,
 		GetBody: nil,
 	})
-
 	if err != nil {
 		t.Fatalf("request should success:%v", err)
 	}

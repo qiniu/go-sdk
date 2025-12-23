@@ -2,8 +2,7 @@ package clientv2
 
 import "net/http"
 
-type bufferResponseInterceptor struct {
-}
+type bufferResponseInterceptor struct{}
 
 func NewBufferResponseInterceptor() Interceptor {
 	return bufferResponseInterceptor{}

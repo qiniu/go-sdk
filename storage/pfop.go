@@ -166,7 +166,8 @@ type FopResult struct {
 //	pipeline	多媒体处理队列名称
 //	force		强制执行数据处理
 func (m *OperationManager) Pfop(bucket, key, fops, pipeline, notifyURL string,
-	force bool) (string, error) {
+	force bool,
+) (string, error) {
 	var forceNumber int64
 	if force {
 		forceNumber = 1

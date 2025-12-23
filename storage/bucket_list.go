@@ -12,7 +12,6 @@ import (
 
 // ListItem 为文件列举的返回值
 type ListItem struct {
-
 	// 资源名
 	Key string `json:"key"`
 
@@ -90,8 +89,8 @@ type ListFilesRet struct {
 // ListFiles 用来获取空间文件列表，可以根据需要指定文件的前缀 prefix，文件的目录 delimiter，循环列举的时候下次
 // 列举的位置 marker，以及每次返回的文件的最大数量limit，其中limit最大为1000。
 func (m *BucketManager) ListFiles(bucket, prefix, delimiter, marker string,
-	limit int) (entries []ListItem, commonPrefixes []string, nextMarker string, hasNext bool, err error) {
-
+	limit int,
+) (entries []ListItem, commonPrefixes []string, nextMarker string, hasNext bool, err error) {
 	ret, hNext, e := m.ListFilesWithContext(context.Background(), bucket,
 		ListInputOptionsPrefix(prefix),
 		ListInputOptionsDelimiter(delimiter),
@@ -203,7 +202,6 @@ func (m *BucketManager) ListBucket(bucket, prefix, delimiter, marker string) (re
 // 接受的context可以用来取消列举操作
 // Deprecated
 func (m *BucketManager) ListBucketContext(ctx context.Context, bucket, prefix, delimiter, marker string) (retCh chan listFilesRet2, err error) {
-
 	ret, _, lErr := m.ListFilesWithContext(ctx, bucket,
 		ListInputOptionsLimit(250),
 		ListInputOptionsPrefix(prefix),

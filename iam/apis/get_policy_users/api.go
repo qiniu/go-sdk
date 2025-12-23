@@ -5,6 +5,7 @@ package get_policy_users
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -50,6 +51,7 @@ func (j *PolicyIamUser) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonPolicyIamUser{Id: j.Id, RootUid: j.RootUid, Iuid: j.Iuid, Alias: j.Alias, CreatedAt: j.CreatedAt, UpdatedAt: j.UpdatedAt, LastLoginTime: j.LastLoginTime, Enabled: j.Enabled})
 }
+
 func (j *PolicyIamUser) UnmarshalJSON(data []byte) error {
 	var nj jsonPolicyIamUser
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -65,6 +67,7 @@ func (j *PolicyIamUser) UnmarshalJSON(data []byte) error {
 	j.Enabled = nj.Enabled
 	return nil
 }
+
 func (j *PolicyIamUser) validate() error {
 	if j.Id == "" {
 		return errors.MissingRequiredFieldError{Name: "Id"}
@@ -100,11 +103,13 @@ type Data struct {
 }
 
 // 返回的授权策略分配的 IAM 子账号列表信息
-type GetPolicyIamUsersData = Data
-type jsonData struct {
-	Count int64             `json:"count"` // 授权策略分配的 IAM 子账号数量
-	List  GetPolicyIamUsers `json:"list"`  // 授权策略分配的 IAM 子账号列表
-}
+type (
+	GetPolicyIamUsersData = Data
+	jsonData              struct {
+		Count int64             `json:"count"` // 授权策略分配的 IAM 子账号数量
+		List  GetPolicyIamUsers `json:"list"`  // 授权策略分配的 IAM 子账号列表
+	}
+)
 
 func (j *Data) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -112,6 +117,7 @@ func (j *Data) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonData{Count: j.Count, List: j.List})
 }
+
 func (j *Data) UnmarshalJSON(data []byte) error {
 	var nj jsonData
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -121,6 +127,7 @@ func (j *Data) UnmarshalJSON(data []byte) error {
 	j.List = nj.List
 	return nil
 }
+
 func (j *Data) validate() error {
 	if j.Count == 0 {
 		return errors.MissingRequiredFieldError{Name: "Count"}
@@ -137,10 +144,12 @@ func (j *Data) validate() error {
 }
 
 // 返回的授权策略分配的 IAM 子账号列表响应
-type GetPolicyIamUsersResp = Response
-type jsonResponse struct {
-	Data GetPolicyIamUsersData `json:"data"` // 授权策略分配的 IAM 子账号信息
-}
+type (
+	GetPolicyIamUsersResp = Response
+	jsonResponse          struct {
+		Data GetPolicyIamUsersData `json:"data"` // 授权策略分配的 IAM 子账号信息
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -148,6 +157,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Data: j.Data})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -156,6 +166,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Data = nj.Data
 	return nil
 }
+
 func (j *Response) validate() error {
 	if err := j.Data.validate(); err != nil {
 		return err

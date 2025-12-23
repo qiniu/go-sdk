@@ -4,6 +4,11 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	getbucketdomainsv3 "github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_domains_v3"
@@ -11,10 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type innerGetBucketDomainsV3Request getbucketdomainsv3.Request
@@ -22,6 +23,7 @@ type innerGetBucketDomainsV3Request getbucketdomainsv3.Request
 func (query *innerGetBucketDomainsV3Request) getBucketName(ctx context.Context) (string, error) {
 	return query.BucketName, nil
 }
+
 func (query *innerGetBucketDomainsV3Request) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.BucketName != "" {
@@ -32,8 +34,10 @@ func (query *innerGetBucketDomainsV3Request) buildQuery() (url.Values, error) {
 	return allQuery, nil
 }
 
-type GetBucketDomainsV3Request = getbucketdomainsv3.Request
-type GetBucketDomainsV3Response = getbucketdomainsv3.Response
+type (
+	GetBucketDomainsV3Request  = getbucketdomainsv3.Request
+	GetBucketDomainsV3Response = getbucketdomainsv3.Response
+)
 
 // 获取存储空间的域名列表
 func (storage *Storage) GetBucketDomainsV3(ctx context.Context, request *GetBucketDomainsV3Request, options *Options) (*GetBucketDomainsV3Response, error) {

@@ -4,6 +4,11 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	prefop "github.com/qiniu/go-sdk/v7/media/apis/prefop"
@@ -11,9 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type innerPrefopRequest prefop.Request
@@ -28,8 +30,10 @@ func (query *innerPrefopRequest) buildQuery() (url.Values, error) {
 	return allQuery, nil
 }
 
-type PrefopRequest = prefop.Request
-type PrefopResponse = prefop.Response
+type (
+	PrefopRequest  = prefop.Request
+	PrefopResponse = prefop.Response
+)
 
 // 查询持久化数据处理命令的执行状态
 func (media *Media) Prefop(ctx context.Context, request *PrefopRequest, options *Options) (*PrefopResponse, error) {
@@ -50,6 +54,7 @@ func (media *Media) Prefop(ctx context.Context, request *PrefopRequest, options 
 	} else {
 		rawQuery += query.Encode()
 	}
+	headers := http.Header{}
 	uplogInterceptor, err := uplog.NewRequestUplog("prefop", "", "", func() (string, error) {
 		credentials := innerRequest.Credentials
 		if credentials == nil {
@@ -64,7 +69,7 @@ func (media *Media) Prefop(ctx context.Context, request *PrefopRequest, options 
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && media.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 

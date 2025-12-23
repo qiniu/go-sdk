@@ -5,6 +5,7 @@ package get_regions
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -35,6 +36,7 @@ func (j *Region) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonRegion{Id: j.Id, Description: j.Description})
 }
+
 func (j *Region) UnmarshalJSON(data []byte) error {
 	var nj jsonRegion
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -44,6 +46,7 @@ func (j *Region) UnmarshalJSON(data []byte) error {
 	j.Description = nj.Description
 	return nil
 }
+
 func (j *Region) validate() error {
 	if j.Id == "" {
 		return errors.MissingRequiredFieldError{Name: "Id"}
@@ -58,10 +61,12 @@ func (j *Region) validate() error {
 type Regions = []Region
 
 // 所有区域信息
-type RegionsInfo = Response
-type jsonResponse struct {
-	Regions Regions `json:"regions"` // 区域列表
-}
+type (
+	RegionsInfo  = Response
+	jsonResponse struct {
+		Regions Regions `json:"regions"` // 区域列表
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -69,6 +74,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Regions: j.Regions})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -77,6 +83,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Regions = nj.Regions
 	return nil
 }
+
 func (j *Response) validate() error {
 	if len(j.Regions) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Regions"}

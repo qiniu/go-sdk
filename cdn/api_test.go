@@ -12,8 +12,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/auth"
 )
 
-//global variables
-
+// global variables
 var (
 	ak     = os.Getenv("accessKey")
 	sk     = os.Getenv("secretKey")
@@ -35,8 +34,10 @@ var (
 	}
 )
 
-var mac *auth.Credentials
-var cdnManager *CdnManager
+var (
+	mac        *auth.Credentials
+	cdnManager *CdnManager
+)
 
 func init() {
 	if ak == "" || sk == "" {

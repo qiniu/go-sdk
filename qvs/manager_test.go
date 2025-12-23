@@ -23,6 +23,7 @@ func getTestManager() *Manager {
 	mac := auth.New(testAccessKey, testSecretKey)
 	return NewManager(mac, nil)
 }
+
 func noError(t *testing.T, err error) {
 	if err != nil {
 		t.Helper()

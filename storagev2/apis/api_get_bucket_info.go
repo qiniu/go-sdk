@@ -4,6 +4,11 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	getbucketinfo "github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_info"
@@ -11,10 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type innerGetBucketInfoRequest getbucketinfo.Request
@@ -22,6 +23,7 @@ type innerGetBucketInfoRequest getbucketinfo.Request
 func (query *innerGetBucketInfoRequest) getBucketName(ctx context.Context) (string, error) {
 	return query.Bucket, nil
 }
+
 func (query *innerGetBucketInfoRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.Bucket != "" {
@@ -32,8 +34,10 @@ func (query *innerGetBucketInfoRequest) buildQuery() (url.Values, error) {
 	return allQuery, nil
 }
 
-type GetBucketInfoRequest = getbucketinfo.Request
-type GetBucketInfoResponse = getbucketinfo.Response
+type (
+	GetBucketInfoRequest  = getbucketinfo.Request
+	GetBucketInfoResponse = getbucketinfo.Response
+)
 
 // 获取存储空间信息
 func (storage *Storage) GetBucketInfo(ctx context.Context, request *GetBucketInfoRequest, options *Options) (*GetBucketInfoResponse, error) {

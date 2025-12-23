@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	modifygroupusers "github.com/qiniu/go-sdk/v7/iam/apis/modify_group_users"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
@@ -12,8 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"strings"
-	"time"
 )
 
 type innerModifyGroupUsersRequest modifygroupusers.Request
@@ -27,15 +29,19 @@ func (path *innerModifyGroupUsersRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (j *innerModifyGroupUsersRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*modifygroupusers.Request)(j))
 }
+
 func (j *innerModifyGroupUsersRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*modifygroupusers.Request)(j))
 }
 
-type ModifyGroupUsersRequest = modifygroupusers.Request
-type ModifyGroupUsersResponse = modifygroupusers.Response
+type (
+	ModifyGroupUsersRequest  = modifygroupusers.Request
+	ModifyGroupUsersResponse = modifygroupusers.Response
+)
 
 // 添加 IAM 子账号到用户分组
 func (iam *Iam) ModifyGroupUsers(ctx context.Context, request *ModifyGroupUsersRequest, options *Options) (*ModifyGroupUsersResponse, error) {
@@ -57,6 +63,7 @@ func (iam *Iam) ModifyGroupUsers(ctx context.Context, request *ModifyGroupUsersR
 	pathSegments = append(pathSegments, "users")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
+	headers := http.Header{}
 	body, err := httpclient.GetJsonRequestBody(&innerRequest)
 	if err != nil {
 		return nil, err
@@ -75,7 +82,7 @@ func (iam *Iam) ModifyGroupUsers(ctx context.Context, request *ModifyGroupUsersR
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "PATCH", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: body, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "PATCH", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: body, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && iam.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 

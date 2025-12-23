@@ -4,6 +4,11 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	setbucketaccessmode "github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_access_mode"
@@ -11,10 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerSetBucketAccessModeRequest setbucketaccessmode.Request
@@ -22,6 +23,7 @@ type innerSetBucketAccessModeRequest setbucketaccessmode.Request
 func (pp *innerSetBucketAccessModeRequest) getBucketName(ctx context.Context) (string, error) {
 	return pp.Bucket, nil
 }
+
 func (path *innerSetBucketAccessModeRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 3)
 	if path.Bucket != "" {
@@ -33,8 +35,10 @@ func (path *innerSetBucketAccessModeRequest) buildPath() ([]string, error) {
 	return allSegments, nil
 }
 
-type SetBucketAccessModeRequest = setbucketaccessmode.Request
-type SetBucketAccessModeResponse = setbucketaccessmode.Response
+type (
+	SetBucketAccessModeRequest  = setbucketaccessmode.Request
+	SetBucketAccessModeResponse = setbucketaccessmode.Response
+)
 
 // 设置存储空间的原图保护
 func (storage *Storage) SetBucketAccessMode(ctx context.Context, request *SetBucketAccessModeRequest, options *Options) (*SetBucketAccessModeResponse, error) {

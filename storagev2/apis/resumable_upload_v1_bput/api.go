@@ -5,6 +5,7 @@ package resumable_upload_v1_bput
 
 import (
 	"encoding/json"
+
 	io "github.com/qiniu/go-sdk/v7/internal/io"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
@@ -29,15 +30,17 @@ type Response struct {
 }
 
 // 返回下一片数据的上传信息
-type ChunkInfo = Response
-type jsonResponse struct {
-	Ctx       string `json:"ctx"`        // 本次上传成功后的块级上传控制信息，用于后续上传片（bput）及创建文件（mkfile）
-	Checksum  string `json:"checksum"`   // 上传块 SHA1 值，使用 URL 安全的 Base64 编码
-	Crc32     int64  `json:"crc32"`      // 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
-	Offset    int64  `json:"offset"`     // 下一个上传块在切割块中的偏移
-	Host      string `json:"host"`       // 后续上传接收地址
-	ExpiredAt int64  `json:"expired_at"` // `ctx` 过期时间
-}
+type (
+	ChunkInfo    = Response
+	jsonResponse struct {
+		Ctx       string `json:"ctx"`        // 本次上传成功后的块级上传控制信息，用于后续上传片（bput）及创建文件（mkfile）
+		Checksum  string `json:"checksum"`   // 上传块 SHA1 值，使用 URL 安全的 Base64 编码
+		Crc32     int64  `json:"crc32"`      // 上传块 CRC32 值，客户可通过此字段对上传块的完整性进行校验
+		Offset    int64  `json:"offset"`     // 下一个上传块在切割块中的偏移
+		Host      string `json:"host"`       // 后续上传接收地址
+		ExpiredAt int64  `json:"expired_at"` // `ctx` 过期时间
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -45,6 +48,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Ctx: j.Ctx, Checksum: j.Checksum, Crc32: j.Crc32, Offset: j.Offset, Host: j.Host, ExpiredAt: j.ExpiredAt})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -58,6 +62,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.ExpiredAt = nj.ExpiredAt
 	return nil
 }
+
 func (j *Response) validate() error {
 	if j.Ctx == "" {
 		return errors.MissingRequiredFieldError{Name: "Ctx"}

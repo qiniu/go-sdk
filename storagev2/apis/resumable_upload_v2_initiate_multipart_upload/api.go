@@ -5,6 +5,7 @@ package resumable_upload_v2_initiate_multipart_upload
 
 import (
 	"encoding/json"
+
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
@@ -23,11 +24,13 @@ type Response struct {
 }
 
 // 返回本次 MultipartUpload 相关信息
-type NewMultipartUpload = Response
-type jsonResponse struct {
-	UploadId  string `json:"uploadId"` // 初始化文件生成的 id
-	ExpiredAt int64  `json:"expireAt"` // UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
-}
+type (
+	NewMultipartUpload = Response
+	jsonResponse       struct {
+		UploadId  string `json:"uploadId"` // 初始化文件生成的 id
+		ExpiredAt int64  `json:"expireAt"` // UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -35,6 +38,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{UploadId: j.UploadId, ExpiredAt: j.ExpiredAt})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -44,6 +48,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.ExpiredAt = nj.ExpiredAt
 	return nil
 }
+
 func (j *Response) validate() error {
 	if j.UploadId == "" {
 		return errors.MissingRequiredFieldError{Name: "UploadId"}

@@ -8,10 +8,8 @@ import (
 	"github.com/qiniu/go-sdk/v7/sms/rpc"
 )
 
-var (
-	// Host 为 Qiniu SMS Server API 服务域名
-	Host = "https://sms.qiniuapi.com"
-)
+// Host 为 Qiniu SMS Server API 服务域名
+var Host = "https://sms.qiniuapi.com"
 
 // Manager 提供了 Qiniu SMS Server API 相关功能
 type Manager struct {
@@ -21,7 +19,6 @@ type Manager struct {
 
 // NewManager 用来构建一个新的 Manager
 func NewManager(mac *auth.Credentials) (manager *Manager) {
-
 	manager = &Manager{}
 
 	if mac == nil {

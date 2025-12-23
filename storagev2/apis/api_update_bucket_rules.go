@@ -4,6 +4,12 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	updatebucketrules "github.com/qiniu/go-sdk/v7/storagev2/apis/update_bucket_rules"
@@ -11,11 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerUpdateBucketRulesRequest updatebucketrules.Request
@@ -23,6 +24,7 @@ type innerUpdateBucketRulesRequest updatebucketrules.Request
 func (form *innerUpdateBucketRulesRequest) getBucketName(ctx context.Context) (string, error) {
 	return form.Bucket, nil
 }
+
 func (form *innerUpdateBucketRulesRequest) build() (url.Values, error) {
 	formValues := make(url.Values)
 	if form.Bucket != "" {
@@ -46,8 +48,10 @@ func (form *innerUpdateBucketRulesRequest) build() (url.Values, error) {
 	return formValues, nil
 }
 
-type UpdateBucketRulesRequest = updatebucketrules.Request
-type UpdateBucketRulesResponse = updatebucketrules.Response
+type (
+	UpdateBucketRulesRequest  = updatebucketrules.Request
+	UpdateBucketRulesResponse = updatebucketrules.Response
+)
 
 // 更新空间规则
 func (storage *Storage) UpdateBucketRules(ctx context.Context, request *UpdateBucketRulesRequest, options *Options) (*UpdateBucketRulesResponse, error) {

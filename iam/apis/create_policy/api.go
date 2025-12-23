@@ -5,6 +5,7 @@ package create_policy
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -42,6 +43,7 @@ func (j *CreateStatement) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonCreateStatement{Actions: j.Actions, Resources: j.Resources, Effect: j.Effect})
 }
+
 func (j *CreateStatement) UnmarshalJSON(data []byte) error {
 	var nj jsonCreateStatement
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -52,6 +54,7 @@ func (j *CreateStatement) UnmarshalJSON(data []byte) error {
 	j.Effect = nj.Effect
 	return nil
 }
+
 func (j *CreateStatement) validate() error {
 	if len(j.Actions) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Actions"}
@@ -69,13 +72,15 @@ func (j *CreateStatement) validate() error {
 type CreateStatements = []CreateStatement
 
 // 创建授权策略参数
-type CreatePolicyParam = Request
-type jsonRequest struct {
-	Alias       string           `json:"alias,omitempty"`       // 授权策略别名，由 `A-Za-z0-9` 组成
-	EditType    int64            `json:"edit_type,omitempty"`   // 1：是通过自定义 JSON 编辑的策略 2：是通过 UI 编辑的策略
-	Description string           `json:"description,omitempty"` // 授权策略描述
-	Statement   CreateStatements `json:"statement"`             // 授权策略规则集合
-}
+type (
+	CreatePolicyParam = Request
+	jsonRequest       struct {
+		Alias       string           `json:"alias,omitempty"`       // 授权策略别名，由 `A-Za-z0-9` 组成
+		EditType    int64            `json:"edit_type,omitempty"`   // 1：是通过自定义 JSON 编辑的策略 2：是通过 UI 编辑的策略
+		Description string           `json:"description,omitempty"` // 授权策略描述
+		Statement   CreateStatements `json:"statement"`             // 授权策略规则集合
+	}
+)
 
 func (j *Request) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -83,6 +88,7 @@ func (j *Request) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonRequest{Alias: j.Alias, EditType: j.EditType, Description: j.Description, Statement: j.Statement})
 }
+
 func (j *Request) UnmarshalJSON(data []byte) error {
 	var nj jsonRequest
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -94,6 +100,7 @@ func (j *Request) UnmarshalJSON(data []byte) error {
 	j.Statement = nj.Statement
 	return nil
 }
+
 func (j *Request) validate() error {
 	if len(j.Statement) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Statement"}
@@ -135,6 +142,7 @@ func (j *CreatedStatement) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonCreatedStatement{Actions: j.Actions, Resources: j.Resources, Effect: j.Effect})
 }
+
 func (j *CreatedStatement) UnmarshalJSON(data []byte) error {
 	var nj jsonCreatedStatement
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -145,6 +153,7 @@ func (j *CreatedStatement) UnmarshalJSON(data []byte) error {
 	j.Effect = nj.Effect
 	return nil
 }
+
 func (j *CreatedStatement) validate() error {
 	if len(j.Actions) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Actions"}
@@ -174,17 +183,19 @@ type Data struct {
 }
 
 // 返回的授权策略信息
-type CreatedPolicyData = Data
-type jsonData struct {
-	Id          string            `json:"id"`          // 记录 ID
-	RootUid     int64             `json:"root_uid"`    // 根用户 uid
-	Alias       string            `json:"alias"`       // 授权策略别名
-	Description string            `json:"description"` // 授权策略描述
-	Enabled     bool              `json:"enabled"`     // 授权策略是否启用
-	CreatedAt   string            `json:"created_at"`  // 授权策略创建时间
-	UpdatedAt   string            `json:"updated_at"`  // 授权策略上次更新时间
-	Statement   CreatedStatements `json:"statement"`   // 授权策略规则集合
-}
+type (
+	CreatedPolicyData = Data
+	jsonData          struct {
+		Id          string            `json:"id"`          // 记录 ID
+		RootUid     int64             `json:"root_uid"`    // 根用户 uid
+		Alias       string            `json:"alias"`       // 授权策略别名
+		Description string            `json:"description"` // 授权策略描述
+		Enabled     bool              `json:"enabled"`     // 授权策略是否启用
+		CreatedAt   string            `json:"created_at"`  // 授权策略创建时间
+		UpdatedAt   string            `json:"updated_at"`  // 授权策略上次更新时间
+		Statement   CreatedStatements `json:"statement"`   // 授权策略规则集合
+	}
+)
 
 func (j *Data) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -192,6 +203,7 @@ func (j *Data) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonData{Id: j.Id, RootUid: j.RootUid, Alias: j.Alias, Description: j.Description, Enabled: j.Enabled, CreatedAt: j.CreatedAt, UpdatedAt: j.UpdatedAt, Statement: j.Statement})
 }
+
 func (j *Data) UnmarshalJSON(data []byte) error {
 	var nj jsonData
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -207,6 +219,7 @@ func (j *Data) UnmarshalJSON(data []byte) error {
 	j.Statement = nj.Statement
 	return nil
 }
+
 func (j *Data) validate() error {
 	if j.Id == "" {
 		return errors.MissingRequiredFieldError{Name: "Id"}
@@ -238,10 +251,12 @@ func (j *Data) validate() error {
 }
 
 // 返回的授权策略响应
-type CreatedPolicyResp = Response
-type jsonResponse struct {
-	Data CreatedPolicyData `json:"data"` // 授权策略信息
-}
+type (
+	CreatedPolicyResp = Response
+	jsonResponse      struct {
+		Data CreatedPolicyData `json:"data"` // 授权策略信息
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -249,6 +264,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Data: j.Data})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -257,6 +273,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Data = nj.Data
 	return nil
 }
+
 func (j *Response) validate() error {
 	if err := j.Data.validate(); err != nil {
 		return err

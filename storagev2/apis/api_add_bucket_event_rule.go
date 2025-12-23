@@ -4,6 +4,11 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	addbucketeventrule "github.com/qiniu/go-sdk/v7/storagev2/apis/add_bucket_event_rule"
@@ -11,10 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type innerAddBucketEventRuleRequest addbucketeventrule.Request
@@ -22,6 +23,7 @@ type innerAddBucketEventRuleRequest addbucketeventrule.Request
 func (query *innerAddBucketEventRuleRequest) getBucketName(ctx context.Context) (string, error) {
 	return query.Bucket, nil
 }
+
 func (query *innerAddBucketEventRuleRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.Bucket != "" {
@@ -63,8 +65,10 @@ func (query *innerAddBucketEventRuleRequest) buildQuery() (url.Values, error) {
 	return allQuery, nil
 }
 
-type AddBucketEventRuleRequest = addbucketeventrule.Request
-type AddBucketEventRuleResponse = addbucketeventrule.Response
+type (
+	AddBucketEventRuleRequest  = addbucketeventrule.Request
+	AddBucketEventRuleResponse = addbucketeventrule.Response
+)
 
 // 增加存储空间事件通知规则
 func (storage *Storage) AddBucketEventRule(ctx context.Context, request *AddBucketEventRuleRequest, options *Options) (*AddBucketEventRuleResponse, error) {

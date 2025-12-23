@@ -49,7 +49,6 @@ func HDLPlayURL(hub, domain, streamTitle string) string {
 // - expiry_sk: 限时鉴权SK
 // - dynamic: 动态鉴权
 func SignPublishURL(publishURL string, args SignPublishURLArgs) (string, error) {
-
 	u, err := url.Parse(publishURL)
 	if err != nil {
 		return "", ErrInvalidArgs
@@ -125,7 +124,6 @@ func SignPublishURL(publishURL string, args SignPublishURLArgs) (string, error) 
 // - tsStartMD5: 时间戳防盗链开始时间限制
 // - tsExpireMD5: 时间戳防盗链结束时间限制
 func SignPlayURL(playURL string, args SignPlayURLArgs) (string, error) {
-
 	u, err := url.Parse(playURL)
 	if err != nil {
 		return "", ErrInvalidArgs

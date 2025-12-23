@@ -5,6 +5,7 @@ package create_user_keypairs
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -31,15 +32,17 @@ type Data struct {
 }
 
 // 返回的 IAM 子账号密钥信息
-type CreatedIamUserKeyPairData = Data
-type jsonData struct {
-	Id        string `json:"id"`         // 记录 ID
-	AccessKey string `json:"access_key"` // IAM 子账号 Access Key
-	SecretKey string `json:"secret_key"` // IAM 子账号 Secret Key
-	UserId    string `json:"user_id"`    // 关联用户的记录 ID
-	CreatedAt string `json:"created_at"` // 密钥创建时间
-	Enabled   bool   `json:"enabled"`    // 密钥是否启用
-}
+type (
+	CreatedIamUserKeyPairData = Data
+	jsonData                  struct {
+		Id        string `json:"id"`         // 记录 ID
+		AccessKey string `json:"access_key"` // IAM 子账号 Access Key
+		SecretKey string `json:"secret_key"` // IAM 子账号 Secret Key
+		UserId    string `json:"user_id"`    // 关联用户的记录 ID
+		CreatedAt string `json:"created_at"` // 密钥创建时间
+		Enabled   bool   `json:"enabled"`    // 密钥是否启用
+	}
+)
 
 func (j *Data) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -47,6 +50,7 @@ func (j *Data) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonData{Id: j.Id, AccessKey: j.AccessKey, SecretKey: j.SecretKey, UserId: j.UserId, CreatedAt: j.CreatedAt, Enabled: j.Enabled})
 }
+
 func (j *Data) UnmarshalJSON(data []byte) error {
 	var nj jsonData
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -60,6 +64,7 @@ func (j *Data) UnmarshalJSON(data []byte) error {
 	j.Enabled = nj.Enabled
 	return nil
 }
+
 func (j *Data) validate() error {
 	if j.Id == "" {
 		return errors.MissingRequiredFieldError{Name: "Id"}
@@ -80,10 +85,12 @@ func (j *Data) validate() error {
 }
 
 // 返回的 IAM 子账号密钥响应
-type CreatedIamUserKeyPairResp = Response
-type jsonResponse struct {
-	Data CreatedIamUserKeyPairData `json:"data"` // IAM 子账号密钥信息
-}
+type (
+	CreatedIamUserKeyPairResp = Response
+	jsonResponse              struct {
+		Data CreatedIamUserKeyPairData `json:"data"` // IAM 子账号密钥信息
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -91,6 +98,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Data: j.Data})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -99,6 +107,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Data = nj.Data
 	return nil
 }
+
 func (j *Response) validate() error {
 	if err := j.Data.validate(); err != nil {
 		return err

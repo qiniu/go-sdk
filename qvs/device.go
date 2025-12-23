@@ -12,7 +12,7 @@ type Device struct {
 	Type            int    `json:"type"`
 	Username        string `json:"username"`
 	Password        string `json:"password"`
-	PullIfRegister  bool   `json:"pullIfRegister"` //按需拉流
+	PullIfRegister  bool   `json:"pullIfRegister"` // 按需拉流
 	Desc            string `json:"desc"`
 	NamespaceName   string `json:"nsName"`
 	State           string `json:"state"`

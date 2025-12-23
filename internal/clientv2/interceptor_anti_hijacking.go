@@ -6,8 +6,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/retrier"
 )
 
-type antiHijackingInterceptor struct {
-}
+type antiHijackingInterceptor struct{}
 
 func NewAntiHijackingInterceptor() Interceptor {
 	return &antiHijackingInterceptor{}

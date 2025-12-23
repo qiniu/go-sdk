@@ -5,6 +5,7 @@ package pfop
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -28,10 +29,12 @@ type Response struct {
 }
 
 // 返回的持久化数据处理任务 ID
-type PfopId = Response
-type jsonResponse struct {
-	PersistentId string `json:"persistentId"` // 持久化数据处理任务 ID
-}
+type (
+	PfopId       = Response
+	jsonResponse struct {
+		PersistentId string `json:"persistentId"` // 持久化数据处理任务 ID
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -39,6 +42,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{PersistentId: j.PersistentId})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -47,6 +51,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.PersistentId = nj.PersistentId
 	return nil
 }
+
 func (j *Response) validate() error {
 	if j.PersistentId == "" {
 		return errors.MissingRequiredFieldError{Name: "PersistentId"}

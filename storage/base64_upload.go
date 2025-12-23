@@ -77,26 +77,28 @@ func (r *Base64PutExtra) init() {
 // base64Data 是要上传的Base64数据，一般为图片数据的Base64编码字符串
 // extra      是上传的一些可选项，可以指定为nil。详细见 Base64PutExtra 结构的描述。
 func (p *Base64Uploader) Put(
-	ctx context.Context, ret interface{}, uptoken, key string, base64Data []byte, extra *Base64PutExtra) (err error) {
+	ctx context.Context, ret interface{}, uptoken, key string, base64Data []byte, extra *Base64PutExtra,
+) (err error) {
 	return p.put(ctx, ret, uptoken, key, true, base64Data, extra)
 }
 
 // PutWithoutKey 用来以Base64方式上传一个文件，保存的文件名以文件的内容hash作为文件名
 func (p *Base64Uploader) PutWithoutKey(
-	ctx context.Context, ret interface{}, uptoken string, base64Data []byte, extra *Base64PutExtra) (err error) {
+	ctx context.Context, ret interface{}, uptoken string, base64Data []byte, extra *Base64PutExtra,
+) (err error) {
 	return p.put(ctx, ret, uptoken, "", false, base64Data, extra)
 }
 
 func (p *Base64Uploader) put(
-	ctx context.Context, ret interface{}, uptoken, key string, hasKey bool, base64Data []byte, extra *Base64PutExtra) (err error) {
-
-	//set default extra
+	ctx context.Context, ret interface{}, uptoken, key string, hasKey bool, base64Data []byte, extra *Base64PutExtra,
+) (err error) {
+	// set default extra
 	if extra == nil {
 		extra = &Base64PutExtra{}
 	}
 	extra.init()
 
-	//calc crc32
+	// calc crc32
 	h := crc32.NewIEEE()
 	rawReader := base64.NewDecoder(base64.StdEncoding, bytes.NewReader(base64Data))
 	fsize, decodeErr := io.Copy(h, rawReader)
@@ -107,26 +109,26 @@ func (p *Base64Uploader) put(
 	fCrc32 := h.Sum32()
 
 	postPath := bytes.NewBufferString("/putb64")
-	//add fsize
+	// add fsize
 	postPath.WriteString("/")
 	postPath.WriteString(strconv.Itoa(int(fsize)))
 
-	//add key
+	// add key
 	if hasKey {
 		postPath.WriteString("/key/")
 		postPath.WriteString(base64.URLEncoding.EncodeToString([]byte(key)))
 	}
-	//add mimeType
+	// add mimeType
 	if extra.MimeType != "" {
 		postPath.WriteString("/mimeType/")
 		postPath.WriteString(base64.URLEncoding.EncodeToString([]byte(extra.MimeType)))
 	}
 
-	//add crc32
+	// add crc32
 	postPath.WriteString("/crc32/")
 	postPath.WriteString(fmt.Sprintf("%d", fCrc32))
 
-	//add extra params
+	// add extra params
 	if len(extra.Params) > 0 {
 		for k, v := range extra.Params {
 			if strings.HasPrefix(k, "x:") && v != "" {
@@ -138,7 +140,7 @@ func (p *Base64Uploader) put(
 		}
 	}
 
-	//get up host
+	// get up host
 	ak, bucket, gErr := getAkBucketFromUploadToken(uptoken)
 	if gErr != nil {
 		err = gErr

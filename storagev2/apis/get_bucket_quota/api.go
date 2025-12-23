@@ -5,6 +5,7 @@ package get_bucket_quota
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 )
 
@@ -21,11 +22,13 @@ type Response struct {
 }
 
 // Bucket 配额信息
-type BucketQuota = Response
-type jsonResponse struct {
-	Size  int64 `json:"size,omitempty"`  // 空间存储量配额
-	Count int64 `json:"count,omitempty"` // 空间文件数配额
-}
+type (
+	BucketQuota  = Response
+	jsonResponse struct {
+		Size  int64 `json:"size,omitempty"`  // 空间存储量配额
+		Count int64 `json:"count,omitempty"` // 空间文件数配额
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -33,6 +36,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Size: j.Size, Count: j.Count})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -42,6 +46,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Count = nj.Count
 	return nil
 }
+
 func (j *Response) validate() error {
 	return nil
 }

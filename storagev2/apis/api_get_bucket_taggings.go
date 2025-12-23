@@ -4,6 +4,11 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	getbuckettaggings "github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_taggings"
@@ -11,10 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type innerGetBucketTaggingsRequest getbuckettaggings.Request
@@ -22,6 +23,7 @@ type innerGetBucketTaggingsRequest getbuckettaggings.Request
 func (query *innerGetBucketTaggingsRequest) getBucketName(ctx context.Context) (string, error) {
 	return query.BucketName, nil
 }
+
 func (query *innerGetBucketTaggingsRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.BucketName != "" {
@@ -32,8 +34,10 @@ func (query *innerGetBucketTaggingsRequest) buildQuery() (url.Values, error) {
 	return allQuery, nil
 }
 
-type GetBucketTaggingsRequest = getbuckettaggings.Request
-type GetBucketTaggingsResponse = getbuckettaggings.Response
+type (
+	GetBucketTaggingsRequest  = getbuckettaggings.Request
+	GetBucketTaggingsResponse = getbuckettaggings.Response
+)
 
 // 查询指定的存储空间已设置的标签信息
 func (storage *Storage) GetBucketTaggings(ctx context.Context, request *GetBucketTaggingsRequest, options *Options) (*GetBucketTaggingsResponse, error) {

@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	createshare "github.com/qiniu/go-sdk/v7/storagev2/apis/create_share"
@@ -12,9 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type innerCreateShareRequest createshare.Request
@@ -22,9 +23,11 @@ type innerCreateShareRequest createshare.Request
 func (j *innerCreateShareRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*createshare.Request)(j))
 }
+
 func (j *innerCreateShareRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*createshare.Request)(j))
 }
+
 func (request *innerCreateShareRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -36,8 +39,10 @@ func (request *innerCreateShareRequest) getAccessKey(ctx context.Context) (strin
 	return "", nil
 }
 
-type CreateShareRequest = createshare.Request
-type CreateShareResponse = createshare.Response
+type (
+	CreateShareRequest  = createshare.Request
+	CreateShareResponse = createshare.Response
+)
 
 // 创建目录分享
 func (storage *Storage) CreateShare(ctx context.Context, request *CreateShareRequest, options *Options) (*CreateShareResponse, error) {

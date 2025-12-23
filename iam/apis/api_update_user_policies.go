@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	updateuserpolicies "github.com/qiniu/go-sdk/v7/iam/apis/update_user_policies"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
@@ -12,8 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"strings"
-	"time"
 )
 
 type innerUpdateUserPoliciesRequest updateuserpolicies.Request
@@ -27,15 +29,19 @@ func (path *innerUpdateUserPoliciesRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (j *innerUpdateUserPoliciesRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*updateuserpolicies.Request)(j))
 }
+
 func (j *innerUpdateUserPoliciesRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*updateuserpolicies.Request)(j))
 }
 
-type UpdateUserPoliciesRequest = updateuserpolicies.Request
-type UpdateUserPoliciesResponse = updateuserpolicies.Response
+type (
+	UpdateUserPoliciesRequest  = updateuserpolicies.Request
+	UpdateUserPoliciesResponse = updateuserpolicies.Response
+)
 
 // 为子账号重新分配授权策略
 func (iam *Iam) UpdateUserPolicies(ctx context.Context, request *UpdateUserPoliciesRequest, options *Options) (*UpdateUserPoliciesResponse, error) {
@@ -57,6 +63,7 @@ func (iam *Iam) UpdateUserPolicies(ctx context.Context, request *UpdateUserPolic
 	pathSegments = append(pathSegments, "policies")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
+	headers := http.Header{}
 	body, err := httpclient.GetJsonRequestBody(&innerRequest)
 	if err != nil {
 		return nil, err
@@ -75,7 +82,7 @@ func (iam *Iam) UpdateUserPolicies(ctx context.Context, request *UpdateUserPolic
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: body, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: body, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && iam.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 

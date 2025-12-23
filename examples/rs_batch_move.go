@@ -23,10 +23,10 @@ func main() {
 	}
 	// 指定空间所在的区域，如果不指定将自动探测
 	// 如果没有特殊需求，默认不需要指定
-	//cfg.Zone=&storage.ZoneHuabei
+	// cfg.Zone=&storage.ZoneHuabei
 	bucketManager := storage.NewBucketManager(mac, &cfg)
 
-	//每个batch的操作数量不可以超过1000个，如果总数量超过1000，需要分批发送
+	// 每个batch的操作数量不可以超过1000个，如果总数量超过1000，需要分批发送
 	srcBucket := bucket
 	destBucket := bucket
 	force := true

@@ -51,7 +51,6 @@ func TestCacheResolver(t *testing.T) {
 		CacheRefreshAfter:  3 * time.Second,
 		CacheLifetime:      2 * time.Second,
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -15,3 +15,5 @@ generate:
 	go generate ./iam/
 	go generate ./media/
 	go generate ./audit/
+	gofmt -w .
+	gofumpt -w .

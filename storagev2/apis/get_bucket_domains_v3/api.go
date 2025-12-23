@@ -5,6 +5,7 @@ package get_bucket_domains_v3
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -44,6 +45,7 @@ func (j *DomainInfo) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonDomainInfo{Domain: j.Domain, Bucket: j.Bucket, OwnerId: j.OwnerId, AutoRefresh: j.AutoRefresh, CreatedTime: j.CreatedTime, UpdatedTime: j.UpdatedTime})
 }
+
 func (j *DomainInfo) UnmarshalJSON(data []byte) error {
 	var nj jsonDomainInfo
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -57,6 +59,7 @@ func (j *DomainInfo) UnmarshalJSON(data []byte) error {
 	j.UpdatedTime = nj.UpdatedTime
 	return nil
 }
+
 func (j *DomainInfo) validate() error {
 	if j.Domain == "" {
 		return errors.MissingRequiredFieldError{Name: "Domain"}
@@ -82,6 +85,7 @@ type DomainInfos []DomainInfo
 func (j *Response) MarshalJSON() ([]byte, error) {
 	return json.Marshal(j.DomainInfos)
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var array DomainInfos
 	if err := json.Unmarshal(data, &array); err != nil {

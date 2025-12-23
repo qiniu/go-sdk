@@ -5,6 +5,7 @@ package resumable_upload_v2_list_parts
 
 import (
 	"encoding/json"
+
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
@@ -47,6 +48,7 @@ func (j *ListedPartInfo) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonListedPartInfo{Size: j.Size, Etag: j.Etag, PartNumber: j.PartNumber, PutTime: j.PutTime})
 }
+
 func (j *ListedPartInfo) UnmarshalJSON(data []byte) error {
 	var nj jsonListedPartInfo
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -58,6 +60,7 @@ func (j *ListedPartInfo) UnmarshalJSON(data []byte) error {
 	j.PutTime = nj.PutTime
 	return nil
 }
+
 func (j *ListedPartInfo) validate() error {
 	if j.Etag == "" {
 		return errors.MissingRequiredFieldError{Name: "Etag"}
@@ -75,13 +78,15 @@ func (j *ListedPartInfo) validate() error {
 type ListedParts = []ListedPartInfo
 
 // 返回所有已经上传成功的分片信息
-type ListedPartsResponse = Response
-type jsonResponse struct {
-	UploadId         string      `json:"uploadId"`         // 在服务端申请的 Multipart Upload 任务 id
-	ExpiredAt        int64       `json:"expireAt"`         // UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
-	PartNumberMarker int64       `json:"partNumberMarker"` // 下次继续列举的起始位置，0 表示列举结束，没有更多分片
-	Parts            ListedParts `json:"parts"`            // 返回所有已经上传成功的分片信息
-}
+type (
+	ListedPartsResponse = Response
+	jsonResponse        struct {
+		UploadId         string      `json:"uploadId"`         // 在服务端申请的 Multipart Upload 任务 id
+		ExpiredAt        int64       `json:"expireAt"`         // UploadId 的过期时间 UNIX 时间戳，过期之后 UploadId 不可用
+		PartNumberMarker int64       `json:"partNumberMarker"` // 下次继续列举的起始位置，0 表示列举结束，没有更多分片
+		Parts            ListedParts `json:"parts"`            // 返回所有已经上传成功的分片信息
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -89,6 +94,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{UploadId: j.UploadId, ExpiredAt: j.ExpiredAt, PartNumberMarker: j.PartNumberMarker, Parts: j.Parts})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -100,6 +106,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Parts = nj.Parts
 	return nil
 }
+
 func (j *Response) validate() error {
 	if j.UploadId == "" {
 		return errors.MissingRequiredFieldError{Name: "UploadId"}

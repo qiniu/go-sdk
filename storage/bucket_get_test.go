@@ -12,7 +12,6 @@ import (
 )
 
 func TestGet(t *testing.T) {
-
 	key := "TestGet_A" + time.Now().String()
 
 	data := "just test get object!"
@@ -118,6 +117,6 @@ func TestGetTrafficLimit(t *testing.T) {
 	duration := et - st
 	// 限速后，至少需要 4s
 	if duration < 4000 {
-		//t.Fatal("TestGetTrafficLimit() error, TrafficLimit invalid")
+		// t.Fatal("TestGetTrafficLimit() error, TrafficLimit invalid")
 	}
 }

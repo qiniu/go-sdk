@@ -74,8 +74,10 @@ func (uc *UcQueryRet) setup() {
 	}
 }
 
-type UcQueryUp = UcQueryServerInfo
-type UcQueryIo = UcQueryServerInfo
+type (
+	UcQueryUp = UcQueryServerInfo
+	UcQueryIo = UcQueryServerInfo
+)
 
 // UcQueryServerInfo 为查询请求回复中的上传域名信息
 type UcQueryServerInfo struct {
@@ -85,7 +87,6 @@ type UcQueryServerInfo struct {
 }
 
 func (io UcQueryServerInfo) toMapWithoutInfo() map[string][]string {
-
 	ret := make(map[string][]string)
 	if len(io.Main) > 0 {
 		ret["main"] = io.Main

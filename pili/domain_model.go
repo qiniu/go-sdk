@@ -2,21 +2,18 @@ package pili
 
 // GetDomainsListRequest 查询域名列表请求参数
 type GetDomainsListRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 }
 
 // GetDomainsListResponse 查询域名列表返回值
 type GetDomainsListResponse struct {
-
 	// Domains 域名列表
 	Domains []GetDomainsListItem `json:"domains"`
 }
 
 // GetDomainsListItem 查询域名列表项
 type GetDomainsListItem struct {
-
 	// Type 域名类型
 	Type string `json:"type"`
 
@@ -35,7 +32,6 @@ type GetDomainsListItem struct {
 
 // GetDomainInfoRequest 查询域名信息请求参数
 type GetDomainInfoRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 
@@ -45,7 +41,6 @@ type GetDomainInfoRequest struct {
 
 // GetDomainInfoResponse 查询域名信息返回值
 type GetDomainInfoResponse struct {
-
 	// Domain 域名
 	Domain string `json:"domain"`
 
@@ -86,7 +81,6 @@ type GetDomainInfoResponse struct {
 
 // DomainCallbackConfig 域名回调配置
 type DomainCallbackConfig struct {
-
 	// Type 回调类型
 	// 可选回调类型为
 	// - 留空: 不开启回调功能
@@ -127,7 +121,6 @@ type DomainCallbackConfig struct {
 
 // DomainIPLimit IP 限制
 type DomainIPLimit struct {
-
 	// WhiteList 白名单
 	// 允许推拉流的 IP 列表，CIDR 类型
 	// 配置白名单后，黑名单列表将失效
@@ -140,14 +133,12 @@ type DomainIPLimit struct {
 
 // DomainUrlRewrite URL 改写规则配置
 type DomainUrlRewrite struct {
-
 	// Rules 规则列表
 	Rules []DomainUrlRewriteItem `json:"rules"`
 }
 
 // DomainUrlRewriteItem URL 改写规则项
 type DomainUrlRewriteItem struct {
-
 	// Pattern 匹配规则
 	Pattern string `json:"pattern"`
 
@@ -157,7 +148,6 @@ type DomainUrlRewriteItem struct {
 
 // DomainPlaySecurity 时间戳防盗链配置
 type DomainPlaySecurity struct {
-
 	// Type 防盗链类型
 	// 可选防盗链类型为
 	// - 留空: 默认类型，表示继承直播空间级别配置
@@ -229,7 +219,6 @@ const (
 
 // BindDomainRequest 绑定域名请求参数
 type BindDomainRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 
@@ -247,7 +236,6 @@ type BindDomainRequest struct {
 
 // UnbindDomainRequest 解绑域名请求参数
 type UnbindDomainRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 
@@ -257,7 +245,6 @@ type UnbindDomainRequest struct {
 
 // BindVodDomainRequest 绑定点播域名请求参数
 type BindVodDomainRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 
@@ -267,7 +254,6 @@ type BindVodDomainRequest struct {
 
 // SetDomainCertRequest 修改域名证书配置请求参数
 type SetDomainCertRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 
@@ -282,7 +268,6 @@ type SetDomainCertRequest struct {
 
 // SetDomainURLRewriteRequest 修改域名改写规则配置请求参数
 type SetDomainURLRewriteRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 
@@ -295,7 +280,6 @@ type SetDomainURLRewriteRequest struct {
 
 // DomainURLRewriteRule URL 改写规则
 type DomainURLRewriteRule struct {
-
 	// Pattern 匹配规则
 	// 针对完整URL的正则表达式，形式如：(.+)/live/(.+)/playlist.m3u8
 	// 括号中的内容允许在 Replace 中使用${n}引用（n表示括号顺序）

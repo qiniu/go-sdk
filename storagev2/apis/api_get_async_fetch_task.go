@@ -4,6 +4,11 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	getasyncfetchtask "github.com/qiniu/go-sdk/v7/storagev2/apis/get_async_fetch_task"
@@ -11,10 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type innerGetAsyncFetchTaskRequest getasyncfetchtask.Request
@@ -28,6 +29,7 @@ func (query *innerGetAsyncFetchTaskRequest) buildQuery() (url.Values, error) {
 	}
 	return allQuery, nil
 }
+
 func (request *innerGetAsyncFetchTaskRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -39,8 +41,10 @@ func (request *innerGetAsyncFetchTaskRequest) getAccessKey(ctx context.Context) 
 	return "", nil
 }
 
-type GetAsyncFetchTaskRequest = getasyncfetchtask.Request
-type GetAsyncFetchTaskResponse = getasyncfetchtask.Response
+type (
+	GetAsyncFetchTaskRequest  = getasyncfetchtask.Request
+	GetAsyncFetchTaskResponse = getasyncfetchtask.Response
+)
 
 // 查询异步抓取任务
 func (storage *Storage) GetAsyncFetchTask(ctx context.Context, request *GetAsyncFetchTaskRequest, options *Options) (*GetAsyncFetchTaskResponse, error) {
