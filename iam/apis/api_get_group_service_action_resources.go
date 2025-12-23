@@ -4,6 +4,10 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getgroupserviceactionresources "github.com/qiniu/go-sdk/v7/iam/apis/get_group_service_action_resources"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
@@ -11,8 +15,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"strings"
-	"time"
 )
 
 type innerGetGroupServiceActionResourcesRequest getgroupserviceactionresources.Request
@@ -37,8 +39,10 @@ func (path *innerGetGroupServiceActionResourcesRequest) buildPath() ([]string, e
 	return allSegments, nil
 }
 
-type GetGroupServiceActionResourcesRequest = getgroupserviceactionresources.Request
-type GetGroupServiceActionResourcesResponse = getgroupserviceactionresources.Response
+type (
+	GetGroupServiceActionResourcesRequest  = getgroupserviceactionresources.Request
+	GetGroupServiceActionResourcesResponse = getgroupserviceactionresources.Response
+)
 
 // 列举用户分组指定服务操作下的可访问资源
 func (iam *Iam) GetGroupServiceActionResources(ctx context.Context, request *GetGroupServiceActionResourcesRequest, options *Options) (*GetGroupServiceActionResourcesResponse, error) {
@@ -60,6 +64,7 @@ func (iam *Iam) GetGroupServiceActionResources(ctx context.Context, request *Get
 	pathSegments = append(pathSegments, "resources")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
+	headers := http.Header{}
 	uplogInterceptor, err := uplog.NewRequestUplog("getGroupServiceActionResources", "", "", func() (string, error) {
 		credentials := innerRequest.Credentials
 		if credentials == nil {
@@ -74,7 +79,7 @@ func (iam *Iam) GetGroupServiceActionResources(ctx context.Context, request *Get
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && iam.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 

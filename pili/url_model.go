@@ -67,7 +67,6 @@ const (
 
 // SignPublishURLArgs 推流 URL 签算（直播鉴权）请求参数
 type SignPublishURLArgs struct {
-
 	// SecurityType 鉴权类型
 	SecurityType string
 
@@ -96,7 +95,6 @@ type SignPublishURLArgs struct {
 
 // SignPlayURLArgs 播放 URL 签算（时间戳防盗链）请求参数
 type SignPlayURLArgs struct {
-
 	// SecurityType 鉴权类型
 	// 支持鉴权类型为
 	// - tsStartMD5 时间戳防盗链开始时间限制

@@ -6,10 +6,11 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/qiniu/go-sdk/v7/auth"
 	"net/http"
 	"os"
 	"testing"
+
+	"github.com/qiniu/go-sdk/v7/auth"
 )
 
 func TestQiniuCredentialMultiXQiniuHeader(t *testing.T) {

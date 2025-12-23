@@ -5,6 +5,7 @@ package resumable_upload_v1_make_file
 
 import (
 	"encoding/json"
+
 	io "github.com/qiniu/go-sdk/v7/internal/io"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
@@ -29,6 +30,7 @@ type Response struct {
 func (j *Response) MarshalJSON() ([]byte, error) {
 	return json.Marshal(j.Body)
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.Body)
 }

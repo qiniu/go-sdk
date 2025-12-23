@@ -5,6 +5,7 @@ package get_bucket_taggings
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -36,6 +37,7 @@ func (j *TagInfo) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonTagInfo{Key: j.Key, Value: j.Value})
 }
+
 func (j *TagInfo) UnmarshalJSON(data []byte) error {
 	var nj jsonTagInfo
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -45,6 +47,7 @@ func (j *TagInfo) UnmarshalJSON(data []byte) error {
 	j.Value = nj.Value
 	return nil
 }
+
 func (j *TagInfo) validate() error {
 	if j.Key == "" {
 		return errors.MissingRequiredFieldError{Name: "Key"}
@@ -59,10 +62,12 @@ func (j *TagInfo) validate() error {
 type Tags = []TagInfo
 
 // 存储空间标签信息
-type TagsInfo = Response
-type jsonResponse struct {
-	Tags Tags `json:"Tags"` // 标签列表
-}
+type (
+	TagsInfo     = Response
+	jsonResponse struct {
+		Tags Tags `json:"Tags"` // 标签列表
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -70,6 +75,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Tags: j.Tags})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -78,6 +84,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Tags = nj.Tags
 	return nil
 }
+
 func (j *Response) validate() error {
 	if len(j.Tags) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Tags"}

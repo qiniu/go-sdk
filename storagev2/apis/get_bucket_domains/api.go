@@ -5,6 +5,7 @@ package get_bucket_domains
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 )
 
@@ -25,6 +26,7 @@ type Domains []string
 func (j *Response) MarshalJSON() ([]byte, error) {
 	return json.Marshal(j.Domains)
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var array Domains
 	if err := json.Unmarshal(data, &array); err != nil {

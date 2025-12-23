@@ -4,6 +4,12 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	setbucketprivate "github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_private"
@@ -11,11 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerSetBucketPrivateRequest setbucketprivate.Request
@@ -23,6 +24,7 @@ type innerSetBucketPrivateRequest setbucketprivate.Request
 func (form *innerSetBucketPrivateRequest) getBucketName(ctx context.Context) (string, error) {
 	return form.Bucket, nil
 }
+
 func (form *innerSetBucketPrivateRequest) build() (url.Values, error) {
 	formValues := make(url.Values)
 	if form.Bucket != "" {
@@ -34,8 +36,10 @@ func (form *innerSetBucketPrivateRequest) build() (url.Values, error) {
 	return formValues, nil
 }
 
-type SetBucketPrivateRequest = setbucketprivate.Request
-type SetBucketPrivateResponse = setbucketprivate.Response
+type (
+	SetBucketPrivateRequest  = setbucketprivate.Request
+	SetBucketPrivateResponse = setbucketprivate.Response
+)
 
 // 设置存储空间的访问权限
 func (storage *Storage) SetBucketPrivate(ctx context.Context, request *SetBucketPrivateRequest, options *Options) (*SetBucketPrivateResponse, error) {

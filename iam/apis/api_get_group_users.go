@@ -4,6 +4,12 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getgroupusers "github.com/qiniu/go-sdk/v7/iam/apis/get_group_users"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
@@ -11,10 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerGetGroupUsersRequest getgroupusers.Request
@@ -28,6 +30,7 @@ func (path *innerGetGroupUsersRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (query *innerGetGroupUsersRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.Page != 0 {
@@ -39,8 +42,10 @@ func (query *innerGetGroupUsersRequest) buildQuery() (url.Values, error) {
 	return allQuery, nil
 }
 
-type GetGroupUsersRequest = getgroupusers.Request
-type GetGroupUsersResponse = getgroupusers.Response
+type (
+	GetGroupUsersRequest  = getgroupusers.Request
+	GetGroupUsersResponse = getgroupusers.Response
+)
 
 // 查询用户分组下的 IAM 子账户列表
 func (iam *Iam) GetGroupUsers(ctx context.Context, request *GetGroupUsersRequest, options *Options) (*GetGroupUsersResponse, error) {
@@ -67,6 +72,7 @@ func (iam *Iam) GetGroupUsers(ctx context.Context, request *GetGroupUsersRequest
 	} else {
 		rawQuery += query.Encode()
 	}
+	headers := http.Header{}
 	uplogInterceptor, err := uplog.NewRequestUplog("getGroupUsers", "", "", func() (string, error) {
 		credentials := innerRequest.Credentials
 		if credentials == nil {
@@ -81,7 +87,7 @@ func (iam *Iam) GetGroupUsers(ctx context.Context, request *GetGroupUsersRequest
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && iam.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 

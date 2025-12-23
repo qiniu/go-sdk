@@ -27,7 +27,7 @@ func main() {
 	// 私有空间访问
 	domain = "https://image.example.com"
 	key = "这是一个测试文件.jpg"
-	deadline := time.Now().Add(time.Second * 3600).Unix() //1小时有效期
+	deadline := time.Now().Add(time.Second * 3600).Unix() // 1小时有效期
 	privateAccessURL := storage.MakePrivateURL(mac, domain, key, deadline)
 	fmt.Println(privateAccessURL)
 }

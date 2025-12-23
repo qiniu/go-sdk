@@ -19,7 +19,6 @@ const (
 
 // GetStatCommonRequest 统计接口通用请求参数
 type GetStatCommonRequest struct {
-
 	// Begin 开始时间
 	// 支持格式：20060102、20060102150405
 	Begin string `validate:"required,len=8|len=14"`
@@ -37,7 +36,6 @@ type GetStatCommonRequest struct {
 
 // GetStatUpflowRequest 获取上行流量请求参数
 type GetStatUpflowRequest struct {
-
 	// 通用请求参数
 	GetStatCommonRequest
 
@@ -54,7 +52,6 @@ type GetStatUpflowRequest struct {
 
 // GroupStatUpflowRequest 分组获取上行流量请求参数
 type GroupStatUpflowRequest struct {
-
 	// 通用请求参数
 	GetStatCommonRequest
 
@@ -74,7 +71,6 @@ type GroupStatUpflowRequest struct {
 
 // GetStatDownflowRequest 获取下行流量请求参数
 type GetStatDownflowRequest struct {
-
 	// 通用请求参数
 	GetStatCommonRequest
 
@@ -91,7 +87,6 @@ type GetStatDownflowRequest struct {
 
 // GroupStatDownflowRequest 分组获取下行流量请求参数
 type GroupStatDownflowRequest struct {
-
 	// 通用请求参数
 	GetStatCommonRequest
 
@@ -111,7 +106,6 @@ type GroupStatDownflowRequest struct {
 
 // GetStatCodecRequest 获取直播转码使用量请求参数
 type GetStatCodecRequest struct {
-
 	// 通用请求参数
 	GetStatCommonRequest
 
@@ -127,7 +121,6 @@ type GetStatCodecRequest struct {
 
 // GroupStatCodecRequest 分组获取直播转码使用量请求参数
 type GroupStatCodecRequest struct {
-
 	// 通用请求参数
 	GetStatCommonRequest
 
@@ -146,7 +139,6 @@ type GroupStatCodecRequest struct {
 
 // GetStatNropRequest 获取直播鉴黄使用量请求参数
 type GetStatNropRequest struct {
-
 	// 通用请求参数
 	GetStatCommonRequest
 
@@ -162,7 +154,6 @@ type GetStatNropRequest struct {
 
 // GroupStatNropRequest 分组获取直播鉴黄使用量请求参数
 type GroupStatNropRequest struct {
-
 	// 通用请求参数
 	GetStatCommonRequest
 
@@ -181,7 +172,6 @@ type GroupStatNropRequest struct {
 
 // GetStatCasterRequest 获取导播台使用量请求参数
 type GetStatCasterRequest struct {
-
 	// 通用请求参数
 	GetStatCommonRequest
 
@@ -199,7 +189,6 @@ type GetStatCasterRequest struct {
 
 // GroupStatCasterRequest 分组获取导播台使用量请求参数
 type GroupStatCasterRequest struct {
-
 	// 通用请求参数
 	GetStatCommonRequest
 
@@ -220,7 +209,6 @@ type GroupStatCasterRequest struct {
 
 // GetStatPubRequest 获取Pub服务使用量请求参数
 type GetStatPubRequest struct {
-
 	// 通用请求参数
 	GetStatCommonRequest
 
@@ -236,7 +224,6 @@ type GetStatPubRequest struct {
 
 // GroupStatPubRequest 分组获取Pub服务使用量请求参数
 type GroupStatPubRequest struct {
-
 	// 通用请求参数
 	GetStatCommonRequest
 
@@ -255,7 +242,6 @@ type GroupStatPubRequest struct {
 
 // StatResponse 统计返回值
 type StatResponse struct {
-
 	// Time 时间
 	Time time.Time `json:"time"`
 
@@ -266,7 +252,6 @@ type StatResponse struct {
 
 // StatGroupResponse 分组统计返回值
 type StatGroupResponse struct {
-
 	// Time 时间
 	Time time.Time `json:"time"`
 

@@ -6,13 +6,14 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"net/http"
+	"strings"
+
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	resumableuploadv2completemultipartupload "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v2_complete_multipart_upload"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"net/http"
-	"strings"
 )
 
 type innerResumableUploadV2CompleteMultipartUploadRequest resumableuploadv2completemultipartupload.Request
@@ -27,6 +28,7 @@ func (request *innerResumableUploadV2CompleteMultipartUploadRequest) getBucketNa
 	}
 	return "", nil
 }
+
 func (path *innerResumableUploadV2CompleteMultipartUploadRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 5)
 	if path.BucketName != "" {
@@ -46,12 +48,15 @@ func (path *innerResumableUploadV2CompleteMultipartUploadRequest) buildPath() ([
 	}
 	return allSegments, nil
 }
+
 func (j *innerResumableUploadV2CompleteMultipartUploadRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*resumableuploadv2completemultipartupload.Request)(j))
 }
+
 func (j *innerResumableUploadV2CompleteMultipartUploadRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*resumableuploadv2completemultipartupload.Request)(j))
 }
+
 func (request *innerResumableUploadV2CompleteMultipartUploadRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
 		return request.UpToken.GetAccessKey(ctx)
@@ -59,8 +64,10 @@ func (request *innerResumableUploadV2CompleteMultipartUploadRequest) getAccessKe
 	return "", nil
 }
 
-type ResumableUploadV2CompleteMultipartUploadRequest = resumableuploadv2completemultipartupload.Request
-type ResumableUploadV2CompleteMultipartUploadResponse = resumableuploadv2completemultipartupload.Response
+type (
+	ResumableUploadV2CompleteMultipartUploadRequest  = resumableuploadv2completemultipartupload.Request
+	ResumableUploadV2CompleteMultipartUploadResponse = resumableuploadv2completemultipartupload.Response
+)
 
 // 在将所有数据分片都上传完成后，必须调用 completeMultipartUpload API 来完成整个文件的 Multipart Upload。用户需要提供有效数据的分片列表（包括 PartNumber 和调用 uploadPart API 服务端返回的 Etag）。服务端收到用户提交的分片列表后，会逐一验证每个数据分片的有效性。当所有的数据分片验证通过后，会把这些数据分片组合成一个完整的对象
 func (storage *Storage) ResumableUploadV2CompleteMultipartUpload(ctx context.Context, request *ResumableUploadV2CompleteMultipartUploadRequest, options *Options) (*ResumableUploadV2CompleteMultipartUploadResponse, error) {

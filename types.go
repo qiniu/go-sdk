@@ -31,7 +31,6 @@ func BytesFromRequest(r *http.Request) ([]byte, error) {
 
 // SeekerLen 通过 io.Seeker 获取数据大小
 func SeekerLen(s io.Seeker) (int64, error) {
-
 	curOffset, err := s.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return 0, err

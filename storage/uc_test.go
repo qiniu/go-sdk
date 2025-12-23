@@ -6,9 +6,10 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
-	clientV1 "github.com/qiniu/go-sdk/v7/client"
 	"strings"
 	"testing"
+
+	clientV1 "github.com/qiniu/go-sdk/v7/client"
 )
 
 func TestIndexPage(t *testing.T) {
@@ -36,7 +37,6 @@ func TestIndexPage(t *testing.T) {
 }
 
 func TestUcBucketEventRule(t *testing.T) {
-
 	rule := &BucketEventRule{
 		Name:        "name_value",
 		Prefix:      "prefix_value",

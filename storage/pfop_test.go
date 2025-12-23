@@ -10,9 +10,7 @@ import (
 	"testing"
 )
 
-var (
-	testVideoKey = "qiniu.mp4"
-)
+var testVideoKey = "qiniu.mp4"
 
 func TestPfop(t *testing.T) {
 	saveBucket := testBucket

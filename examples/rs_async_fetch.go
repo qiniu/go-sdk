@@ -23,7 +23,7 @@ func main() {
 	}
 	// 指定空间所在的区域，如果不指定将自动探测
 	// 如果没有特殊需求，默认不需要指定
-	//cfg.Zone=&storage.ZoneHuabei
+	// cfg.Zone=&storage.ZoneHuabei
 	bucketManager := storage.NewBucketManager(mac, &cfg)
 
 	param := storage.AsyncFetchParam{
@@ -39,5 +39,4 @@ func main() {
 	} else {
 		fmt.Println(ret)
 	}
-
 }

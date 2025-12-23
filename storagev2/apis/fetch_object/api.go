@@ -5,6 +5,7 @@ package fetch_object
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -26,13 +27,15 @@ type Response struct {
 }
 
 // 抓取到的文件元信息
-type FetchedObjectMetadata = Response
-type jsonResponse struct {
-	Hash       string `json:"hash"`            // 抓取的对象内容的 Etag 值
-	ObjectName string `json:"key"`             // 抓取后保存的对象名称
-	Size       int64  `json:"fsize,omitempty"` // 对象大小，单位为字节
-	MimeType   string `json:"mimeType"`        // 对象 MIME 类型
-}
+type (
+	FetchedObjectMetadata = Response
+	jsonResponse          struct {
+		Hash       string `json:"hash"`            // 抓取的对象内容的 Etag 值
+		ObjectName string `json:"key"`             // 抓取后保存的对象名称
+		Size       int64  `json:"fsize,omitempty"` // 对象大小，单位为字节
+		MimeType   string `json:"mimeType"`        // 对象 MIME 类型
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -40,6 +43,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Hash: j.Hash, ObjectName: j.ObjectName, Size: j.Size, MimeType: j.MimeType})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -51,6 +55,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.MimeType = nj.MimeType
 	return nil
 }
+
 func (j *Response) validate() error {
 	if j.Hash == "" {
 		return errors.MissingRequiredFieldError{Name: "Hash"}

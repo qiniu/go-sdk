@@ -5,6 +5,7 @@ package update_policy_groups
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 )
 
@@ -19,10 +20,12 @@ type Request struct {
 type GroupAliases = []string
 
 // 为授权策略重新分配分组参数
-type UpdatedPolicyGroupsParam = Request
-type jsonRequest struct {
-	GroupAliases GroupAliases `json:"group_aliases,omitempty"` // 分组别名集合
-}
+type (
+	UpdatedPolicyGroupsParam = Request
+	jsonRequest              struct {
+		GroupAliases GroupAliases `json:"group_aliases,omitempty"` // 分组别名集合
+	}
+)
 
 func (j *Request) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -30,6 +33,7 @@ func (j *Request) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonRequest{GroupAliases: j.GroupAliases})
 }
+
 func (j *Request) UnmarshalJSON(data []byte) error {
 	var nj jsonRequest
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -38,6 +42,7 @@ func (j *Request) UnmarshalJSON(data []byte) error {
 	j.GroupAliases = nj.GroupAliases
 	return nil
 }
+
 func (j *Request) validate() error {
 	return nil
 }

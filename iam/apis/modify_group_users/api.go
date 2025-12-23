@@ -5,6 +5,7 @@ package modify_group_users
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -20,10 +21,12 @@ type Request struct {
 type UserAliases = []string
 
 // 为用户分组修改 IAM 子账号参数
-type ModifiedGroupIamUsersParam = Request
-type jsonRequest struct {
-	UserAliases UserAliases `json:"user_aliases"` // IAM 子账号别名集合
-}
+type (
+	ModifiedGroupIamUsersParam = Request
+	jsonRequest                struct {
+		UserAliases UserAliases `json:"user_aliases"` // IAM 子账号别名集合
+	}
+)
 
 func (j *Request) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -31,6 +34,7 @@ func (j *Request) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonRequest{UserAliases: j.UserAliases})
 }
+
 func (j *Request) UnmarshalJSON(data []byte) error {
 	var nj jsonRequest
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -39,6 +43,7 @@ func (j *Request) UnmarshalJSON(data []byte) error {
 	j.UserAliases = nj.UserAliases
 	return nil
 }
+
 func (j *Request) validate() error {
 	if len(j.UserAliases) == 0 {
 		return errors.MissingRequiredFieldError{Name: "UserAliases"}

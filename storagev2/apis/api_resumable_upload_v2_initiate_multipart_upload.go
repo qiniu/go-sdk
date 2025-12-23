@@ -5,13 +5,14 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strings"
+
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	resumableuploadv2initiatemultipartupload "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v2_initiate_multipart_upload"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"net/http"
-	"strings"
 )
 
 type innerResumableUploadV2InitiateMultipartUploadRequest resumableuploadv2initiatemultipartupload.Request
@@ -26,6 +27,7 @@ func (request *innerResumableUploadV2InitiateMultipartUploadRequest) getBucketNa
 	}
 	return "", nil
 }
+
 func (path *innerResumableUploadV2InitiateMultipartUploadRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 3)
 	if path.BucketName != "" {
@@ -40,6 +42,7 @@ func (path *innerResumableUploadV2InitiateMultipartUploadRequest) buildPath() ([
 	}
 	return allSegments, nil
 }
+
 func (request *innerResumableUploadV2InitiateMultipartUploadRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
 		return request.UpToken.GetAccessKey(ctx)
@@ -47,8 +50,10 @@ func (request *innerResumableUploadV2InitiateMultipartUploadRequest) getAccessKe
 	return "", nil
 }
 
-type ResumableUploadV2InitiateMultipartUploadRequest = resumableuploadv2initiatemultipartupload.Request
-type ResumableUploadV2InitiateMultipartUploadResponse = resumableuploadv2initiatemultipartupload.Response
+type (
+	ResumableUploadV2InitiateMultipartUploadRequest  = resumableuploadv2initiatemultipartupload.Request
+	ResumableUploadV2InitiateMultipartUploadResponse = resumableuploadv2initiatemultipartupload.Response
+)
 
 // 使用 Multipart Upload 方式上传数据前，必须先调用 API 来获取一个全局唯一的 UploadId，后续的块数据通过 uploadPart API 上传，整个文件完成 completeMultipartUpload API，已经上传块的删除 abortMultipartUpload API 都依赖该 UploadId
 func (storage *Storage) ResumableUploadV2InitiateMultipartUpload(ctx context.Context, request *ResumableUploadV2InitiateMultipartUploadRequest, options *Options) (*ResumableUploadV2InitiateMultipartUploadResponse, error) {

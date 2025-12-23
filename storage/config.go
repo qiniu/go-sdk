@@ -4,17 +4,17 @@ import "github.com/qiniu/go-sdk/v7/storagev2/defaults"
 
 // Config 为文件上传，资源管理等配置
 type Config struct {
-	//兼容保留
-	Zone *Region //空间所在的存储区域
+	// 兼容保留
+	Zone *Region // 空间所在的存储区域
 
 	Region *Region
 
 	// 如果设置的Host本身是以http://开头的，又设置了该字段为true，那么优先使用该字段，使用https协议
 	// 同理如果该字段为false, 但是设置的host以https开头，那么使用http协议通信
-	UseHTTPS            bool   //是否使用https域名
-	UseCdnDomains       bool   //是否使用cdn加速域名
-	AccelerateUploading bool   //是否启用上传加速
-	CentralRsHost       string //中心机房的RsHost，用于list bucket
+	UseHTTPS            bool   // 是否使用https域名
+	UseCdnDomains       bool   // 是否使用cdn加速域名
+	AccelerateUploading bool   // 是否启用上传加速
+	CentralRsHost       string // 中心机房的RsHost，用于list bucket
 
 	// 兼容保留
 	RsHost  string

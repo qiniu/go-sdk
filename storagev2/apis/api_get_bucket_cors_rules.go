@@ -4,6 +4,10 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	getbucketcorsrules "github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_cors_rules"
@@ -11,9 +15,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type innerGetBucketCORSRulesRequest getbucketcorsrules.Request
@@ -21,6 +22,7 @@ type innerGetBucketCORSRulesRequest getbucketcorsrules.Request
 func (pp *innerGetBucketCORSRulesRequest) getBucketName(ctx context.Context) (string, error) {
 	return pp.Bucket, nil
 }
+
 func (path *innerGetBucketCORSRulesRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 1)
 	if path.Bucket != "" {
@@ -31,8 +33,10 @@ func (path *innerGetBucketCORSRulesRequest) buildPath() ([]string, error) {
 	return allSegments, nil
 }
 
-type GetBucketCORSRulesRequest = getbucketcorsrules.Request
-type GetBucketCORSRulesResponse = getbucketcorsrules.Response
+type (
+	GetBucketCORSRulesRequest  = getbucketcorsrules.Request
+	GetBucketCORSRulesResponse = getbucketcorsrules.Response
+)
 
 // 获取空间的跨域规则
 func (storage *Storage) GetBucketCORSRules(ctx context.Context, request *GetBucketCORSRulesRequest, options *Options) (*GetBucketCORSRulesResponse, error) {

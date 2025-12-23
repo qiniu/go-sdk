@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	deleteuserpolicy "github.com/qiniu/go-sdk/v7/iam/apis/delete_user_policy"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
@@ -12,8 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"strings"
-	"time"
 )
 
 type innerDeleteUserPolicyRequest deleteuserpolicy.Request
@@ -27,15 +29,19 @@ func (path *innerDeleteUserPolicyRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (j *innerDeleteUserPolicyRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*deleteuserpolicy.Request)(j))
 }
+
 func (j *innerDeleteUserPolicyRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*deleteuserpolicy.Request)(j))
 }
 
-type DeleteUserPolicyRequest = deleteuserpolicy.Request
-type DeleteUserPolicyResponse = deleteuserpolicy.Response
+type (
+	DeleteUserPolicyRequest  = deleteuserpolicy.Request
+	DeleteUserPolicyResponse = deleteuserpolicy.Response
+)
 
 // 删除 IAM 子账号特定的授权策略
 func (iam *Iam) DeleteUserPolicy(ctx context.Context, request *DeleteUserPolicyRequest, options *Options) (*DeleteUserPolicyResponse, error) {
@@ -57,6 +63,7 @@ func (iam *Iam) DeleteUserPolicy(ctx context.Context, request *DeleteUserPolicyR
 	pathSegments = append(pathSegments, "policies")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
+	headers := http.Header{}
 	body, err := httpclient.GetJsonRequestBody(&innerRequest)
 	if err != nil {
 		return nil, err
@@ -75,7 +82,7 @@ func (iam *Iam) DeleteUserPolicy(ctx context.Context, request *DeleteUserPolicyR
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "DELETE", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: body, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "DELETE", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: body, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && iam.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 

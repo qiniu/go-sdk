@@ -16,11 +16,11 @@ type Template struct {
 	RecordType       int    `json:"recordType"`       // 录制模式, 0（不录制）,1（实时录制）, 2（按需录制）
 	RecordFileFormat int    `json:"recordFileFormat"` // 录制文件存储格式(多选), 范围：1(001)～7(111), 从左往右的三位二进制数分别代表MP4, FLV, M3U8; 0代表不选择该格式, 1代表选择;例如：2(010)代表选择FLV格式，6(110)代表选择MP4和FLV格式，1(001)代表选择M3U8格式，7(111)代表三种格式均选择
 
-	//record/ts/${namespaceId}/${streamId}/${startMs}-${endMs}.ts
+	// record/ts/${namespaceId}/${streamId}/${startMs}-${endMs}.ts
 	TSFileNameTemplate string `json:"tsFileNameTemplate"`
-	//record/snap/${namespaceId}/${streamId}/${startMs}.jpg // 录制封面
+	// record/snap/${namespaceId}/${streamId}/${startMs}.jpg // 录制封面
 	RecordSnapFileNameFmt string `json:"recordSnapFileNameTemplate"`
-	RecordInterval        int    `json:"recordInterval"` //录制文件长度
+	RecordInterval        int    `json:"recordInterval"` // 录制文件长度
 
 	M3u8FileNameTemplate string `json:"m3u8FileNameTemplate,omitempty"` // m3u8文件命名格式
 	FlvFileNameTemplate  string `json:"flvFileNameTemplate,omitempty"`  // flv文件命名格式
@@ -47,7 +47,6 @@ type Template struct {
 创建模板API
 */
 func (manager *Manager) AddTemplate(tmpl *Template) (*Template, error) {
-
 	var ret Template
 	err := manager.client.CallWithJson(context.Background(), &ret, "POST", manager.url("/templates"), nil, tmpl)
 	if err != nil {
@@ -60,7 +59,6 @@ func (manager *Manager) AddTemplate(tmpl *Template) (*Template, error) {
 查询模板信息API
 */
 func (manager *Manager) QueryTemplate(templId string) (*Template, error) {
-
 	var ret Template
 	err := manager.client.Call(context.Background(), &ret, "GET", manager.url("/templates/%s", templId), nil)
 	if err != nil {
@@ -73,7 +71,6 @@ func (manager *Manager) QueryTemplate(templId string) (*Template, error) {
 修改模板API
 */
 func (manager *Manager) UpdateTemplate(templId string, ops []PatchOperation) (*Template, error) {
-
 	req := M{"operations": ops}
 	var ret Template
 	err := manager.client.CallWithJson(context.Background(), &ret, "PATCH", manager.url("/templates/%s", templId), nil, req)
@@ -87,7 +84,6 @@ func (manager *Manager) UpdateTemplate(templId string, ops []PatchOperation) (*T
 删除模板API
 */
 func (manager *Manager) DeleteTemplate(templId string) error {
-
 	return manager.client.Call(context.Background(), nil, "DELETE", manager.url("/templates/%s", templId), nil)
 }
 
@@ -95,7 +91,6 @@ func (manager *Manager) DeleteTemplate(templId string) error {
 获取模版列表API
 */
 func (manager *Manager) ListTemplate(offset, line int, sortBy string, templateType int, match string) ([]Template, int64, error) {
-
 	ret := struct {
 		Items []Template `json:"items"`
 		Total int64      `json:"total"`

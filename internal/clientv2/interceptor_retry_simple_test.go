@@ -17,7 +17,6 @@ import (
 )
 
 func TestSimpleAlwaysRetryInterceptor(t *testing.T) {
-
 	retryMax := 1
 	doCount := 0
 	callbackedCount := 0
@@ -123,7 +122,6 @@ func TestSimpleAlwaysRetryInterceptor(t *testing.T) {
 }
 
 func TestSimpleNotRetryInterceptor(t *testing.T) {
-
 	retryMax := 1
 	doCount := 0
 	callbackedCount := 0

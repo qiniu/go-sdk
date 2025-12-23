@@ -4,15 +4,16 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"strconv"
+	"strings"
+
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	resumableuploadv1bput "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v1_bput"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	utils "github.com/qiniu/go-sdk/v7/storagev2/internal/utils"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type innerResumableUploadV1BputRequest resumableuploadv1bput.Request
@@ -27,6 +28,7 @@ func (request *innerResumableUploadV1BputRequest) getBucketName(ctx context.Cont
 	}
 	return "", nil
 }
+
 func (path *innerResumableUploadV1BputRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 2)
 	if path.Ctx != "" {
@@ -37,6 +39,7 @@ func (path *innerResumableUploadV1BputRequest) buildPath() ([]string, error) {
 	allSegments = append(allSegments, strconv.FormatInt(path.ChunkOffset, 10))
 	return allSegments, nil
 }
+
 func (request *innerResumableUploadV1BputRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
 		return request.UpToken.GetAccessKey(ctx)
@@ -44,8 +47,10 @@ func (request *innerResumableUploadV1BputRequest) getAccessKey(ctx context.Conte
 	return "", nil
 }
 
-type ResumableUploadV1BputRequest = resumableuploadv1bput.Request
-type ResumableUploadV1BputResponse = resumableuploadv1bput.Response
+type (
+	ResumableUploadV1BputRequest  = resumableuploadv1bput.Request
+	ResumableUploadV1BputResponse = resumableuploadv1bput.Response
+)
 
 // 上传指定块的一片数据，具体数据量可根据现场环境调整，同一块的每片数据必须串行上传
 func (storage *Storage) ResumableUploadV1Bput(ctx context.Context, request *ResumableUploadV1BputRequest, options *Options) (*ResumableUploadV1BputResponse, error) {

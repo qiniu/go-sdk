@@ -4,6 +4,12 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	disablebucketindexpage "github.com/qiniu/go-sdk/v7/storagev2/apis/disable_bucket_index_page"
@@ -11,11 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerDisableBucketIndexPageRequest disablebucketindexpage.Request
@@ -23,6 +24,7 @@ type innerDisableBucketIndexPageRequest disablebucketindexpage.Request
 func (query *innerDisableBucketIndexPageRequest) getBucketName(ctx context.Context) (string, error) {
 	return query.Bucket, nil
 }
+
 func (query *innerDisableBucketIndexPageRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.Bucket != "" {
@@ -34,8 +36,10 @@ func (query *innerDisableBucketIndexPageRequest) buildQuery() (url.Values, error
 	return allQuery, nil
 }
 
-type DisableBucketIndexPageRequest = disablebucketindexpage.Request
-type DisableBucketIndexPageResponse = disablebucketindexpage.Response
+type (
+	DisableBucketIndexPageRequest  = disablebucketindexpage.Request
+	DisableBucketIndexPageResponse = disablebucketindexpage.Response
+)
 
 // 禁用存储空间 index.html（或 index.htm） 页面
 func (storage *Storage) DisableBucketIndexPage(ctx context.Context, request *DisableBucketIndexPageRequest, options *Options) (*DisableBucketIndexPageResponse, error) {

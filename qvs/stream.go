@@ -43,7 +43,6 @@ type Stream struct {
 创建流API
 */
 func (manager *Manager) AddStream(nsId string, stream *Stream) (*Stream, error) {
-
 	var ret Stream
 	err := manager.client.CallWithJson(context.Background(), &ret, "POST", manager.url("/namespaces/%s/streams", nsId), nil, stream)
 	if err != nil {
@@ -56,7 +55,6 @@ func (manager *Manager) AddStream(nsId string, stream *Stream) (*Stream, error) 
 查询流API
 */
 func (manager *Manager) QueryStream(nsId string, streamId string) (*Stream, error) {
-
 	var ret Stream
 	err := manager.client.Call(context.Background(), &ret, "GET", manager.url("/namespaces/%s/streams/%s", nsId, streamId), nil)
 	if err != nil {
@@ -69,7 +67,6 @@ func (manager *Manager) QueryStream(nsId string, streamId string) (*Stream, erro
 更新流API
 */
 func (manager *Manager) UpdateStream(nsId string, streamId string, ops []PatchOperation) (*Stream, error) {
-
 	req := M{"operations": ops}
 	var ret Stream
 	err := manager.client.CallWithJson(context.Background(), &ret, "PATCH", manager.url("/namespaces/%s/streams/%s", nsId, streamId), nil, req)
@@ -83,7 +80,6 @@ func (manager *Manager) UpdateStream(nsId string, streamId string, ops []PatchOp
 删除流API
 */
 func (manager *Manager) DeleteStream(nsId string, streamId string) error {
-
 	return manager.client.Call(context.Background(), nil, "DELETE", manager.url("/namespaces/%s/streams/%s", nsId, streamId), nil)
 }
 
@@ -91,7 +87,6 @@ func (manager *Manager) DeleteStream(nsId string, streamId string) error {
 查询流列表API
 */
 func (manager *Manager) ListStream(nsId string, offset, line int, prefix, sortBy string, qType int) ([]Stream, int64, error) {
-
 	ret := struct {
 		Items []Stream `json:"items"`
 		Total int64    `json:"total"`
@@ -138,7 +133,6 @@ type RoutePlayUrls struct {
 动态获取流地址API：推拉流IP地址计算最合适的设备端推拉流地址
 */
 func (manager *Manager) DynamicPublishPlayURL(nsId string, streamId string, route *DynamicLiveRoute) (*RouteRet, error) {
-
 	var ret RouteRet
 	err := manager.client.CallWithJson(context.Background(), &ret, "POST", manager.url("/namespaces/%s/streams/%s/urls", nsId, streamId), nil, route)
 	if err != nil {
@@ -151,7 +145,6 @@ func (manager *Manager) DynamicPublishPlayURL(nsId string, streamId string, rout
 静态获取流地址API：根据domain生成推拉流地址
 */
 func (manager *Manager) StaticPublishPlayURL(nsId, streamId string, route *StaticLiveRoute) (string, error) {
-
 	var ret RouteRet
 	err := manager.client.CallWithJson(context.Background(), &ret, "POST", manager.url("/namespaces/%s/streams/%s/domain", nsId, streamId), nil, route)
 	if err != nil {
@@ -172,21 +165,18 @@ func (manager *Manager) StaticPublishPlayURL(nsId, streamId string, route *Stati
 
 // 禁用流
 func (manager *Manager) DisableStream(nsId string, streamId string) error {
-
 	err := manager.client.CallWithJson(context.Background(), nil, "POST", manager.url("/namespaces/%s/streams/%s/disabled", nsId, streamId), nil, nil)
 	return err
 }
 
 // 恢复流
 func (manager *Manager) EnableStream(nsId string, streamId string) error {
-
 	err := manager.client.CallWithJson(context.Background(), nil, "POST", manager.url("/namespaces/%s/streams/%s/enabled", nsId, streamId), nil, nil)
 	return err
 }
 
 // 停止推流
 func (manager *Manager) StopStream(nsId string, streamId string) error {
-
 	err := manager.client.CallWithJson(context.Background(), nil, "POST", manager.url("/namespaces/%s/streams/%s/stop", nsId, streamId), nil, nil)
 	return err
 }
@@ -203,7 +193,6 @@ type StreamPublishHistory struct {
 
 // 查询推流历史记录
 func (manager *Manager) QueryStreamPubhistories(nsId string, streamId string, start, end int, line, offset int) ([]StreamPublishHistory, int64, error) {
-
 	ret := struct {
 		Items []StreamPublishHistory `json:"items"`
 		Total int64                  `json:"total"`
@@ -283,7 +272,7 @@ func (manager *Manager) QueryStreamRecordHistories(nsId string, streamId string,
 
 // 查询流封面
 func (manager *Manager) QueryStreamCover(nsId string, streamId string) (string, error) {
-	var ret = struct {
+	ret := struct {
 		Url string `json:"url"`
 	}{}
 	err := manager.client.Call(context.Background(), &ret, "GET", manager.url("/namespaces/%s/streams/%s/cover", nsId, streamId), nil)

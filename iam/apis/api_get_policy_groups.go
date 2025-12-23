@@ -4,6 +4,12 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getpolicygroups "github.com/qiniu/go-sdk/v7/iam/apis/get_policy_groups"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
@@ -11,10 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerGetPolicyGroupsRequest getpolicygroups.Request
@@ -28,6 +30,7 @@ func (path *innerGetPolicyGroupsRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (query *innerGetPolicyGroupsRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.Page != 0 {
@@ -39,8 +42,10 @@ func (query *innerGetPolicyGroupsRequest) buildQuery() (url.Values, error) {
 	return allQuery, nil
 }
 
-type GetPolicyGroupsRequest = getpolicygroups.Request
-type GetPolicyGroupsResponse = getpolicygroups.Response
+type (
+	GetPolicyGroupsRequest  = getpolicygroups.Request
+	GetPolicyGroupsResponse = getpolicygroups.Response
+)
 
 // 查询授权策略分配的用户分组列表
 func (iam *Iam) GetPolicyGroups(ctx context.Context, request *GetPolicyGroupsRequest, options *Options) (*GetPolicyGroupsResponse, error) {
@@ -67,6 +72,7 @@ func (iam *Iam) GetPolicyGroups(ctx context.Context, request *GetPolicyGroupsReq
 	} else {
 		rawQuery += query.Encode()
 	}
+	headers := http.Header{}
 	uplogInterceptor, err := uplog.NewRequestUplog("getPolicyGroups", "", "", func() (string, error) {
 		credentials := innerRequest.Credentials
 		if credentials == nil {
@@ -81,7 +87,7 @@ func (iam *Iam) GetPolicyGroups(ctx context.Context, request *GetPolicyGroupsReq
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && iam.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 

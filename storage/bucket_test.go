@@ -261,7 +261,6 @@ func TestStat(t *testing.T) {
 }
 
 func TestStatWithOption(t *testing.T) {
-
 	key := "stat_with_option_" + time.Now().String()
 
 	data := make([]byte, 1024*1024*5)
@@ -282,7 +281,6 @@ func TestStatWithOption(t *testing.T) {
 }
 
 func TestStatWithMeta(t *testing.T) {
-
 	key := "meta_test_" + time.Now().String()
 
 	data := make([]byte, 1024*1024*5)
@@ -466,7 +464,6 @@ func TestFetch(t *testing.T) {
 }
 
 func TestAsyncFetch(t *testing.T) {
-
 	param := AsyncFetchParam{Url: testFetchUrl, Bucket: testBucket}
 	ret, err := bucketManager.AsyncFetch(param)
 	if err != nil {
@@ -562,7 +559,7 @@ func aTestPrefetchAndImage(t *testing.T) {
 	}
 
 	t.Log("set image success for bucket", testBucket)
-	//wait for image set to take effect
+	// wait for image set to take effect
 	time.Sleep(time.Second * 10)
 
 	err = bucketManager.Prefetch(testBucket, testKey)
@@ -631,7 +628,6 @@ func TestBatch(t *testing.T) {
 }
 
 func TestBatchStat(t *testing.T) {
-
 	statOps := make([]string, 0, 2)
 	statOps = append(statOps, URIStat(testBucket, "form_test/120"))
 
@@ -838,7 +834,6 @@ func TestBucketLifeCycleRule(t *testing.T) {
 		ToArchiveAfterDays:     16,
 		ToDeepArchiveAfterDays: 20,
 	})
-
 	if err != nil {
 		t.Fatalf("TestBucketLifeCycleRule: %v\n", err)
 	}
@@ -867,7 +862,6 @@ func TestBucketLifeCycleRule(t *testing.T) {
 	}
 
 	err = bucketManager.DelBucketLifeCycleRule(testBucket, "golangIntegrationTest")
-
 	if err != nil {
 		t.Fatalf("TestBucketLifeCycleRule: %v\n", err)
 	}
@@ -932,7 +926,6 @@ func TestCorsRules(t *testing.T) {
 	for _, r := range rules {
 		t.Log(r)
 	}
-
 }
 
 func TestListBucketDomains(t *testing.T) {
@@ -1005,7 +998,7 @@ func TestSetBucketAccessMode(t *testing.T) {
 }
 
 func TestMakeURL(t *testing.T) {
-	keys := map[string]string{ //rawKey => encodeKey,
+	keys := map[string]string{ // rawKey => encodeKey,
 		"":            "",
 		"abc_def.mp4": "abc_def.mp4",
 		"/ab/cd":      "/ab/cd",

@@ -10,7 +10,6 @@ import (
 )
 
 func TestTemplate(t *testing.T) {
-
 	// CreateTemplate
 	args := sms.TemplateRequest{
 		Name:     "Test",
@@ -19,7 +18,6 @@ func TestTemplate(t *testing.T) {
 	}
 
 	ret, err := manager.CreateTemplate(args)
-
 	if err != nil {
 		t.Fatalf("CreateTemplate() error: %v\n", err)
 	}
@@ -32,7 +30,6 @@ func TestTemplate(t *testing.T) {
 	query := sms.QueryTemplateRequest{}
 
 	pagination, err := manager.QueryTemplate(query)
-
 	if err != nil {
 		t.Fatalf("QueryTemplate() error: %v\n", err)
 	}

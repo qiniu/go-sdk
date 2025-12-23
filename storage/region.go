@@ -239,8 +239,10 @@ const (
 // Deprecated 使用 SetUcHosts 替换
 var UcHost = ""
 
-var ucHostsLock sync.RWMutex
-var ucHosts = []string{defaultUcHost0, defaultUcHost1, defaultUcHost2}
+var (
+	ucHostsLock sync.RWMutex
+	ucHosts     = []string{defaultUcHost0, defaultUcHost1, defaultUcHost2}
+)
 
 func init() {
 	if defaultUcHosts, err := defaults.BucketURLs(); err == nil && len(defaultUcHosts) > 0 {

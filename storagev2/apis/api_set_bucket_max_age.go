@@ -4,6 +4,12 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	setbucketmaxage "github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_max_age"
@@ -11,11 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerSetBucketMaxAgeRequest setbucketmaxage.Request
@@ -23,6 +24,7 @@ type innerSetBucketMaxAgeRequest setbucketmaxage.Request
 func (query *innerSetBucketMaxAgeRequest) getBucketName(ctx context.Context) (string, error) {
 	return query.Bucket, nil
 }
+
 func (query *innerSetBucketMaxAgeRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.Bucket != "" {
@@ -34,8 +36,10 @@ func (query *innerSetBucketMaxAgeRequest) buildQuery() (url.Values, error) {
 	return allQuery, nil
 }
 
-type SetBucketMaxAgeRequest = setbucketmaxage.Request
-type SetBucketMaxAgeResponse = setbucketmaxage.Response
+type (
+	SetBucketMaxAgeRequest  = setbucketmaxage.Request
+	SetBucketMaxAgeResponse = setbucketmaxage.Response
+)
 
 // 设置存储空间的 cache-control: max-age 响应头
 func (storage *Storage) SetBucketMaxAge(ctx context.Context, request *SetBucketMaxAgeRequest, options *Options) (*SetBucketMaxAgeResponse, error) {

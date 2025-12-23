@@ -40,7 +40,8 @@ func buildURL(path string) string {
 }
 
 func postReq(httpClient *http.Client, mac *auth.Credentials, url string,
-	reqParam interface{}, ret interface{}) *resInfo {
+	reqParam interface{}, ret interface{},
+) *resInfo {
 	info := newResInfo()
 	var reqData []byte
 	var err error
@@ -92,7 +93,8 @@ func delReq(httpClient *http.Client, mac *auth.Credentials, url string, ret inte
 }
 
 func callReq(httpClient *http.Client, req *http.Request, mac *auth.Credentials,
-	info *resInfo, ret interface{}) (oinfo *resInfo) {
+	info *resInfo, ret interface{},
+) (oinfo *resInfo) {
 	oinfo = info
 	accessToken, err := mac.SignRequestV2(req)
 	if err != nil {

@@ -5,6 +5,7 @@ package resumable_upload_v2_complete_multipart_upload
 
 import (
 	"encoding/json"
+
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
@@ -39,6 +40,7 @@ func (j *PartInfo) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonPartInfo{PartNumber: j.PartNumber, Etag: j.Etag})
 }
+
 func (j *PartInfo) UnmarshalJSON(data []byte) error {
 	var nj jsonPartInfo
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -48,6 +50,7 @@ func (j *PartInfo) UnmarshalJSON(data []byte) error {
 	j.Etag = nj.Etag
 	return nil
 }
+
 func (j *PartInfo) validate() error {
 	if j.PartNumber == 0 {
 		return errors.MissingRequiredFieldError{Name: "PartNumber"}
@@ -62,14 +65,16 @@ func (j *PartInfo) validate() error {
 type Parts = []PartInfo
 
 // 新上传的对象的相关信息
-type ObjectInfo = Request
-type jsonRequest struct {
-	Parts      Parts             `json:"parts"`                // 已经上传的分片列表
-	FileName   string            `json:"fname,omitempty"`      // 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
-	MimeType   string            `json:"mimeType,omitempty"`   // 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
-	Metadata   map[string]string `json:"metadata,omitempty"`   // 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
-	CustomVars map[string]string `json:"customVars,omitempty"` // 用户自定义变量
-}
+type (
+	ObjectInfo  = Request
+	jsonRequest struct {
+		Parts      Parts             `json:"parts"`                // 已经上传的分片列表
+		FileName   string            `json:"fname,omitempty"`      // 上传的原始文件名，若未指定，则魔法变量中无法使用 fname，ext，suffix
+		MimeType   string            `json:"mimeType,omitempty"`   // 若指定了则设置上传文件的 MIME 类型，若未指定，则根据文件内容自动检测 MIME 类型
+		Metadata   map[string]string `json:"metadata,omitempty"`   // 用户自定义文件 metadata 信息的键值对，可以设置多个，MetaKey 和 MetaValue 都是 string，，其中 可以由字母、数字、下划线、减号组成，且长度小于等于 50，单个文件 MetaKey 和 MetaValue 总和大小不能超过 1024 字节，MetaKey 必须以 `x-qn-meta-` 作为前缀
+		CustomVars map[string]string `json:"customVars,omitempty"` // 用户自定义变量
+	}
+)
 
 func (j *Request) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -77,6 +82,7 @@ func (j *Request) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonRequest{Parts: j.Parts, FileName: j.FileName, MimeType: j.MimeType, Metadata: j.Metadata, CustomVars: j.CustomVars})
 }
+
 func (j *Request) UnmarshalJSON(data []byte) error {
 	var nj jsonRequest
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -89,6 +95,7 @@ func (j *Request) UnmarshalJSON(data []byte) error {
 	j.CustomVars = nj.CustomVars
 	return nil
 }
+
 func (j *Request) validate() error {
 	if len(j.Parts) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Parts"}
@@ -109,6 +116,7 @@ type Response struct {
 func (j *Response) MarshalJSON() ([]byte, error) {
 	return json.Marshal(j.Body)
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.Body)
 }

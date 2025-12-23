@@ -4,6 +4,11 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	deletebuckettaggings "github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket_taggings"
@@ -11,10 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type innerDeleteBucketTaggingsRequest deletebuckettaggings.Request
@@ -22,6 +23,7 @@ type innerDeleteBucketTaggingsRequest deletebuckettaggings.Request
 func (query *innerDeleteBucketTaggingsRequest) getBucketName(ctx context.Context) (string, error) {
 	return query.BucketName, nil
 }
+
 func (query *innerDeleteBucketTaggingsRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.BucketName != "" {
@@ -32,8 +34,10 @@ func (query *innerDeleteBucketTaggingsRequest) buildQuery() (url.Values, error) 
 	return allQuery, nil
 }
 
-type DeleteBucketTaggingsRequest = deletebuckettaggings.Request
-type DeleteBucketTaggingsResponse = deletebuckettaggings.Response
+type (
+	DeleteBucketTaggingsRequest  = deletebuckettaggings.Request
+	DeleteBucketTaggingsResponse = deletebuckettaggings.Response
+)
 
 // 一键删除指定存储空间的所有标签
 func (storage *Storage) DeleteBucketTaggings(ctx context.Context, request *DeleteBucketTaggingsRequest, options *Options) (*DeleteBucketTaggingsResponse, error) {

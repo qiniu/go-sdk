@@ -4,6 +4,12 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	pfop "github.com/qiniu/go-sdk/v7/media/apis/pfop"
@@ -11,10 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerPfopRequest pfop.Request
@@ -52,8 +54,10 @@ func (form *innerPfopRequest) build() (url.Values, error) {
 	return formValues, nil
 }
 
-type PfopRequest = pfop.Request
-type PfopResponse = pfop.Response
+type (
+	PfopRequest  = pfop.Request
+	PfopResponse = pfop.Response
+)
 
 // 触发持久化数据处理命令
 func (media *Media) Pfop(ctx context.Context, request *PfopRequest, options *Options) (*PfopResponse, error) {
@@ -69,6 +73,7 @@ func (media *Media) Pfop(ctx context.Context, request *PfopRequest, options *Opt
 	pathSegments = append(pathSegments, "pfop")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
+	headers := http.Header{}
 	body, err := innerRequest.build()
 	if err != nil {
 		return nil, err
@@ -87,7 +92,7 @@ func (media *Media) Pfop(ctx context.Context, request *PfopRequest, options *Opt
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, RequestBody: httpclient.GetFormRequestBody(body), OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, RequestBody: httpclient.GetFormRequestBody(body), OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && media.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 

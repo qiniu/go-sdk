@@ -4,6 +4,12 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	setbucketreferantileech "github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_refer_anti_leech"
@@ -11,11 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerSetBucketReferAntiLeechRequest setbucketreferantileech.Request
@@ -23,6 +24,7 @@ type innerSetBucketReferAntiLeechRequest setbucketreferantileech.Request
 func (query *innerSetBucketReferAntiLeechRequest) getBucketName(ctx context.Context) (string, error) {
 	return query.Bucket, nil
 }
+
 func (query *innerSetBucketReferAntiLeechRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.Bucket != "" {
@@ -37,8 +39,10 @@ func (query *innerSetBucketReferAntiLeechRequest) buildQuery() (url.Values, erro
 	return allQuery, nil
 }
 
-type SetBucketReferAntiLeechRequest = setbucketreferantileech.Request
-type SetBucketReferAntiLeechResponse = setbucketreferantileech.Response
+type (
+	SetBucketReferAntiLeechRequest  = setbucketreferantileech.Request
+	SetBucketReferAntiLeechResponse = setbucketreferantileech.Response
+)
 
 // 设置存储空间的防盗链模式
 func (storage *Storage) SetBucketReferAntiLeech(ctx context.Context, request *SetBucketReferAntiLeechRequest, options *Options) (*SetBucketReferAntiLeechResponse, error) {

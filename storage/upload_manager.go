@@ -272,7 +272,8 @@ func (manager *UploadManager) putRetryBetweenRegion(ctx context.Context, ret int
 }
 
 func (manager *UploadManager) put(ctx context.Context, ret interface{}, region *Region, uploadMethod int,
-	upToken string, key *string, source UploadSource, extra *UploadExtra) error {
+	upToken string, key *string, source UploadSource, extra *UploadExtra,
+) error {
 	if extra == nil {
 		extra = &UploadExtra{}
 	}
@@ -399,7 +400,8 @@ func (manager *UploadManager) putByResumeV2(ctx context.Context, ret interface{}
 }
 
 func (manager *UploadManager) getRecoverRegion(key *string, upToken string, resumeVersion string,
-	source UploadSource, extra *UploadExtra) *Region {
+	source UploadSource, extra *UploadExtra,
+) *Region {
 	file, ok := source.(*uploadSourceFile)
 	if !ok {
 		return nil

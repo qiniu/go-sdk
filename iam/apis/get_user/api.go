@@ -5,6 +5,7 @@ package get_user
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -33,17 +34,19 @@ type Data struct {
 }
 
 // 返回的 IAM 子账号信息
-type GetIamUserData = Data
-type jsonData struct {
-	Id            string `json:"id"`              // 记录 ID
-	RootUid       int64  `json:"root_uid"`        // 根用户 uid
-	Iuid          int64  `json:"iuid"`            // 子账号 uid
-	Alias         string `json:"alias"`           // 子账号别名
-	CreatedAt     string `json:"created_at"`      // 子账号创建时间
-	UpdatedAt     string `json:"updated_at"`      // 子账号上次更新时间
-	LastLoginTime string `json:"last_login_time"` // 子账号上次更新时间
-	Enabled       bool   `json:"enabled"`         // 子账号是否启用
-}
+type (
+	GetIamUserData = Data
+	jsonData       struct {
+		Id            string `json:"id"`              // 记录 ID
+		RootUid       int64  `json:"root_uid"`        // 根用户 uid
+		Iuid          int64  `json:"iuid"`            // 子账号 uid
+		Alias         string `json:"alias"`           // 子账号别名
+		CreatedAt     string `json:"created_at"`      // 子账号创建时间
+		UpdatedAt     string `json:"updated_at"`      // 子账号上次更新时间
+		LastLoginTime string `json:"last_login_time"` // 子账号上次更新时间
+		Enabled       bool   `json:"enabled"`         // 子账号是否启用
+	}
+)
 
 func (j *Data) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -51,6 +54,7 @@ func (j *Data) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonData{Id: j.Id, RootUid: j.RootUid, Iuid: j.Iuid, Alias: j.Alias, CreatedAt: j.CreatedAt, UpdatedAt: j.UpdatedAt, LastLoginTime: j.LastLoginTime, Enabled: j.Enabled})
 }
+
 func (j *Data) UnmarshalJSON(data []byte) error {
 	var nj jsonData
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -66,6 +70,7 @@ func (j *Data) UnmarshalJSON(data []byte) error {
 	j.Enabled = nj.Enabled
 	return nil
 }
+
 func (j *Data) validate() error {
 	if j.Id == "" {
 		return errors.MissingRequiredFieldError{Name: "Id"}
@@ -92,10 +97,12 @@ func (j *Data) validate() error {
 }
 
 // 返回的 IAM 子账号响应
-type GetIamUserResp = Response
-type jsonResponse struct {
-	Data GetIamUserData `json:"data"` // IAM 子账号信息
-}
+type (
+	GetIamUserResp = Response
+	jsonResponse   struct {
+		Data GetIamUserData `json:"data"` // IAM 子账号信息
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -103,6 +110,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Data: j.Data})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -111,6 +119,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Data = nj.Data
 	return nil
 }
+
 func (j *Response) validate() error {
 	if err := j.Data.validate(); err != nil {
 		return err

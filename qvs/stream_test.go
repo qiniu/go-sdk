@@ -113,7 +113,6 @@ func TestDynamicPublishPlayURL(t *testing.T) {
 }
 
 func TestStaticPublishPlayURL(t *testing.T) {
-
 	if skipTest() {
 		t.SkipNow()
 	}
@@ -139,7 +138,6 @@ func TestStaticPublishPlayURL(t *testing.T) {
 }
 
 func TestQueryStreamRecordHistories(t *testing.T) {
-
 	if skipTest() {
 		t.SkipNow()
 	}
@@ -158,7 +156,7 @@ func TestDeleteSnapshots(t *testing.T) {
 	}
 	c := getTestManager()
 
-	var res = struct {
+	res := struct {
 		Items []struct {
 			Snap string `json:"snap"`
 			Time int    `json:"time"`

@@ -4,6 +4,10 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	getregions "github.com/qiniu/go-sdk/v7/storagev2/apis/get_regions"
@@ -11,14 +15,13 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strings"
-	"time"
 )
 
-type innerGetRegionsRequest getregions.Request
-type GetRegionsRequest = getregions.Request
-type GetRegionsResponse = getregions.Response
+type (
+	innerGetRegionsRequest getregions.Request
+	GetRegionsRequest      = getregions.Request
+	GetRegionsResponse     = getregions.Response
+)
 
 // 获取所有区域信息
 func (storage *Storage) GetRegions(ctx context.Context, request *GetRegionsRequest, options *Options) (*GetRegionsResponse, error) {

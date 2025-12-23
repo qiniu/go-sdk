@@ -19,7 +19,6 @@ type Transport struct {
 
 // RoundTrip transport round trip method
 func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
-
 	sign, err := SignRequest(t.mac.SecretKey, req)
 	if err != nil {
 		return
@@ -32,13 +31,11 @@ func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error
 
 // NestedObject return transport
 func (t *Transport) NestedObject() interface{} {
-
 	return t.Transport
 }
 
 // NewTransport return transport with qiniu mac
 func NewTransport(mac *Mac, transport http.RoundTripper) *Transport {
-
 	if transport == nil {
 		transport = http.DefaultTransport
 	}
@@ -51,7 +48,6 @@ func NewTransport(mac *Mac, transport http.RoundTripper) *Transport {
 
 // NewClient return qiniu mac client
 func NewClient(mac *Mac, transport http.RoundTripper) *http.Client {
-
 	t := NewTransport(mac, transport)
 	return &http.Client{Transport: t}
 }

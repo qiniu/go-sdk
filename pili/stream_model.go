@@ -6,7 +6,6 @@ import (
 
 // GetStreamListRequest 查询直播流列表请求参数
 type GetStreamListRequest struct {
-
 	// Hub 直播空间
 	Hub string `validate:"required"`
 
@@ -26,7 +25,6 @@ type GetStreamListRequest struct {
 
 // GetStreamsListResponse 查询直播流列表返回值
 type GetStreamsListResponse struct {
-
 	// Items 流列表
 	Items []GetStreamsListResponseItem `json:"items"`
 
@@ -36,14 +34,12 @@ type GetStreamsListResponse struct {
 }
 
 type GetStreamsListResponseItem struct {
-
 	// Key 流名
 	Key string `json:"key"`
 }
 
 // GetStreamBaseInfoRequest 查询直播流信息请求参数
 type GetStreamBaseInfoRequest struct {
-
 	// Hub 直播空间
 	Hub string `validate:"required"`
 
@@ -53,7 +49,6 @@ type GetStreamBaseInfoRequest struct {
 
 // GetStreamBaseInfoResponse 查询直播流信息返回值
 type GetStreamBaseInfoResponse struct {
-
 	// CreatedAt 直播流创建时间
 	// Unix 时间戳，单位：秒
 	CreatedAt int64 `json:"createdAt"`
@@ -87,7 +82,6 @@ type GetStreamBaseInfoResponse struct {
 
 // StreamDisabledRequest 禁用直播流请求参数
 type StreamDisabledRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 
@@ -107,7 +101,6 @@ type StreamDisabledRequest struct {
 
 // GetStreamLiveStatusRequest 查询直播流实时信息请求参数
 type GetStreamLiveStatusRequest struct {
-
 	// Hub 直播空间
 	Hub string `validate:"required"`
 
@@ -117,7 +110,6 @@ type GetStreamLiveStatusRequest struct {
 
 // StreamLiveStatus 直播流实时状态
 type StreamLiveStatus struct {
-
 	// StartAt 推流开始时间
 	// Unix 时间戳，单位：秒
 	StartAt int64 `json:"startAt"`
@@ -140,7 +132,6 @@ type StreamLiveStatus struct {
 
 // StreamLiveStatusFPS 流实时帧率
 type StreamLiveStatusFPS struct {
-
 	// Audio 音频帧率
 	Audio int `json:"audio"`
 
@@ -153,7 +144,6 @@ type StreamLiveStatusFPS struct {
 
 // GetStreamLiveStatusResponse 查询直播流实时信息返回值
 type GetStreamLiveStatusResponse struct {
-
 	// StreamLiveStatus 直播流实时状态
 	StreamLiveStatus
 
@@ -184,7 +174,6 @@ type GetStreamLiveStatusResponse struct {
 
 // BatchGetStreamLiveStatusRequest 批量查询直播实时状态请求参数
 type BatchGetStreamLiveStatusRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 
@@ -195,14 +184,12 @@ type BatchGetStreamLiveStatusRequest struct {
 
 // BatchGetStreamLiveStatusResponse 批量查询直播实时状态返回值
 type BatchGetStreamLiveStatusResponse struct {
-
 	// Items 流列表
 	Items []StreamLiveStatus `json:"items"`
 }
 
 // GetStreamHistoryRequest 查询直播流推流记录请求参数
 type GetStreamHistoryRequest struct {
-
 	// Hub 直播空间
 	Hub string `validate:"required"`
 
@@ -220,14 +207,12 @@ type GetStreamHistoryRequest struct {
 
 // GetStreamHistoryResponse 查询直播流推流记录返回值
 type GetStreamHistoryResponse struct {
-
 	// Items 直播流推流记录列表
 	Items []GetStreamHistoryItem `json:"items"`
 }
 
 // GetStreamHistoryItem 查询直播流推流记录项
 type GetStreamHistoryItem struct {
-
 	// Start 推流开始时间
 	Start int64 `json:"start"`
 
@@ -243,7 +228,6 @@ type GetStreamHistoryItem struct {
 
 // StreamSaveasRequest 录制直播回放请求参数
 type StreamSaveasRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 
@@ -302,7 +286,6 @@ type StreamSaveasRequest struct {
 
 // StreamSaveasResponse 录制直播回放返回值
 type StreamSaveasResponse struct {
-
 	// Fname 文件名
 	Fname string `json:"fname"`
 
@@ -320,7 +303,6 @@ type StreamSaveasResponse struct {
 
 // StreamSnapshotRequest 保存直播截图请求参数
 type StreamSnapshotRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 
@@ -355,7 +337,6 @@ type StreamSnapshotRequest struct {
 
 // StreamSnapshotResponse 保存直播截图返回值
 type StreamSnapshotResponse struct {
-
 	// Fname 文件名
 	Fname string `json:"fname"`
 
@@ -365,7 +346,6 @@ type StreamSnapshotResponse struct {
 
 // StreamConvertsRequest 修改直播流转码配置请求参数
 type StreamConvertsRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 

@@ -24,7 +24,7 @@ type SaveasArgs struct {
 	Format          string `json:"format"`
 	Start           int    `json:"start"`
 	End             int    `json:"end"`
-	DeleteTs        bool   `json:"deleteTs"` //sdk直接调用方式在不生成m3u8格式文件时是否删除对应的ts文件
+	DeleteTs        bool   `json:"deleteTs"` // sdk直接调用方式在不生成m3u8格式文件时是否删除对应的ts文件
 	Pipeline        string `json:"pipeline"`
 	NotifyUrl       string `json:"notifyUrl"`
 	DeleteAfterDays int    `json:"deleteAfterDays"`
@@ -49,7 +49,7 @@ func (manager *Manager) RecordClipsSaveas(nsId, streamId string, arg *SaveasArgs
 
 // 录制回放
 func (manager *Manager) RecordsPlayback(nsId, streamId string, start, end int) (string, error) {
-	var ret = struct {
+	ret := struct {
 		Url string `json:"url"`
 	}{}
 	err := manager.client.Call(context.Background(), &ret, "GET", manager.url("/namespaces/%s/streams/%s/records/playback.m3u8?start=%d&end=%d", nsId, streamId, start, end), nil)

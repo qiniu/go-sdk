@@ -1,10 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
-
-	"context"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/storage"
@@ -34,7 +33,7 @@ func main() {
 	// 上传是否使用CDN上传加速
 	cfg.UseCdnDomains = false
 
-	mErr := os.MkdirAll(recordDir, 0755)
+	mErr := os.MkdirAll(recordDir, 0o755)
 	if mErr != nil {
 		fmt.Println("mkdir for record dir error,", mErr)
 		return

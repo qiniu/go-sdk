@@ -17,7 +17,6 @@ var (
 )
 
 func main() {
-
 	// 简单上传凭证
 	putPolicy := storage.PutPolicy{
 		Scope: bucket,
@@ -30,7 +29,7 @@ func main() {
 	putPolicy = storage.PutPolicy{
 		Scope: bucket,
 	}
-	putPolicy.Expires = 7200 //示例2小时有效期
+	putPolicy.Expires = 7200 // 示例2小时有效期
 
 	upToken = putPolicy.UploadToken(mac)
 	fmt.Println(upToken)
@@ -74,10 +73,10 @@ func main() {
 	// 带数据处理的凭证
 	saveMp4Entry := base64.URLEncoding.EncodeToString([]byte(bucket + ":avthumb_test_target.mp4"))
 	saveJpgEntry := base64.URLEncoding.EncodeToString([]byte(bucket + ":vframe_test_target.jpg"))
-	//数据处理指令，支持多个指令
+	// 数据处理指令，支持多个指令
 	avthumbMp4Fop := "avthumb/mp4|saveas/" + saveMp4Entry
 	vframeJpgFop := "vframe/jpg/offset/1|saveas/" + saveJpgEntry
-	//连接多个操作指令
+	// 连接多个操作指令
 	persistentOps := strings.Join([]string{avthumbMp4Fop, vframeJpgFop}, ";")
 	pipeline := "test"
 	putPolicy = storage.PutPolicy{

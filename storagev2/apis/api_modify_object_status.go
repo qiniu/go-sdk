@@ -5,6 +5,11 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	modifyobjectstatus "github.com/qiniu/go-sdk/v7/storagev2/apis/modify_object_status"
@@ -12,10 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerModifyObjectStatusRequest modifyobjectstatus.Request
@@ -23,6 +24,7 @@ type innerModifyObjectStatusRequest modifyobjectstatus.Request
 func (pp *innerModifyObjectStatusRequest) getBucketName(ctx context.Context) (string, error) {
 	return strings.SplitN(pp.Entry, ":", 2)[0], nil
 }
+
 func (pp *innerModifyObjectStatusRequest) getObjectName() string {
 	parts := strings.SplitN(pp.Entry, ":", 2)
 	if len(parts) > 1 {
@@ -30,6 +32,7 @@ func (pp *innerModifyObjectStatusRequest) getObjectName() string {
 	}
 	return ""
 }
+
 func (path *innerModifyObjectStatusRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 3)
 	if path.Entry != "" {
@@ -40,6 +43,7 @@ func (path *innerModifyObjectStatusRequest) buildPath() ([]string, error) {
 	allSegments = append(allSegments, "status", strconv.FormatInt(path.Status, 10))
 	return allSegments, nil
 }
+
 func (request *innerModifyObjectStatusRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -51,8 +55,10 @@ func (request *innerModifyObjectStatusRequest) getAccessKey(ctx context.Context)
 	return "", nil
 }
 
-type ModifyObjectStatusRequest = modifyobjectstatus.Request
-type ModifyObjectStatusResponse = modifyobjectstatus.Response
+type (
+	ModifyObjectStatusRequest  = modifyobjectstatus.Request
+	ModifyObjectStatusResponse = modifyobjectstatus.Response
+)
 
 // 修改文件的存储状态，即禁用状态和启用状态间的的互相转换
 func (storage *Storage) ModifyObjectStatus(ctx context.Context, request *ModifyObjectStatusRequest, options *Options) (*ModifyObjectStatusResponse, error) {

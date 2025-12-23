@@ -5,6 +5,7 @@ package get_groups
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -47,6 +48,7 @@ func (j *GetGroup) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonGetGroup{Id: j.Id, RootUid: j.RootUid, Alias: j.Alias, Description: j.Description, Enabled: j.Enabled, CreatedAt: j.CreatedAt, UpdatedAt: j.UpdatedAt})
 }
+
 func (j *GetGroup) UnmarshalJSON(data []byte) error {
 	var nj jsonGetGroup
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -61,6 +63,7 @@ func (j *GetGroup) UnmarshalJSON(data []byte) error {
 	j.UpdatedAt = nj.UpdatedAt
 	return nil
 }
+
 func (j *GetGroup) validate() error {
 	if j.Id == "" {
 		return errors.MissingRequiredFieldError{Name: "Id"}
@@ -93,11 +96,13 @@ type Data struct {
 }
 
 // 返回的用户分组列表信息
-type GetGroupsData = Data
-type jsonData struct {
-	Count int64     `json:"count"` // 用户分组数量
-	List  GetGroups `json:"list"`  // 用户分组列表
-}
+type (
+	GetGroupsData = Data
+	jsonData      struct {
+		Count int64     `json:"count"` // 用户分组数量
+		List  GetGroups `json:"list"`  // 用户分组列表
+	}
+)
 
 func (j *Data) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -105,6 +110,7 @@ func (j *Data) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonData{Count: j.Count, List: j.List})
 }
+
 func (j *Data) UnmarshalJSON(data []byte) error {
 	var nj jsonData
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -114,6 +120,7 @@ func (j *Data) UnmarshalJSON(data []byte) error {
 	j.List = nj.List
 	return nil
 }
+
 func (j *Data) validate() error {
 	if j.Count == 0 {
 		return errors.MissingRequiredFieldError{Name: "Count"}
@@ -130,10 +137,12 @@ func (j *Data) validate() error {
 }
 
 // 返回的用户分组列表响应
-type GetGroupsResp = Response
-type jsonResponse struct {
-	Data GetGroupsData `json:"data"` // 用户分组信息
-}
+type (
+	GetGroupsResp = Response
+	jsonResponse  struct {
+		Data GetGroupsData `json:"data"` // 用户分组信息
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -141,6 +150,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Data: j.Data})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -149,6 +159,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Data = nj.Data
 	return nil
 }
+
 func (j *Response) validate() error {
 	if err := j.Data.validate(); err != nil {
 		return err
