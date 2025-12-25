@@ -113,9 +113,13 @@ func (r *PrefopRet) String() string {
 		strData += fmt.Sprintf("\tCmd:\t%s\r\n\tCode:\t%d\r\n\tDesc:\t%s\r\n", item.Cmd, item.Code, item.Desc)
 		if item.Error != "" {
 			strData += fmt.Sprintf("\tError:\t%s\r\n", item.Error)
+			strData += fmt.Sprintf("\tErrorIndex:\t%d\r\n", item.ErrorIndex)
 		} else {
 			if item.Hash != "" {
 				strData += fmt.Sprintf("\tHash:\t%s\r\n", item.Hash)
+			}
+			if item.Result != nil {
+				strData += fmt.Sprintf("\tResult:\t%v\r\n", item.Result)
 			}
 			if item.Key != "" {
 				strData += fmt.Sprintf("\tKey:\t%s\r\n", item.Key)
@@ -128,6 +132,9 @@ func (r *PrefopRet) String() string {
 					}
 					strData += "\t}\r\n"
 				}
+			}
+			if item.ReturnOld != 0 {
+				strData += fmt.Sprintf("\tReturnOld:\t%d\r\n", item.ReturnOld)
 			}
 		}
 		strData += "\r\n"
@@ -148,13 +155,16 @@ type PfopRequest struct {
 
 // FopResult 云处理操作列表，包含每个云处理操作的状态信息
 type FopResult struct {
-	Cmd   string   `json:"cmd"`
-	Code  int      `json:"code"`
-	Desc  string   `json:"desc"`
-	Error string   `json:"error,omitempty"`
-	Hash  string   `json:"hash,omitempty"`
-	Key   string   `json:"key,omitempty"`
-	Keys  []string `json:"keys,omitempty"`
+	Cmd        string      `json:"cmd"`
+	Code       int         `json:"code"`
+	Desc       string      `json:"desc"`
+	Error      string      `json:"error,omitempty"`
+	ErrorIndex int64       `json:"errorIndex,omitempty"`
+	Hash       string      `json:"hash,omitempty"`
+	Result     interface{} `json:"result,omitempty"`
+	Key        string      `json:"key,omitempty"`
+	Keys       []string    `json:"keys,omitempty"`
+	ReturnOld  int64       `json:"returnOld,omitempty"`
 }
 
 // Pfop 持久化数据处理
@@ -231,12 +241,16 @@ func (m *OperationManager) Prefop(persistentID string) (PrefopRet, error) {
 	}
 	for _, item := range response.Items {
 		ret.Items = append(ret.Items, FopResult{
-			Cmd:   item.Command,
-			Code:  int(item.Code),
-			Desc:  item.Description,
-			Error: item.Error,
-			Hash:  item.Hash,
-			Key:   item.ObjectName,
+			Cmd:        item.Command,
+			Code:       int(item.Code),
+			Desc:       item.Description,
+			Error:      item.Error,
+			ErrorIndex: item.ErrorIndex,
+			Hash:       item.Hash,
+			Result:     item.Result,
+			Key:        item.ObjectName,
+			Keys:       item.ObjectNames,
+			ReturnOld:  item.ReturnOld,
 		})
 	}
 	return ret, nil
