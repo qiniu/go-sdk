@@ -161,10 +161,10 @@ type FopResult struct {
 	Error      string      `json:"error,omitempty"`
 	ErrorIndex int64       `json:"errorIndex,omitempty"`
 	Hash       string      `json:"hash,omitempty"`
-	Result     interface{} `json:"result"`
+	Result     interface{} `json:"result,omitempty"`
 	Key        string      `json:"key,omitempty"`
 	Keys       []string    `json:"keys,omitempty"`
-	ReturnOld  int64       `json:"returnOld"`
+	ReturnOld  int64       `json:"returnOld,omitempty"`
 }
 
 // Pfop 持久化数据处理
