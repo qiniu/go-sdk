@@ -199,6 +199,7 @@ func TestPutWithoutKeyV2(t *testing.T) {
 	}
 	t.Logf("Key: %s, Hash:%s", putRet.Key, putRet.Hash)
 }
+
 func TestPutWithRecoveryV2(t *testing.T) {
 	var putRet PutRet
 	putPolicy := PutPolicy{

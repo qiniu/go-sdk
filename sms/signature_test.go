@@ -10,7 +10,6 @@ import (
 )
 
 func TestSignature(t *testing.T) {
-
 	// CreateSignature
 	args := sms.SignatureRequest{
 		Signature: "Test",
@@ -18,7 +17,6 @@ func TestSignature(t *testing.T) {
 	}
 
 	ret, err := manager.CreateSignature(args)
-
 	if err != nil {
 		t.Fatalf("CreateSignature() error: %v\n", err)
 	}
@@ -31,7 +29,6 @@ func TestSignature(t *testing.T) {
 	query := sms.QuerySignatureRequest{}
 
 	pagination, err := manager.QuerySignature(query)
-
 	if err != nil {
 		t.Fatalf("QuerySignature() error: %v\n", err)
 	}
@@ -59,5 +56,4 @@ func TestSignature(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeleteSignature() error: %v\n", err)
 	}
-
 }

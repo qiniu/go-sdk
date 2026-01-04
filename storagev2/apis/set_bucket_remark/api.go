@@ -5,6 +5,7 @@ package set_bucket_remark
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -17,10 +18,12 @@ type Request struct {
 }
 
 // 空间备注信息
-type BucketRemark = Request
-type jsonRequest struct {
-	Remark string `json:"remark"` // 空间备注信息, 字符长度不能超过 100, 允许为空
-}
+type (
+	BucketRemark = Request
+	jsonRequest  struct {
+		Remark string `json:"remark"` // 空间备注信息, 字符长度不能超过 100, 允许为空
+	}
+)
 
 func (j *Request) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -28,6 +31,7 @@ func (j *Request) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonRequest{Remark: j.Remark})
 }
+
 func (j *Request) UnmarshalJSON(data []byte) error {
 	var nj jsonRequest
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -36,6 +40,7 @@ func (j *Request) UnmarshalJSON(data []byte) error {
 	j.Remark = nj.Remark
 	return nil
 }
+
 func (j *Request) validate() error {
 	if j.Remark == "" {
 		return errors.MissingRequiredFieldError{Name: "Remark"}

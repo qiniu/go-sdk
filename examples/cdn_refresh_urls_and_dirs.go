@@ -18,7 +18,7 @@ func main() {
 	mac := auth.New(accessKey, secretKey)
 	cdnManager := cdn.NewCdnManager(mac)
 
-	//刷新链接，单次请求链接不可以超过100个，如果超过，请分批发送请求
+	// 刷新链接，单次请求链接不可以超过100个，如果超过，请分批发送请求
 	urlsToRefresh := []string{
 		"http://if-pbl.qiniudn.com/qiniu.png",
 		"http://if-pbl.qiniudn.com/github.png",

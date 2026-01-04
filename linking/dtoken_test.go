@@ -58,7 +58,6 @@ func TestStatusToken(t *testing.T) {
 	resp, err := http.Get(url)
 	shouldBeEqual(t, 200, resp.StatusCode)
 	noError(t, err)
-
 }
 
 func TestXXX(t *testing.T) {

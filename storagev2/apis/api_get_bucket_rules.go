@@ -4,6 +4,11 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	getbucketrules "github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_rules"
@@ -11,10 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type innerGetBucketRulesRequest getbucketrules.Request
@@ -29,8 +30,10 @@ func (query *innerGetBucketRulesRequest) buildQuery() (url.Values, error) {
 	return allQuery, nil
 }
 
-type GetBucketRulesRequest = getbucketrules.Request
-type GetBucketRulesResponse = getbucketrules.Response
+type (
+	GetBucketRulesRequest  = getbucketrules.Request
+	GetBucketRulesResponse = getbucketrules.Response
+)
 
 // 获取空间规则
 func (storage *Storage) GetBucketRules(ctx context.Context, request *GetBucketRulesRequest, options *Options) (*GetBucketRulesResponse, error) {

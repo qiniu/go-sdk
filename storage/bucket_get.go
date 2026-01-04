@@ -173,7 +173,8 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 					}
 				}
 				getObjectOutput.Metadata = metaData
-			}},
+			},
+		},
 		GenerateOptions: downloader.GenerateOptions{
 			BucketName:          bucket,
 			UseInsecureProtocol: !m.Cfg.UseHTTPS,

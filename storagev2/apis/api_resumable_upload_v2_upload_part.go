@@ -5,15 +5,16 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strconv"
+	"strings"
+
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	resumableuploadv2uploadpart "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v2_upload_part"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	utils "github.com/qiniu/go-sdk/v7/storagev2/internal/utils"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type innerResumableUploadV2UploadPartRequest resumableuploadv2uploadpart.Request
@@ -28,6 +29,7 @@ func (request *innerResumableUploadV2UploadPartRequest) getBucketName(ctx contex
 	}
 	return "", nil
 }
+
 func (path *innerResumableUploadV2UploadPartRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 6)
 	if path.BucketName != "" {
@@ -52,6 +54,7 @@ func (path *innerResumableUploadV2UploadPartRequest) buildPath() ([]string, erro
 	}
 	return allSegments, nil
 }
+
 func (headers *innerResumableUploadV2UploadPartRequest) buildHeaders() (http.Header, error) {
 	allHeaders := make(http.Header)
 	if headers.Md5 != "" {
@@ -59,6 +62,7 @@ func (headers *innerResumableUploadV2UploadPartRequest) buildHeaders() (http.Hea
 	}
 	return allHeaders, nil
 }
+
 func (request *innerResumableUploadV2UploadPartRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
 		return request.UpToken.GetAccessKey(ctx)
@@ -66,8 +70,10 @@ func (request *innerResumableUploadV2UploadPartRequest) getAccessKey(ctx context
 	return "", nil
 }
 
-type ResumableUploadV2UploadPartRequest = resumableuploadv2uploadpart.Request
-type ResumableUploadV2UploadPartResponse = resumableuploadv2uploadpart.Response
+type (
+	ResumableUploadV2UploadPartRequest  = resumableuploadv2uploadpart.Request
+	ResumableUploadV2UploadPartResponse = resumableuploadv2uploadpart.Response
+)
 
 // 初始化一个 Multipart Upload 任务之后，可以根据指定的对象名称和 UploadId 来分片上传数据
 func (storage *Storage) ResumableUploadV2UploadPart(ctx context.Context, request *ResumableUploadV2UploadPartRequest, options *Options) (*ResumableUploadV2UploadPartResponse, error) {

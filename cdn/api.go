@@ -87,7 +87,8 @@ func WithBandwidthDataType(dataType DataType) BandwidthOption {
 //	Opts                            非必须   可选项
 
 func (m *CdnManager) GetBandwidthData(startDate, endDate, granularity string,
-	domainList []string, opts ...BandwidthOption) (bandwidthData TrafficResp, err error) {
+	domainList []string, opts ...BandwidthOption,
+) (bandwidthData TrafficResp, err error) {
 	var options options
 	for _, opt := range opts {
 		opt.Apply(&options)
@@ -133,7 +134,8 @@ func WithFluxDataType(dataType DataType) FluxOption {
 //	Domains		[]string	必须	域名列表
 //	Opts                            非必须   可选项
 func (m *CdnManager) GetFluxData(startDate, endDate, granularity string,
-	domainList []string, opts ...FluxOption) (fluxData TrafficResp, err error) {
+	domainList []string, opts ...FluxOption,
+) (fluxData TrafficResp, err error) {
 	var options options
 	for _, opt := range opts {
 		opt.Apply(&options)
@@ -291,8 +293,9 @@ type LogDomainInfo struct {
 
 // GetCdnLogList 获取CDN域名访问日志的下载链接
 func (m *CdnManager) GetCdnLogList(day string, domains []string) (
-	listLogResult ListLogResult, err error) {
-	//new log query request
+	listLogResult ListLogResult, err error,
+) {
+	// new log query request
 	logReq := ListLogRequest{
 		Day:     day,
 		Domains: strings.Join(domains, ";"),
@@ -319,7 +322,8 @@ func (m *CdnManager) GetCdnLogList(day string, domains []string) (
 
 // RequestWithBody 带body对api发出请求并且返回response body
 func postRequest(mac *auth.Credentials, path string, body interface{}) (resData []byte,
-	err error) {
+	err error,
+) {
 	urlStr := fmt.Sprintf("%s%s", FusionHost, path)
 	reqData, _ := json.Marshal(body)
 	req, reqErr := http.NewRequest("POST", urlStr, bytes.NewReader(reqData))

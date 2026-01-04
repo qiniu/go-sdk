@@ -5,13 +5,14 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strings"
+
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	resumableuploadv2abortmultipartupload "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v2_abort_multipart_upload"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"net/http"
-	"strings"
 )
 
 type innerResumableUploadV2AbortMultipartUploadRequest resumableuploadv2abortmultipartupload.Request
@@ -26,6 +27,7 @@ func (request *innerResumableUploadV2AbortMultipartUploadRequest) getBucketName(
 	}
 	return "", nil
 }
+
 func (path *innerResumableUploadV2AbortMultipartUploadRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 5)
 	if path.BucketName != "" {
@@ -45,6 +47,7 @@ func (path *innerResumableUploadV2AbortMultipartUploadRequest) buildPath() ([]st
 	}
 	return allSegments, nil
 }
+
 func (request *innerResumableUploadV2AbortMultipartUploadRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
 		return request.UpToken.GetAccessKey(ctx)
@@ -52,8 +55,10 @@ func (request *innerResumableUploadV2AbortMultipartUploadRequest) getAccessKey(c
 	return "", nil
 }
 
-type ResumableUploadV2AbortMultipartUploadRequest = resumableuploadv2abortmultipartupload.Request
-type ResumableUploadV2AbortMultipartUploadResponse = resumableuploadv2abortmultipartupload.Response
+type (
+	ResumableUploadV2AbortMultipartUploadRequest  = resumableuploadv2abortmultipartupload.Request
+	ResumableUploadV2AbortMultipartUploadResponse = resumableuploadv2abortmultipartupload.Response
+)
 
 // 根据 UploadId 终止 Multipart Upload
 func (storage *Storage) ResumableUploadV2AbortMultipartUpload(ctx context.Context, request *ResumableUploadV2AbortMultipartUploadRequest, options *Options) (*ResumableUploadV2AbortMultipartUploadResponse, error) {

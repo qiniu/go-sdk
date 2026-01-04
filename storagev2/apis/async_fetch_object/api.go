@@ -5,6 +5,7 @@ package async_fetch_object
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -27,21 +28,23 @@ type Request struct {
 }
 
 // 要抓取的资源信息
-type NewFetchTaskParams = Request
-type jsonRequest struct {
-	Url              string `json:"url"`                        // 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
-	Bucket           string `json:"bucket"`                     // 所在区域的存储空间
-	Host             string `json:"host,omitempty"`             // 从指定 URL 下载数据时使用的 Host
-	Key              string `json:"key,omitempty"`              // 对象名称，如果不传，则默认为文件的哈希值
-	Md5              string `json:"md5,omitempty"`              // 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
-	Etag             string `json:"etag,omitempty"`             // 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
-	CallbackUrl      string `json:"callbackurl,omitempty"`      // 回调 URL
-	CallbackBody     string `json:"callbackbody,omitempty"`     // 回调负荷，如果 callback_url 不为空则必须指定
-	CallbackBodyType string `json:"callbackbodytype,omitempty"` // 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
-	CallbackHost     string `json:"callbackhost,omitempty"`     // 回调时使用的 Host
-	FileType         int64  `json:"file_type"`                  // 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
-	IgnoreSameKey    bool   `json:"ignore_same_key,omitempty"`  // 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
-}
+type (
+	NewFetchTaskParams = Request
+	jsonRequest        struct {
+		Url              string `json:"url"`                        // 需要抓取的 URL，支持设置多个用于高可用，以’;'分隔，当指定多个 URL 时可以在前一个 URL 抓取失败时重试下一个
+		Bucket           string `json:"bucket"`                     // 所在区域的存储空间
+		Host             string `json:"host,omitempty"`             // 从指定 URL 下载数据时使用的 Host
+		Key              string `json:"key,omitempty"`              // 对象名称，如果不传，则默认为文件的哈希值
+		Md5              string `json:"md5,omitempty"`              // 文件 MD5，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
+		Etag             string `json:"etag,omitempty"`             // 对象内容的 ETag，传入以后会在存入存储时对文件做校验，校验失败则不存入指定空间
+		CallbackUrl      string `json:"callbackurl,omitempty"`      // 回调 URL
+		CallbackBody     string `json:"callbackbody,omitempty"`     // 回调负荷，如果 callback_url 不为空则必须指定
+		CallbackBodyType string `json:"callbackbodytype,omitempty"` // 回调负荷内容类型，默认为 "application/x-www-form-urlencoded"
+		CallbackHost     string `json:"callbackhost,omitempty"`     // 回调时使用的 Host
+		FileType         int64  `json:"file_type"`                  // 存储文件类型 `0`: 标准存储(默认)，`1`: 低频存储，`2`: 归档存储
+		IgnoreSameKey    bool   `json:"ignore_same_key,omitempty"`  // 如果空间中已经存在同名文件则放弃本次抓取（仅对比对象名称，不校验文件内容）
+	}
+)
 
 func (j *Request) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -49,6 +52,7 @@ func (j *Request) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonRequest{Url: j.Url, Bucket: j.Bucket, Host: j.Host, Key: j.Key, Md5: j.Md5, Etag: j.Etag, CallbackUrl: j.CallbackUrl, CallbackBody: j.CallbackBody, CallbackBodyType: j.CallbackBodyType, CallbackHost: j.CallbackHost, FileType: j.FileType, IgnoreSameKey: j.IgnoreSameKey})
 }
+
 func (j *Request) UnmarshalJSON(data []byte) error {
 	var nj jsonRequest
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -68,6 +72,7 @@ func (j *Request) UnmarshalJSON(data []byte) error {
 	j.IgnoreSameKey = nj.IgnoreSameKey
 	return nil
 }
+
 func (j *Request) validate() error {
 	if j.Url == "" {
 		return errors.MissingRequiredFieldError{Name: "Url"}
@@ -85,11 +90,13 @@ type Response struct {
 }
 
 // 返回的异步任务信息
-type NewFetchTaskInfo = Response
-type jsonResponse struct {
-	Id               string `json:"id"`   // 异步任务 ID
-	QueuedTasksCount int64  `json:"wait"` // 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
-}
+type (
+	NewFetchTaskInfo = Response
+	jsonResponse     struct {
+		Id               string `json:"id"`   // 异步任务 ID
+		QueuedTasksCount int64  `json:"wait"` // 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -97,6 +104,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Id: j.Id, QueuedTasksCount: j.QueuedTasksCount})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -106,6 +114,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.QueuedTasksCount = nj.QueuedTasksCount
 	return nil
 }
+
 func (j *Response) validate() error {
 	if j.Id == "" {
 		return errors.MissingRequiredFieldError{Name: "Id"}

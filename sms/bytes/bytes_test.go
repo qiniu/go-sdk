@@ -11,7 +11,6 @@ import (
 // ---------------------------------------------------
 
 func TestBuffer(t *testing.T) {
-
 	b := NewBuffer()
 	n, err := b.WriteStringAt("Hello", 4)
 	if n != 5 || err != nil {

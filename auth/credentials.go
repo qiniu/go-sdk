@@ -159,17 +159,17 @@ func (headers xQiniuHeaders) Swap(i, j int) {
 func collectDataV2(req *http.Request) (data []byte, err error) {
 	u := req.URL
 
-	//write method path?query
+	// write method path?query
 	s := fmt.Sprintf("%s %s", req.Method, u.Path)
 	if u.RawQuery != "" {
 		s += "?"
 		s += u.RawQuery
 	}
 
-	//write host and post
+	// write host and post
 	s += "\nHost: " + req.Host + "\n"
 
-	//write content type
+	// write content type
 	contentType := req.Header.Get("Content-Type")
 	if contentType == "" {
 		contentType = "application/x-www-form-urlencoded"
@@ -196,7 +196,7 @@ func collectDataV2(req *http.Request) (data []byte, err error) {
 	s += "\n"
 
 	data = []byte(s)
-	//write body
+	// write body
 	if incBodyV2(req) {
 		s2, rErr := api.BytesFromRequest(req)
 		if rErr != nil {
@@ -221,7 +221,6 @@ func (ath *Credentials) SignRequest(req *http.Request) (token string, err error)
 
 // SignRequestV2 对数据进行签名，一般用于高级管理凭证的生成
 func (ath *Credentials) SignRequestV2(req *http.Request) (token string, err error) {
-
 	data, err := collectDataV2(req)
 	if err != nil {
 		return

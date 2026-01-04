@@ -4,6 +4,10 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	enableuserkeypair "github.com/qiniu/go-sdk/v7/iam/apis/enable_user_keypair"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
@@ -11,8 +15,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"strings"
-	"time"
 )
 
 type innerEnableUserKeypairRequest enableuserkeypair.Request
@@ -32,8 +34,10 @@ func (path *innerEnableUserKeypairRequest) buildPath() ([]string, error) {
 	return allSegments, nil
 }
 
-type EnableUserKeypairRequest = enableuserkeypair.Request
-type EnableUserKeypairResponse = enableuserkeypair.Response
+type (
+	EnableUserKeypairRequest  = enableuserkeypair.Request
+	EnableUserKeypairResponse = enableuserkeypair.Response
+)
 
 // 启用 IAM 子账号密钥
 func (iam *Iam) EnableUserKeypair(ctx context.Context, request *EnableUserKeypairRequest, options *Options) (*EnableUserKeypairResponse, error) {
@@ -55,6 +59,7 @@ func (iam *Iam) EnableUserKeypair(ctx context.Context, request *EnableUserKeypai
 	pathSegments = append(pathSegments, "enable")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
+	headers := http.Header{}
 	uplogInterceptor, err := uplog.NewRequestUplog("enableUserKeypair", "", "", func() (string, error) {
 		credentials := innerRequest.Credentials
 		if credentials == nil {
@@ -69,7 +74,7 @@ func (iam *Iam) EnableUserKeypair(ctx context.Context, request *EnableUserKeypai
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && iam.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 

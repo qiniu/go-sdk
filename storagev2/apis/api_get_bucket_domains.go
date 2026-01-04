@@ -4,6 +4,11 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	getbucketdomains "github.com/qiniu/go-sdk/v7/storagev2/apis/get_bucket_domains"
@@ -11,10 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type innerGetBucketDomainsRequest getbucketdomains.Request
@@ -22,6 +23,7 @@ type innerGetBucketDomainsRequest getbucketdomains.Request
 func (query *innerGetBucketDomainsRequest) getBucketName(ctx context.Context) (string, error) {
 	return query.BucketName, nil
 }
+
 func (query *innerGetBucketDomainsRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.BucketName != "" {
@@ -32,8 +34,10 @@ func (query *innerGetBucketDomainsRequest) buildQuery() (url.Values, error) {
 	return allQuery, nil
 }
 
-type GetBucketDomainsRequest = getbucketdomains.Request
-type GetBucketDomainsResponse = getbucketdomains.Response
+type (
+	GetBucketDomainsRequest  = getbucketdomains.Request
+	GetBucketDomainsResponse = getbucketdomains.Response
+)
 
 // 获取存储空间的域名列表
 func (storage *Storage) GetBucketDomains(ctx context.Context, request *GetBucketDomainsRequest, options *Options) (*GetBucketDomainsResponse, error) {

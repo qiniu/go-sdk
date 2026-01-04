@@ -5,6 +5,7 @@ package query_bucket_v2
 
 import (
 	"encoding/json"
+
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
 
@@ -48,6 +49,7 @@ func (j *BucketAcceleratedUpDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonBucketAcceleratedUpDomains{MainAcceleratedUpDomains: j.MainAcceleratedUpDomains, BackupAcceleratedUpDomains: j.BackupAcceleratedUpDomains})
 }
+
 func (j *BucketAcceleratedUpDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonBucketAcceleratedUpDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -57,6 +59,7 @@ func (j *BucketAcceleratedUpDomains) UnmarshalJSON(data []byte) error {
 	j.BackupAcceleratedUpDomains = nj.BackupAcceleratedUpDomains
 	return nil
 }
+
 func (j *BucketAcceleratedUpDomains) validate() error {
 	if len(j.MainAcceleratedUpDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "MainAcceleratedUpDomains"}
@@ -89,6 +92,7 @@ func (j *AcceleratedUpDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonAcceleratedUpDomains{MainAcceleratedUpDomains: j.MainAcceleratedUpDomains, BackupAcceleratedUpDomains: j.BackupAcceleratedUpDomains})
 }
+
 func (j *AcceleratedUpDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonAcceleratedUpDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -98,6 +102,7 @@ func (j *AcceleratedUpDomains) UnmarshalJSON(data []byte) error {
 	j.BackupAcceleratedUpDomains = nj.BackupAcceleratedUpDomains
 	return nil
 }
+
 func (j *AcceleratedUpDomains) validate() error {
 	if len(j.MainAcceleratedUpDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "MainAcceleratedUpDomains"}
@@ -130,6 +135,7 @@ func (j *SourceUpDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonSourceUpDomains{MainSourceUpDomains: j.MainSourceUpDomains, BackupSourceUpDomains: j.BackupSourceUpDomains})
 }
+
 func (j *SourceUpDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonSourceUpDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -139,6 +145,7 @@ func (j *SourceUpDomains) UnmarshalJSON(data []byte) error {
 	j.BackupSourceUpDomains = nj.BackupSourceUpDomains
 	return nil
 }
+
 func (j *SourceUpDomains) validate() error {
 	if len(j.MainSourceUpDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "MainSourceUpDomains"}
@@ -159,11 +166,13 @@ type OldAcceleratedDomains struct {
 }
 
 // 已经过时的加速上传域名
-type OldAcceleratedUpDomains = OldAcceleratedDomains
-type jsonOldAcceleratedDomains struct {
-	OldMainAcceleratedUpDomains OldMainAcceleratedUpDomains `json:"main"` // 主加速上传域名列表
-	Info                        string                      `json:"info"` // 描述信息
-}
+type (
+	OldAcceleratedUpDomains   = OldAcceleratedDomains
+	jsonOldAcceleratedDomains struct {
+		OldMainAcceleratedUpDomains OldMainAcceleratedUpDomains `json:"main"` // 主加速上传域名列表
+		Info                        string                      `json:"info"` // 描述信息
+	}
+)
 
 func (j *OldAcceleratedDomains) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -171,6 +180,7 @@ func (j *OldAcceleratedDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonOldAcceleratedDomains{OldMainAcceleratedUpDomains: j.OldMainAcceleratedUpDomains, Info: j.Info})
 }
+
 func (j *OldAcceleratedDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonOldAcceleratedDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -180,6 +190,7 @@ func (j *OldAcceleratedDomains) UnmarshalJSON(data []byte) error {
 	j.Info = nj.Info
 	return nil
 }
+
 func (j *OldAcceleratedDomains) validate() error {
 	if len(j.OldMainAcceleratedUpDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "OldMainAcceleratedUpDomains"}
@@ -200,11 +211,13 @@ type OldSourceDomains struct {
 }
 
 // 已经过时的源站上传域名
-type OldSourceUpDomains = OldSourceDomains
-type jsonOldSourceDomains struct {
-	OldMainSourceUpDomains OldMainSourceUpDomains `json:"main"` // 主源站上传域名列表
-	Info                   string                 `json:"info"` // 描述信息
-}
+type (
+	OldSourceUpDomains   = OldSourceDomains
+	jsonOldSourceDomains struct {
+		OldMainSourceUpDomains OldMainSourceUpDomains `json:"main"` // 主源站上传域名列表
+		Info                   string                 `json:"info"` // 描述信息
+	}
+)
 
 func (j *OldSourceDomains) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -212,6 +225,7 @@ func (j *OldSourceDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonOldSourceDomains{OldMainSourceUpDomains: j.OldMainSourceUpDomains, Info: j.Info})
 }
+
 func (j *OldSourceDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonOldSourceDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -221,6 +235,7 @@ func (j *OldSourceDomains) UnmarshalJSON(data []byte) error {
 	j.Info = nj.Info
 	return nil
 }
+
 func (j *OldSourceDomains) validate() error {
 	if len(j.OldMainSourceUpDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "OldMainSourceUpDomains"}
@@ -253,6 +268,7 @@ func (j *UpDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonUpDomains{BucketAcceleratedUpDomains: j.BucketAcceleratedUpDomains, AcceleratedUpDomains: j.AcceleratedUpDomains, SourceUpDomains: j.SourceUpDomains, OldAcceleratedDomains: j.OldAcceleratedDomains, OldSourceDomains: j.OldSourceDomains})
 }
+
 func (j *UpDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonUpDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -265,6 +281,7 @@ func (j *UpDomains) UnmarshalJSON(data []byte) error {
 	j.OldSourceDomains = nj.OldSourceDomains
 	return nil
 }
+
 func (j *UpDomains) validate() error {
 	if err := j.BucketAcceleratedUpDomains.validate(); err != nil {
 		return err
@@ -301,6 +318,7 @@ func (j *SourceIoDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonSourceIoDomains{MainSourceIoDomains: j.MainSourceIoDomains})
 }
+
 func (j *SourceIoDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonSourceIoDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -309,6 +327,7 @@ func (j *SourceIoDomains) UnmarshalJSON(data []byte) error {
 	j.MainSourceIoDomains = nj.MainSourceIoDomains
 	return nil
 }
+
 func (j *SourceIoDomains) validate() error {
 	if len(j.MainSourceIoDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "MainSourceIoDomains"}
@@ -330,6 +349,7 @@ func (j *IoDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonIoDomains{SourceIoDomains: j.SourceIoDomains})
 }
+
 func (j *IoDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonIoDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -338,6 +358,7 @@ func (j *IoDomains) UnmarshalJSON(data []byte) error {
 	j.SourceIoDomains = nj.SourceIoDomains
 	return nil
 }
+
 func (j *IoDomains) validate() error {
 	if err := j.SourceIoDomains.validate(); err != nil {
 		return err
@@ -362,6 +383,7 @@ func (j *SourceIoSrcDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonSourceIoSrcDomains{MainSourceIoSrcDomains: j.MainSourceIoSrcDomains})
 }
+
 func (j *SourceIoSrcDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonSourceIoSrcDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -370,6 +392,7 @@ func (j *SourceIoSrcDomains) UnmarshalJSON(data []byte) error {
 	j.MainSourceIoSrcDomains = nj.MainSourceIoSrcDomains
 	return nil
 }
+
 func (j *SourceIoSrcDomains) validate() error {
 	if len(j.MainSourceIoSrcDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "MainSourceIoSrcDomains"}
@@ -391,6 +414,7 @@ func (j *IoSrcDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonIoSrcDomains{SourceIoSrcDomains: j.SourceIoSrcDomains})
 }
+
 func (j *IoSrcDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonIoSrcDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -399,6 +423,7 @@ func (j *IoSrcDomains) UnmarshalJSON(data []byte) error {
 	j.SourceIoSrcDomains = nj.SourceIoSrcDomains
 	return nil
 }
+
 func (j *IoSrcDomains) validate() error {
 	if err := j.SourceIoSrcDomains.validate(); err != nil {
 		return err
@@ -423,6 +448,7 @@ func (j *AcceleratedRsDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonAcceleratedRsDomains{MainAcceleratedRsDomains: j.MainAcceleratedRsDomains})
 }
+
 func (j *AcceleratedRsDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonAcceleratedRsDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -431,6 +457,7 @@ func (j *AcceleratedRsDomains) UnmarshalJSON(data []byte) error {
 	j.MainAcceleratedRsDomains = nj.MainAcceleratedRsDomains
 	return nil
 }
+
 func (j *AcceleratedRsDomains) validate() error {
 	if len(j.MainAcceleratedRsDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "MainAcceleratedRsDomains"}
@@ -452,6 +479,7 @@ func (j *RsDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonRsDomains{AcceleratedRsDomains: j.AcceleratedRsDomains})
 }
+
 func (j *RsDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonRsDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -460,6 +488,7 @@ func (j *RsDomains) UnmarshalJSON(data []byte) error {
 	j.AcceleratedRsDomains = nj.AcceleratedRsDomains
 	return nil
 }
+
 func (j *RsDomains) validate() error {
 	if err := j.AcceleratedRsDomains.validate(); err != nil {
 		return err
@@ -484,6 +513,7 @@ func (j *AcceleratedRsfDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonAcceleratedRsfDomains{MainAcceleratedRsfDomains: j.MainAcceleratedRsfDomains})
 }
+
 func (j *AcceleratedRsfDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonAcceleratedRsfDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -492,6 +522,7 @@ func (j *AcceleratedRsfDomains) UnmarshalJSON(data []byte) error {
 	j.MainAcceleratedRsfDomains = nj.MainAcceleratedRsfDomains
 	return nil
 }
+
 func (j *AcceleratedRsfDomains) validate() error {
 	if len(j.MainAcceleratedRsfDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "MainAcceleratedRsfDomains"}
@@ -513,6 +544,7 @@ func (j *RsfDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonRsfDomains{AcceleratedRsfDomains: j.AcceleratedRsfDomains})
 }
+
 func (j *RsfDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonRsfDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -521,6 +553,7 @@ func (j *RsfDomains) UnmarshalJSON(data []byte) error {
 	j.AcceleratedRsfDomains = nj.AcceleratedRsfDomains
 	return nil
 }
+
 func (j *RsfDomains) validate() error {
 	if err := j.AcceleratedRsfDomains.validate(); err != nil {
 		return err
@@ -545,6 +578,7 @@ func (j *AcceleratedApiDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonAcceleratedApiDomains{MainAcceleratedApiDomains: j.MainAcceleratedApiDomains})
 }
+
 func (j *AcceleratedApiDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonAcceleratedApiDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -553,6 +587,7 @@ func (j *AcceleratedApiDomains) UnmarshalJSON(data []byte) error {
 	j.MainAcceleratedApiDomains = nj.MainAcceleratedApiDomains
 	return nil
 }
+
 func (j *AcceleratedApiDomains) validate() error {
 	if len(j.MainAcceleratedApiDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "MainAcceleratedApiDomains"}
@@ -574,6 +609,7 @@ func (j *ApiDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonApiDomains{AcceleratedApiDomains: j.AcceleratedApiDomains})
 }
+
 func (j *ApiDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonApiDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -582,6 +618,7 @@ func (j *ApiDomains) UnmarshalJSON(data []byte) error {
 	j.AcceleratedApiDomains = nj.AcceleratedApiDomains
 	return nil
 }
+
 func (j *ApiDomains) validate() error {
 	if err := j.AcceleratedApiDomains.validate(); err != nil {
 		return err
@@ -590,17 +627,19 @@ func (j *ApiDomains) validate() error {
 }
 
 // 存储空间服务域名查询结果
-type BucketQueryResult = Response
-type jsonResponse struct {
-	RegionId     string       `json:"region"`           // 区域 ID
-	TimeToLive   int64        `json:"ttl"`              // 查询结果的 TTL
-	UpDomains    UpDomains    `json:"up"`               // 上传域名
-	IoDomains    IoDomains    `json:"io"`               // 下载域名
-	IoSrcDomains IoSrcDomains `json:"io_src,omitempty"` // 源站下载域名
-	RsDomains    RsDomains    `json:"rs"`               // 对象管理域名
-	RsfDomains   RsfDomains   `json:"rsf"`              // 对象列举域名
-	ApiDomains   ApiDomains   `json:"api"`              // API 域名
-}
+type (
+	BucketQueryResult = Response
+	jsonResponse      struct {
+		RegionId     string       `json:"region"`           // 区域 ID
+		TimeToLive   int64        `json:"ttl"`              // 查询结果的 TTL
+		UpDomains    UpDomains    `json:"up"`               // 上传域名
+		IoDomains    IoDomains    `json:"io"`               // 下载域名
+		IoSrcDomains IoSrcDomains `json:"io_src,omitempty"` // 源站下载域名
+		RsDomains    RsDomains    `json:"rs"`               // 对象管理域名
+		RsfDomains   RsfDomains   `json:"rsf"`              // 对象列举域名
+		ApiDomains   ApiDomains   `json:"api"`              // API 域名
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -608,6 +647,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{RegionId: j.RegionId, TimeToLive: j.TimeToLive, UpDomains: j.UpDomains, IoDomains: j.IoDomains, IoSrcDomains: j.IoSrcDomains, RsDomains: j.RsDomains, RsfDomains: j.RsfDomains, ApiDomains: j.ApiDomains})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -623,6 +663,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.ApiDomains = nj.ApiDomains
 	return nil
 }
+
 func (j *Response) validate() error {
 	if j.RegionId == "" {
 		return errors.MissingRequiredFieldError{Name: "RegionId"}

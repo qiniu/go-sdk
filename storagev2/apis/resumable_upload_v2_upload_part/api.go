@@ -5,6 +5,7 @@ package resumable_upload_v2_upload_part
 
 import (
 	"encoding/json"
+
 	io "github.com/qiniu/go-sdk/v7/internal/io"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
@@ -28,11 +29,13 @@ type Response struct {
 }
 
 // 返回本次上传的分片相关信息
-type NewPartInfo = Response
-type jsonResponse struct {
-	Etag string `json:"etag"` // 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
-	Md5  string `json:"md5"`  // 上传块内容的 MD5 值
-}
+type (
+	NewPartInfo  = Response
+	jsonResponse struct {
+		Etag string `json:"etag"` // 上传块内容的 etag，用来标识块，completeMultipartUpload API 调用的时候作为参数进行文件合成
+		Md5  string `json:"md5"`  // 上传块内容的 MD5 值
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -40,6 +43,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Etag: j.Etag, Md5: j.Md5})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -49,6 +53,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Md5 = nj.Md5
 	return nil
 }
+
 func (j *Response) validate() error {
 	if j.Etag == "" {
 		return errors.MissingRequiredFieldError{Name: "Etag"}

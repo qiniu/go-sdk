@@ -60,9 +60,7 @@ const (
 	LogResultUnexpectedSyscallError LogResult    = "unexpected_syscall_error"
 )
 
-var (
-	osVersion string
-)
+var osVersion string
 
 func getOsVersion() string {
 	return osVersion

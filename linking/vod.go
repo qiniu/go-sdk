@@ -16,7 +16,6 @@ type Segment struct {
 
 // 视频片段查询
 func (manager *Manager) Segments(appid, device string, start, end int, marker string, limit int) ([]Segment, string, error) {
-
 	ret := struct {
 		Items  []Segment `json:"items"`
 		Marker string    `json:"marker"`
@@ -63,7 +62,6 @@ type RpcResponse struct {
 }
 
 func (manager *Manager) RPC(appid, device string, req *RpcRequest) (*RpcResponse, error) {
-
 	var ret RpcResponse
 	device = base64.URLEncoding.EncodeToString([]byte(device))
 	err := manager.client.CallWithJson(context.Background(), &ret, "POST", manager.url("/apps/%s/devices/%s/rpc", appid, device), nil, req)
@@ -81,7 +79,6 @@ type SaveasReply struct {
 
 // 指定的视频片段进行收藏，保存在云存储上
 func (manager *Manager) Saveas(appid, device string, start, end int, fname, format string) (*SaveasReply, error) {
-
 	device = base64.URLEncoding.EncodeToString([]byte(device))
 
 	req := M{
@@ -121,7 +118,6 @@ type LiveResponse struct {
 
 // 指定的视频片段进行收藏，保存在云存储上
 func (manager *Manager) StartLive(req *LiveRequest) (*LiveResponse, error) {
-
 	var reply LiveResponse
 
 	err := manager.client.CallWithJson(context.Background(), &reply, "POST", manager.url("/startlive"), nil, req)
@@ -137,7 +133,6 @@ type StatReq struct {
 }
 
 func (manager *Manager) Stat(req *StatReq) ([]M, error) {
-
 	var ret []M
 	query := url.Values{}
 	setQuery(query, "start", req.Start)

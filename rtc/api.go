@@ -13,10 +13,8 @@ import (
 	"github.com/qiniu/go-sdk/v7/auth"
 )
 
-var (
-	// RtcHost 为 Qiniu RTC Server API服务域名
-	RtcHost = "rtc.qiniuapi.com"
-)
+// RtcHost 为 Qiniu RTC Server API服务域名
+var RtcHost = "rtc.qiniuapi.com"
 
 // Manager 提供了 Qiniu RTC Server API 相关功能
 type Manager struct {

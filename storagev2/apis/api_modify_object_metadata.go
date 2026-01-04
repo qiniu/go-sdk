@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	modifyobjectmetadata "github.com/qiniu/go-sdk/v7/storagev2/apis/modify_object_metadata"
@@ -12,9 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type innerModifyObjectMetadataRequest modifyobjectmetadata.Request
@@ -22,6 +23,7 @@ type innerModifyObjectMetadataRequest modifyobjectmetadata.Request
 func (pp *innerModifyObjectMetadataRequest) getBucketName(ctx context.Context) (string, error) {
 	return strings.SplitN(pp.Entry, ":", 2)[0], nil
 }
+
 func (pp *innerModifyObjectMetadataRequest) getObjectName() string {
 	parts := strings.SplitN(pp.Entry, ":", 2)
 	if len(parts) > 1 {
@@ -29,6 +31,7 @@ func (pp *innerModifyObjectMetadataRequest) getObjectName() string {
 	}
 	return ""
 }
+
 func (path *innerModifyObjectMetadataRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 5)
 	if path.Entry != "" {
@@ -48,6 +51,7 @@ func (path *innerModifyObjectMetadataRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (request *innerModifyObjectMetadataRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -59,8 +63,10 @@ func (request *innerModifyObjectMetadataRequest) getAccessKey(ctx context.Contex
 	return "", nil
 }
 
-type ModifyObjectMetadataRequest = modifyobjectmetadata.Request
-type ModifyObjectMetadataResponse = modifyobjectmetadata.Response
+type (
+	ModifyObjectMetadataRequest  = modifyobjectmetadata.Request
+	ModifyObjectMetadataResponse = modifyobjectmetadata.Response
+)
 
 // 修改文件元信息
 func (storage *Storage) ModifyObjectMetadata(ctx context.Context, request *ModifyObjectMetadataRequest, options *Options) (*ModifyObjectMetadataResponse, error) {

@@ -188,7 +188,6 @@ func (uploadManager *UploadManager) UploadDirectory(ctx context.Context, directo
 	}
 
 	return g.Wait()
-
 }
 
 // 上传文件

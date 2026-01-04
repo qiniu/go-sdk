@@ -5,6 +5,7 @@ package get_user_keypairs
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -46,6 +47,7 @@ func (j *GetIamUserKeyPair) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonGetIamUserKeyPair{Id: j.Id, AccessKey: j.AccessKey, SecretKey: j.SecretKey, UserId: j.UserId, CreatedAt: j.CreatedAt, Enabled: j.Enabled})
 }
+
 func (j *GetIamUserKeyPair) UnmarshalJSON(data []byte) error {
 	var nj jsonGetIamUserKeyPair
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -59,6 +61,7 @@ func (j *GetIamUserKeyPair) UnmarshalJSON(data []byte) error {
 	j.Enabled = nj.Enabled
 	return nil
 }
+
 func (j *GetIamUserKeyPair) validate() error {
 	if j.Id == "" {
 		return errors.MissingRequiredFieldError{Name: "Id"}
@@ -88,11 +91,13 @@ type Data struct {
 }
 
 // 返回的 IAM 子账号密钥列表信息
-type GetIamUserKeyPairsData = Data
-type jsonData struct {
-	Count int64              `json:"count"` // IAM 子账号密钥数量
-	List  GetIamUserKeyPairs `json:"list"`  // IAM 子账号密钥列表
-}
+type (
+	GetIamUserKeyPairsData = Data
+	jsonData               struct {
+		Count int64              `json:"count"` // IAM 子账号密钥数量
+		List  GetIamUserKeyPairs `json:"list"`  // IAM 子账号密钥列表
+	}
+)
 
 func (j *Data) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -100,6 +105,7 @@ func (j *Data) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonData{Count: j.Count, List: j.List})
 }
+
 func (j *Data) UnmarshalJSON(data []byte) error {
 	var nj jsonData
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -109,6 +115,7 @@ func (j *Data) UnmarshalJSON(data []byte) error {
 	j.List = nj.List
 	return nil
 }
+
 func (j *Data) validate() error {
 	if j.Count == 0 {
 		return errors.MissingRequiredFieldError{Name: "Count"}
@@ -125,10 +132,12 @@ func (j *Data) validate() error {
 }
 
 // 返回的 IAM 子账号密钥列表响应
-type GetIamUserKeyPairsResp = Response
-type jsonResponse struct {
-	Data GetIamUserKeyPairsData `json:"data"` // IAM 子账号密钥信息
-}
+type (
+	GetIamUserKeyPairsResp = Response
+	jsonResponse           struct {
+		Data GetIamUserKeyPairsData `json:"data"` // IAM 子账号密钥信息
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -136,6 +145,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Data: j.Data})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -144,6 +154,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Data = nj.Data
 	return nil
 }
+
 func (j *Response) validate() error {
 	if err := j.Data.validate(); err != nil {
 		return err

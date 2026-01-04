@@ -5,6 +5,7 @@ package get_group
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -32,16 +33,18 @@ type Data struct {
 }
 
 // 返回的用户分组信息
-type GetGroupData = Data
-type jsonData struct {
-	Id          string `json:"id"`          // 记录 ID
-	RootUid     int64  `json:"root_uid"`    // 根用户 uid
-	Alias       string `json:"alias"`       // 用户分组别名
-	Description string `json:"description"` // 用户分组描述
-	Enabled     bool   `json:"enabled"`     // 用户分组是否启用
-	CreatedAt   string `json:"created_at"`  // 用户分组创建时间
-	UpdatedAt   string `json:"updated_at"`  // 用户分组上次更新时间
-}
+type (
+	GetGroupData = Data
+	jsonData     struct {
+		Id          string `json:"id"`          // 记录 ID
+		RootUid     int64  `json:"root_uid"`    // 根用户 uid
+		Alias       string `json:"alias"`       // 用户分组别名
+		Description string `json:"description"` // 用户分组描述
+		Enabled     bool   `json:"enabled"`     // 用户分组是否启用
+		CreatedAt   string `json:"created_at"`  // 用户分组创建时间
+		UpdatedAt   string `json:"updated_at"`  // 用户分组上次更新时间
+	}
+)
 
 func (j *Data) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -49,6 +52,7 @@ func (j *Data) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonData{Id: j.Id, RootUid: j.RootUid, Alias: j.Alias, Description: j.Description, Enabled: j.Enabled, CreatedAt: j.CreatedAt, UpdatedAt: j.UpdatedAt})
 }
+
 func (j *Data) UnmarshalJSON(data []byte) error {
 	var nj jsonData
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -63,6 +67,7 @@ func (j *Data) UnmarshalJSON(data []byte) error {
 	j.UpdatedAt = nj.UpdatedAt
 	return nil
 }
+
 func (j *Data) validate() error {
 	if j.Id == "" {
 		return errors.MissingRequiredFieldError{Name: "Id"}
@@ -86,10 +91,12 @@ func (j *Data) validate() error {
 }
 
 // 返回的用户分组响应
-type GetGroupResp = Response
-type jsonResponse struct {
-	Data GetGroupData `json:"data"` // 用户分组信息
-}
+type (
+	GetGroupResp = Response
+	jsonResponse struct {
+		Data GetGroupData `json:"data"` // 用户分组信息
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -97,6 +104,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Data: j.Data})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -105,6 +113,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Data = nj.Data
 	return nil
 }
+
 func (j *Response) validate() error {
 	if err := j.Data.validate(); err != nil {
 		return err

@@ -4,6 +4,12 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	getaudits "github.com/qiniu/go-sdk/v7/iam/apis/get_audits"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
@@ -11,10 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerGetAuditsRequest getaudits.Request
@@ -48,8 +50,10 @@ func (query *innerGetAuditsRequest) buildQuery() (url.Values, error) {
 	return allQuery, nil
 }
 
-type GetAuditsRequest = getaudits.Request
-type GetAuditsResponse = getaudits.Response
+type (
+	GetAuditsRequest  = getaudits.Request
+	GetAuditsResponse = getaudits.Response
+)
 
 // 查询审计日志列表
 func (iam *Iam) GetAudits(ctx context.Context, request *GetAuditsRequest, options *Options) (*GetAuditsResponse, error) {
@@ -70,6 +74,7 @@ func (iam *Iam) GetAudits(ctx context.Context, request *GetAuditsRequest, option
 	} else {
 		rawQuery += query.Encode()
 	}
+	headers := http.Header{}
 	uplogInterceptor, err := uplog.NewRequestUplog("getAudits", "", "", func() (string, error) {
 		credentials := innerRequest.Credentials
 		if credentials == nil {
@@ -84,7 +89,7 @@ func (iam *Iam) GetAudits(ctx context.Context, request *GetAuditsRequest, option
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "GET", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && iam.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 

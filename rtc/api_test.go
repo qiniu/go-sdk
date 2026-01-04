@@ -167,7 +167,7 @@ func checkDel(t *testing.T, appID string) {
 }
 
 func struct2JsonMap(obj interface{}) map[string]interface{} {
-	var data = make(map[string]interface{})
+	data := make(map[string]interface{})
 	j, _ := json.Marshal(obj)
 	json.Unmarshal(j, &data)
 	return data

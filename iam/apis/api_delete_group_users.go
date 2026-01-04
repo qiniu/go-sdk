@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	deletegroupusers "github.com/qiniu/go-sdk/v7/iam/apis/delete_group_users"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
@@ -12,8 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"strings"
-	"time"
 )
 
 type innerDeleteGroupUsersRequest deletegroupusers.Request
@@ -27,15 +29,19 @@ func (path *innerDeleteGroupUsersRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (j *innerDeleteGroupUsersRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*deletegroupusers.Request)(j))
 }
+
 func (j *innerDeleteGroupUsersRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*deletegroupusers.Request)(j))
 }
 
-type DeleteGroupUsersRequest = deletegroupusers.Request
-type DeleteGroupUsersResponse = deletegroupusers.Response
+type (
+	DeleteGroupUsersRequest  = deletegroupusers.Request
+	DeleteGroupUsersResponse = deletegroupusers.Response
+)
 
 // 从用户分组中删除 IAM 子账号
 func (iam *Iam) DeleteGroupUsers(ctx context.Context, request *DeleteGroupUsersRequest, options *Options) (*DeleteGroupUsersResponse, error) {
@@ -57,6 +63,7 @@ func (iam *Iam) DeleteGroupUsers(ctx context.Context, request *DeleteGroupUsersR
 	pathSegments = append(pathSegments, "users")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
+	headers := http.Header{}
 	body, err := httpclient.GetJsonRequestBody(&innerRequest)
 	if err != nil {
 		return nil, err
@@ -75,7 +82,7 @@ func (iam *Iam) DeleteGroupUsers(ctx context.Context, request *DeleteGroupUsersR
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "DELETE", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: body, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "DELETE", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: body, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && iam.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 

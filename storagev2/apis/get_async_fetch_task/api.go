@@ -5,6 +5,7 @@ package get_async_fetch_task
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -22,11 +23,13 @@ type Response struct {
 }
 
 // 返回的异步任务信息
-type FetchTaskInfo = Response
-type jsonResponse struct {
-	Id               string `json:"id"`   // 异步任务 ID
-	QueuedTasksCount int64  `json:"wait"` // 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
-}
+type (
+	FetchTaskInfo = Response
+	jsonResponse  struct {
+		Id               string `json:"id"`   // 异步任务 ID
+		QueuedTasksCount int64  `json:"wait"` // 当前任务前面的排队任务数量，`0` 表示当前任务正在进行，`-1` 表示任务已经至少被处理过一次（可能会进入重试逻辑）
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -34,6 +37,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Id: j.Id, QueuedTasksCount: j.QueuedTasksCount})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -43,6 +47,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.QueuedTasksCount = nj.QueuedTasksCount
 	return nil
 }
+
 func (j *Response) validate() error {
 	if j.Id == "" {
 		return errors.MissingRequiredFieldError{Name: "Id"}

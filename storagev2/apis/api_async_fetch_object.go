@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	asyncfetchobject "github.com/qiniu/go-sdk/v7/storagev2/apis/async_fetch_object"
@@ -12,9 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type innerAsyncFetchObjectRequest asyncfetchobject.Request
@@ -22,15 +23,19 @@ type innerAsyncFetchObjectRequest asyncfetchobject.Request
 func (j *innerAsyncFetchObjectRequest) getBucketName(ctx context.Context) (string, error) {
 	return j.Bucket, nil
 }
+
 func (j *innerAsyncFetchObjectRequest) getObjectName() string {
 	return j.Key
 }
+
 func (j *innerAsyncFetchObjectRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*asyncfetchobject.Request)(j))
 }
+
 func (j *innerAsyncFetchObjectRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*asyncfetchobject.Request)(j))
 }
+
 func (request *innerAsyncFetchObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -42,8 +47,10 @@ func (request *innerAsyncFetchObjectRequest) getAccessKey(ctx context.Context) (
 	return "", nil
 }
 
-type AsyncFetchObjectRequest = asyncfetchobject.Request
-type AsyncFetchObjectResponse = asyncfetchobject.Response
+type (
+	AsyncFetchObjectRequest  = asyncfetchobject.Request
+	AsyncFetchObjectResponse = asyncfetchobject.Response
+)
 
 // 从指定 URL 抓取资源，并将该资源存储到指定空间中。每次只抓取一个文件，抓取时可以指定保存空间名和最终资源名
 func (storage *Storage) AsyncFetchObject(ctx context.Context, request *AsyncFetchObjectRequest, options *Options) (*AsyncFetchObjectResponse, error) {

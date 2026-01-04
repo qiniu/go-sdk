@@ -172,7 +172,6 @@ func (r Client) Do(req *http.Request) (resp *http.Response, err error) {
 		end := time.Now()
 		latency := end.Sub(start)
 		if err != nil {
-
 		} else {
 			reqid := req.Header.Get("X-Reqid")
 			if rid := resp.Header.Get("X-Reqid"); len(rid) > 0 {

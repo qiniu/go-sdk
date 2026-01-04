@@ -5,6 +5,11 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	setobjectfiletype "github.com/qiniu/go-sdk/v7/storagev2/apis/set_object_file_type"
@@ -12,10 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerSetObjectFileTypeRequest setobjectfiletype.Request
@@ -23,6 +24,7 @@ type innerSetObjectFileTypeRequest setobjectfiletype.Request
 func (pp *innerSetObjectFileTypeRequest) getBucketName(ctx context.Context) (string, error) {
 	return strings.SplitN(pp.Entry, ":", 2)[0], nil
 }
+
 func (pp *innerSetObjectFileTypeRequest) getObjectName() string {
 	parts := strings.SplitN(pp.Entry, ":", 2)
 	if len(parts) > 1 {
@@ -30,6 +32,7 @@ func (pp *innerSetObjectFileTypeRequest) getObjectName() string {
 	}
 	return ""
 }
+
 func (path *innerSetObjectFileTypeRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 3)
 	if path.Entry != "" {
@@ -40,6 +43,7 @@ func (path *innerSetObjectFileTypeRequest) buildPath() ([]string, error) {
 	allSegments = append(allSegments, "type", strconv.FormatInt(path.Type, 10))
 	return allSegments, nil
 }
+
 func (request *innerSetObjectFileTypeRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -51,8 +55,10 @@ func (request *innerSetObjectFileTypeRequest) getAccessKey(ctx context.Context) 
 	return "", nil
 }
 
-type SetObjectFileTypeRequest = setobjectfiletype.Request
-type SetObjectFileTypeResponse = setobjectfiletype.Response
+type (
+	SetObjectFileTypeRequest  = setobjectfiletype.Request
+	SetObjectFileTypeResponse = setobjectfiletype.Response
+)
 
 // 修改文件的存储类型信息，可以实现标准存储、低频存储和归档存储之间的互相转换
 func (storage *Storage) SetObjectFileType(ctx context.Context, request *SetObjectFileTypeRequest, options *Options) (*SetObjectFileTypeResponse, error) {

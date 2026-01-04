@@ -4,15 +4,16 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"strconv"
+	"strings"
+
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	resumableuploadv1makeblock "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v1_make_block"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	utils "github.com/qiniu/go-sdk/v7/storagev2/internal/utils"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type innerResumableUploadV1MakeBlockRequest resumableuploadv1makeblock.Request
@@ -27,6 +28,7 @@ func (request *innerResumableUploadV1MakeBlockRequest) getBucketName(ctx context
 	}
 	return "", nil
 }
+
 func (path *innerResumableUploadV1MakeBlockRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 1)
 	if path.BlockSize != 0 {
@@ -36,6 +38,7 @@ func (path *innerResumableUploadV1MakeBlockRequest) buildPath() ([]string, error
 	}
 	return allSegments, nil
 }
+
 func (request *innerResumableUploadV1MakeBlockRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
 		return request.UpToken.GetAccessKey(ctx)
@@ -43,8 +46,10 @@ func (request *innerResumableUploadV1MakeBlockRequest) getAccessKey(ctx context.
 	return "", nil
 }
 
-type ResumableUploadV1MakeBlockRequest = resumableuploadv1makeblock.Request
-type ResumableUploadV1MakeBlockResponse = resumableuploadv1makeblock.Response
+type (
+	ResumableUploadV1MakeBlockRequest  = resumableuploadv1makeblock.Request
+	ResumableUploadV1MakeBlockResponse = resumableuploadv1makeblock.Response
+)
 
 // 为后续分片上传创建一个新的块，同时上传第一片数据
 func (storage *Storage) ResumableUploadV1MakeBlock(ctx context.Context, request *ResumableUploadV1MakeBlockRequest, options *Options) (*ResumableUploadV1MakeBlockResponse, error) {

@@ -4,6 +4,12 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	getobjects "github.com/qiniu/go-sdk/v7/storagev2/apis/get_objects"
@@ -11,11 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerGetObjectsRequest getobjects.Request
@@ -23,6 +24,7 @@ type innerGetObjectsRequest getobjects.Request
 func (query *innerGetObjectsRequest) getBucketName(ctx context.Context) (string, error) {
 	return query.Bucket, nil
 }
+
 func (query *innerGetObjectsRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.Bucket != "" {
@@ -47,6 +49,7 @@ func (query *innerGetObjectsRequest) buildQuery() (url.Values, error) {
 	}
 	return allQuery, nil
 }
+
 func (request *innerGetObjectsRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -58,8 +61,10 @@ func (request *innerGetObjectsRequest) getAccessKey(ctx context.Context) (string
 	return "", nil
 }
 
-type GetObjectsRequest = getobjects.Request
-type GetObjectsResponse = getobjects.Response
+type (
+	GetObjectsRequest  = getobjects.Request
+	GetObjectsResponse = getobjects.Response
+)
 
 // 列举指定存储空间里的所有对象条目
 func (storage *Storage) GetObjects(ctx context.Context, request *GetObjectsRequest, options *Options) (*GetObjectsResponse, error) {

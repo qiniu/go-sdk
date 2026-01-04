@@ -163,7 +163,7 @@ func TestFormUploadTrafficLimit(t *testing.T) {
 	duration := et - st
 	// 限速后，至少需要 4s
 	if duration < 5000 {
-		//t.Fatal("TestFormUploadTrafficLimit() error, TrafficLimit invalid")
+		// t.Fatal("TestFormUploadTrafficLimit() error, TrafficLimit invalid")
 	}
 }
 
@@ -226,5 +226,4 @@ func TestFormUploadPutFileWithBackup(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "canceled") {
 		t.Fatal("FormUploader#PutFile() cancel error:", err)
 	}
-
 }

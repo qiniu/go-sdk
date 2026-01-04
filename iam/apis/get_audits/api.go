@@ -5,6 +5,7 @@ package get_audits
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -63,6 +64,7 @@ func (j *GetAuditLog) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonGetAuditLog{Id: j.Id, RootUid: j.RootUid, Iuid: j.Iuid, Service: j.Service, Action: j.Action, CreatedAt: j.CreatedAt, EventTime: j.EventTime, DurationMs: j.DurationMs, SourceIp: j.SourceIp, UserEvent: j.UserEvent, ErrorCode: j.ErrorCode, ErrorMessage: j.ErrorMessage})
 }
+
 func (j *GetAuditLog) UnmarshalJSON(data []byte) error {
 	var nj jsonGetAuditLog
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -82,6 +84,7 @@ func (j *GetAuditLog) UnmarshalJSON(data []byte) error {
 	j.ErrorMessage = nj.ErrorMessage
 	return nil
 }
+
 func (j *GetAuditLog) validate() error {
 	if j.Id == "" {
 		return errors.MissingRequiredFieldError{Name: "Id"}
@@ -132,11 +135,13 @@ type Data struct {
 }
 
 // 返回的审计日志列表信息
-type GetAuditLogsData = Data
-type jsonData struct {
-	Marker string       `json:"marker"` // 下页标记
-	List   GetAuditLogs `json:"list"`   // 审计日志列表
-}
+type (
+	GetAuditLogsData = Data
+	jsonData         struct {
+		Marker string       `json:"marker"` // 下页标记
+		List   GetAuditLogs `json:"list"`   // 审计日志列表
+	}
+)
 
 func (j *Data) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -144,6 +149,7 @@ func (j *Data) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonData{Marker: j.Marker, List: j.List})
 }
+
 func (j *Data) UnmarshalJSON(data []byte) error {
 	var nj jsonData
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -153,6 +159,7 @@ func (j *Data) UnmarshalJSON(data []byte) error {
 	j.List = nj.List
 	return nil
 }
+
 func (j *Data) validate() error {
 	if j.Marker == "" {
 		return errors.MissingRequiredFieldError{Name: "Marker"}
@@ -169,10 +176,12 @@ func (j *Data) validate() error {
 }
 
 // 返回的审计日志列表响应
-type GetAuditLogsResp = Response
-type jsonResponse struct {
-	Data GetAuditLogsData `json:"data"` // 审计日志信息
-}
+type (
+	GetAuditLogsResp = Response
+	jsonResponse     struct {
+		Data GetAuditLogsData `json:"data"` // 审计日志信息
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -180,6 +189,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Data: j.Data})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -188,6 +198,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Data = nj.Data
 	return nil
 }
+
 func (j *Response) validate() error {
 	if err := j.Data.validate(); err != nil {
 		return err

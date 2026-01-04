@@ -5,6 +5,7 @@ package get_bucket_cors_rules
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -54,6 +55,7 @@ func (j *CORSRule) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonCORSRule{AllowedOrigin: j.AllowedOrigin, AllowedMethod: j.AllowedMethod, AllowedHeader: j.AllowedHeader, ExposedHeader: j.ExposedHeader, MaxAge: j.MaxAge})
 }
+
 func (j *CORSRule) UnmarshalJSON(data []byte) error {
 	var nj jsonCORSRule
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -66,6 +68,7 @@ func (j *CORSRule) UnmarshalJSON(data []byte) error {
 	j.MaxAge = nj.MaxAge
 	return nil
 }
+
 func (j *CORSRule) validate() error {
 	if len(j.AllowedOrigin) == 0 {
 		return errors.MissingRequiredFieldError{Name: "AllowedOrigin"}
@@ -82,6 +85,7 @@ type CORSRules []CORSRule
 func (j *Response) MarshalJSON() ([]byte, error) {
 	return json.Marshal(j.CORSRules)
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var array CORSRules
 	if err := json.Unmarshal(data, &array); err != nil {

@@ -5,6 +5,7 @@ package get_bucket_rules
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -48,6 +49,7 @@ func (j *BucketRule) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonBucketRule{Name: j.Name, Prefix: j.Prefix, DeleteAfterDays: j.DeleteAfterDays, ToIaAfterDays: j.ToIaAfterDays, ToArchiveAfterDays: j.ToArchiveAfterDays, ToDeepArchiveAfterDays: j.ToDeepArchiveAfterDays, ToArchiveIrAfterDays: j.ToArchiveIrAfterDays, CreatedTime: j.CreatedTime})
 }
+
 func (j *BucketRule) UnmarshalJSON(data []byte) error {
 	var nj jsonBucketRule
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -63,6 +65,7 @@ func (j *BucketRule) UnmarshalJSON(data []byte) error {
 	j.CreatedTime = nj.CreatedTime
 	return nil
 }
+
 func (j *BucketRule) validate() error {
 	if j.Name == "" {
 		return errors.MissingRequiredFieldError{Name: "Name"}
@@ -82,6 +85,7 @@ type BucketRules []BucketRule
 func (j *Response) MarshalJSON() ([]byte, error) {
 	return json.Marshal(j.BucketRules)
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var array BucketRules
 	if err := json.Unmarshal(data, &array); err != nil {

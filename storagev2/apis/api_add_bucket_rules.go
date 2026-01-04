@@ -4,6 +4,12 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	addbucketrules "github.com/qiniu/go-sdk/v7/storagev2/apis/add_bucket_rules"
@@ -11,11 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerAddBucketRulesRequest addbucketrules.Request
@@ -23,6 +24,7 @@ type innerAddBucketRulesRequest addbucketrules.Request
 func (form *innerAddBucketRulesRequest) getBucketName(ctx context.Context) (string, error) {
 	return form.Bucket, nil
 }
+
 func (form *innerAddBucketRulesRequest) build() (url.Values, error) {
 	formValues := make(url.Values)
 	if form.Bucket != "" {
@@ -44,8 +46,10 @@ func (form *innerAddBucketRulesRequest) build() (url.Values, error) {
 	return formValues, nil
 }
 
-type AddBucketRulesRequest = addbucketrules.Request
-type AddBucketRulesResponse = addbucketrules.Response
+type (
+	AddBucketRulesRequest  = addbucketrules.Request
+	AddBucketRulesResponse = addbucketrules.Response
+)
 
 // 增加空间规则
 func (storage *Storage) AddBucketRules(ctx context.Context, request *AddBucketRulesRequest, options *Options) (*AddBucketRulesResponse, error) {

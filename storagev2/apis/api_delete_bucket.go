@@ -4,6 +4,10 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	deletebucket "github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket"
@@ -11,9 +15,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type innerDeleteBucketRequest deletebucket.Request
@@ -21,6 +22,7 @@ type innerDeleteBucketRequest deletebucket.Request
 func (pp *innerDeleteBucketRequest) getBucketName(ctx context.Context) (string, error) {
 	return pp.Bucket, nil
 }
+
 func (path *innerDeleteBucketRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 1)
 	if path.Bucket != "" {
@@ -31,8 +33,10 @@ func (path *innerDeleteBucketRequest) buildPath() ([]string, error) {
 	return allSegments, nil
 }
 
-type DeleteBucketRequest = deletebucket.Request
-type DeleteBucketResponse = deletebucket.Response
+type (
+	DeleteBucketRequest  = deletebucket.Request
+	DeleteBucketResponse = deletebucket.Response
+)
 
 // 删除指定的存储空间
 func (storage *Storage) DeleteBucket(ctx context.Context, request *DeleteBucketRequest, options *Options) (*DeleteBucketResponse, error) {

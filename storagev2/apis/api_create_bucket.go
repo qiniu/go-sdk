@@ -4,6 +4,10 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	createbucket "github.com/qiniu/go-sdk/v7/storagev2/apis/create_bucket"
@@ -11,9 +15,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type innerCreateBucketRequest createbucket.Request
@@ -31,8 +32,10 @@ func (path *innerCreateBucketRequest) buildPath() ([]string, error) {
 	return allSegments, nil
 }
 
-type CreateBucketRequest = createbucket.Request
-type CreateBucketResponse = createbucket.Response
+type (
+	CreateBucketRequest  = createbucket.Request
+	CreateBucketResponse = createbucket.Response
+)
 
 // 创建一个新的存储空间
 func (storage *Storage) CreateBucket(ctx context.Context, request *CreateBucketRequest, options *Options) (*CreateBucketResponse, error) {

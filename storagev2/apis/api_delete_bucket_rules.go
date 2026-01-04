@@ -4,6 +4,11 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	deletebucketrules "github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket_rules"
@@ -11,10 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type innerDeleteBucketRulesRequest deletebucketrules.Request
@@ -22,6 +23,7 @@ type innerDeleteBucketRulesRequest deletebucketrules.Request
 func (form *innerDeleteBucketRulesRequest) getBucketName(ctx context.Context) (string, error) {
 	return form.Bucket, nil
 }
+
 func (form *innerDeleteBucketRulesRequest) build() (url.Values, error) {
 	formValues := make(url.Values)
 	if form.Bucket != "" {
@@ -37,8 +39,10 @@ func (form *innerDeleteBucketRulesRequest) build() (url.Values, error) {
 	return formValues, nil
 }
 
-type DeleteBucketRulesRequest = deletebucketrules.Request
-type DeleteBucketRulesResponse = deletebucketrules.Response
+type (
+	DeleteBucketRulesRequest  = deletebucketrules.Request
+	DeleteBucketRulesResponse = deletebucketrules.Response
+)
 
 // 删除空间规则
 func (storage *Storage) DeleteBucketRules(ctx context.Context, request *DeleteBucketRulesRequest, options *Options) (*DeleteBucketRulesResponse, error) {

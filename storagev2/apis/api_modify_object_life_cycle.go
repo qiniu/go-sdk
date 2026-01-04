@@ -5,6 +5,11 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	modifyobjectlifecycle "github.com/qiniu/go-sdk/v7/storagev2/apis/modify_object_life_cycle"
@@ -12,10 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerModifyObjectLifeCycleRequest modifyobjectlifecycle.Request
@@ -23,6 +24,7 @@ type innerModifyObjectLifeCycleRequest modifyobjectlifecycle.Request
 func (pp *innerModifyObjectLifeCycleRequest) getBucketName(ctx context.Context) (string, error) {
 	return strings.SplitN(pp.Entry, ":", 2)[0], nil
 }
+
 func (pp *innerModifyObjectLifeCycleRequest) getObjectName() string {
 	parts := strings.SplitN(pp.Entry, ":", 2)
 	if len(parts) > 1 {
@@ -30,6 +32,7 @@ func (pp *innerModifyObjectLifeCycleRequest) getObjectName() string {
 	}
 	return ""
 }
+
 func (path *innerModifyObjectLifeCycleRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 11)
 	if path.Entry != "" {
@@ -54,6 +57,7 @@ func (path *innerModifyObjectLifeCycleRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (request *innerModifyObjectLifeCycleRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -65,8 +69,10 @@ func (request *innerModifyObjectLifeCycleRequest) getAccessKey(ctx context.Conte
 	return "", nil
 }
 
-type ModifyObjectLifeCycleRequest = modifyobjectlifecycle.Request
-type ModifyObjectLifeCycleResponse = modifyobjectlifecycle.Response
+type (
+	ModifyObjectLifeCycleRequest  = modifyobjectlifecycle.Request
+	ModifyObjectLifeCycleResponse = modifyobjectlifecycle.Response
+)
 
 // 修改已上传对象的生命周期
 func (storage *Storage) ModifyObjectLifeCycle(ctx context.Context, request *ModifyObjectLifeCycleRequest, options *Options) (*ModifyObjectLifeCycleResponse, error) {

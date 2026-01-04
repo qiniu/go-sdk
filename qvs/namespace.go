@@ -64,7 +64,6 @@ rtmpUrlType当accessType为"rtmp"时必填
 domains当rtmpUrlType为1时必填
 */
 func (manager *Manager) AddNamespace(ns *NameSpace) (*NameSpace, error) {
-
 	var ret NameSpace
 	err := manager.client.CallWithJson(context.Background(), &ret, "POST", manager.url("/namespaces"), nil, ns)
 	if err != nil {
@@ -77,7 +76,6 @@ func (manager *Manager) AddNamespace(ns *NameSpace) (*NameSpace, error) {
 查询空间信息API
 */
 func (manager *Manager) QueryNamespace(nsId string) (*NameSpace, error) {
-
 	var ret NameSpace
 	err := manager.client.Call(context.Background(), &ret, "GET", manager.url("/namespaces/%s", nsId), nil)
 	if err != nil {
@@ -92,7 +90,6 @@ func (manager *Manager) QueryNamespace(nsId string) (*NameSpace, error) {
 可编辑参数: name/desc/callBack/recordTemplateId/snapshotTemplateId/recordTemplateApplyAll/snapshotTemplateApplyAll
 */
 func (manager *Manager) UpdateNamespace(nsId string, ops []PatchOperation) (*NameSpace, error) {
-
 	req := M{"operations": ops}
 	var ret NameSpace
 	err := manager.client.CallWithJson(context.Background(), &ret, "PATCH", manager.url("/namespaces/%s", nsId), nil, req)
@@ -106,7 +103,6 @@ func (manager *Manager) UpdateNamespace(nsId string, ops []PatchOperation) (*Nam
 删除空间API
 */
 func (manager *Manager) DeleteNamespace(nsId string) error {
-
 	return manager.client.Call(context.Background(), nil, "DELETE", manager.url("/namespaces/%s", nsId), nil)
 }
 
@@ -114,7 +110,6 @@ func (manager *Manager) DeleteNamespace(nsId string) error {
 列出空间API
 */
 func (manager *Manager) ListNamespace(offset, line int, sortBy string) ([]NameSpace, int64, error) {
-
 	ret := struct {
 		Items []NameSpace `json:"items"`
 		Total int64       `json:"total"`
@@ -133,7 +128,6 @@ func (manager *Manager) ListNamespace(offset, line int, sortBy string) ([]NameSp
 禁用空间API
 */
 func (manager *Manager) DisableNamespace(nsId string) error {
-
 	return manager.client.CallWithJson(context.Background(), nil, "POST", manager.url("/namespaces/%s/disabled", nsId), nil, nil)
 }
 
@@ -141,7 +135,6 @@ func (manager *Manager) DisableNamespace(nsId string) error {
 启用空间API
 */
 func (manager *Manager) EnableNamespace(nsId string) error {
-
 	return manager.client.CallWithJson(context.Background(), nil, "POST", manager.url("/namespaces/%s/enabled", nsId), nil, nil)
 }
 
@@ -153,7 +146,6 @@ func (manager *Manager) EnableNamespace(nsId string) error {
 domainType支持四种类型 "publishRtmp":rtmp推流, "liveRtmp": rtmp播放, "liveHls": hls播放, "liveHdl": flv播放
 */
 func (manager *Manager) AddDomain(nsId string, domainInfo *DomainInfo) error {
-
 	return manager.client.CallWithJson(context.Background(), nil, "POST", manager.url("/namespaces/%s/domains", nsId), nil, domainInfo)
 }
 
@@ -161,7 +153,6 @@ func (manager *Manager) AddDomain(nsId string, domainInfo *DomainInfo) error {
 删除域名API
 */
 func (manager *Manager) DeleteDomain(nsId string, domain string) error {
-
 	return manager.client.Call(context.Background(), nil, "DELETE", manager.url("/namespaces/%s/domains/%s", nsId, domain), nil)
 }
 
@@ -169,7 +160,6 @@ func (manager *Manager) DeleteDomain(nsId string, domain string) error {
 域名列表API
 */
 func (manager *Manager) ListDomain(nsId string) ([]DomainInfo, error) {
-
 	ret := struct {
 		Items []DomainInfo `json:"items"`
 	}{}

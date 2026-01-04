@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/internal/clientv2"
@@ -115,6 +116,9 @@ func (r *Region) GetRegions(ctx context.Context) ([]*region_v2.Region, error) {
 	if host := r.ApiHost; host != "" {
 		newRegion.Api = region_v2.Endpoints{Preferred: []string{host}}
 	}
+	// 此包需要使用 ucHosts 作为 v2 包中的 uc 域名
+	// ucHosts 用户可通过 SetUcHosts 自定义
+	newRegion.Bucket = region_v2.Endpoints{Preferred: getUCHosts()}
 	return []*region_v2.Region{newRegion}, nil
 }
 
@@ -235,11 +239,14 @@ const (
 // Deprecated 使用 SetUcHosts 替换
 var UcHost = ""
 
-var ucHosts = []string{defaultUcHost0, defaultUcHost1, defaultUcHost2}
+var (
+	ucHostsLock sync.RWMutex
+	ucHosts     = []string{defaultUcHost0, defaultUcHost1, defaultUcHost2}
+)
 
 func init() {
 	if defaultUcHosts, err := defaults.BucketURLs(); err == nil && len(defaultUcHosts) > 0 {
-		ucHosts = defaultUcHosts
+		SetUcHosts(defaultUcHosts...)
 	}
 }
 
@@ -250,7 +257,7 @@ func SetUcHost(host string, useHttps bool) {
 		return
 	}
 	host = endpoint(useHttps, host)
-	ucHosts = []string{host}
+	SetUcHosts(host)
 }
 
 // SetUcHosts 配置多个 UC 域名
@@ -261,7 +268,23 @@ func SetUcHosts(hosts ...string) {
 			newHosts = append(newHosts, host)
 		}
 	}
+
+	ucHostsLock.Lock()
+	defer ucHostsLock.Unlock()
 	ucHosts = newHosts
+}
+
+func getUCHosts() []string {
+	ucHostsLock.RLock()
+	defer ucHostsLock.RUnlock()
+
+	hosts := make([]string, 0, len(ucHosts))
+	for _, host := range ucHosts {
+		if len(host) > 0 {
+			hosts = append(hosts, host)
+		}
+	}
+	return hosts
 }
 
 func getUcEndpointProvider(useHttps bool, hosts []string) region_v2.EndpointsProvider {
@@ -270,10 +293,9 @@ func getUcEndpointProvider(useHttps bool, hosts []string) region_v2.EndpointsPro
 			hosts = append(hosts, endpoint(useHttps, UcHost))
 		}
 
-		for _, host := range ucHosts {
-			if len(host) > 0 {
-				hosts = append(hosts, endpoint(useHttps, host))
-			}
+		oldHosts := getUCHosts()
+		for _, host := range oldHosts {
+			hosts = append(hosts, endpoint(useHttps, host))
 		}
 	}
 

@@ -56,7 +56,6 @@ type Device struct {
 
 // 在指定的应用下添加新的设备
 func (manager *Manager) AddDevice(appid string, dev *Device) (*Device, error) {
-
 	var ret Device
 	err := manager.client.CallWithJson(context.Background(), &ret, "POST", manager.url("/apps/%s/devices", appid), nil, dev)
 	if err != nil {
@@ -67,7 +66,6 @@ func (manager *Manager) AddDevice(appid string, dev *Device) (*Device, error) {
 
 // 查询指定设备的详细信息
 func (manager *Manager) QueryDevice(appid, device string) (*Device, error) {
-
 	device = base64.URLEncoding.EncodeToString([]byte(device))
 	var ret Device
 	err := manager.client.Call(context.Background(), &ret, "GET", manager.url("/apps/%s/devices/%s", appid, device), nil)
@@ -79,7 +77,6 @@ func (manager *Manager) QueryDevice(appid, device string) (*Device, error) {
 
 // 更新设备配置信息的操作
 func (manager *Manager) UpdateDevice(appid, device string, ops []PatchOperation) (*Device, error) {
-
 	device = base64.URLEncoding.EncodeToString([]byte(device))
 	req := M{"operations": ops}
 	var ret Device
@@ -92,7 +89,6 @@ func (manager *Manager) UpdateDevice(appid, device string, ops []PatchOperation)
 
 // 查询指定应用下所有设备的列表
 func (manager *Manager) ListDevice(appid, prefix, marker string, limit int, online, status bool, deviceType int, batch string) ([]Device, string, error) {
-
 	ret := struct {
 		Items  []Device `json:"items"`
 		Marker string   `json:"marker"`
@@ -123,7 +119,6 @@ func (manager *Manager) ListDevice(appid, prefix, marker string, limit int, onli
 
 // 删除指定的设备，删除后将不可恢复
 func (manager *Manager) DeleteDevice(appid, device string) error {
-
 	device = base64.URLEncoding.EncodeToString([]byte(device))
 	return manager.client.Call(context.Background(), nil, "DELETE", manager.url("/apps/%s/devices/%s", appid, device), nil)
 }

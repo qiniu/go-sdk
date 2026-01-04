@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	createpolicy "github.com/qiniu/go-sdk/v7/iam/apis/create_policy"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
@@ -12,8 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"strings"
-	"time"
 )
 
 type innerCreatePolicyRequest createpolicy.Request
@@ -21,12 +23,15 @@ type innerCreatePolicyRequest createpolicy.Request
 func (j *innerCreatePolicyRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*createpolicy.Request)(j))
 }
+
 func (j *innerCreatePolicyRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*createpolicy.Request)(j))
 }
 
-type CreatePolicyRequest = createpolicy.Request
-type CreatePolicyResponse = createpolicy.Response
+type (
+	CreatePolicyRequest  = createpolicy.Request
+	CreatePolicyResponse = createpolicy.Response
+)
 
 // 新建授权策略
 func (iam *Iam) CreatePolicy(ctx context.Context, request *CreatePolicyRequest, options *Options) (*CreatePolicyResponse, error) {
@@ -42,6 +47,7 @@ func (iam *Iam) CreatePolicy(ctx context.Context, request *CreatePolicyRequest, 
 	pathSegments = append(pathSegments, "iam", "v1", "policies")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
+	headers := http.Header{}
 	body, err := httpclient.GetJsonRequestBody(&innerRequest)
 	if err != nil {
 		return nil, err
@@ -60,7 +66,7 @@ func (iam *Iam) CreatePolicy(ctx context.Context, request *CreatePolicyRequest, 
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, RequestBody: body, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, BufferResponse: true, RequestBody: body, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && iam.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 

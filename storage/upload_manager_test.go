@@ -309,7 +309,6 @@ func TestUploadManagerResumeV1UploadRecord(t *testing.T) {
 		Recorder:            recorder,
 		PartSize:            1024 * 1024,
 	})
-
 	if err != nil {
 		t.Fatalf("resume v1 upload file with record error:%v", err)
 	}
@@ -488,7 +487,6 @@ func TestUploadManagerResumeV2UploadRecord(t *testing.T) {
 		Recorder:            recorder,
 		PartSize:            1024 * 1024,
 	})
-
 	if err != nil {
 		t.Fatalf("resume v2 upload file with record error:%v", err)
 	}

@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	setbucketsmirror "github.com/qiniu/go-sdk/v7/storagev2/apis/set_buckets_mirror"
@@ -12,9 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type innerSetBucketsMirrorRequest setbucketsmirror.Request
@@ -22,6 +23,7 @@ type innerSetBucketsMirrorRequest setbucketsmirror.Request
 func (pp *innerSetBucketsMirrorRequest) getBucketName(ctx context.Context) (string, error) {
 	return pp.Bucket, nil
 }
+
 func (path *innerSetBucketsMirrorRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 5)
 	if path.Bucket != "" {
@@ -42,8 +44,10 @@ func (path *innerSetBucketsMirrorRequest) buildPath() ([]string, error) {
 	return allSegments, nil
 }
 
-type SetBucketsMirrorRequest = setbucketsmirror.Request
-type SetBucketsMirrorResponse = setbucketsmirror.Response
+type (
+	SetBucketsMirrorRequest  = setbucketsmirror.Request
+	SetBucketsMirrorResponse = setbucketsmirror.Response
+)
 
 // 设置存储空间的镜像源
 func (storage *Storage) SetBucketsMirror(ctx context.Context, request *SetBucketsMirrorRequest, options *Options) (*SetBucketsMirrorResponse, error) {

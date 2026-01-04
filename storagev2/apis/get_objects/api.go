@@ -5,6 +5,7 @@ package get_objects
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -69,6 +70,7 @@ func (j *ListedObjectEntry) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonListedObjectEntry{Key: j.Key, PutTime: j.PutTime, Hash: j.Hash, Size: j.Size, MimeType: j.MimeType, Type: j.Type, EndUser: j.EndUser, RestoringStatus: j.RestoringStatus, Status: j.Status, Md5: j.Md5, Metadata: j.Metadata, Parts: j.Parts})
 }
+
 func (j *ListedObjectEntry) UnmarshalJSON(data []byte) error {
 	var nj jsonListedObjectEntry
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -88,6 +90,7 @@ func (j *ListedObjectEntry) UnmarshalJSON(data []byte) error {
 	j.Parts = nj.Parts
 	return nil
 }
+
 func (j *ListedObjectEntry) validate() error {
 	if j.Key == "" {
 		return errors.MissingRequiredFieldError{Name: "Key"}
@@ -108,12 +111,14 @@ func (j *ListedObjectEntry) validate() error {
 type ListedObjects = []ListedObjectEntry
 
 // 本次列举的对象条目信息
-type ListedObjectEntries = Response
-type jsonResponse struct {
-	Marker         string         `json:"marker,omitempty"`         // 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
-	CommonPrefixes CommonPrefixes `json:"commonPrefixes,omitempty"` // 公共前缀的数组，如没有指定 delimiter 参数则不返回
-	Items          ListedObjects  `json:"items"`                    // 条目的数组，不能用来判断是否还有剩余条目
-}
+type (
+	ListedObjectEntries = Response
+	jsonResponse        struct {
+		Marker         string         `json:"marker,omitempty"`         // 有剩余条目则返回非空字符串，作为下一次列举的参数传入，如果没有剩余条目则返回空字符串
+		CommonPrefixes CommonPrefixes `json:"commonPrefixes,omitempty"` // 公共前缀的数组，如没有指定 delimiter 参数则不返回
+		Items          ListedObjects  `json:"items"`                    // 条目的数组，不能用来判断是否还有剩余条目
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -121,6 +126,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Marker: j.Marker, CommonPrefixes: j.CommonPrefixes, Items: j.Items})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -131,6 +137,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Items = nj.Items
 	return nil
 }
+
 func (j *Response) validate() error {
 	if len(j.Items) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Items"}

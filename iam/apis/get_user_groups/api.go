@@ -5,6 +5,7 @@ package get_user_groups
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -48,6 +49,7 @@ func (j *IamUserGroup) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonIamUserGroup{Id: j.Id, RootUid: j.RootUid, Alias: j.Alias, Description: j.Description, Enabled: j.Enabled, CreatedAt: j.CreatedAt, UpdatedAt: j.UpdatedAt})
 }
+
 func (j *IamUserGroup) UnmarshalJSON(data []byte) error {
 	var nj jsonIamUserGroup
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -62,6 +64,7 @@ func (j *IamUserGroup) UnmarshalJSON(data []byte) error {
 	j.UpdatedAt = nj.UpdatedAt
 	return nil
 }
+
 func (j *IamUserGroup) validate() error {
 	if j.Id == "" {
 		return errors.MissingRequiredFieldError{Name: "Id"}
@@ -94,11 +97,13 @@ type Data struct {
 }
 
 // 返回的 IAM 子账号分组列表信息
-type GetIamUserGroupsData = Data
-type jsonData struct {
-	Count int64            `json:"count"` // IAM 子账号分组数量
-	List  GetIamUserGroups `json:"list"`  // IAM 子账号分组列表
-}
+type (
+	GetIamUserGroupsData = Data
+	jsonData             struct {
+		Count int64            `json:"count"` // IAM 子账号分组数量
+		List  GetIamUserGroups `json:"list"`  // IAM 子账号分组列表
+	}
+)
 
 func (j *Data) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -106,6 +111,7 @@ func (j *Data) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonData{Count: j.Count, List: j.List})
 }
+
 func (j *Data) UnmarshalJSON(data []byte) error {
 	var nj jsonData
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -115,6 +121,7 @@ func (j *Data) UnmarshalJSON(data []byte) error {
 	j.List = nj.List
 	return nil
 }
+
 func (j *Data) validate() error {
 	if j.Count == 0 {
 		return errors.MissingRequiredFieldError{Name: "Count"}
@@ -131,10 +138,12 @@ func (j *Data) validate() error {
 }
 
 // 返回的 IAM 子账号分组列表响应
-type GetIamUserGroupsResp = Response
-type jsonResponse struct {
-	Data GetIamUserGroupsData `json:"data"` // IAM 子账号分组信息
-}
+type (
+	GetIamUserGroupsResp = Response
+	jsonResponse         struct {
+		Data GetIamUserGroupsData `json:"data"` // IAM 子账号分组信息
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -142,6 +151,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Data: j.Data})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -150,6 +160,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Data = nj.Data
 	return nil
 }
+
 func (j *Response) validate() error {
 	if err := j.Data.validate(); err != nil {
 		return err

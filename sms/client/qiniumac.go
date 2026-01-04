@@ -15,7 +15,6 @@ const qiniuHeaderPrefix = "X-Qiniu-"
 // ---------------------------------------------------------------------------------------
 
 func incBody(req *http.Request, ctType string) bool {
-
 	return req.ContentLength != 0 && req.Body != nil && ctType != "" && ctType != "application/octet-stream"
 }
 
@@ -40,7 +39,6 @@ func signQiniuHeaderValues(header http.Header, w io.Writer) {
 
 // SignRequest sign request
 func SignRequest(sk []byte, req *http.Request) ([]byte, error) {
-
 	h := hmac.New(sha1.New, sk)
 
 	u := req.URL
@@ -73,17 +71,13 @@ func SignRequest(sk []byte, req *http.Request) ([]byte, error) {
 // ---------------------------------------------------------------------------------------
 
 // RequestSigner request signer
-type RequestSigner struct {
-}
+type RequestSigner struct{}
 
-var (
-	// DefaultRequestSigner default request signer
-	DefaultRequestSigner RequestSigner
-)
+// DefaultRequestSigner default request signer
+var DefaultRequestSigner RequestSigner
 
 // Sign access key and request
 func (p RequestSigner) Sign(sk []byte, req *http.Request) ([]byte, error) {
-
 	return SignRequest(sk, req)
 }
 

@@ -13,9 +13,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/rtc"
 )
 
-var (
-	manager *rtc.Manager
-)
+var manager *rtc.Manager
 
 func init() {
 	accessKey := os.Getenv("QINIU_ACCESS_KEY")
@@ -49,7 +47,6 @@ func dosomethingbyRoomToken(token string, appId, roomName, userID string) (err e
 	jn, err := json.MarshalIndent(res.Header, "  ", "  ")
 	fmt.Println(string(jn))
 	return
-
 }
 
 func createApp() (rtc.App, error) {
@@ -142,5 +139,4 @@ func main() {
 		j, _ := json.MarshalIndent(app, "  ", "  ")
 		fmt.Println(string(j))
 	}
-
 }

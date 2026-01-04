@@ -1,8 +1,9 @@
 package qbox
 
 import (
-	"github.com/qiniu/go-sdk/v7/auth"
 	"net/http"
+
+	"github.com/qiniu/go-sdk/v7/auth"
 )
 
 type Mac = auth.Credentials

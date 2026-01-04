@@ -5,6 +5,7 @@ package prefop
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -30,32 +31,42 @@ type Response struct {
 	Items        PfopTaskItems // 云处理操作列表
 }
 
+// 云处理结果的外链对象名称
+type ObjectNames = []string
+
 // 返回的持久化数据处理任务中的云处理操作状态
 type PfopTaskItem struct {
-	Command     string // 云操作命令
-	Code        int64  // 云操作状态码
-	Description string // 与状态码相对应的详细描述
-	Error       string // 如果处理失败，该字段会给出失败的详细原因
-	Hash        string // 云处理结果保存在服务端的唯一标识
-	ObjectName  string // 云处理结果的外链对象名称
-	ReturnOld   int64  // 是否返回了旧的数据
+	Command     string      // 云操作命令
+	Code        int64       // 云操作状态码
+	Description string      // 与状态码相对应的详细描述
+	Error       string      // 如果处理失败，该字段会给出失败的详细原因
+	ErrorIndex  int64       // 如果处理失败，该字段会给出错误的管道顺序，从0开始，0表示第一段，以此类推。
+	Hash        string      // 云处理结果保存在服务端的唯一标识
+	ObjectName  string      // 云处理结果的外链对象名称
+	Result      interface{} // 当 object_name 和 object_names 都不存在时，此字段会有值，返回 cmd 的处理结果
+	ObjectNames ObjectNames // 当 cmd 返回多项结果时，此字段会有值，返回云处理结果的外链对象名称列表
+	ReturnOld   int64       // 是否返回了旧的数据
 }
 type jsonPfopTaskItem struct {
-	Command     string `json:"cmd"`             // 云操作命令
-	Code        int64  `json:"code"`            // 云操作状态码
-	Description string `json:"desc"`            // 与状态码相对应的详细描述
-	Error       string `json:"error,omitempty"` // 如果处理失败，该字段会给出失败的详细原因
-	Hash        string `json:"hash"`            // 云处理结果保存在服务端的唯一标识
-	ObjectName  string `json:"key"`             // 云处理结果的外链对象名称
-	ReturnOld   int64  `json:"returnOld"`       // 是否返回了旧的数据
+	Command     string      `json:"cmd"`                  // 云操作命令
+	Code        int64       `json:"code"`                 // 云操作状态码
+	Description string      `json:"desc"`                 // 与状态码相对应的详细描述
+	Error       string      `json:"error,omitempty"`      // 如果处理失败，该字段会给出失败的详细原因
+	ErrorIndex  int64       `json:"errorIndex,omitempty"` // 如果处理失败，该字段会给出错误的管道顺序，从0开始，0表示第一段，以此类推。
+	Hash        string      `json:"hash"`                 // 云处理结果保存在服务端的唯一标识
+	ObjectName  string      `json:"key"`                  // 云处理结果的外链对象名称
+	Result      interface{} `json:"result"`               // 当 object_name 和 object_names 都不存在时，此字段会有值，返回 cmd 的处理结果
+	ObjectNames ObjectNames `json:"keys,omitempty"`       // 当 cmd 返回多项结果时，此字段会有值，返回云处理结果的外链对象名称列表
+	ReturnOld   int64       `json:"returnOld"`            // 是否返回了旧的数据
 }
 
 func (j *PfopTaskItem) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(&jsonPfopTaskItem{Command: j.Command, Code: j.Code, Description: j.Description, Error: j.Error, Hash: j.Hash, ObjectName: j.ObjectName, ReturnOld: j.ReturnOld})
+	return json.Marshal(&jsonPfopTaskItem{Command: j.Command, Code: j.Code, Description: j.Description, Error: j.Error, ErrorIndex: j.ErrorIndex, Hash: j.Hash, ObjectName: j.ObjectName, Result: j.Result, ObjectNames: j.ObjectNames, ReturnOld: j.ReturnOld})
 }
+
 func (j *PfopTaskItem) UnmarshalJSON(data []byte) error {
 	var nj jsonPfopTaskItem
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -65,11 +76,15 @@ func (j *PfopTaskItem) UnmarshalJSON(data []byte) error {
 	j.Code = nj.Code
 	j.Description = nj.Description
 	j.Error = nj.Error
+	j.ErrorIndex = nj.ErrorIndex
 	j.Hash = nj.Hash
 	j.ObjectName = nj.ObjectName
+	j.Result = nj.Result
+	j.ObjectNames = nj.ObjectNames
 	j.ReturnOld = nj.ReturnOld
 	return nil
 }
+
 func (j *PfopTaskItem) validate() error {
 	if j.Command == "" {
 		return errors.MissingRequiredFieldError{Name: "Command"}
@@ -86,6 +101,9 @@ func (j *PfopTaskItem) validate() error {
 	if j.ObjectName == "" {
 		return errors.MissingRequiredFieldError{Name: "ObjectName"}
 	}
+	if j.Result == nil {
+		return errors.MissingRequiredFieldError{Name: "Result"}
+	}
 	if j.ReturnOld == 0 {
 		return errors.MissingRequiredFieldError{Name: "ReturnOld"}
 	}
@@ -96,20 +114,22 @@ func (j *PfopTaskItem) validate() error {
 type PfopTaskItems = []PfopTaskItem
 
 // 返回的持久化数据处理任务信息
-type PfopTask = Response
-type jsonResponse struct {
-	PersistentId string        `json:"id"`                     // 持久化数据处理任务 ID
-	Code         int64         `json:"code"`                   // 持久化数据处理任务状态码
-	Description  string        `json:"desc"`                   // 与状态码相对应的详细描述
-	ObjectName   string        `json:"inputKey"`               // 源对象名称
-	BucketName   string        `json:"inputBucket"`            // 源空间名称
-	Pipeline     string        `json:"pipeline,omitempty"`     // 云处理操作的处理队列
-	TaskFrom     string        `json:"taskFrom,omitempty"`     // 如果没有，则表示通过 `api+fops` 命令提交的任务，否则遵循规则 `<source>: <source_id>`，其中 `<source>` 当前可选 `workflow` 或 `trigger`
-	RequestId    string        `json:"reqid"`                  // 云处理请求的请求 ID
-	Type         int64         `json:"type,omitempty"`         // 任务类型，支持 `0` 表示普通任务，`1` 表示闲时任务
-	CreatedAt    string        `json:"creationDate,omitempty"` // 任务创建时间
-	Items        PfopTaskItems `json:"items"`                  // 云处理操作列表
-}
+type (
+	PfopTask     = Response
+	jsonResponse struct {
+		PersistentId string        `json:"id"`                     // 持久化数据处理任务 ID
+		Code         int64         `json:"code"`                   // 持久化数据处理任务状态码
+		Description  string        `json:"desc"`                   // 与状态码相对应的详细描述
+		ObjectName   string        `json:"inputKey"`               // 源对象名称
+		BucketName   string        `json:"inputBucket"`            // 源空间名称
+		Pipeline     string        `json:"pipeline,omitempty"`     // 云处理操作的处理队列
+		TaskFrom     string        `json:"taskFrom,omitempty"`     // 如果没有，则表示通过 `api+fops` 命令提交的任务，否则遵循规则 `<source>: <source_id>`，其中 `<source>` 当前可选 `workflow` 或 `trigger`
+		RequestId    string        `json:"reqid"`                  // 云处理请求的请求 ID
+		Type         int64         `json:"type,omitempty"`         // 任务类型，支持 `0` 表示普通任务，`1` 表示闲时任务
+		CreatedAt    string        `json:"creationDate,omitempty"` // 任务创建时间
+		Items        PfopTaskItems `json:"items"`                  // 云处理操作列表
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -117,6 +137,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{PersistentId: j.PersistentId, Code: j.Code, Description: j.Description, ObjectName: j.ObjectName, BucketName: j.BucketName, Pipeline: j.Pipeline, TaskFrom: j.TaskFrom, RequestId: j.RequestId, Type: j.Type, CreatedAt: j.CreatedAt, Items: j.Items})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -135,6 +156,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Items = nj.Items
 	return nil
 }
+
 func (j *Response) validate() error {
 	if j.PersistentId == "" {
 		return errors.MissingRequiredFieldError{Name: "PersistentId"}
