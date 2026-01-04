@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/qiniu/go-sdk/v7/internal/cache"
 	"github.com/qiniu/go-sdk/v7/internal/log"
@@ -241,10 +242,11 @@ func (resolver *cacheResolver) Resolve(ctx context.Context, host string) ([]net.
 	// If some IPs expired, clean them up
 	if expiredCount > 0 {
 		rcv.mu.Lock()
-		// Double-check after acquiring write lock
+		// Re-check with fresh timestamp after acquiring write lock
+		nowLocked := time.Now()
 		validIPs := make([]resolverCacheValueIP, 0, len(rcv.IPs)-expiredCount)
 		for _, cacheValueIP := range rcv.IPs {
-			if cacheValueIP.ExpiredAt.After(now) {
+			if cacheValueIP.ExpiredAt.After(nowLocked) {
 				validIPs = append(validIPs, cacheValueIP)
 			}
 		}
@@ -289,10 +291,16 @@ func (resolver cacheResolver) FeedbackBad(context.Context, string, []net.IP) {}
 
 func (left *resolverCacheValue) IsEqual(rightValue cache.CacheValue) bool {
 	if right, ok := rightValue.(*resolverCacheValue); ok {
-		left.mu.RLock()
-		defer left.mu.RUnlock()
-		right.mu.RLock()
-		defer right.mu.RUnlock()
+		// Avoid deadlock by locking in consistent order based on pointer address
+		first, second := left, right
+		if uintptr(unsafe.Pointer(left)) > uintptr(unsafe.Pointer(right)) {
+			first, second = right, left
+		}
+
+		first.mu.RLock()
+		defer first.mu.RUnlock()
+		second.mu.RLock()
+		defer second.mu.RUnlock()
 
 		if len(left.IPs) != len(right.IPs) {
 			return false
