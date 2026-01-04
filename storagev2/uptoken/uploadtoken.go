@@ -36,12 +36,13 @@ type (
 	signer struct {
 		putPolicy           PutPolicy
 		credentialsProvider credentials.CredentialsProvider
-		onceCredentials     sync.Once
-		upToken             string
+		mu                  sync.Mutex
 		credentials         *credentials.Credentials
+		upToken             string
 	}
 	parser struct {
 		upToken   string
+		mu        sync.Mutex
 		putPolicy PutPolicy
 		accessKey string
 		splits    []string
@@ -60,8 +61,7 @@ func (signer *signer) GetPutPolicy(context.Context) (PutPolicy, error) {
 }
 
 func (signer *signer) GetAccessKey(ctx context.Context) (string, error) {
-	var err error
-	credentials, err := signer.onceGetCredentials(ctx)
+	credentials, err := signer.getCredentials(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -69,36 +69,62 @@ func (signer *signer) GetAccessKey(ctx context.Context) (string, error) {
 }
 
 func (signer *signer) GetUpToken(ctx context.Context) (string, error) {
-	return signer.onceGetUpToken(ctx)
-}
-
-func (signer *signer) onceGetCredentials(ctx context.Context) (*credentials.Credentials, error) {
-	var err error
-	signer.onceCredentials.Do(func() {
-		if signer.credentialsProvider != nil {
-			signer.credentials, err = signer.credentialsProvider.Get(ctx)
-		} else if defaultCreds := credentials.Default(); defaultCreds != nil {
-			signer.credentials = defaultCreds
-		}
-	})
-	return signer.credentials, err
-}
-
-func (signer *signer) onceGetUpToken(ctx context.Context) (string, error) {
-	var err error
+	signer.mu.Lock()
 	if signer.upToken != "" {
+		defer signer.mu.Unlock()
 		return signer.upToken, nil
 	}
-	credentials, err := signer.onceGetCredentials(ctx)
+	signer.mu.Unlock()
+
+	credentials, err := signer.getCredentials(ctx)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
+
 	putPolicyJson, err := json.Marshal(signer.putPolicy)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
-	signer.upToken = credentials.SignWithData(putPolicyJson)
+
+	upToken := credentials.SignWithData(putPolicyJson)
+
+	signer.mu.Lock()
+	if signer.upToken == "" {
+		signer.upToken = upToken
+	}
+	signer.mu.Unlock()
+
 	return signer.upToken, nil
+}
+
+func (signer *signer) getCredentials(ctx context.Context) (*credentials.Credentials, error) {
+	signer.mu.Lock()
+	if signer.credentials != nil {
+		defer signer.mu.Unlock()
+		return signer.credentials, nil
+	}
+	signer.mu.Unlock()
+
+	var creds *credentials.Credentials
+	var err error
+	if signer.credentialsProvider != nil {
+		creds, err = signer.credentialsProvider.Get(ctx)
+		if err != nil {
+			return nil, err
+		}
+	} else if defaultCreds := credentials.Default(); defaultCreds != nil {
+		creds = defaultCreds
+	}
+
+	if creds != nil {
+		signer.mu.Lock()
+		if signer.credentials == nil {
+			signer.credentials = creds
+		}
+		signer.mu.Unlock()
+	}
+
+	return creds, nil
 }
 
 // NewParser 创建上传凭证签发器
@@ -106,47 +132,85 @@ func NewParser(upToken string) Provider {
 	return &parser{upToken: upToken}
 }
 
-func (parser *parser) GetPutPolicy(context.Context) (PutPolicy, error) {
+func (parser *parser) GetPutPolicy(ctx context.Context) (PutPolicy, error) {
+	parser.mu.Lock()
 	if parser.putPolicy != nil {
+		defer parser.mu.Unlock()
 		return parser.putPolicy, nil
 	}
-	splits, ok := parser.onceGetSplits()
-	if !ok {
-		return nil, ErrInvalidUpToken
+	parser.mu.Unlock()
+
+	splits, err := parser.getSplits()
+	if err != nil {
+		return PutPolicy{}, err
 	}
+
 	putPolicyJson, err := base64.URLEncoding.DecodeString(splits[2])
 	if err != nil {
-		return nil, ErrInvalidUpToken
+		return PutPolicy{}, ErrInvalidUpToken
 	}
-	err = json.Unmarshal(putPolicyJson, &parser.putPolicy)
-	return parser.putPolicy, err
+
+	var putPolicy PutPolicy
+	if err := json.Unmarshal(putPolicyJson, &putPolicy); err != nil {
+		return PutPolicy{}, err
+	}
+
+	parser.mu.Lock()
+	if parser.putPolicy == nil {
+		parser.putPolicy = putPolicy
+	}
+	parser.mu.Unlock()
+
+	return parser.putPolicy, nil
 }
 
-func (parser *parser) GetAccessKey(context.Context) (string, error) {
+func (parser *parser) GetAccessKey(ctx context.Context) (string, error) {
+	parser.mu.Lock()
 	if parser.accessKey != "" {
+		defer parser.mu.Unlock()
 		return parser.accessKey, nil
 	}
-	splits, ok := parser.onceGetSplits()
-	if !ok {
-		return "", ErrInvalidUpToken
+	parser.mu.Unlock()
+
+	splits, err := parser.getSplits()
+	if err != nil {
+		return "", err
 	}
-	parser.accessKey = splits[0]
+
+	accessKey := splits[0]
+
+	parser.mu.Lock()
+	if parser.accessKey == "" {
+		parser.accessKey = accessKey
+	}
+	parser.mu.Unlock()
+
 	return parser.accessKey, nil
 }
 
-func (parser *parser) onceGetSplits() ([]string, bool) {
+func (parser *parser) getSplits() ([]string, error) {
+	parser.mu.Lock()
 	if len(parser.splits) > 0 {
-		return parser.splits, true
+		defer parser.mu.Unlock()
+		return parser.splits, nil
 	}
+	parser.mu.Unlock()
+
 	splits := strings.Split(parser.upToken, ":")
 	if len(splits) == 5 && splits[0] == "" {
 		splits = splits[2:]
 	}
 	if len(splits) != 3 {
-		return nil, false
+		return nil, ErrInvalidUpToken
 	}
-	parser.splits = splits
-	return parser.splits, true
+
+	parser.mu.Lock()
+	if len(parser.splits) == 0 {
+		parser.splits = splits
+	}
+	parser.mu.Unlock()
+
+	return parser.splits, nil
 }
 
 func (parser *parser) GetUpToken(context.Context) (string, error) {
