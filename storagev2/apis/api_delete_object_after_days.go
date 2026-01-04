@@ -5,6 +5,11 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	deleteobjectafterdays "github.com/qiniu/go-sdk/v7/storagev2/apis/delete_object_after_days"
@@ -12,10 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerDeleteObjectAfterDaysRequest deleteobjectafterdays.Request
@@ -23,6 +24,7 @@ type innerDeleteObjectAfterDaysRequest deleteobjectafterdays.Request
 func (pp *innerDeleteObjectAfterDaysRequest) getBucketName(ctx context.Context) (string, error) {
 	return strings.SplitN(pp.Entry, ":", 2)[0], nil
 }
+
 func (path *innerDeleteObjectAfterDaysRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 2)
 	if path.Entry != "" {
@@ -33,6 +35,7 @@ func (path *innerDeleteObjectAfterDaysRequest) buildPath() ([]string, error) {
 	allSegments = append(allSegments, strconv.FormatInt(path.DeleteAfterDays, 10))
 	return allSegments, nil
 }
+
 func (request *innerDeleteObjectAfterDaysRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -44,8 +47,10 @@ func (request *innerDeleteObjectAfterDaysRequest) getAccessKey(ctx context.Conte
 	return "", nil
 }
 
-type DeleteObjectAfterDaysRequest = deleteobjectafterdays.Request
-type DeleteObjectAfterDaysResponse = deleteobjectafterdays.Response
+type (
+	DeleteObjectAfterDaysRequest  = deleteobjectafterdays.Request
+	DeleteObjectAfterDaysResponse = deleteobjectafterdays.Response
+)
 
 // 更新文件生命周期
 func (storage *Storage) DeleteObjectAfterDays(ctx context.Context, request *DeleteObjectAfterDaysRequest, options *Options) (*DeleteObjectAfterDaysResponse, error) {

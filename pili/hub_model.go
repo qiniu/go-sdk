@@ -2,28 +2,24 @@ package pili
 
 // GetHubListResponse 查询直播空间列表返回值
 type GetHubListResponse struct {
-
 	// Items 直播空间列表
 	Items []GetHubListItem `json:"items"`
 }
 
 // GetHubListItem 查询直播空间列表项
 type GetHubListItem struct {
-
 	// Name 直播空间
 	Name string `json:"name"`
 }
 
 // GetHubInfoRequest 查询直播空间信息请求参数
 type GetHubInfoRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 }
 
 // GetHubInfoResponse 查询直播空间信息返回值
 type GetHubInfoResponse struct {
-
 	// Name 直播空间名称
 	Name string `json:"hubName"`
 
@@ -78,7 +74,6 @@ type GetHubInfoResponse struct {
 
 // HubDomain 直播空间下的域名简要信息
 type HubDomain struct {
-
 	// Type 域名类型
 	Type string `json:"type"`
 
@@ -91,7 +86,6 @@ type HubDomain struct {
 
 // DefaultDomain 默认域名
 type DefaultDomain struct {
-
 	// Type 域名类型
 	Type string `json:"type"`
 
@@ -101,7 +95,6 @@ type DefaultDomain struct {
 
 // NropArgs 鉴黄配置
 type NropArgs struct {
-
 	// Enable 是否开启直播空间级别鉴黄功能
 	Enable bool `json:"enable"`
 
@@ -120,7 +113,6 @@ type NropArgs struct {
 
 // AccessLogOptions 配置
 type AccessLogOptions struct {
-
 	// SaveBucket 存储空间
 	SaveBucket string `json:"saveBucket"`
 
@@ -130,7 +122,6 @@ type AccessLogOptions struct {
 
 // HubSecurityRequest 修改直播空间推流鉴权配置请求参数
 type HubSecurityRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 
@@ -146,7 +137,6 @@ type HubSecurityRequest struct {
 
 // HubHlsplusRequest 修改直播空间 hls 低延迟配置请求参数
 type HubHlsplusRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 
@@ -156,7 +146,6 @@ type HubHlsplusRequest struct {
 
 // HubPersistenceRequest 修改直播空间存储配置请求参数
 type HubPersistenceRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 
@@ -170,7 +159,6 @@ type HubPersistenceRequest struct {
 
 // HubSnapshotRequest 修改直播空间封面配置请求参数
 type HubSnapshotRequest struct {
-
 	// Hub 直播空间
 	Hub string `json:"-" validate:"required"`
 

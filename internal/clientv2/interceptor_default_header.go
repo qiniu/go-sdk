@@ -1,14 +1,14 @@
 package clientv2
 
 import (
-	clientV1 "github.com/qiniu/go-sdk/v7/client"
-	"github.com/qiniu/go-sdk/v7/conf"
 	"net/http"
 	"time"
+
+	clientV1 "github.com/qiniu/go-sdk/v7/client"
+	"github.com/qiniu/go-sdk/v7/conf"
 )
 
-type defaultHeaderInterceptor struct {
-}
+type defaultHeaderInterceptor struct{}
 
 func newDefaultHeaderInterceptor() Interceptor {
 	return &defaultHeaderInterceptor{}

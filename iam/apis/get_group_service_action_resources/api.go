@@ -5,6 +5,7 @@ package get_group_service_action_resources
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -35,11 +36,13 @@ type Data struct {
 }
 
 // 返回的用户分组指定服务操作下的可访问资源列表信息
-type GetGroupServiceActionResources = Data
-type jsonData struct {
-	AllowedResources AllowedResources `json:"allow"` // 可用资源
-	DeniedResources  DeniedResources  `json:"deny"`  // 禁用资源
-}
+type (
+	GetGroupServiceActionResources = Data
+	jsonData                       struct {
+		AllowedResources AllowedResources `json:"allow"` // 可用资源
+		DeniedResources  DeniedResources  `json:"deny"`  // 禁用资源
+	}
+)
 
 func (j *Data) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -47,6 +50,7 @@ func (j *Data) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonData{AllowedResources: j.AllowedResources, DeniedResources: j.DeniedResources})
 }
+
 func (j *Data) UnmarshalJSON(data []byte) error {
 	var nj jsonData
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -56,6 +60,7 @@ func (j *Data) UnmarshalJSON(data []byte) error {
 	j.DeniedResources = nj.DeniedResources
 	return nil
 }
+
 func (j *Data) validate() error {
 	if len(j.AllowedResources) == 0 {
 		return errors.MissingRequiredFieldError{Name: "AllowedResources"}
@@ -67,10 +72,12 @@ func (j *Data) validate() error {
 }
 
 // 返回的用户分组指定服务操作下的可访问资源列表响应
-type GetGroupServiceActionResourcesResp = Response
-type jsonResponse struct {
-	Data GetGroupServiceActionResources `json:"data"` // 用户分组指定服务操作下的可访问资源列表信息
-}
+type (
+	GetGroupServiceActionResourcesResp = Response
+	jsonResponse                       struct {
+		Data GetGroupServiceActionResources `json:"data"` // 用户分组指定服务操作下的可访问资源列表信息
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -78,6 +85,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Data: j.Data})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -86,6 +94,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Data = nj.Data
 	return nil
 }
+
 func (j *Response) validate() error {
 	if err := j.Data.validate(); err != nil {
 		return err

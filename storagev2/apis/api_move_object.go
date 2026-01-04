@@ -5,6 +5,11 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	moveobject "github.com/qiniu/go-sdk/v7/storagev2/apis/move_object"
@@ -12,10 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerMoveObjectRequest moveobject.Request
@@ -23,6 +24,7 @@ type innerMoveObjectRequest moveobject.Request
 func (pp *innerMoveObjectRequest) getBucketName(ctx context.Context) (string, error) {
 	return strings.SplitN(pp.SrcEntry, ":", 2)[0], nil
 }
+
 func (pp *innerMoveObjectRequest) getObjectName() string {
 	parts := strings.SplitN(pp.SrcEntry, ":", 2)
 	if len(parts) > 1 {
@@ -30,6 +32,7 @@ func (pp *innerMoveObjectRequest) getObjectName() string {
 	}
 	return ""
 }
+
 func (path *innerMoveObjectRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 4)
 	if path.SrcEntry != "" {
@@ -47,6 +50,7 @@ func (path *innerMoveObjectRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (request *innerMoveObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -58,8 +62,10 @@ func (request *innerMoveObjectRequest) getAccessKey(ctx context.Context) (string
 	return "", nil
 }
 
-type MoveObjectRequest = moveobject.Request
-type MoveObjectResponse = moveobject.Response
+type (
+	MoveObjectRequest  = moveobject.Request
+	MoveObjectResponse = moveobject.Response
+)
 
 // 将源空间的指定对象移动到目标空间，或在同一空间内对对象重命名
 func (storage *Storage) MoveObject(ctx context.Context, request *MoveObjectRequest, options *Options) (*MoveObjectResponse, error) {

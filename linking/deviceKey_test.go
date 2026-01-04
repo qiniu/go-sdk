@@ -150,6 +150,7 @@ func TestCloneDeviceKey(t *testing.T) {
 	noError(t, err)
 	shouldBeEqual(t, 0, len(keys))
 }
+
 func TestQueryAppidDeviceByAccessKey(t *testing.T) {
 	if skipTest() {
 		t.SkipNow()

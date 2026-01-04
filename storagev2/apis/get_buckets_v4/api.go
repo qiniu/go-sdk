@@ -5,6 +5,7 @@ package get_buckets_v4
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -44,6 +45,7 @@ func (j *BucketV4) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonBucketV4{Name: j.Name, Region: j.Region, Private: j.Private, CreatedTime: j.CreatedTime})
 }
+
 func (j *BucketV4) UnmarshalJSON(data []byte) error {
 	var nj jsonBucketV4
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -55,6 +57,7 @@ func (j *BucketV4) UnmarshalJSON(data []byte) error {
 	j.CreatedTime = nj.CreatedTime
 	return nil
 }
+
 func (j *BucketV4) validate() error {
 	if j.Name == "" {
 		return errors.MissingRequiredFieldError{Name: "Name"}
@@ -72,12 +75,14 @@ func (j *BucketV4) validate() error {
 type BucketsV4 = []BucketV4
 
 // 返回所有存储空间结果
-type BucketsResultV4 = Response
-type jsonResponse struct {
-	NextMarker  string    `json:"next_marker"`  // 下一页开始的空间标识
-	IsTruncated bool      `json:"is_truncated"` // 是否所有的结果都已经返回
-	Buckets     BucketsV4 `json:"buckets"`
-}
+type (
+	BucketsResultV4 = Response
+	jsonResponse    struct {
+		NextMarker  string    `json:"next_marker"`  // 下一页开始的空间标识
+		IsTruncated bool      `json:"is_truncated"` // 是否所有的结果都已经返回
+		Buckets     BucketsV4 `json:"buckets"`
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -85,6 +90,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{NextMarker: j.NextMarker, IsTruncated: j.IsTruncated, Buckets: j.Buckets})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -95,6 +101,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Buckets = nj.Buckets
 	return nil
 }
+
 func (j *Response) validate() error {
 	if j.NextMarker == "" {
 		return errors.MissingRequiredFieldError{Name: "NextMarker"}

@@ -4,6 +4,11 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	setbucketquota "github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_quota"
@@ -11,10 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerSetBucketQuotaRequest setbucketquota.Request
@@ -22,6 +23,7 @@ type innerSetBucketQuotaRequest setbucketquota.Request
 func (pp *innerSetBucketQuotaRequest) getBucketName(ctx context.Context) (string, error) {
 	return pp.Bucket, nil
 }
+
 func (path *innerSetBucketQuotaRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 5)
 	if path.Bucket != "" {
@@ -38,8 +40,10 @@ func (path *innerSetBucketQuotaRequest) buildPath() ([]string, error) {
 	return allSegments, nil
 }
 
-type SetBucketQuotaRequest = setbucketquota.Request
-type SetBucketQuotaResponse = setbucketquota.Response
+type (
+	SetBucketQuotaRequest  = setbucketquota.Request
+	SetBucketQuotaResponse = setbucketquota.Response
+)
 
 // 设置用户存储空间配额限制
 func (storage *Storage) SetBucketQuota(ctx context.Context, request *SetBucketQuotaRequest, options *Options) (*SetBucketQuotaResponse, error) {

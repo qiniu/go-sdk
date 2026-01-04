@@ -283,7 +283,8 @@ func (r *sizedChunkReader) expectedSize() int64 {
 }
 
 func getRecorderKey(recorder Recorder, upToken string, key string,
-	resumeVersion string, partSize int64, fileDetails *fileDetailsInfo) string {
+	resumeVersion string, partSize int64, fileDetails *fileDetailsInfo,
+) string {
 	if recorder == nil || fileDetails == nil || len(upToken) == 0 {
 		return ""
 	}

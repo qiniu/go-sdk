@@ -4,14 +4,15 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"strconv"
+	"strings"
+
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	postobject "github.com/qiniu/go-sdk/v7/storagev2/apis/post_object"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type innerPostObjectRequest postobject.Request
@@ -24,6 +25,7 @@ func (form *innerPostObjectRequest) getBucketName(ctx context.Context) (string, 
 		return putPolicy.GetBucketName()
 	}
 }
+
 func (form *innerPostObjectRequest) getObjectName() string {
 	var objectName string
 	if form.ObjectName != nil {
@@ -31,6 +33,7 @@ func (form *innerPostObjectRequest) getObjectName() string {
 	}
 	return objectName
 }
+
 func (form *innerPostObjectRequest) build(ctx context.Context) (*httpclient.MultipartForm, error) {
 	multipartForm := new(httpclient.MultipartForm)
 	if form.ObjectName != nil {
@@ -61,6 +64,7 @@ func (form *innerPostObjectRequest) build(ctx context.Context) (*httpclient.Mult
 	}
 	return multipartForm, nil
 }
+
 func (request *innerPostObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UploadToken != nil {
 		if accessKey, err := request.UploadToken.GetAccessKey(ctx); err != nil {
@@ -72,8 +76,10 @@ func (request *innerPostObjectRequest) getAccessKey(ctx context.Context) (string
 	return "", nil
 }
 
-type PostObjectRequest = postobject.Request
-type PostObjectResponse = postobject.Response
+type (
+	PostObjectRequest  = postobject.Request
+	PostObjectResponse = postobject.Response
+)
 
 // 在一次 HTTP 会话中上传单一的一个文件
 func (storage *Storage) PostObject(ctx context.Context, request *PostObjectRequest, options *Options) (*PostObjectResponse, error) {

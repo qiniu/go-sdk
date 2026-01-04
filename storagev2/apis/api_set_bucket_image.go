@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	setbucketimage "github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_image"
@@ -12,9 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type innerSetBucketImageRequest setbucketimage.Request
@@ -22,6 +23,7 @@ type innerSetBucketImageRequest setbucketimage.Request
 func (pp *innerSetBucketImageRequest) getBucketName(ctx context.Context) (string, error) {
 	return pp.Bucket, nil
 }
+
 func (path *innerSetBucketImageRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 5)
 	if path.Bucket != "" {
@@ -40,8 +42,10 @@ func (path *innerSetBucketImageRequest) buildPath() ([]string, error) {
 	return allSegments, nil
 }
 
-type SetBucketImageRequest = setbucketimage.Request
-type SetBucketImageResponse = setbucketimage.Response
+type (
+	SetBucketImageRequest  = setbucketimage.Request
+	SetBucketImageResponse = setbucketimage.Response
+)
 
 // 设置源站镜像回源
 func (storage *Storage) SetBucketImage(ctx context.Context, request *SetBucketImageRequest, options *Options) (*SetBucketImageResponse, error) {

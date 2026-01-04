@@ -13,14 +13,20 @@ import (
 	"github.com/qiniu/go-sdk/v7/conf"
 )
 
-var DefaultClient = client.DefaultClient
-var UserAgent = client.UserAgent
+var (
+	DefaultClient = client.DefaultClient
+	UserAgent     = client.UserAgent
+)
 
-type Client = client.Client
-type ErrorInfo = client.ErrorInfo
+type (
+	Client    = client.Client
+	ErrorInfo = client.ErrorInfo
+)
 
-var ResponseError = client.ResponseError
-var CallRet = client.CallRet
+var (
+	ResponseError = client.ResponseError
+	CallRet       = client.CallRet
+)
 
 // var SetAppName = client.SetAppName
 // SetAppName设置的是全局的变量，如果再这个包引入var SetAppName， 那么设置的实际上是

@@ -15,7 +15,6 @@ type DeviceKey struct {
 
 // 新增设备的密钥，每个设备最多有两对密钥
 func (manager *Manager) AddDeviceKey(appid, device string) ([]DeviceKey, error) {
-
 	device = base64.URLEncoding.EncodeToString([]byte(device))
 
 	ret := struct {
@@ -30,7 +29,6 @@ func (manager *Manager) AddDeviceKey(appid, device string) ([]DeviceKey, error) 
 
 // 查询指定设备的密钥
 func (manager *Manager) QueryDeviceKey(appid, device string) ([]DeviceKey, error) {
-
 	device = base64.URLEncoding.EncodeToString([]byte(device))
 
 	ret := struct {
@@ -46,7 +44,6 @@ func (manager *Manager) QueryDeviceKey(appid, device string) ([]DeviceKey, error
 
 // 删除设备的密钥
 func (manager *Manager) DeleteDeviceKey(appid, device, dak string) error {
-
 	device = base64.URLEncoding.EncodeToString([]byte(device))
 
 	return manager.client.Call(context.Background(), nil, "DELETE", manager.url("/apps/%s/devices/%s/keys/%s", appid, device, dak), nil)
@@ -54,7 +51,6 @@ func (manager *Manager) DeleteDeviceKey(appid, device, dak string) error {
 
 // 禁用、启用设备的密钥
 func (manager *Manager) UpdateDeviceKeyState(appid, device, dak string, state int) error {
-
 	device = base64.URLEncoding.EncodeToString([]byte(device))
 
 	req := M{"state": state}
@@ -76,7 +72,7 @@ func (manager *Manager) CloneDeviceKey(appid, fromdevice, todevice string, clean
 }
 
 func (manager *Manager) QueryAppidDeviceNameByAccessKey(dak string) (string, string, error) {
-	var ret = struct {
+	ret := struct {
 		Appid  string `json:"appid"`
 		Device string `json:"device"`
 	}{}

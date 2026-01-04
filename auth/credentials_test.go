@@ -39,7 +39,6 @@ func TestAuthSign(t *testing.T) {
 			t.Errorf("Sign %q, want=%q, got=%q\n", b.Data, b.Signed, got)
 		}
 	}
-
 }
 
 func TestAuthSignWithData(t *testing.T) {
@@ -87,7 +86,6 @@ func TestCollectData(t *testing.T) {
 			t.Errorf("collectData, want = %q, got = %q\n", wants[ind], data)
 		}
 	}
-
 }
 
 func TestCollectDataV2(t *testing.T) {

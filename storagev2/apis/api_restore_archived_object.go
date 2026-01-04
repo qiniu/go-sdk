@@ -5,6 +5,11 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	restorearchivedobject "github.com/qiniu/go-sdk/v7/storagev2/apis/restore_archived_object"
@@ -12,10 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerRestoreArchivedObjectRequest restorearchivedobject.Request
@@ -23,6 +24,7 @@ type innerRestoreArchivedObjectRequest restorearchivedobject.Request
 func (pp *innerRestoreArchivedObjectRequest) getBucketName(ctx context.Context) (string, error) {
 	return strings.SplitN(pp.Entry, ":", 2)[0], nil
 }
+
 func (pp *innerRestoreArchivedObjectRequest) getObjectName() string {
 	parts := strings.SplitN(pp.Entry, ":", 2)
 	if len(parts) > 1 {
@@ -30,6 +32,7 @@ func (pp *innerRestoreArchivedObjectRequest) getObjectName() string {
 	}
 	return ""
 }
+
 func (path *innerRestoreArchivedObjectRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 3)
 	if path.Entry != "" {
@@ -44,6 +47,7 @@ func (path *innerRestoreArchivedObjectRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (request *innerRestoreArchivedObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -55,8 +59,10 @@ func (request *innerRestoreArchivedObjectRequest) getAccessKey(ctx context.Conte
 	return "", nil
 }
 
-type RestoreArchivedObjectRequest = restorearchivedobject.Request
-type RestoreArchivedObjectResponse = restorearchivedobject.Response
+type (
+	RestoreArchivedObjectRequest  = restorearchivedobject.Request
+	RestoreArchivedObjectResponse = restorearchivedobject.Response
+)
 
 // 解冻归档存储类型的文件，可设置解冻有效期1～7天，完成解冻任务通常需要1～5分钟
 func (storage *Storage) RestoreArchivedObject(ctx context.Context, request *RestoreArchivedObjectRequest, options *Options) (*RestoreArchivedObjectResponse, error) {

@@ -4,6 +4,11 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	checkshare "github.com/qiniu/go-sdk/v7/storagev2/apis/check_share"
@@ -11,10 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type innerCheckShareRequest checkshare.Request
@@ -28,6 +29,7 @@ func (path *innerCheckShareRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (query *innerCheckShareRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.Token != "" {
@@ -37,6 +39,7 @@ func (query *innerCheckShareRequest) buildQuery() (url.Values, error) {
 	}
 	return allQuery, nil
 }
+
 func (request *innerCheckShareRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -48,8 +51,10 @@ func (request *innerCheckShareRequest) getAccessKey(ctx context.Context) (string
 	return "", nil
 }
 
-type CheckShareRequest = checkshare.Request
-type CheckShareResponse = checkshare.Response
+type (
+	CheckShareRequest  = checkshare.Request
+	CheckShareResponse = checkshare.Response
+)
 
 // 检查目录分享
 func (storage *Storage) CheckShare(ctx context.Context, request *CheckShareRequest, options *Options) (*CheckShareResponse, error) {

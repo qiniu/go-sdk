@@ -614,7 +614,6 @@ func (m *BucketManager) GetBucketEvent(bucket string) ([]BucketEventRule, error)
 // 如果没有设置任何corsRules，那么默认允许所有的跨域请求
 // 参考： https://www.w3.org/TR/cors/
 type CorsRule struct {
-
 	// allowed_orgin: 允许的域名。必填；支持通配符*；*表示全部匹配；只有第一个*生效；需要设置"Scheme"；大小写敏感。例如
 	//   规则：http://*.abc.*.com 请求："http://test.abc.test.com" 结果：不通过
 	//   规则："http://abc.com" 请求："https://abc.com"/"abc.com" 结果：不通过

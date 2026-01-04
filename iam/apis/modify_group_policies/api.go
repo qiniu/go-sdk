@@ -5,6 +5,7 @@ package modify_group_policies
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -20,10 +21,12 @@ type Request struct {
 type PolicyAliases = []string
 
 // 为用户分组修改授权策略参数
-type ModifiedGroupIamPoliciesParam = Request
-type jsonRequest struct {
-	PolicyAliases PolicyAliases `json:"policy_aliases"` // 授权策略别名集合
-}
+type (
+	ModifiedGroupIamPoliciesParam = Request
+	jsonRequest                   struct {
+		PolicyAliases PolicyAliases `json:"policy_aliases"` // 授权策略别名集合
+	}
+)
 
 func (j *Request) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -31,6 +34,7 @@ func (j *Request) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonRequest{PolicyAliases: j.PolicyAliases})
 }
+
 func (j *Request) UnmarshalJSON(data []byte) error {
 	var nj jsonRequest
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -39,6 +43,7 @@ func (j *Request) UnmarshalJSON(data []byte) error {
 	j.PolicyAliases = nj.PolicyAliases
 	return nil
 }
+
 func (j *Request) validate() error {
 	if len(j.PolicyAliases) == 0 {
 		return errors.MissingRequiredFieldError{Name: "PolicyAliases"}

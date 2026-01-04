@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	updategroupusers "github.com/qiniu/go-sdk/v7/iam/apis/update_group_users"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
@@ -12,8 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"strings"
-	"time"
 )
 
 type innerUpdateGroupUsersRequest updategroupusers.Request
@@ -27,15 +29,19 @@ func (path *innerUpdateGroupUsersRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (j *innerUpdateGroupUsersRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*updategroupusers.Request)(j))
 }
+
 func (j *innerUpdateGroupUsersRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*updategroupusers.Request)(j))
 }
 
-type UpdateGroupUsersRequest = updategroupusers.Request
-type UpdateGroupUsersResponse = updategroupusers.Response
+type (
+	UpdateGroupUsersRequest  = updategroupusers.Request
+	UpdateGroupUsersResponse = updategroupusers.Response
+)
 
 // 为用户分组中重新分配 IAM 子账号
 func (iam *Iam) UpdateGroupUsers(ctx context.Context, request *UpdateGroupUsersRequest, options *Options) (*UpdateGroupUsersResponse, error) {
@@ -57,6 +63,7 @@ func (iam *Iam) UpdateGroupUsers(ctx context.Context, request *UpdateGroupUsersR
 	pathSegments = append(pathSegments, "users")
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
+	headers := http.Header{}
 	body, err := httpclient.GetJsonRequestBody(&innerRequest)
 	if err != nil {
 		return nil, err
@@ -75,7 +82,7 @@ func (iam *Iam) UpdateGroupUsers(ctx context.Context, request *UpdateGroupUsersR
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: body, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "POST", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, RequestBody: body, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && iam.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 

@@ -5,6 +5,7 @@ package get_services
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -25,10 +26,12 @@ type Response struct {
 type Services = []string
 
 // 返回的服务列表响应
-type GetServicesResp = Response
-type jsonResponse struct {
-	Data Services `json:"data"` // 服务列表信息
-}
+type (
+	GetServicesResp = Response
+	jsonResponse    struct {
+		Data Services `json:"data"` // 服务列表信息
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -36,6 +39,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Data: j.Data})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -44,6 +48,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Data = nj.Data
 	return nil
 }
+
 func (j *Response) validate() error {
 	if len(j.Data) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Data"}

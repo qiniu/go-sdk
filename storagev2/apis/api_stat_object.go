@@ -5,6 +5,12 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	statobject "github.com/qiniu/go-sdk/v7/storagev2/apis/stat_object"
@@ -12,11 +18,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type innerStatObjectRequest statobject.Request
@@ -24,6 +25,7 @@ type innerStatObjectRequest statobject.Request
 func (pp *innerStatObjectRequest) getBucketName(ctx context.Context) (string, error) {
 	return strings.SplitN(pp.Entry, ":", 2)[0], nil
 }
+
 func (pp *innerStatObjectRequest) getObjectName() string {
 	parts := strings.SplitN(pp.Entry, ":", 2)
 	if len(parts) > 1 {
@@ -31,6 +33,7 @@ func (pp *innerStatObjectRequest) getObjectName() string {
 	}
 	return ""
 }
+
 func (path *innerStatObjectRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 1)
 	if path.Entry != "" {
@@ -40,6 +43,7 @@ func (path *innerStatObjectRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (query *innerStatObjectRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.NeedParts {
@@ -47,6 +51,7 @@ func (query *innerStatObjectRequest) buildQuery() (url.Values, error) {
 	}
 	return allQuery, nil
 }
+
 func (request *innerStatObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -58,8 +63,10 @@ func (request *innerStatObjectRequest) getAccessKey(ctx context.Context) (string
 	return "", nil
 }
 
-type StatObjectRequest = statobject.Request
-type StatObjectResponse = statobject.Response
+type (
+	StatObjectRequest  = statobject.Request
+	StatObjectResponse = statobject.Response
+)
 
 // 仅获取对象的元信息，不返回对象的内容
 func (storage *Storage) StatObject(ctx context.Context, request *StatObjectRequest, options *Options) (*StatObjectResponse, error) {

@@ -96,8 +96,8 @@ func TestDeviceCRUD(t *testing.T) {
 	noError(t, err)
 	fmt.Println(*channel)
 
-	//err = c.DeleteChannel("3nm4x0vyz7xlu", "31011500991180000270", "31011500991180000135")
-	//noError(t, err)
+	// err = c.DeleteChannel("3nm4x0vyz7xlu", "31011500991180000270", "31011500991180000135")
+	// noError(t, err)
 
 	err = c.FetchCatalog("3nm4x0vyz7xlu", "31011500991180000270")
 	noError(t, err)

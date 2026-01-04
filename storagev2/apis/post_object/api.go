@@ -5,6 +5,7 @@ package post_object
 
 import (
 	"encoding/json"
+
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
@@ -27,6 +28,7 @@ type Response struct {
 func (j *Response) MarshalJSON() ([]byte, error) {
 	return json.Marshal(j.Body)
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &j.Body)
 }

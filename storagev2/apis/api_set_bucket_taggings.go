@@ -5,6 +5,11 @@ package apis
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	setbuckettaggings "github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_taggings"
@@ -12,10 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type innerSetBucketTaggingsRequest setbuckettaggings.Request
@@ -23,6 +24,7 @@ type innerSetBucketTaggingsRequest setbuckettaggings.Request
 func (query *innerSetBucketTaggingsRequest) getBucketName(ctx context.Context) (string, error) {
 	return query.Bucket, nil
 }
+
 func (query *innerSetBucketTaggingsRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.Bucket != "" {
@@ -32,15 +34,19 @@ func (query *innerSetBucketTaggingsRequest) buildQuery() (url.Values, error) {
 	}
 	return allQuery, nil
 }
+
 func (j *innerSetBucketTaggingsRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*setbuckettaggings.Request)(j))
 }
+
 func (j *innerSetBucketTaggingsRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*setbuckettaggings.Request)(j))
 }
 
-type SetBucketTaggingsRequest = setbuckettaggings.Request
-type SetBucketTaggingsResponse = setbuckettaggings.Response
+type (
+	SetBucketTaggingsRequest  = setbuckettaggings.Request
+	SetBucketTaggingsResponse = setbuckettaggings.Response
+)
 
 // 设置存储空间的标签列表，包括新增和修改
 func (storage *Storage) SetBucketTaggings(ctx context.Context, request *SetBucketTaggingsRequest, options *Options) (*SetBucketTaggingsResponse, error) {

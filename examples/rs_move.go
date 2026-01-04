@@ -23,16 +23,16 @@ func main() {
 	}
 	// 指定空间所在的区域，如果不指定将自动探测
 	// 如果没有特殊需求，默认不需要指定
-	//cfg.Zone=&storage.ZoneHuabei
+	// cfg.Zone=&storage.ZoneHuabei
 	bucketManager := storage.NewBucketManager(mac, &cfg)
 
 	srcBucket := bucket
 	srcKey := "github.png"
-	//目标空间可以和源空间相同，但是不能为跨机房的空间
+	// 目标空间可以和源空间相同，但是不能为跨机房的空间
 	destBucket := srcBucket
-	//目标文件名可以和源文件名相同，也可以不同
+	// 目标文件名可以和源文件名相同，也可以不同
 	destKey := "github-new.png"
-	//如果目标文件存在，是否强制覆盖，如果不覆盖，默认返回614 file exists
+	// 如果目标文件存在，是否强制覆盖，如果不覆盖，默认返回614 file exists
 	force := false
 	err := bucketManager.Move(srcBucket, srcKey, destBucket, destKey, force)
 	if err != nil {

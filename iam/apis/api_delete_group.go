@@ -4,6 +4,10 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	deletegroup "github.com/qiniu/go-sdk/v7/iam/apis/delete_group"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
@@ -11,8 +15,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"strings"
-	"time"
 )
 
 type innerDeleteGroupRequest deletegroup.Request
@@ -27,8 +29,10 @@ func (path *innerDeleteGroupRequest) buildPath() ([]string, error) {
 	return allSegments, nil
 }
 
-type DeleteGroupRequest = deletegroup.Request
-type DeleteGroupResponse = deletegroup.Response
+type (
+	DeleteGroupRequest  = deletegroup.Request
+	DeleteGroupResponse = deletegroup.Response
+)
 
 // 删除用户分组
 func (iam *Iam) DeleteGroup(ctx context.Context, request *DeleteGroupRequest, options *Options) (*DeleteGroupResponse, error) {
@@ -49,6 +53,7 @@ func (iam *Iam) DeleteGroup(ctx context.Context, request *DeleteGroupRequest, op
 	}
 	path := "/" + strings.Join(pathSegments, "/")
 	var rawQuery string
+	headers := http.Header{}
 	uplogInterceptor, err := uplog.NewRequestUplog("deleteGroup", "", "", func() (string, error) {
 		credentials := innerRequest.Credentials
 		if credentials == nil {
@@ -63,7 +68,7 @@ func (iam *Iam) DeleteGroup(ctx context.Context, request *DeleteGroupRequest, op
 	if err != nil {
 		return nil, err
 	}
-	req := httpclient.Request{Method: "DELETE", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, OnRequestProgress: options.OnRequestProgress}
+	req := httpclient.Request{Method: "DELETE", ServiceNames: serviceNames, Path: path, RawQuery: rawQuery, Endpoints: options.OverwrittenEndpoints, Region: options.OverwrittenRegion, Interceptors: []httpclient.Interceptor{uplogInterceptor}, Header: headers, AuthType: auth.TokenQiniu, Credentials: innerRequest.Credentials, OnRequestProgress: options.OnRequestProgress}
 	if options.OverwrittenEndpoints == nil && options.OverwrittenRegion == nil && iam.client.GetRegions() == nil {
 		bucketHosts := httpclient.DefaultBucketHosts()
 

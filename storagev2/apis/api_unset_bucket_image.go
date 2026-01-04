@@ -4,6 +4,10 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	unsetbucketimage "github.com/qiniu/go-sdk/v7/storagev2/apis/unset_bucket_image"
@@ -11,9 +15,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type innerUnsetBucketImageRequest unsetbucketimage.Request
@@ -21,6 +22,7 @@ type innerUnsetBucketImageRequest unsetbucketimage.Request
 func (pp *innerUnsetBucketImageRequest) getBucketName(ctx context.Context) (string, error) {
 	return pp.Bucket, nil
 }
+
 func (path *innerUnsetBucketImageRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 1)
 	if path.Bucket != "" {
@@ -31,8 +33,10 @@ func (path *innerUnsetBucketImageRequest) buildPath() ([]string, error) {
 	return allSegments, nil
 }
 
-type UnsetBucketImageRequest = unsetbucketimage.Request
-type UnsetBucketImageResponse = unsetbucketimage.Response
+type (
+	UnsetBucketImageRequest  = unsetbucketimage.Request
+	UnsetBucketImageResponse = unsetbucketimage.Response
+)
 
 // 取消源站镜像回源
 func (storage *Storage) UnsetBucketImage(ctx context.Context, request *UnsetBucketImageRequest, options *Options) (*UnsetBucketImageResponse, error) {

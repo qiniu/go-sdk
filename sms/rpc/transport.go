@@ -28,7 +28,6 @@ func NewTransportTimeout(dial, resp time.Duration) http.RoundTripper {
 
 // NewTransportTimeoutWithConnsPool 返回指定超时时间和最大连接主机数的 Transport 对象
 func NewTransportTimeoutWithConnsPool(dial, resp time.Duration, poolSize int) http.RoundTripper {
-
 	t := &http.Transport{ // DefaultTransport
 		Proxy:               http.ProxyFromEnvironment,
 		TLSHandshakeTimeout: 10 * time.Second,

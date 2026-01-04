@@ -5,6 +5,7 @@ package get_bucket_info
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -47,30 +48,32 @@ type AllowedReferer = []string
 type BlockedReferer = []string
 
 // 存储空间信息
-type BucketInfoV2 = Response
-type jsonResponse struct {
-	Source         string            `json:"source"`                // 镜像回源地址，可以有多个，以 `;` 分隔
-	Host           string            `json:"host"`                  // 请求镜像地址时携带的 `Host` 头部
-	Expires        int64             `json:"expires"`               // 镜像回源地址过期时长
-	Protected      int64             `json:"protected"`             // 是否开启了原图保护
-	Private        int64             `json:"private"`               // 是否是私有空间
-	NoIndexPage    int64             `json:"no_index_page"`         // 是否禁用 index.html（或 index.htm） 页面
-	MaxAge         int64             `json:"max_age"`               // 客户端缓存过期时长
-	Separator      string            `json:"separator"`             // 图片样式分隔符，可能返回多个
-	Styles         map[string]string `json:"styles"`                // 图片样式，键表示图片样式命令名字，值表示图片样式命令内容
-	AntiLeechMode  int64             `json:"anti_leech_mode"`       // 防盗链模式，1：表示设置 Referer 白名单; 2：表示设置 Referer 黑名单
-	TokenAntiLeech int64             `json:"token_anti_leech_mode"` // Token 防盗链模式, 0：表示关闭，1：表示打开
-	ReferWl        AllowedReferer    `json:"refer_wl"`              // 防盗链 Referer 白名单列表
-	ReferBl        BlockedReferer    `json:"refer_bl"`              // 防盗链 Referer 黑名单列表
-	SourceEnabled  bool              `json:"source_enabled"`        // 在源站支持的情况下是否开启源站的 Referer 防盗链
-	NoReferer      bool              `json:"allow_empty_referer"`   // 0：表示不允许空 Refer 访问; 1：表示允许空 Refer 访问
-	MacKey         string            `json:"mac_key"`               // 第一个 MacKey，Index 为 1，用于防盗链 Token 的生成
-	MacKey2        string            `json:"mac_key2"`              // 第二个 MacKey，Index 为 2，用于防盗链 Token 的生成
-	Zone           string            `json:"zone"`                  // 存储区域，兼容保留
-	Region         string            `json:"region"`                // 存储区域
-	Remark         string            `json:"remark"`                // 空间备注信息
-	CreatedAt      string            `json:"ctime"`                 // 空间创建时间
-}
+type (
+	BucketInfoV2 = Response
+	jsonResponse struct {
+		Source         string            `json:"source"`                // 镜像回源地址，可以有多个，以 `;` 分隔
+		Host           string            `json:"host"`                  // 请求镜像地址时携带的 `Host` 头部
+		Expires        int64             `json:"expires"`               // 镜像回源地址过期时长
+		Protected      int64             `json:"protected"`             // 是否开启了原图保护
+		Private        int64             `json:"private"`               // 是否是私有空间
+		NoIndexPage    int64             `json:"no_index_page"`         // 是否禁用 index.html（或 index.htm） 页面
+		MaxAge         int64             `json:"max_age"`               // 客户端缓存过期时长
+		Separator      string            `json:"separator"`             // 图片样式分隔符，可能返回多个
+		Styles         map[string]string `json:"styles"`                // 图片样式，键表示图片样式命令名字，值表示图片样式命令内容
+		AntiLeechMode  int64             `json:"anti_leech_mode"`       // 防盗链模式，1：表示设置 Referer 白名单; 2：表示设置 Referer 黑名单
+		TokenAntiLeech int64             `json:"token_anti_leech_mode"` // Token 防盗链模式, 0：表示关闭，1：表示打开
+		ReferWl        AllowedReferer    `json:"refer_wl"`              // 防盗链 Referer 白名单列表
+		ReferBl        BlockedReferer    `json:"refer_bl"`              // 防盗链 Referer 黑名单列表
+		SourceEnabled  bool              `json:"source_enabled"`        // 在源站支持的情况下是否开启源站的 Referer 防盗链
+		NoReferer      bool              `json:"allow_empty_referer"`   // 0：表示不允许空 Refer 访问; 1：表示允许空 Refer 访问
+		MacKey         string            `json:"mac_key"`               // 第一个 MacKey，Index 为 1，用于防盗链 Token 的生成
+		MacKey2        string            `json:"mac_key2"`              // 第二个 MacKey，Index 为 2，用于防盗链 Token 的生成
+		Zone           string            `json:"zone"`                  // 存储区域，兼容保留
+		Region         string            `json:"region"`                // 存储区域
+		Remark         string            `json:"remark"`                // 空间备注信息
+		CreatedAt      string            `json:"ctime"`                 // 空间创建时间
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -78,6 +81,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Source: j.Source, Host: j.Host, Expires: j.Expires, Protected: j.Protected, Private: j.Private, NoIndexPage: j.NoIndexPage, MaxAge: j.MaxAge, Separator: j.Separator, Styles: j.Styles, AntiLeechMode: j.AntiLeechMode, TokenAntiLeech: j.TokenAntiLeech, ReferWl: j.ReferWl, ReferBl: j.ReferBl, SourceEnabled: j.SourceEnabled, NoReferer: j.NoReferer, MacKey: j.MacKey, MacKey2: j.MacKey2, Zone: j.Zone, Region: j.Region, Remark: j.Remark, CreatedAt: j.CreatedAt})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -106,6 +110,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.CreatedAt = nj.CreatedAt
 	return nil
 }
+
 func (j *Response) validate() error {
 	if j.Source == "" {
 		return errors.MissingRequiredFieldError{Name: "Source"}

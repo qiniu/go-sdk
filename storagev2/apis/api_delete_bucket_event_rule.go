@@ -4,6 +4,11 @@ package apis
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	deletebucketeventrule "github.com/qiniu/go-sdk/v7/storagev2/apis/delete_bucket_event_rule"
@@ -11,10 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type innerDeleteBucketEventRuleRequest deletebucketeventrule.Request
@@ -22,6 +23,7 @@ type innerDeleteBucketEventRuleRequest deletebucketeventrule.Request
 func (query *innerDeleteBucketEventRuleRequest) getBucketName(ctx context.Context) (string, error) {
 	return query.Bucket, nil
 }
+
 func (query *innerDeleteBucketEventRuleRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.Bucket != "" {
@@ -37,8 +39,10 @@ func (query *innerDeleteBucketEventRuleRequest) buildQuery() (url.Values, error)
 	return allQuery, nil
 }
 
-type DeleteBucketEventRuleRequest = deletebucketeventrule.Request
-type DeleteBucketEventRuleResponse = deletebucketeventrule.Response
+type (
+	DeleteBucketEventRuleRequest  = deletebucketeventrule.Request
+	DeleteBucketEventRuleResponse = deletebucketeventrule.Response
+)
 
 // 删除存储空间事件通知规则
 func (storage *Storage) DeleteBucketEventRule(ctx context.Context, request *DeleteBucketEventRuleRequest, options *Options) (*DeleteBucketEventRuleResponse, error) {

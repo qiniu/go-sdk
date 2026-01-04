@@ -90,9 +90,7 @@ const (
 	ServiceBucket ServiceName = "bucket"
 )
 
-var (
-	ErrUnrecognizedServiceName = errors.New("unrecognized service name")
-)
+var ErrUnrecognizedServiceName = errors.New("unrecognized service name")
 
 // 根据 RegionID 获取公有云区域信息
 func GetRegionByID(regionID string, useHttps bool) *Region {
@@ -185,7 +183,6 @@ func (ep Endpoints) IsEqual(right Endpoints) bool {
 	return reflect.DeepEqual(ep.Accelerated, right.Accelerated) &&
 		reflect.DeepEqual(ep.Preferred, right.Preferred) &&
 		reflect.DeepEqual(ep.Alternative, right.Alternative)
-
 }
 
 func (ep Endpoints) Iter() *EndpointsIter {

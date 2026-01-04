@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	fetchobject "github.com/qiniu/go-sdk/v7/storagev2/apis/fetch_object"
@@ -12,9 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type innerFetchObjectRequest fetchobject.Request
@@ -22,6 +23,7 @@ type innerFetchObjectRequest fetchobject.Request
 func (pp *innerFetchObjectRequest) getBucketName(ctx context.Context) (string, error) {
 	return strings.SplitN(pp.ToEntry, ":", 2)[0], nil
 }
+
 func (pp *innerFetchObjectRequest) getObjectName() string {
 	parts := strings.SplitN(pp.ToEntry, ":", 2)
 	if len(parts) > 1 {
@@ -29,6 +31,7 @@ func (pp *innerFetchObjectRequest) getObjectName() string {
 	}
 	return ""
 }
+
 func (path *innerFetchObjectRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 5)
 	if path.FromUrl != "" {
@@ -46,6 +49,7 @@ func (path *innerFetchObjectRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (request *innerFetchObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -57,8 +61,10 @@ func (request *innerFetchObjectRequest) getAccessKey(ctx context.Context) (strin
 	return "", nil
 }
 
-type FetchObjectRequest = fetchobject.Request
-type FetchObjectResponse = fetchobject.Response
+type (
+	FetchObjectRequest  = fetchobject.Request
+	FetchObjectResponse = fetchobject.Response
+)
 
 // 从指定 URL 抓取指定名称的对象并存储到该空间中
 func (storage *Storage) FetchObject(ctx context.Context, request *FetchObjectRequest, options *Options) (*FetchObjectResponse, error) {

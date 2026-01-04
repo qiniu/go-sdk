@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	setbucketcorsrules "github.com/qiniu/go-sdk/v7/storagev2/apis/set_bucket_cors_rules"
@@ -12,9 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type innerSetBucketCORSRulesRequest setbucketcorsrules.Request
@@ -22,6 +23,7 @@ type innerSetBucketCORSRulesRequest setbucketcorsrules.Request
 func (pp *innerSetBucketCORSRulesRequest) getBucketName(ctx context.Context) (string, error) {
 	return pp.Bucket, nil
 }
+
 func (path *innerSetBucketCORSRulesRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 1)
 	if path.Bucket != "" {
@@ -31,15 +33,19 @@ func (path *innerSetBucketCORSRulesRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (j *innerSetBucketCORSRulesRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*setbucketcorsrules.Request)(j))
 }
+
 func (j *innerSetBucketCORSRulesRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*setbucketcorsrules.Request)(j))
 }
 
-type SetBucketCORSRulesRequest = setbucketcorsrules.Request
-type SetBucketCORSRulesResponse = setbucketcorsrules.Response
+type (
+	SetBucketCORSRulesRequest  = setbucketcorsrules.Request
+	SetBucketCORSRulesResponse = setbucketcorsrules.Response
+)
 
 // 设置空间的跨域规则
 func (storage *Storage) SetBucketCORSRules(ctx context.Context, request *SetBucketCORSRulesRequest, options *Options) (*SetBucketCORSRulesResponse, error) {

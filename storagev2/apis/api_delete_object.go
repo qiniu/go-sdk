@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	deleteobject "github.com/qiniu/go-sdk/v7/storagev2/apis/delete_object"
@@ -12,9 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type innerDeleteObjectRequest deleteobject.Request
@@ -22,6 +23,7 @@ type innerDeleteObjectRequest deleteobject.Request
 func (pp *innerDeleteObjectRequest) getBucketName(ctx context.Context) (string, error) {
 	return strings.SplitN(pp.Entry, ":", 2)[0], nil
 }
+
 func (pp *innerDeleteObjectRequest) getObjectName() string {
 	parts := strings.SplitN(pp.Entry, ":", 2)
 	if len(parts) > 1 {
@@ -29,6 +31,7 @@ func (pp *innerDeleteObjectRequest) getObjectName() string {
 	}
 	return ""
 }
+
 func (path *innerDeleteObjectRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 1)
 	if path.Entry != "" {
@@ -38,6 +41,7 @@ func (path *innerDeleteObjectRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (request *innerDeleteObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -49,8 +53,10 @@ func (request *innerDeleteObjectRequest) getAccessKey(ctx context.Context) (stri
 	return "", nil
 }
 
-type DeleteObjectRequest = deleteobject.Request
-type DeleteObjectResponse = deleteobject.Response
+type (
+	DeleteObjectRequest  = deleteobject.Request
+	DeleteObjectResponse = deleteobject.Response
+)
 
 // 删除指定对象
 func (storage *Storage) DeleteObject(ctx context.Context, request *DeleteObjectRequest, options *Options) (*DeleteObjectResponse, error) {

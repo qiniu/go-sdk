@@ -5,15 +5,16 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	resumableuploadv2listparts "github.com/qiniu/go-sdk/v7/storagev2/apis/resumable_upload_v2_list_parts"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
-	"net/http"
-	"net/url"
-	"strconv"
-	"strings"
 )
 
 type innerResumableUploadV2ListPartsRequest resumableuploadv2listparts.Request
@@ -28,6 +29,7 @@ func (request *innerResumableUploadV2ListPartsRequest) getBucketName(ctx context
 	}
 	return "", nil
 }
+
 func (path *innerResumableUploadV2ListPartsRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 5)
 	if path.BucketName != "" {
@@ -47,6 +49,7 @@ func (path *innerResumableUploadV2ListPartsRequest) buildPath() ([]string, error
 	}
 	return allSegments, nil
 }
+
 func (query *innerResumableUploadV2ListPartsRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.MaxParts != 0 {
@@ -57,6 +60,7 @@ func (query *innerResumableUploadV2ListPartsRequest) buildQuery() (url.Values, e
 	}
 	return allQuery, nil
 }
+
 func (request *innerResumableUploadV2ListPartsRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.UpToken != nil {
 		return request.UpToken.GetAccessKey(ctx)
@@ -64,8 +68,10 @@ func (request *innerResumableUploadV2ListPartsRequest) getAccessKey(ctx context.
 	return "", nil
 }
 
-type ResumableUploadV2ListPartsRequest = resumableuploadv2listparts.Request
-type ResumableUploadV2ListPartsResponse = resumableuploadv2listparts.Response
+type (
+	ResumableUploadV2ListPartsRequest  = resumableuploadv2listparts.Request
+	ResumableUploadV2ListPartsResponse = resumableuploadv2listparts.Response
+)
 
 // 列举出指定 UploadId 所属任务所有已经上传成功的分片
 func (storage *Storage) ResumableUploadV2ListParts(ctx context.Context, request *ResumableUploadV2ListPartsRequest, options *Options) (*ResumableUploadV2ListPartsResponse, error) {

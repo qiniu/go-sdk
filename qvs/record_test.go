@@ -9,7 +9,6 @@ import (
 )
 
 func TestOndemandRecordAndSnap(t *testing.T) {
-
 	if skipTest() {
 		t.SkipNow()
 	}

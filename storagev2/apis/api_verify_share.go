@@ -5,6 +5,11 @@ package apis
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	verifyshare "github.com/qiniu/go-sdk/v7/storagev2/apis/verify_share"
@@ -12,10 +17,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type innerVerifyShareRequest verifyshare.Request
@@ -29,6 +30,7 @@ func (path *innerVerifyShareRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (query *innerVerifyShareRequest) buildQuery() (url.Values, error) {
 	allQuery := make(url.Values)
 	if query.Token != "" {
@@ -38,12 +40,15 @@ func (query *innerVerifyShareRequest) buildQuery() (url.Values, error) {
 	}
 	return allQuery, nil
 }
+
 func (j *innerVerifyShareRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*verifyshare.Request)(j))
 }
+
 func (j *innerVerifyShareRequest) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*verifyshare.Request)(j))
 }
+
 func (request *innerVerifyShareRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -55,8 +60,10 @@ func (request *innerVerifyShareRequest) getAccessKey(ctx context.Context) (strin
 	return "", nil
 }
 
-type VerifyShareRequest = verifyshare.Request
-type VerifyShareResponse = verifyshare.Response
+type (
+	VerifyShareRequest  = verifyshare.Request
+	VerifyShareResponse = verifyshare.Response
+)
 
 // 校验目录分享并提取分享信息
 func (storage *Storage) VerifyShare(ctx context.Context, request *VerifyShareRequest, options *Options) (*VerifyShareResponse, error) {

@@ -22,7 +22,7 @@ func TestHttpClient(t *testing.T) {
 		id  int
 		url *url.URL
 	}
-	var reqs = make([]Req, 0, 3)
+	reqs := make([]Req, 0, 3)
 	mux_1 := http.NewServeMux()
 	mux_1.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 		reqs = append(reqs, Req{id: 1, url: r.URL})

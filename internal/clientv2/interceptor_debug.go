@@ -70,8 +70,7 @@ func IsPrintResponseBody() bool {
 	return clientV1.DeepDebugInfo
 }
 
-type debugInterceptor struct {
-}
+type debugInterceptor struct{}
 
 func newDebugInterceptor() Interceptor {
 	return &debugInterceptor{}
@@ -210,7 +209,7 @@ func (interceptor *debugInterceptor) printResponse(label string, resp *http.Resp
 
 	info := label + " response:\n"
 
-	var hasBody = IsPrintResponseBody()
+	hasBody := IsPrintResponseBody()
 	switch {
 	case
 		resp.Header.Get("Content-Type") == "application/octet-stream",

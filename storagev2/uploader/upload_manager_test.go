@@ -572,7 +572,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	server := httptest.NewServer(serveMux)
 	defer server.Close()
 
-	var uploadManager = uploader.NewUploadManager(&uploader.UploadManagerOptions{
+	uploadManager := uploader.NewUploadManager(&uploader.UploadManagerOptions{
 		Options: http_client.Options{
 			Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 			Credentials: credentials.NewCredentials("testak", "testsk"),
@@ -664,7 +664,7 @@ func TestUploadManagerUploadDirectoryWithFilter(t *testing.T) {
 	server := httptest.NewServer(serveMux)
 	defer server.Close()
 
-	var uploadManager = uploader.NewUploadManager(&uploader.UploadManagerOptions{
+	uploadManager := uploader.NewUploadManager(&uploader.UploadManagerOptions{
 		Options: http_client.Options{
 			Regions:     &region.Region{Up: region.Endpoints{Preferred: []string{server.URL}}},
 			Credentials: credentials.NewCredentials("testak", "testsk"),

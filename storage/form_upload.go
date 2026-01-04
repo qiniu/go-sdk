@@ -110,7 +110,8 @@ func NewFormUploaderEx(cfg *Config, clt *client.Client) *FormUploader {
 // localFile 是要上传的文件的本地路径。
 // extra     是上传的一些可选项，可以指定为nil。详细见 PutExtra 结构的描述。
 func (p *FormUploader) PutFile(
-	ctx context.Context, ret interface{}, uptoken, key, localFile string, extra *PutExtra) (err error) {
+	ctx context.Context, ret interface{}, uptoken, key, localFile string, extra *PutExtra,
+) (err error) {
 	return p.putFile(ctx, ret, uptoken, key, true, localFile, extra)
 }
 
@@ -124,13 +125,15 @@ func (p *FormUploader) PutFile(
 // localFile 是要上传的文件的本地路径。
 // extra     是上传的一些可选项。可以指定为nil。详细见 PutExtra 结构的描述。
 func (p *FormUploader) PutFileWithoutKey(
-	ctx context.Context, ret interface{}, uptoken, localFile string, extra *PutExtra) (err error) {
+	ctx context.Context, ret interface{}, uptoken, localFile string, extra *PutExtra,
+) (err error) {
 	return p.putFile(ctx, ret, uptoken, "", false, localFile, extra)
 }
 
 func (p *FormUploader) putFile(
 	ctx context.Context, ret interface{}, upToken string,
-	key string, hasKey bool, localFile string, extra *PutExtra) error {
+	key string, hasKey bool, localFile string, extra *PutExtra,
+) error {
 	if extra == nil {
 		extra = &PutExtra{}
 	}
@@ -151,7 +154,8 @@ func (p *FormUploader) putFile(
 // fsize   是要上传的文件大小。
 // extra   是上传的一些可选项。可以指定为nil。详细见 PutExtra 结构的描述。
 func (p *FormUploader) Put(
-	ctx context.Context, ret interface{}, uptoken, key string, data io.Reader, size int64, extra *PutExtra) (err error) {
+	ctx context.Context, ret interface{}, uptoken, key string, data io.Reader, size int64, extra *PutExtra,
+) (err error) {
 	err = p.put(ctx, ret, uptoken, key, true, data, size, extra, path.Base(key))
 	return
 }
@@ -166,14 +170,16 @@ func (p *FormUploader) Put(
 // fsize   是要上传的文件大小。
 // extra   是上传的一些可选项。详细见 PutExtra 结构的描述。
 func (p *FormUploader) PutWithoutKey(
-	ctx context.Context, ret interface{}, uptoken string, data io.Reader, size int64, extra *PutExtra) (err error) {
+	ctx context.Context, ret interface{}, uptoken string, data io.Reader, size int64, extra *PutExtra,
+) (err error) {
 	err = p.put(ctx, ret, uptoken, "", false, data, size, extra, "")
 	return err
 }
 
 func (p *FormUploader) put(
 	ctx context.Context, ret interface{}, upToken string,
-	key string, hasKey bool, data io.Reader, size int64, extra *PutExtra, fileName string) error {
+	key string, hasKey bool, data io.Reader, size int64, extra *PutExtra, fileName string,
+) error {
 	if extra == nil {
 		extra = &PutExtra{}
 	}

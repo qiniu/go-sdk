@@ -32,7 +32,8 @@ func (manager *Manager) deviceToken(policy *DeviceAccessToken) (string, error) {
 
 // 视频回放/缩略图查询/倍速播放/延时直播/视频片段查询 Token
 func (manager *Manager) VodToken(appid, device string, deadline int64) (string, error) {
-	policy := &DeviceAccessToken{Appid: appid,
+	policy := &DeviceAccessToken{
+		Appid:     appid,
 		Device:    device,
 		DeadLine:  deadline,
 		Random:    time.Now().UnixNano(),
@@ -43,7 +44,8 @@ func (manager *Manager) VodToken(appid, device string, deadline int64) (string, 
 
 // 在线记录查询/设备查询 Token
 func (manager *Manager) StatusToken(appid, device string, deadline int64) (string, error) {
-	policy := &DeviceAccessToken{Appid: appid,
+	policy := &DeviceAccessToken{
+		Appid:     appid,
 		Device:    device,
 		DeadLine:  deadline,
 		Random:    time.Now().UnixNano(),
@@ -53,7 +55,8 @@ func (manager *Manager) StatusToken(appid, device string, deadline int64) (strin
 }
 
 func (manager *Manager) Token(appid, device string, deadline int64, actions []Statement) (string, error) {
-	policy := &DeviceAccessToken{Appid: appid,
+	policy := &DeviceAccessToken{
+		Appid:     appid,
 		Device:    device,
 		DeadLine:  deadline,
 		Random:    time.Now().UnixNano(),

@@ -42,7 +42,6 @@ const (
 
 // FileInfo 文件基本信息
 type FileInfo struct {
-
 	// 资源内容的大小，单位：字节。
 	Fsize int64 `json:"fsize"`
 
@@ -1106,7 +1105,6 @@ func (m *BucketManager) ApiHost(bucket string) (apiHost string, err error) {
 }
 
 func (m *BucketManager) Zone(bucket string) (z *Zone, err error) {
-
 	z = m.Cfg.GetRegion()
 	if z != nil {
 		return

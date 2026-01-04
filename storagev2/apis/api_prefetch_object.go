@@ -5,6 +5,10 @@ package apis
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
+	"strings"
+	"time"
+
 	auth "github.com/qiniu/go-sdk/v7/auth"
 	uplog "github.com/qiniu/go-sdk/v7/internal/uplog"
 	prefetchobject "github.com/qiniu/go-sdk/v7/storagev2/apis/prefetch_object"
@@ -12,9 +16,6 @@ import (
 	httpclient "github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	region "github.com/qiniu/go-sdk/v7/storagev2/region"
 	uptoken "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type innerPrefetchObjectRequest prefetchobject.Request
@@ -22,6 +23,7 @@ type innerPrefetchObjectRequest prefetchobject.Request
 func (pp *innerPrefetchObjectRequest) getBucketName(ctx context.Context) (string, error) {
 	return strings.SplitN(pp.Entry, ":", 2)[0], nil
 }
+
 func (pp *innerPrefetchObjectRequest) getObjectName() string {
 	parts := strings.SplitN(pp.Entry, ":", 2)
 	if len(parts) > 1 {
@@ -29,6 +31,7 @@ func (pp *innerPrefetchObjectRequest) getObjectName() string {
 	}
 	return ""
 }
+
 func (path *innerPrefetchObjectRequest) buildPath() ([]string, error) {
 	allSegments := make([]string, 0, 1)
 	if path.Entry != "" {
@@ -38,6 +41,7 @@ func (path *innerPrefetchObjectRequest) buildPath() ([]string, error) {
 	}
 	return allSegments, nil
 }
+
 func (request *innerPrefetchObjectRequest) getAccessKey(ctx context.Context) (string, error) {
 	if request.Credentials != nil {
 		if credentials, err := request.Credentials.Get(ctx); err != nil {
@@ -49,8 +53,10 @@ func (request *innerPrefetchObjectRequest) getAccessKey(ctx context.Context) (st
 	return "", nil
 }
 
-type PrefetchObjectRequest = prefetchobject.Request
-type PrefetchObjectResponse = prefetchobject.Response
+type (
+	PrefetchObjectRequest  = prefetchobject.Request
+	PrefetchObjectResponse = prefetchobject.Response
+)
 
 // 对于设置了镜像存储的空间，从镜像源站抓取指定名称的对象并存储到该空间中，如果该空间中已存在该名称的对象，则会将镜像源站的对象覆盖空间中相同名称的对象
 func (storage *Storage) PrefetchObject(ctx context.Context, request *PrefetchObjectRequest, options *Options) (*PrefetchObjectResponse, error) {

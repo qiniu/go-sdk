@@ -5,6 +5,7 @@ package get_bucket_event_rules
 
 import (
 	"encoding/json"
+
 	credentials "github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
@@ -52,6 +53,7 @@ func (j *BucketEventRule) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonBucketEventRule{Name: j.Name, Prefix: j.Prefix, Suffix: j.Suffix, EventTypes: j.EventTypes, CallbackUrls: j.CallbackUrls, AccessKey: j.AccessKey, Host: j.Host})
 }
+
 func (j *BucketEventRule) UnmarshalJSON(data []byte) error {
 	var nj jsonBucketEventRule
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -66,6 +68,7 @@ func (j *BucketEventRule) UnmarshalJSON(data []byte) error {
 	j.Host = nj.Host
 	return nil
 }
+
 func (j *BucketEventRule) validate() error {
 	if j.Name == "" {
 		return errors.MissingRequiredFieldError{Name: "Name"}
@@ -85,6 +88,7 @@ type BucketEventRules []BucketEventRule
 func (j *Response) MarshalJSON() ([]byte, error) {
 	return json.Marshal(j.BucketEventRules)
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var array BucketEventRules
 	if err := json.Unmarshal(data, &array); err != nil {

@@ -5,6 +5,7 @@ package query_bucket_v4
 
 import (
 	"encoding/json"
+
 	errors "github.com/qiniu/go-sdk/v7/storagev2/errors"
 )
 
@@ -46,6 +47,7 @@ func (j *UpDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonUpDomains{AcceleratedUpDomains: j.AcceleratedUpDomains, PreferedUpDomains: j.PreferedUpDomains, AlternativeUpDomains: j.AlternativeUpDomains})
 }
+
 func (j *UpDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonUpDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -56,6 +58,7 @@ func (j *UpDomains) UnmarshalJSON(data []byte) error {
 	j.AlternativeUpDomains = nj.AlternativeUpDomains
 	return nil
 }
+
 func (j *UpDomains) validate() error {
 	if len(j.AcceleratedUpDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "AcceleratedUpDomains"}
@@ -86,6 +89,7 @@ func (j *IoDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonIoDomains{PreferedIoDomains: j.PreferedIoDomains})
 }
+
 func (j *IoDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonIoDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -94,6 +98,7 @@ func (j *IoDomains) UnmarshalJSON(data []byte) error {
 	j.PreferedIoDomains = nj.PreferedIoDomains
 	return nil
 }
+
 func (j *IoDomains) validate() error {
 	if len(j.PreferedIoDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "PreferedIoDomains"}
@@ -118,6 +123,7 @@ func (j *IoSrcDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonIoSrcDomains{PreferedIoSrcDomains: j.PreferedIoSrcDomains})
 }
+
 func (j *IoSrcDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonIoSrcDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -126,6 +132,7 @@ func (j *IoSrcDomains) UnmarshalJSON(data []byte) error {
 	j.PreferedIoSrcDomains = nj.PreferedIoSrcDomains
 	return nil
 }
+
 func (j *IoSrcDomains) validate() error {
 	if len(j.PreferedIoSrcDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "PreferedIoSrcDomains"}
@@ -150,6 +157,7 @@ func (j *RsDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonRsDomains{PreferedRsDomains: j.PreferedRsDomains})
 }
+
 func (j *RsDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonRsDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -158,6 +166,7 @@ func (j *RsDomains) UnmarshalJSON(data []byte) error {
 	j.PreferedRsDomains = nj.PreferedRsDomains
 	return nil
 }
+
 func (j *RsDomains) validate() error {
 	if len(j.PreferedRsDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "PreferedRsDomains"}
@@ -182,6 +191,7 @@ func (j *RsfDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonRsfDomains{PreferedRsfDomains: j.PreferedRsfDomains})
 }
+
 func (j *RsfDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonRsfDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -190,6 +200,7 @@ func (j *RsfDomains) UnmarshalJSON(data []byte) error {
 	j.PreferedRsfDomains = nj.PreferedRsfDomains
 	return nil
 }
+
 func (j *RsfDomains) validate() error {
 	if len(j.PreferedRsfDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "PreferedRsfDomains"}
@@ -214,6 +225,7 @@ func (j *ApiDomains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonApiDomains{PreferedApiDomains: j.PreferedApiDomains})
 }
+
 func (j *ApiDomains) UnmarshalJSON(data []byte) error {
 	var nj jsonApiDomains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -222,6 +234,7 @@ func (j *ApiDomains) UnmarshalJSON(data []byte) error {
 	j.PreferedApiDomains = nj.PreferedApiDomains
 	return nil
 }
+
 func (j *ApiDomains) validate() error {
 	if len(j.PreferedApiDomains) == 0 {
 		return errors.MissingRequiredFieldError{Name: "PreferedApiDomains"}
@@ -248,6 +261,7 @@ func (j *S3Domains) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonS3Domains{RegionAlias: j.RegionAlias, PreferedApiDomains: j.PreferedApiDomains})
 }
+
 func (j *S3Domains) UnmarshalJSON(data []byte) error {
 	var nj jsonS3Domains
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -257,6 +271,7 @@ func (j *S3Domains) UnmarshalJSON(data []byte) error {
 	j.PreferedApiDomains = nj.PreferedApiDomains
 	return nil
 }
+
 func (j *S3Domains) validate() error {
 	if j.RegionAlias == "" {
 		return errors.MissingRequiredFieldError{Name: "RegionAlias"}
@@ -297,6 +312,7 @@ func (j *BucketQueryHost) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonBucketQueryHost{RegionId: j.RegionId, TimeToLive: j.TimeToLive, UpDomains: j.UpDomains, IoDomains: j.IoDomains, IoSrcDomains: j.IoSrcDomains, RsDomains: j.RsDomains, RsfDomains: j.RsfDomains, ApiDomains: j.ApiDomains, S3Domains: j.S3Domains})
 }
+
 func (j *BucketQueryHost) UnmarshalJSON(data []byte) error {
 	var nj jsonBucketQueryHost
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -313,6 +329,7 @@ func (j *BucketQueryHost) UnmarshalJSON(data []byte) error {
 	j.S3Domains = nj.S3Domains
 	return nil
 }
+
 func (j *BucketQueryHost) validate() error {
 	if j.RegionId == "" {
 		return errors.MissingRequiredFieldError{Name: "RegionId"}
@@ -345,10 +362,12 @@ func (j *BucketQueryHost) validate() error {
 type BucketQueryHosts = []BucketQueryHost
 
 // 存储空间服务域名查询结果
-type BucketQueryResult = Response
-type jsonResponse struct {
-	Hosts BucketQueryHosts `json:"hosts"` // 存储空间服务域名
-}
+type (
+	BucketQueryResult = Response
+	jsonResponse      struct {
+		Hosts BucketQueryHosts `json:"hosts"` // 存储空间服务域名
+	}
+)
 
 func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
@@ -356,6 +375,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&jsonResponse{Hosts: j.Hosts})
 }
+
 func (j *Response) UnmarshalJSON(data []byte) error {
 	var nj jsonResponse
 	if err := json.Unmarshal(data, &nj); err != nil {
@@ -364,6 +384,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Hosts = nj.Hosts
 	return nil
 }
+
 func (j *Response) validate() error {
 	if len(j.Hosts) == 0 {
 		return errors.MissingRequiredFieldError{Name: "Hosts"}
