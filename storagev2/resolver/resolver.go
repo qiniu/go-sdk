@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/qiniu/go-sdk/v7/internal/cache"
 	"github.com/qiniu/go-sdk/v7/internal/log"
@@ -99,6 +100,7 @@ type (
 	}
 
 	resolverCacheValue struct {
+		mu           sync.RWMutex
 		IPs          []resolverCacheValueIP `json:"ips"`
 		RefreshAfter time.Time              `json:"refresh_after"`
 		ExpiredAt    time.Time              `json:"expired_at"`
@@ -225,24 +227,31 @@ func (resolver *cacheResolver) Resolve(ctx context.Context, host string) ([]net.
 		rcv = cacheValue.(*resolverCacheValue)
 	}
 	now := time.Now()
+	rcv.mu.RLock()
 	ips := make([]net.IP, 0, len(rcv.IPs))
+	expiredCount := 0
 	for _, cacheValueIP := range rcv.IPs {
 		if cacheValueIP.ExpiredAt.After(now) {
 			ips = append(ips, cacheValueIP.IP)
+		} else {
+			expiredCount++
 		}
 	}
-	if len(ips) < len(rcv.IPs) {
-		newCacheValue := &resolverCacheValue{
-			IPs:          make([]resolverCacheValueIP, 0, len(rcv.IPs)),
-			RefreshAfter: rcv.RefreshAfter,
-			ExpiredAt:    rcv.ExpiredAt,
-		}
+	rcv.mu.RUnlock()
+
+	// If some IPs expired, clean them up
+	if expiredCount > 0 {
+		rcv.mu.Lock()
+		// Re-check with fresh timestamp after acquiring write lock
+		nowLocked := time.Now()
+		validIPs := make([]resolverCacheValueIP, 0, len(rcv.IPs)-expiredCount)
 		for _, cacheValueIP := range rcv.IPs {
-			if cacheValueIP.ExpiredAt.After(now) {
-				newCacheValue.IPs = append(newCacheValue.IPs, cacheValueIP)
+			if cacheValueIP.ExpiredAt.After(nowLocked) {
+				validIPs = append(validIPs, cacheValueIP)
 			}
 		}
-		resolver.cache.Set(cacheKey, newCacheValue)
+		rcv.IPs = validIPs
+		rcv.mu.Unlock()
 	}
 
 	return ips, nil
@@ -260,6 +269,10 @@ func (resolver cacheResolver) FeedbackGood(ctx context.Context, host string, ips
 	if status == cache.GetResultFromCache || status == cache.GetResultFromCacheAndRefreshAsync {
 		rcv := cacheValue.(*resolverCacheValue)
 		now := time.Now()
+
+		rcv.mu.Lock()
+		defer rcv.mu.Unlock()
+
 		anyIPLiveLonger := false
 		for i := range rcv.IPs {
 			if isIPContains(ips, rcv.IPs[i].IP) {
@@ -270,7 +283,6 @@ func (resolver cacheResolver) FeedbackGood(ctx context.Context, host string, ips
 		if anyIPLiveLonger {
 			rcv.RefreshAfter = now.Add(resolver.cacheRefreshAfter)
 			rcv.ExpiredAt = now.Add(resolver.cacheLifetime)
-			resolver.cache.Set(cacheKey, rcv)
 		}
 	}
 }
@@ -279,6 +291,17 @@ func (resolver cacheResolver) FeedbackBad(context.Context, string, []net.IP) {}
 
 func (left *resolverCacheValue) IsEqual(rightValue cache.CacheValue) bool {
 	if right, ok := rightValue.(*resolverCacheValue); ok {
+		// Avoid deadlock by locking in consistent order based on pointer address
+		first, second := left, right
+		if uintptr(unsafe.Pointer(left)) > uintptr(unsafe.Pointer(right)) {
+			first, second = right, left
+		}
+
+		first.mu.RLock()
+		defer first.mu.RUnlock()
+		second.mu.RLock()
+		defer second.mu.RUnlock()
+
 		if len(left.IPs) != len(right.IPs) {
 			return false
 		}
@@ -293,10 +316,14 @@ func (left *resolverCacheValue) IsEqual(rightValue cache.CacheValue) bool {
 }
 
 func (left *resolverCacheValue) IsValid() bool {
+	left.mu.RLock()
+	defer left.mu.RUnlock()
 	return time.Now().Before(left.ExpiredAt)
 }
 
 func (left *resolverCacheValue) ShouldRefresh() bool {
+	left.mu.RLock()
+	defer left.mu.RUnlock()
 	return time.Now().After(left.RefreshAfter)
 }
 
