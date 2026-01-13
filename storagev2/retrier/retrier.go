@@ -149,7 +149,7 @@ func getRetryDecisionForError(err error) RetryDecision {
 		return RetryRequest
 	} else if os.IsTimeout(unwrapedErr) {
 		return RetryRequest
-	} else if unwrapedErr == io.EOF {
+	} else if unwrapedErr == io.ErrUnexpectedEOF {
 		return RetryRequest
 	} else if dnsError, ok := unwrapedErr.(*net.DNSError); ok && isDnsNotFoundError(dnsError) {
 		return TryNextHost
