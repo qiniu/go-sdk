@@ -3,6 +3,7 @@ package retrier
 import (
 	"context"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -147,6 +148,8 @@ func getRetryDecisionForError(err error) RetryDecision {
 	} else if unwrapedErr == ErrMaliciousResponse {
 		return RetryRequest
 	} else if os.IsTimeout(unwrapedErr) {
+		return RetryRequest
+	} else if unwrapedErr == io.ErrUnexpectedEOF {
 		return RetryRequest
 	} else if dnsError, ok := unwrapedErr.(*net.DNSError); ok && isDnsNotFoundError(dnsError) {
 		return TryNextHost

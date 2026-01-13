@@ -1,4 +1,11 @@
 # Changelog
+
+## 7.25.6
+* 修复
+  * pfop 响应字段补全
+  * storage v1 包专有云场景 bucket 服务访问问题
+  * storage v2 包 data race 问题
+
 ## 7.25.5
 
 * 修复
