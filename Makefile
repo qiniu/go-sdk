@@ -17,3 +17,9 @@ generate:
 	go generate ./audit/
 	gofmt -w .
 	gofumpt -w .
+
+generate-sandbox:
+	cd internal/openapi-generator && go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen \
+		--config ../../sandbox/apis/oapi-codegen.yaml \
+		../../../api-specs/sandbox/openapi.yml
+	go build ./sandbox/apis/...

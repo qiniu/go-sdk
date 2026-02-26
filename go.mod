@@ -7,16 +7,16 @@ require (
 	github.com/alex-ant/gomath v0.0.0-20160516115720-89013a210a82
 	github.com/dave/jennifer v1.6.1
 	github.com/gammazero/toposort v0.1.1
-	github.com/go-playground/validator/v10 v10.7.0
+	github.com/go-playground/validator/v10 v10.14.1
 	github.com/gofrs/flock v0.8.1
 	github.com/gorilla/mux v1.8.1
 	github.com/iancoleman/strcase v0.3.0
 	github.com/jessevdk/go-flags v1.4.0
+	github.com/oapi-codegen/runtime v1.1.2
 	github.com/qiniu/dyn v1.3.0
-	github.com/stretchr/testify v1.6.1
-	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
-	golang.org/x/text v0.3.7
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+	github.com/stretchr/testify v1.8.4
+	golang.org/x/sync v0.3.0
+	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/fileutil v1.0.0
 )
 
