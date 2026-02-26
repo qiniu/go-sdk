@@ -103,6 +103,9 @@ jobs:
             go install honnef.co/go/tools/cmd/staticcheck@latest
             make staticcheck
           fi
+      - name: Build examples
+        if: matrix.go_version == 'stable'
+        run: go build ./examples/...
       - name: Run unit cases
         run: |
           set -e
