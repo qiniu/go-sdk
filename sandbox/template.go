@@ -50,7 +50,8 @@ func (c *Client) DeleteTemplate(ctx context.Context, templateID string) error {
 	if err != nil {
 		return err
 	}
-	if resp.HTTPResponse.StatusCode != 204 {
+	sc := resp.HTTPResponse.StatusCode
+	if sc != 200 && sc != 204 {
 		return &APIError{StatusCode: resp.StatusCode(), Body: resp.Body}
 	}
 	return nil
