@@ -7,28 +7,28 @@ import (
 	"github.com/qiniu/go-sdk/v7/sandbox/apis"
 )
 
-// DefaultEndpoint is the default sandbox API server address.
+// DefaultEndpoint 是沙箱 API 的默认服务地址。
 const DefaultEndpoint = "https://cn-yangzhou-1-sandbox.qiniuapi.com"
 
-// Config is the configuration for the sandbox client.
+// Config 是沙箱客户端的配置。
 type Config struct {
-	// APIKey is the API key for authentication (required).
+	// APIKey 是用于身份认证的 API 密钥（必填）。
 	APIKey string
 
-	// Endpoint is the sandbox API server address (optional, default: DefaultEndpoint).
+	// Endpoint 是沙箱 API 服务地址（可选，默认值：DefaultEndpoint）。
 	Endpoint string
 
-	// HTTPClient provides a custom HTTP client (optional, default: http.DefaultClient).
+	// HTTPClient 自定义 HTTP 客户端（可选，默认值：http.DefaultClient）。
 	HTTPClient *http.Client
 }
 
-// Client is the high-level sandbox SDK client.
+// Client 是沙箱 SDK 的高级客户端。
 type Client struct {
 	config *Config
-	api    *apis.ClientWithResponses
+	api    apis.ClientWithResponsesInterface
 }
 
-// NewClient creates a new sandbox client.
+// NewClient 创建一个新的沙箱客户端。
 func NewClient(config *Config) (*Client, error) {
 	endpoint := config.Endpoint
 	if endpoint == "" {
@@ -51,7 +51,7 @@ func NewClient(config *Config) (*Client, error) {
 	return &Client{config: config, api: client}, nil
 }
 
-// apiKeyEditor returns a RequestEditorFn that injects the X-API-Key header.
+// apiKeyEditor 返回一个 RequestEditorFn，用于注入 X-API-Key 请求头。
 func apiKeyEditor(apiKey string) apis.RequestEditorFn {
 	return func(ctx context.Context, req *http.Request) error {
 		req.Header.Set("X-API-Key", apiKey)
@@ -59,7 +59,7 @@ func apiKeyEditor(apiKey string) apis.RequestEditorFn {
 	}
 }
 
-// API returns the low-level API client for direct access.
-func (c *Client) API() *apis.ClientWithResponses {
+// API 返回底层 API 客户端，用于直接访问生成的 API 方法。
+func (c *Client) API() apis.ClientWithResponsesInterface {
 	return c.api
 }
