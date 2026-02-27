@@ -2,15 +2,23 @@ package sandbox
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/sandbox/apis"
 )
 
+// envdPort 是 envd agent 的默认端口。
+const envdPort = 49983
+
 // Sandbox 表示一个运行中的沙箱实例。
-// 持有客户端引用，用于执行生命周期操作。
+// 持有客户端引用，用于执行生命周期操作和 envd agent 通信。
 type Sandbox struct {
 	SandboxID          string
 	TemplateID         string
@@ -21,6 +29,16 @@ type Sandbox struct {
 	TrafficAccessToken *string
 
 	client *Client
+
+	// envd 子模块（懒初始化）
+	filesOnce sync.Once
+	files     *Filesystem
+
+	commandsOnce sync.Once
+	commands     *Commands
+
+	ptyOnce sync.Once
+	pty     *Pty
 }
 
 // newSandbox 从 API 响应创建 Sandbox 实例。
@@ -243,4 +261,129 @@ func (c *Client) GetSandboxesMetrics(ctx context.Context, params *apis.GetSandbo
 		return nil, &APIError{StatusCode: resp.StatusCode(), Body: resp.Body}
 	}
 	return resp.JSON200, nil
+}
+
+// Files 返回文件系统操作接口。
+func (s *Sandbox) Files() *Filesystem {
+	s.filesOnce.Do(func() {
+		s.files = newFilesystem(s)
+	})
+	return s.files
+}
+
+// Commands 返回命令执行操作接口。
+func (s *Sandbox) Commands() *Commands {
+	s.commandsOnce.Do(func() {
+		s.commands = newCommands(s)
+	})
+	return s.commands
+}
+
+// Pty 返回 PTY 终端操作接口。
+func (s *Sandbox) Pty() *Pty {
+	s.ptyOnce.Do(func() {
+		s.pty = newPty(s)
+	})
+	return s.pty
+}
+
+// GetHost 返回访问沙箱指定端口的外部域名。
+// 格式: {port}-{sandboxID}.{domain}
+func (s *Sandbox) GetHost(port int) string {
+	domain := s.client.config.Domain
+	if domain == "" {
+		domain = DefaultDomain
+	}
+	if s.Domain != nil && *s.Domain != "" {
+		domain = *s.Domain
+	}
+	return fmt.Sprintf("%d-%s.%s", port, s.SandboxID, domain)
+}
+
+// envdURL 返回 envd agent 的基础 URL。
+func (s *Sandbox) envdURL() string {
+	return fmt.Sprintf("https://%s", s.GetHost(envdPort))
+}
+
+// envdAuthHeader 返回 envd 认证头。
+// 认证格式为 Basic base64(username:)。
+func envdAuthHeader(user string) http.Header {
+	h := http.Header{}
+	cred := base64.StdEncoding.EncodeToString([]byte(user + ":"))
+	h.Set("Authorization", "Basic "+cred)
+	return h
+}
+
+// FileURLOption 文件 URL 选项。
+type FileURLOption func(*fileURLOpts)
+
+type fileURLOpts struct {
+	user                string
+	signatureExpiration int
+}
+
+// WithFileUser 设置文件操作的用户。
+func WithFileUser(user string) FileURLOption {
+	return func(o *fileURLOpts) { o.user = user }
+}
+
+// WithSignatureExpiration 设置签名过期时间（秒）。
+func WithSignatureExpiration(seconds int) FileURLOption {
+	return func(o *fileURLOpts) { o.signatureExpiration = seconds }
+}
+
+// fileSignature 计算文件操作签名。
+// 算法: "v1_" + SHA256(path + ":" + operation + ":" + username + ":" + accessToken + ":" + expiration)
+func fileSignature(path, operation, username, accessToken string, expiration int) string {
+	raw := fmt.Sprintf("%s:%s:%s:%s:%d", path, operation, username, accessToken, expiration)
+	hash := sha256.Sum256([]byte(raw))
+	return "v1_" + fmt.Sprintf("%x", hash)
+}
+
+// DownloadURL 返回从沙箱下载文件的 URL。
+func (s *Sandbox) DownloadURL(path string, opts ...FileURLOption) string {
+	o := &fileURLOpts{user: "user"}
+	for _, fn := range opts {
+		fn(o)
+	}
+
+	q := url.Values{}
+	q.Set("path", path)
+	q.Set("username", o.user)
+
+	if s.EnvdAccessToken != nil && *s.EnvdAccessToken != "" {
+		exp := o.signatureExpiration
+		if exp == 0 {
+			exp = 300
+		}
+		sig := fileSignature(path, "read", o.user, *s.EnvdAccessToken, exp)
+		q.Set("signature", sig)
+		q.Set("signature_expiration", strconv.Itoa(exp))
+	}
+
+	return s.envdURL() + "/files?" + q.Encode()
+}
+
+// UploadURL 返回向沙箱上传文件的 URL（POST multipart/form-data）。
+func (s *Sandbox) UploadURL(path string, opts ...FileURLOption) string {
+	o := &fileURLOpts{user: "user"}
+	for _, fn := range opts {
+		fn(o)
+	}
+
+	q := url.Values{}
+	q.Set("path", path)
+	q.Set("username", o.user)
+
+	if s.EnvdAccessToken != nil && *s.EnvdAccessToken != "" {
+		exp := o.signatureExpiration
+		if exp == 0 {
+			exp = 300
+		}
+		sig := fileSignature(path, "write", o.user, *s.EnvdAccessToken, exp)
+		q.Set("signature", sig)
+		q.Set("signature_expiration", strconv.Itoa(exp))
+	}
+
+	return s.envdURL() + "/files?" + q.Encode()
 }
