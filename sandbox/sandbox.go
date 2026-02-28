@@ -294,9 +294,6 @@ func (s *Sandbox) Pty() *Pty {
 // 格式: {port}-{sandboxID}.{domain}
 func (s *Sandbox) GetHost(port int) string {
 	domain := s.client.config.Domain
-	if domain == "" {
-		domain = DefaultDomain
-	}
 	if s.Domain != nil && *s.Domain != "" {
 		domain = *s.Domain
 	}

@@ -22,7 +22,7 @@ func TestGetHostDefaultDomain(t *testing.T) {
 	sb := &Sandbox{SandboxID: "sb-456", client: c}
 
 	got := sb.GetHost(3000)
-	want := "3000-sb-456.e2b.dev"
+	want := "3000-sb-456."
 	if got != want {
 		t.Errorf("GetHost = %q, want %q", got, want)
 	}

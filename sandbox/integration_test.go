@@ -13,7 +13,7 @@ import (
 
 // testClient 从环境变量创建集成测试用的客户端。
 // 优先使用 Qiniu_API_KEY / Qiniu_SANDBOX_API_URL，
-// 其次使用 E2B_API_KEY / E2B_API_URL。
+// 其次使用 E2B_API_KEY / E2B_API_URL 作为回退。
 func testClient(t *testing.T) *Client {
 	t.Helper()
 

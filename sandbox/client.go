@@ -10,9 +10,6 @@ import (
 // DefaultEndpoint 是沙箱 API 的默认服务地址。
 const DefaultEndpoint = "https://cn-yangzhou-1-sandbox.qiniuapi.com"
 
-// DefaultDomain 是沙箱的默认域名后缀。
-const DefaultDomain = "e2b.dev"
-
 // Config 是沙箱客户端的配置。
 type Config struct {
 	// APIKey 是用于身份认证的 API 密钥（必填）。
@@ -21,7 +18,7 @@ type Config struct {
 	// Endpoint 是沙箱 API 服务地址（可选，默认值：DefaultEndpoint）。
 	Endpoint string
 
-	// Domain 是沙箱运行时域名后缀（可选，默认值：DefaultDomain）。
+	// Domain 是沙箱运行时域名后缀（可选，优先使用沙箱实例自带的 Domain 字段）。
 	// 用于构造 envd agent 和端口访问的 URL。
 	Domain string
 
