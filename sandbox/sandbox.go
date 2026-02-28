@@ -20,6 +20,13 @@ import (
 // envdPort 是 envd agent 的默认端口。
 const envdPort = 49983
 
+// Metadata 沙箱自定义元数据（key-value）。
+type Metadata = apis.SandboxMetadata
+
+// NetworkConfig 沙箱网络配置。
+// 字段：AllowOut、DenyOut、AllowPublicTraffic、MaskRequestHost。
+type NetworkConfig = apis.SandboxNetworkConfig
+
 // Sandbox 表示一个运行中的沙箱实例。
 // 持有客户端引用，用于执行生命周期操作和 envd agent 通信。
 type Sandbox struct {
@@ -385,6 +392,14 @@ func (s *Sandbox) UploadURL(path string, opts ...FileURLOption) string {
 		q.Set("signature_expiration", strconv.Itoa(exp))
 	}
 
+	return s.envdURL() + "/files?" + q.Encode()
+}
+
+// batchUploadURL 返回批量上传文件的 URL。
+// 与 UploadURL 不同，不设置 path 查询参数，文件路径由 multipart part filename 提供。
+func (s *Sandbox) batchUploadURL(user string) string {
+	q := url.Values{}
+	q.Set("username", user)
 	return s.envdURL() + "/files?" + q.Encode()
 }
 

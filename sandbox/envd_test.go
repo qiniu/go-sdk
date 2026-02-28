@@ -1,8 +1,13 @@
 package sandbox
 
 import (
+	"bytes"
+	"context"
 	"crypto/sha256"
 	"fmt"
+	"io"
+	"mime"
+	"mime/multipart"
 	"testing"
 )
 
@@ -172,5 +177,83 @@ func TestIsNotFoundError(t *testing.T) {
 func TestEntryInfoFromProtoNil(t *testing.T) {
 	if entryInfoFromProto(nil) != nil {
 		t.Error("entryInfoFromProto(nil) should return nil")
+	}
+}
+
+func TestWriteFilesEmpty(t *testing.T) {
+	c := &Client{config: &Config{Domain: "test.dev"}}
+	sb := &Sandbox{SandboxID: "sb-100", client: c}
+	fs := &Filesystem{sandbox: sb}
+
+	infos, err := fs.WriteFiles(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("WriteFiles(nil) 应返回 nil error，得到: %v", err)
+	}
+	if infos != nil {
+		t.Fatalf("WriteFiles(nil) 应返回 nil，得到: %v", infos)
+	}
+}
+
+func TestBatchUploadURL(t *testing.T) {
+	c := &Client{config: &Config{Domain: "test.dev"}}
+	sb := &Sandbox{SandboxID: "sb-100", client: c}
+
+	u := sb.batchUploadURL("user")
+	want := "https://49983-sb-100.test.dev/files?username=user"
+	if u != want {
+		t.Errorf("batchUploadURL = %q, want %q", u, want)
+	}
+}
+
+func TestWriteFileFullPath(t *testing.T) {
+	var buf bytes.Buffer
+	w := newMultipartWriter(&buf)
+
+	if err := w.writeFileFullPath("file_0", "/home/user/test.txt", []byte("hello")); err != nil {
+		t.Fatalf("writeFileFullPath 失败: %v", err)
+	}
+	if err := w.close(); err != nil {
+		t.Fatalf("close 失败: %v", err)
+	}
+
+	// 解析 multipart 内容，验证 Content-Disposition 中的 filename 是完整路径。
+	// 注意：Part.FileName() 会调用 filepath.Base()，所以直接解析 header。
+	r := multipart.NewReader(&buf, w.w.Boundary())
+	part, err := r.NextPart()
+	if err != nil {
+		t.Fatalf("NextPart 失败: %v", err)
+	}
+	_, params, err := mime.ParseMediaType(part.Header.Get("Content-Disposition"))
+	if err != nil {
+		t.Fatalf("ParseMediaType 失败: %v", err)
+	}
+	if got := params["filename"]; got != "/home/user/test.txt" {
+		t.Errorf("filename = %q, want %q", got, "/home/user/test.txt")
+	}
+	data, _ := io.ReadAll(part)
+	if string(data) != "hello" {
+		t.Errorf("data = %q, want %q", string(data), "hello")
+	}
+}
+
+func TestWriteFileBaseName(t *testing.T) {
+	var buf bytes.Buffer
+	w := newMultipartWriter(&buf)
+
+	if err := w.writeFile("file", "/home/user/test.txt", []byte("hello")); err != nil {
+		t.Fatalf("writeFile 失败: %v", err)
+	}
+	if err := w.close(); err != nil {
+		t.Fatalf("close 失败: %v", err)
+	}
+
+	// 解析 multipart 内容，验证 filename 是 basename
+	r := multipart.NewReader(&buf, w.w.Boundary())
+	part, err := r.NextPart()
+	if err != nil {
+		t.Fatalf("NextPart 失败: %v", err)
+	}
+	if got := part.FileName(); got != "test.txt" {
+		t.Errorf("filename = %q, want %q", got, "test.txt")
 	}
 }

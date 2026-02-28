@@ -31,3 +31,11 @@ generate-sandbox:
 	cd ../api-specs/sandbox/envd && buf generate
 	# 验证编译
 	cd sandbox && go build ./...
+
+sandbox-examples:
+	@for dir in examples/sandbox_*/; do \
+		name=$$(basename $$dir); \
+		echo "=== $$name ==="; \
+		go run ./$$dir || exit 1; \
+		echo ""; \
+	done

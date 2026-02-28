@@ -230,6 +230,36 @@ func newFilesystem(s *Sandbox) *Filesystem {
 // Read 读取指定路径的文件内容。
 // 通过 envd HTTP API 下载文件。
 func (fs *Filesystem) Read(ctx context.Context, path string, opts ...FilesystemOption) ([]byte, error) {
+	resp, err := fs.doRead(ctx, path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return io.ReadAll(resp.Body)
+}
+
+// ReadText 读取指定路径的文件内容，返回 string。
+func (fs *Filesystem) ReadText(ctx context.Context, path string, opts ...FilesystemOption) (string, error) {
+	data, err := fs.Read(ctx, path, opts...)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+// ReadStream 读取指定路径的文件内容，返回 io.ReadCloser 流。
+// 调用方负责关闭返回的 ReadCloser。
+func (fs *Filesystem) ReadStream(ctx context.Context, path string, opts ...FilesystemOption) (io.ReadCloser, error) {
+	resp, err := fs.doRead(ctx, path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Body, nil
+}
+
+// doRead 执行文件下载请求，返回原始 HTTP 响应。
+// 调用方负责关闭 resp.Body。
+func (fs *Filesystem) doRead(ctx context.Context, path string, opts ...FilesystemOption) (*http.Response, error) {
 	o := applyFilesystemOpts(opts)
 	downloadURL := fs.sandbox.DownloadURL(path, WithFileUser(o.user))
 
@@ -246,14 +276,14 @@ func (fs *Filesystem) Read(ctx context.Context, path string, opts ...FilesystemO
 	if err != nil {
 		return nil, fmt.Errorf("download file: %w", err)
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
 		return nil, &APIError{StatusCode: resp.StatusCode, Body: body}
 	}
 
-	return io.ReadAll(resp.Body)
+	return resp, nil
 }
 
 // Write 写入文件内容。如果文件已存在则覆盖，自动创建父目录。
@@ -300,6 +330,83 @@ func (fs *Filesystem) Write(ctx context.Context, path string, data []byte, opts 
 
 	// 上传成功后通过 Stat 获取文件信息
 	return fs.GetInfo(ctx, path, opts...)
+}
+
+// WriteEntry 批量写入的文件条目。
+type WriteEntry struct {
+	Path string
+	Data []byte
+}
+
+// WriteFiles 批量写入多个文件。通过单次 multipart POST 请求上传。
+// 单文件时 path 放在 query param（兼容现有 Write 行为）；
+// 多文件时每个 part 的 filename 为完整路径，服务端从 part filename 获取路径。
+// 上传成功后逐个调用 GetInfo 获取文件元信息返回。
+func (fs *Filesystem) WriteFiles(ctx context.Context, files []WriteEntry, opts ...FilesystemOption) ([]*EntryInfo, error) {
+	if len(files) == 0 {
+		return nil, nil
+	}
+
+	// 单文件回退到 Write
+	if len(files) == 1 {
+		info, err := fs.Write(ctx, files[0].Path, files[0].Data, opts...)
+		if err != nil {
+			return nil, err
+		}
+		return []*EntryInfo{info}, nil
+	}
+
+	o := applyFilesystemOpts(opts)
+	uploadURL := fs.sandbox.batchUploadURL(o.user)
+
+	pr, pw := io.Pipe()
+	writer := newMultipartWriter(pw)
+
+	go func() {
+		for _, f := range files {
+			if err := writer.writeFileFullPath("file", f.Path, f.Data); err != nil {
+				pw.CloseWithError(err)
+				return
+			}
+		}
+		if err := writer.close(); err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		pw.Close()
+	}()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, pr)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", writer.contentType())
+
+	httpClient := fs.sandbox.client.config.HTTPClient
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("upload files: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, &APIError{StatusCode: resp.StatusCode, Body: body}
+	}
+
+	// 逐个获取文件元信息
+	infos := make([]*EntryInfo, 0, len(files))
+	for _, f := range files {
+		info, err := fs.GetInfo(ctx, f.Path, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("get info for %s: %w", f.Path, err)
+		}
+		infos = append(infos, info)
+	}
+	return infos, nil
 }
 
 // List 列出目录内容。

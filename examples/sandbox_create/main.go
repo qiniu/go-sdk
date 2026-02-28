@@ -48,4 +48,13 @@ func main() {
 	}
 
 	fmt.Printf("沙箱已创建: %s (模板: %s)\n", sb.SandboxID, sb.TemplateID)
+
+	// 演示完毕，终止沙箱释放资源
+	killCtx, killCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer killCancel()
+	if err := sb.Kill(killCtx); err != nil {
+		log.Printf("终止沙箱失败: %v", err)
+	} else {
+		fmt.Printf("沙箱 %s 已终止\n", sb.SandboxID)
+	}
 }

@@ -4,6 +4,7 @@ package sandbox
 
 import (
 	"context"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -376,4 +377,150 @@ func TestIntegrationUploadDownload(t *testing.T) {
 		t.Fatalf("文件内容不匹配: got %q, want %q", string(got), string(content))
 	}
 	t.Log("文件下载内容一致")
+}
+
+func TestIntegrationWriteFiles(t *testing.T) {
+	c := testClient(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	sb := createTestSandbox(t, c, ctx)
+	t.Logf("沙箱: %s", sb.SandboxID)
+
+	files := []WriteEntry{
+		{Path: "/tmp/batch-1.txt", Data: []byte("content one")},
+		{Path: "/tmp/batch-2.txt", Data: []byte("content two")},
+		{Path: "/tmp/batch-3.txt", Data: []byte("content three")},
+	}
+
+	infos, err := sb.Files().WriteFiles(ctx, files)
+	if err != nil {
+		t.Fatalf("WriteFiles 失败: %v", err)
+	}
+	if len(infos) != 3 {
+		t.Fatalf("WriteFiles 返回 %d 个结果，期望 3", len(infos))
+	}
+
+	// 逐个读回验证内容
+	for i, f := range files {
+		got, err := sb.Files().Read(ctx, f.Path)
+		if err != nil {
+			t.Fatalf("Read %s 失败: %v", f.Path, err)
+		}
+		if string(got) != string(f.Data) {
+			t.Fatalf("文件 %s 内容不匹配: got %q, want %q", f.Path, string(got), string(f.Data))
+		}
+		t.Logf("文件 %d (%s) 验证通过: name=%s, size=%d", i, f.Path, infos[i].Name, infos[i].Size)
+	}
+}
+
+func TestIntegrationReadText(t *testing.T) {
+	c := testClient(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	sb := createTestSandbox(t, c, ctx)
+	t.Logf("沙箱: %s", sb.SandboxID)
+
+	content := "hello read text\n"
+	_, err := sb.Files().Write(ctx, "/tmp/readtext.txt", []byte(content))
+	if err != nil {
+		t.Fatalf("Write 失败: %v", err)
+	}
+
+	got, err := sb.Files().ReadText(ctx, "/tmp/readtext.txt")
+	if err != nil {
+		t.Fatalf("ReadText 失败: %v", err)
+	}
+	if got != content {
+		t.Fatalf("ReadText 内容不匹配: got %q, want %q", got, content)
+	}
+	t.Log("ReadText 验证通过")
+}
+
+func TestIntegrationReadStream(t *testing.T) {
+	c := testClient(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	sb := createTestSandbox(t, c, ctx)
+	t.Logf("沙箱: %s", sb.SandboxID)
+
+	content := []byte("hello read stream\n")
+	_, err := sb.Files().Write(ctx, "/tmp/readstream.txt", content)
+	if err != nil {
+		t.Fatalf("Write 失败: %v", err)
+	}
+
+	rc, err := sb.Files().ReadStream(ctx, "/tmp/readstream.txt")
+	if err != nil {
+		t.Fatalf("ReadStream 失败: %v", err)
+	}
+	defer rc.Close()
+
+	got, err := io.ReadAll(rc)
+	if err != nil {
+		t.Fatalf("读取流失败: %v", err)
+	}
+	if string(got) != string(content) {
+		t.Fatalf("ReadStream 内容不匹配: got %q, want %q", string(got), string(content))
+	}
+	t.Log("ReadStream 验证通过")
+}
+
+func TestIntegrationMetadata(t *testing.T) {
+	c := testClient(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	templates, err := c.ListTemplates(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListTemplates 失败: %v", err)
+	}
+
+	var templateID string
+	for _, tmpl := range templates {
+		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == "uploaded" {
+			templateID = tmpl.TemplateID
+			break
+		}
+	}
+	if templateID == "" {
+		t.Skip("没有可用模板，跳过测试")
+	}
+
+	timeout := int32(60)
+	meta := Metadata{"env": "test", "team": "backend"}
+	sb, _, err := c.CreateAndWait(ctx, apis.CreateSandboxJSONRequestBody{
+		TemplateID: templateID,
+		Timeout:    &timeout,
+		Metadata:   &meta,
+	}, 2*time.Second)
+	if err != nil {
+		t.Fatalf("CreateAndWait 失败: %v", err)
+	}
+	t.Cleanup(func() {
+		killCtx, killCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer killCancel()
+		if err := sb.Kill(killCtx); err != nil {
+			t.Logf("清理沙箱 %s 失败: %v", sb.SandboxID, err)
+		}
+	})
+
+	info, err := sb.GetInfo(ctx)
+	if err != nil {
+		t.Fatalf("GetInfo 失败: %v", err)
+	}
+
+	if info.Metadata == nil {
+		t.Fatal("Metadata 应不为 nil")
+	}
+	got := *info.Metadata
+	if got["env"] != "test" {
+		t.Errorf("Metadata[env] = %q, want %q", got["env"], "test")
+	}
+	if got["team"] != "backend" {
+		t.Errorf("Metadata[team] = %q, want %q", got["team"], "backend")
+	}
+	t.Logf("Metadata 验证通过: %v", got)
 }
