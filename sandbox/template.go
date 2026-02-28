@@ -8,6 +8,10 @@ import (
 	"github.com/qiniu/go-sdk/v7/sandbox/apis"
 )
 
+// TemplateBuildStatusUploaded 表示模板已上传但尚未构建的状态。
+// 该值未在 OpenAPI 规范中定义，但后端实际返回此状态。
+const TemplateBuildStatusUploaded apis.TemplateBuildStatus = "uploaded"
+
 // ListTemplates 列出所有模板。
 func (c *Client) ListTemplates(ctx context.Context, params *apis.ListTemplatesParams) ([]apis.Template, error) {
 	resp, err := c.api.ListTemplatesWithResponse(ctx, params)
@@ -159,6 +163,9 @@ func (c *Client) WaitForBuild(ctx context.Context, templateID, buildID string, p
 		pollInterval = 2 * time.Second
 	}
 
+	pollTimer := time.NewTimer(pollInterval)
+	defer pollTimer.Stop()
+
 	for {
 		info, err := c.GetTemplateBuildStatus(ctx, templateID, buildID, nil)
 		if err != nil {
@@ -171,10 +178,11 @@ func (c *Client) WaitForBuild(ctx context.Context, templateID, buildID string, p
 			return info, fmt.Errorf("build %s/%s failed", templateID, buildID)
 		}
 
+		pollTimer.Reset(pollInterval)
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-time.After(pollInterval):
+		case <-pollTimer.C:
 		}
 	}
 }

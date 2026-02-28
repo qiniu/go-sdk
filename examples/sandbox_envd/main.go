@@ -15,16 +15,10 @@ import (
 func main() {
 	apiKey := os.Getenv("Qiniu_API_KEY")
 	if apiKey == "" {
-		apiKey = os.Getenv("E2B_API_KEY")
-	}
-	if apiKey == "" {
-		log.Fatal("请设置 Qiniu_API_KEY 或 E2B_API_KEY 环境变量")
+		log.Fatal("请设置 Qiniu_API_KEY 环境变量")
 	}
 
 	apiURL := os.Getenv("Qiniu_SANDBOX_API_URL")
-	if apiURL == "" {
-		apiURL = os.Getenv("E2B_API_URL")
-	}
 
 	c, err := sandbox.NewClient(&sandbox.Config{
 		APIKey:   apiKey,
@@ -45,7 +39,7 @@ func main() {
 
 	var templateID string
 	for _, tmpl := range templates {
-		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == "uploaded" {
+		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == sandbox.TemplateBuildStatusUploaded {
 			templateID = tmpl.TemplateID
 			break
 		}
@@ -192,7 +186,10 @@ func main() {
 	if err := sb.Files().Remove(ctx, "/tmp/batch-c-renamed.txt"); err != nil {
 		log.Fatalf("Remove 失败: %v", err)
 	}
-	exists, _ = sb.Files().Exists(ctx, "/tmp/batch-c-renamed.txt")
+	exists, err = sb.Files().Exists(ctx, "/tmp/batch-c-renamed.txt")
+	if err != nil {
+		log.Fatalf("Exists 失败: %v", err)
+	}
 	fmt.Printf("Remove 后 Exists(/tmp/batch-c-renamed.txt) = %v\n", exists)
 
 	// WatchDir — 监听目录文件变更
@@ -300,7 +297,9 @@ loop:
 		log.Fatalf("Start 失败: %v", err)
 	}
 	// 等待 PID 分配
-	time.Sleep(500 * time.Millisecond)
+	if _, err := handle.WaitPID(ctx); err != nil {
+		log.Fatalf("WaitPID 失败: %v", err)
+	}
 	fmt.Printf("后台命令已启动: PID=%d\n", handle.PID)
 
 	// List — 列出运行中的进程
@@ -358,7 +357,9 @@ loop:
 	if err != nil {
 		log.Fatalf("Pty.Create 失败: %v", err)
 	}
-	time.Sleep(500 * time.Millisecond)
+	if _, err := ptyHandle.WaitPID(ctx); err != nil {
+		log.Fatalf("WaitPID 失败: %v", err)
+	}
 	fmt.Printf("PTY 已创建: PID=%d\n", ptyHandle.PID)
 
 	// SendInput — 向 PTY 发送输入

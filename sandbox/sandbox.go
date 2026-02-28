@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/sandbox/apis"
+	"github.com/qiniu/go-sdk/v7/sandbox/envdapi/process/processconnect"
 )
 
 // envdPort 是 envd agent 的默认端口。
@@ -40,6 +42,10 @@ type Sandbox struct {
 
 	client *Client
 
+	// 共享的 ProcessClient（Commands 和 Pty 共用）
+	processRPCOnce sync.Once
+	processRPC     processconnect.ProcessClient
+
 	// envd 子模块（懒初始化）
 	filesOnce sync.Once
 	files     *Filesystem
@@ -63,6 +69,21 @@ func newSandbox(c *Client, s *apis.Sandbox) *Sandbox {
 		TrafficAccessToken: s.TrafficAccessToken,
 		client:             c,
 	}
+}
+
+// processClient 返回共享的 ProcessClient 实例，Commands 和 Pty 共用。
+func (s *Sandbox) processClient() processconnect.ProcessClient {
+	s.processRPCOnce.Do(func() {
+		httpClient := s.client.config.HTTPClient
+		if httpClient == nil {
+			httpClient = http.DefaultClient
+		}
+		s.processRPC = processconnect.NewProcessClient(
+			httpClient,
+			s.envdURL(),
+		)
+	})
+	return s.processRPC
 }
 
 // Create 根据指定模板创建一个新的沙箱。
@@ -130,8 +151,16 @@ func (s *Sandbox) Kill(ctx context.Context) error {
 
 // SetTimeout 更新沙箱超时时间。
 // 沙箱将在从现在起经过指定时长后过期。
+// timeout 必须 >= 1 秒。
 func (s *Sandbox) SetTimeout(ctx context.Context, timeout time.Duration) error {
-	timeoutSec := int32(timeout.Seconds())
+	if timeout < time.Second {
+		return fmt.Errorf("timeout must be at least 1 second, got %v", timeout)
+	}
+	secs := timeout.Seconds()
+	if secs > float64(math.MaxInt32) {
+		return fmt.Errorf("timeout %v exceeds maximum allowed value", timeout)
+	}
+	timeoutSec := int32(secs)
 	resp, err := s.client.api.UpdateSandboxTimeoutWithResponse(ctx, s.SandboxID, apis.UpdateSandboxTimeoutJSONRequestBody{
 		Timeout: timeoutSec,
 	})
@@ -219,6 +248,9 @@ func (s *Sandbox) WaitForReady(ctx context.Context, pollInterval time.Duration) 
 		pollInterval = time.Second
 	}
 
+	pollTimer := time.NewTimer(pollInterval)
+	defer pollTimer.Stop()
+
 	for {
 		info, err := s.GetInfo(ctx)
 		if err != nil {
@@ -228,10 +260,11 @@ func (s *Sandbox) WaitForReady(ctx context.Context, pollInterval time.Duration) 
 			return info, nil
 		}
 
+		pollTimer.Reset(pollInterval)
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-time.After(pollInterval):
+		case <-pollTimer.C:
 		}
 	}
 }
@@ -284,7 +317,7 @@ func (s *Sandbox) Files() *Filesystem {
 // Commands 返回命令执行操作接口。
 func (s *Sandbox) Commands() *Commands {
 	s.commandsOnce.Do(func() {
-		s.commands = newCommands(s)
+		s.commands = newCommands(s, s.processClient())
 	})
 	return s.commands
 }
@@ -292,7 +325,7 @@ func (s *Sandbox) Commands() *Commands {
 // Pty 返回 PTY 终端操作接口。
 func (s *Sandbox) Pty() *Pty {
 	s.ptyOnce.Do(func() {
-		s.pty = newPty(s)
+		s.pty = newPty(s, s.processClient())
 	})
 	return s.pty
 }
@@ -341,6 +374,13 @@ func WithSignatureExpiration(seconds int) FileURLOption {
 
 // fileSignature 计算文件操作签名。
 // 算法: "v1_" + SHA256(path + ":" + operation + ":" + username + ":" + accessToken + ":" + expiration)
+//
+// 注意: 此签名算法由后端服务定义，SDK 端需与服务端保持一致，不可单独修改。
+// 当前算法未使用 HMAC，存在已知 accessToken 情况下的签名伪造风险，
+// 后续安全加固需由服务端统一推进。
+//
+// 当前使用 ":" 作为字段分隔符，若 path 或 username 包含 ":"，可能导致签名碰撞。
+// 此问题需由后端统一修复（如切换到不可见分隔符或对字段做转义）。
 func fileSignature(path, operation, username, accessToken string, expiration int) string {
 	raw := fmt.Sprintf("%s:%s:%s:%s:%d", path, operation, username, accessToken, expiration)
 	hash := sha256.Sum256([]byte(raw))

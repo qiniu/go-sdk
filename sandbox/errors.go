@@ -23,8 +23,7 @@ func isNotFoundError(err error) bool {
 	if apiErr, ok := err.(*APIError); ok {
 		return apiErr.StatusCode == http.StatusNotFound
 	}
-	if connectErr := new(connect.Error); connect.CodeOf(err) == connect.CodeNotFound {
-		_ = connectErr
+	if connect.CodeOf(err) == connect.CodeNotFound {
 		return true
 	}
 	return false

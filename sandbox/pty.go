@@ -3,7 +3,6 @@ package sandbox
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"connectrpc.com/connect"
 
@@ -24,19 +23,12 @@ type Pty struct {
 }
 
 // newPty 创建 Pty 实例。
-func newPty(s *Sandbox) *Pty {
-	httpClient := s.client.config.HTTPClient
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
-	rpc := processconnect.NewProcessClient(
-		httpClient,
-		s.envdURL(),
-	)
+func newPty(s *Sandbox, rpc processconnect.ProcessClient) *Pty {
 	return &Pty{sandbox: s, rpc: rpc}
 }
 
 // Create 创建一个 PTY 终端会话。
+// PTY 输出通过 WithOnPtyData 回调接收；若未设置，回退使用 WithOnStdout 以保持兼容。
 func (p *Pty) Create(ctx context.Context, size PtySize, opts ...CommandOption) (*CommandHandle, error) {
 	o := applyCommandOpts(opts)
 
@@ -86,14 +78,22 @@ func (p *Pty) Create(ctx context.Context, size PtySize, opts ...CommandOption) (
 	}
 
 	commands := &Commands{sandbox: p.sandbox, rpc: p.rpc}
+
+	// 优先使用 onPtyData，回退到 onStdout 以保持兼容
+	ptyDataFn := o.onPtyData
+	if ptyDataFn == nil {
+		ptyDataFn = o.onStdout
+	}
+
 	handle := &CommandHandle{
 		commands:  commands,
 		cancel:    ptyCancel,
 		done:      make(chan struct{}),
-		onPtyData: o.onStdout, // PTY 输出通过 onStdout 回调
+		pidCh:     make(chan struct{}),
+		onPtyData: ptyDataFn,
 	}
 
-	go commands.processStream(stream, handle)
+	go processEventStream(stream, handle)
 
 	return handle, nil
 }

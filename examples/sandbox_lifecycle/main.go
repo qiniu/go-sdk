@@ -14,16 +14,10 @@ import (
 func main() {
 	apiKey := os.Getenv("Qiniu_API_KEY")
 	if apiKey == "" {
-		apiKey = os.Getenv("E2B_API_KEY")
-	}
-	if apiKey == "" {
-		log.Fatal("请设置 Qiniu_API_KEY 或 E2B_API_KEY 环境变量")
+		log.Fatal("请设置 Qiniu_API_KEY 环境变量")
 	}
 
 	apiURL := os.Getenv("Qiniu_SANDBOX_API_URL")
-	if apiURL == "" {
-		apiURL = os.Getenv("E2B_API_URL")
-	}
 
 	c, err := sandbox.NewClient(&sandbox.Config{
 		APIKey:   apiKey,
@@ -47,7 +41,7 @@ func main() {
 
 	var templateID string
 	for _, tmpl := range templates {
-		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == "uploaded" {
+		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == sandbox.TemplateBuildStatusUploaded {
 			templateID = tmpl.TemplateID
 			break
 		}

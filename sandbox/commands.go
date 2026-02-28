@@ -3,7 +3,6 @@ package sandbox
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"sync"
 	"time"
 
@@ -28,6 +27,7 @@ type CommandHandle struct {
 	commands *Commands
 	cancel   context.CancelFunc
 	done     chan struct{}
+	pidCh    chan struct{}
 	result   *CommandResult
 
 	mu        sync.Mutex
@@ -46,8 +46,19 @@ func (h *CommandHandle) Wait() (*CommandResult, error) {
 }
 
 // Kill 终止命令。
-func (h *CommandHandle) Kill() error {
-	return h.commands.Kill(context.Background(), h.PID)
+func (h *CommandHandle) Kill(ctx context.Context) error {
+	return h.commands.Kill(ctx, h.PID)
+}
+
+// WaitPID 等待进程 PID 被分配。
+// 当进程流收到 Start 事件后返回 PID；若 ctx 取消则返回错误。
+func (h *CommandHandle) WaitPID(ctx context.Context) (uint32, error) {
+	select {
+	case <-h.pidCh:
+		return h.PID, nil
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
 }
 
 // ProcessInfo 进程信息。
@@ -64,13 +75,14 @@ type ProcessInfo struct {
 type CommandOption func(*commandOpts)
 
 type commandOpts struct {
-	envs     map[string]string
-	cwd      string
-	user     string
-	tag      string
-	onStdout func(data []byte)
-	onStderr func(data []byte)
-	timeout  time.Duration
+	envs      map[string]string
+	cwd       string
+	user      string
+	tag       string
+	onStdout  func(data []byte)
+	onStderr  func(data []byte)
+	onPtyData func(data []byte)
+	timeout   time.Duration
 }
 
 // WithEnvs 设置命令的环境变量。
@@ -93,7 +105,8 @@ func WithTag(tag string) CommandOption {
 	return func(o *commandOpts) { o.tag = tag }
 }
 
-// WithOnStdout 设置 stdout 数据回调。
+// WithOnStdout 设置 stdout 数据回调。仅用于标准命令的 stdout 输出。
+// PTY 会话应使用 WithOnPtyData 接收输出。
 func WithOnStdout(fn func(data []byte)) CommandOption {
 	return func(o *commandOpts) { o.onStdout = fn }
 }
@@ -101,6 +114,12 @@ func WithOnStdout(fn func(data []byte)) CommandOption {
 // WithOnStderr 设置 stderr 数据回调。
 func WithOnStderr(fn func(data []byte)) CommandOption {
 	return func(o *commandOpts) { o.onStderr = fn }
+}
+
+// WithOnPtyData 设置 PTY 数据回调。用于接收 PTY 会话的输出数据。
+// 若未设置，Pty.Create 会回退使用 WithOnStdout 回调以保持兼容。
+func WithOnPtyData(fn func(data []byte)) CommandOption {
+	return func(o *commandOpts) { o.onPtyData = fn }
 }
 
 // WithTimeout 设置命令超时时间。
@@ -123,19 +142,13 @@ type Commands struct {
 }
 
 // newCommands 创建 Commands 实例。
-func newCommands(s *Sandbox) *Commands {
-	httpClient := s.client.config.HTTPClient
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
-	rpc := processconnect.NewProcessClient(
-		httpClient,
-		s.envdURL(),
-	)
+func newCommands(s *Sandbox, rpc processconnect.ProcessClient) *Commands {
 	return &Commands{sandbox: s, rpc: rpc}
 }
 
 // Run 在沙箱中执行命令并等待完成。返回执行结果。
+// 注意: stdout 和 stderr 在内存中累积，长时间运行或大量输出的命令
+// 应使用 Start() + WithOnStdout/WithOnStderr 流式回调处理输出。
 func (c *Commands) Run(ctx context.Context, cmd string, opts ...CommandOption) (*CommandResult, error) {
 	handle, err := c.Start(ctx, cmd, opts...)
 	if err != nil {
@@ -145,6 +158,8 @@ func (c *Commands) Run(ctx context.Context, cmd string, opts ...CommandOption) (
 }
 
 // Start 在沙箱中后台启动命令。返回 CommandHandle 可用于等待完成。
+// cmd 以 /bin/bash -l -c <cmd> 形式执行，支持 shell 语法（管道、重定向等），
+// 会加载登录 shell 环境（/etc/profile 及用户 profile）。
 func (c *Commands) Start(ctx context.Context, cmd string, opts ...CommandOption) (*CommandHandle, error) {
 	o := applyCommandOpts(opts)
 
@@ -190,28 +205,42 @@ func (c *Commands) Start(ctx context.Context, cmd string, opts ...CommandOption)
 		commands: c,
 		cancel:   cmdCancel,
 		done:     make(chan struct{}),
+		pidCh:    make(chan struct{}),
 		onStdout: o.onStdout,
 		onStderr: o.onStderr,
 	}
 
-	go c.processStream(stream, handle)
+	go processEventStream(stream, handle)
 
 	return handle, nil
 }
 
-// processStream 处理进程事件流。
-func (c *Commands) processStream(stream *connect.ServerStreamForClient[process.StartResponse], handle *CommandHandle) {
+// eventMessage 是 StartResponse 和 ConnectResponse 的公共接口。
+type eventMessage interface {
+	GetEvent() *process.ProcessEvent
+}
+
+// streamReceiver 抽象 ConnectRPC 服务端流的读取操作。
+type streamReceiver[T eventMessage] interface {
+	Receive() bool
+	Msg() T
+	Err() error
+}
+
+// processEventStream 处理进程事件流（Start 和 Connect 共用）。
+func processEventStream[T eventMessage](stream streamReceiver[T], handle *CommandHandle) {
 	defer close(handle.done)
 
 	var stdout, stderr []byte
 	for stream.Receive() {
-		event := stream.Msg().Event
+		event := stream.Msg().GetEvent()
 		if event == nil {
 			continue
 		}
 		switch ev := event.Event.(type) {
 		case *process.ProcessEvent_Start:
 			handle.PID = ev.Start.Pid
+			close(handle.pidCh)
 		case *process.ProcessEvent_Data:
 			if data := ev.Data.GetStdout(); len(data) > 0 {
 				stdout = append(stdout, data...)
@@ -287,74 +316,20 @@ func (c *Commands) Connect(ctx context.Context, pid uint32) (*CommandHandle, err
 		return nil, fmt.Errorf("connect to process: %w", err)
 	}
 
+	pidCh := make(chan struct{})
+	close(pidCh) // PID 已知，无需等待
+
 	handle := &CommandHandle{
 		PID:      pid,
 		commands: c,
 		cancel:   connectCancel,
 		done:     make(chan struct{}),
+		pidCh:    pidCh,
 	}
 
-	go c.processConnectStream(stream, handle)
+	go processEventStream(stream, handle)
 
 	return handle, nil
-}
-
-// processConnectStream 处理 Connect 事件流。
-func (c *Commands) processConnectStream(stream *connect.ServerStreamForClient[process.ConnectResponse], handle *CommandHandle) {
-	defer close(handle.done)
-
-	var stdout, stderr []byte
-	for stream.Receive() {
-		event := stream.Msg().Event
-		if event == nil {
-			continue
-		}
-		switch ev := event.Event.(type) {
-		case *process.ProcessEvent_Start:
-			handle.PID = ev.Start.Pid
-		case *process.ProcessEvent_Data:
-			if data := ev.Data.GetStdout(); len(data) > 0 {
-				stdout = append(stdout, data...)
-				handle.mu.Lock()
-				fn := handle.onStdout
-				handle.mu.Unlock()
-				if fn != nil {
-					fn(data)
-				}
-			}
-			if data := ev.Data.GetStderr(); len(data) > 0 {
-				stderr = append(stderr, data...)
-				handle.mu.Lock()
-				fn := handle.onStderr
-				handle.mu.Unlock()
-				if fn != nil {
-					fn(data)
-				}
-			}
-		case *process.ProcessEvent_End:
-			handle.result = &CommandResult{
-				ExitCode: int(ev.End.ExitCode),
-				Stdout:   string(stdout),
-				Stderr:   string(stderr),
-			}
-			if ev.End.Error != nil {
-				handle.result.Error = *ev.End.Error
-			}
-		}
-	}
-
-	if handle.result == nil {
-		errMsg := ""
-		if err := stream.Err(); err != nil {
-			errMsg = err.Error()
-		}
-		handle.result = &CommandResult{
-			ExitCode: -1,
-			Stdout:   string(stdout),
-			Stderr:   string(stderr),
-			Error:    errMsg,
-		}
-	}
 }
 
 // List 列出所有运行中的进程。

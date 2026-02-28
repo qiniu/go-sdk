@@ -16,19 +16,13 @@ import (
 )
 
 // testClient 从环境变量创建集成测试用的客户端。
-// 优先使用 Qiniu_API_KEY / Qiniu_SANDBOX_API_URL，
-// 其次使用 E2B_API_KEY / E2B_API_URL 作为回退。
 func testClient(t *testing.T) *Client {
 	t.Helper()
 
 	apiKey := os.Getenv("Qiniu_API_KEY")
 	apiURL := os.Getenv("Qiniu_SANDBOX_API_URL")
 	if apiKey == "" {
-		apiKey = os.Getenv("E2B_API_KEY")
-		apiURL = os.Getenv("E2B_API_URL")
-	}
-	if apiKey == "" {
-		t.Fatal("需要设置 Qiniu_API_KEY 或 E2B_API_KEY 环境变量")
+		t.Fatal("需要设置 Qiniu_API_KEY 环境变量")
 	}
 
 	c, err := NewClient(&Config{
@@ -95,7 +89,7 @@ func TestIntegrationSandboxLifecycle(t *testing.T) {
 
 	var templateID string
 	for _, tmpl := range templates {
-		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == "uploaded" {
+		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == TemplateBuildStatusUploaded {
 			templateID = tmpl.TemplateID
 			break
 		}
@@ -189,7 +183,7 @@ func createTestSandbox(t *testing.T, c *Client, ctx context.Context) *Sandbox {
 
 	var templateID string
 	for _, tmpl := range templates {
-		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == "uploaded" {
+		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == TemplateBuildStatusUploaded {
 			templateID = tmpl.TemplateID
 			break
 		}
@@ -517,14 +511,8 @@ func TestIntegrationCommandsKill(t *testing.T) {
 	}
 
 	// 等待 PID 被设置
-	deadline := time.After(10 * time.Second)
-	for handle.PID == 0 {
-		select {
-		case <-deadline:
-			t.Fatal("等待 PID 超时")
-		default:
-			time.Sleep(100 * time.Millisecond)
-		}
+	if _, err := handle.WaitPID(ctx); err != nil {
+		t.Fatalf("WaitPID 失败: %v", err)
 	}
 	t.Logf("进程已启动: PID=%d", handle.PID)
 
@@ -558,14 +546,8 @@ func TestIntegrationCommandsList(t *testing.T) {
 	}
 
 	// 等待 PID 被设置
-	deadline := time.After(10 * time.Second)
-	for handle.PID == 0 {
-		select {
-		case <-deadline:
-			t.Fatal("等待 PID 超时")
-		default:
-			time.Sleep(100 * time.Millisecond)
-		}
+	if _, err := handle.WaitPID(ctx); err != nil {
+		t.Fatalf("WaitPID 失败: %v", err)
 	}
 	t.Logf("进程已启动: PID=%d", handle.PID)
 
@@ -588,7 +570,7 @@ func TestIntegrationCommandsList(t *testing.T) {
 	}
 
 	// 清理
-	_ = handle.Kill()
+	_ = handle.Kill(ctx)
 	_, _ = handle.Wait()
 	t.Log("List 验证通过")
 }
@@ -608,14 +590,8 @@ func TestIntegrationCommandsSendStdin(t *testing.T) {
 	}
 
 	// 等待 PID 被设置
-	deadline := time.After(10 * time.Second)
-	for handle.PID == 0 {
-		select {
-		case <-deadline:
-			t.Fatal("等待 PID 超时")
-		default:
-			time.Sleep(100 * time.Millisecond)
-		}
+	if _, err := handle.WaitPID(ctx); err != nil {
+		t.Fatalf("WaitPID 失败: %v", err)
 	}
 
 	// 发送 stdin（stdin 未启用，服务端会返回错误，验证错误信息符合预期）
@@ -632,7 +608,7 @@ func TestIntegrationCommandsSendStdin(t *testing.T) {
 	}
 
 	// 清理
-	_ = handle.Kill()
+	_ = handle.Kill(ctx)
 	_, _ = handle.Wait()
 	t.Log("SendStdin 验证通过")
 }
@@ -740,14 +716,8 @@ func TestIntegrationPtyCreateAndKill(t *testing.T) {
 	}
 
 	// 等待 PID 被设置
-	deadline := time.After(10 * time.Second)
-	for handle.PID == 0 {
-		select {
-		case <-deadline:
-			t.Fatal("等待 PTY PID 超时")
-		default:
-			time.Sleep(100 * time.Millisecond)
-		}
+	if _, err := handle.WaitPID(ctx); err != nil {
+		t.Fatalf("WaitPID 失败: %v", err)
 	}
 	t.Logf("PTY 已创建: PID=%d", handle.PID)
 
@@ -800,14 +770,8 @@ func TestIntegrationPtySendInput(t *testing.T) {
 	}
 
 	// 等待 PID 被设置并让 shell 初始化
-	deadline := time.After(10 * time.Second)
-	for handle.PID == 0 {
-		select {
-		case <-deadline:
-			t.Fatal("等待 PTY PID 超时")
-		default:
-			time.Sleep(100 * time.Millisecond)
-		}
+	if _, err := handle.WaitPID(ctx); err != nil {
+		t.Fatalf("WaitPID 失败: %v", err)
 	}
 	time.Sleep(2 * time.Second)
 
@@ -817,7 +781,7 @@ func TestIntegrationPtySendInput(t *testing.T) {
 	}
 
 	// 等待输出
-	deadline = time.After(10 * time.Second)
+	deadline := time.After(10 * time.Second)
 	for {
 		mu.Lock()
 		has := strings.Contains(string(output), "pty-test")
@@ -859,14 +823,8 @@ func TestIntegrationPtyResize(t *testing.T) {
 	}
 
 	// 等待 PID 被设置
-	deadline := time.After(10 * time.Second)
-	for handle.PID == 0 {
-		select {
-		case <-deadline:
-			t.Fatal("等待 PTY PID 超时")
-		default:
-			time.Sleep(100 * time.Millisecond)
-		}
+	if _, err := handle.WaitPID(ctx); err != nil {
+		t.Fatalf("WaitPID 失败: %v", err)
 	}
 
 	// Resize
@@ -952,7 +910,7 @@ func TestIntegrationMetadata(t *testing.T) {
 
 	var templateID string
 	for _, tmpl := range templates {
-		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == "uploaded" {
+		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == TemplateBuildStatusUploaded {
 			templateID = tmpl.TemplateID
 			break
 		}

@@ -198,6 +198,7 @@ func (w *WatchHandle) Events() <-chan FilesystemEvent {
 }
 
 // Err 返回监听过程中发生的错误。应在 Events 通道关闭后调用。
+// 若通过 Stop() 正常停止，Err() 返回 nil；仅在流异常结束时返回错误。
 func (w *WatchHandle) Err() error {
 	return w.err
 }
@@ -342,6 +343,9 @@ type WriteEntry struct {
 // 单文件时 path 放在 query param（兼容现有 Write 行为）；
 // 多文件时每个 part 的 filename 为完整路径，服务端从 part filename 获取路径。
 // 上传成功后逐个调用 GetInfo 获取文件元信息返回。
+//
+// 注意: 当前实现会对每个文件额外发起一次 GetInfo 请求（N+1），
+// 大批量上传时需注意延迟，适合小批量场景。
 func (fs *Filesystem) WriteFiles(ctx context.Context, files []WriteEntry, opts ...FilesystemOption) ([]*EntryInfo, error) {
 	if len(files) == 0 {
 		return nil, nil
@@ -429,7 +433,11 @@ func (fs *Filesystem) List(ctx context.Context, path string, opts ...ListOption)
 
 	entries := make([]EntryInfo, 0, len(resp.Msg.Entries))
 	for _, e := range resp.Msg.Entries {
-		entries = append(entries, *entryInfoFromProto(e))
+		info := entryInfoFromProto(e)
+		if info == nil {
+			continue
+		}
+		entries = append(entries, *info)
 	}
 	return entries, nil
 }
