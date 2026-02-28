@@ -26,18 +26,18 @@ func TestFormUploadPutFileWithoutExtra(t *testing.T) {
 	// prepare file for test uploading
 	testLocalFile, err := os.CreateTemp("", "TestFormUploadPutFile")
 	if err != nil {
-		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
+		t.Fatalf("os.CreateTemp file failed, err: %v", err)
 	}
 	defer os.Remove(testLocalFile.Name())
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	_, err = io.CopyN(testLocalFile, r, 10*1024*1024)
 	if err != nil {
-		t.Fatalf("ioutil.TempFile file write failed, err: %v", err)
+		t.Fatalf("os.CreateTemp file write failed, err: %v", err)
 	}
 	_, err = testLocalFile.Seek(0, io.SeekCurrent)
 	if err != nil {
-		t.Fatalf("ioutil.TempFile file seek failed, err: %v", err)
+		t.Fatalf("os.CreateTemp file seek failed, err: %v", err)
 	}
 
 	upToken := putPolicy.UploadToken(mac)
@@ -61,18 +61,18 @@ func TestFormUploaderWithInvalidUpHost(t *testing.T) {
 	// prepare file for test uploading
 	testLocalFile, err := os.CreateTemp("", "TestFormUploadPutFile")
 	if err != nil {
-		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
+		t.Fatalf("os.CreateTemp file failed, err: %v", err)
 	}
 	defer os.Remove(testLocalFile.Name())
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	_, err = io.CopyN(testLocalFile, r, 1024)
 	if err != nil {
-		t.Fatalf("ioutil.TempFile file write failed, err: %v", err)
+		t.Fatalf("os.CreateTemp file write failed, err: %v", err)
 	}
 	_, err = testLocalFile.Seek(0, io.SeekCurrent)
 	if err != nil {
-		t.Fatalf("ioutil.TempFile file seek failed, err: %v", err)
+		t.Fatalf("os.CreateTemp file seek failed, err: %v", err)
 	}
 
 	upToken := putPolicy.UploadToken(mac)
@@ -96,18 +96,18 @@ func TestFormUploadPutFile(t *testing.T) {
 	// prepare file for test uploading
 	testLocalFile, err := os.CreateTemp("", "TestFormUploadPutFile")
 	if err != nil {
-		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
+		t.Fatalf("os.CreateTemp file failed, err: %v", err)
 	}
 	defer os.Remove(testLocalFile.Name())
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	_, err = io.CopyN(testLocalFile, r, 10*1024*1024)
 	if err != nil {
-		t.Fatalf("ioutil.TempFile file write failed, err: %v", err)
+		t.Fatalf("os.CreateTemp file write failed, err: %v", err)
 	}
 	_, err = testLocalFile.Seek(0, io.SeekCurrent)
 	if err != nil {
-		t.Fatalf("ioutil.TempFile file seek failed, err: %v", err)
+		t.Fatalf("os.CreateTemp file seek failed, err: %v", err)
 	}
 
 	putPolicy := PutPolicy{
@@ -135,7 +135,7 @@ func TestFormUploadTrafficLimit(t *testing.T) {
 
 	testLocalFile, err := os.CreateTemp("", "TestFormUploadPutFile")
 	if err != nil {
-		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
+		t.Fatalf("os.CreateTemp file failed, err: %v", err)
 	}
 	defer os.Remove(testLocalFile.Name())
 
@@ -177,7 +177,7 @@ func TestFormUploadPutFileWithBackup(t *testing.T) {
 	// prepare file for test uploading
 	testLocalFile, err := os.CreateTemp("", "TestFormUploadPutFileWithBackup")
 	if err != nil {
-		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
+		t.Fatalf("os.CreateTemp file failed, err: %v", err)
 	}
 	defer os.Remove(testLocalFile.Name())
 

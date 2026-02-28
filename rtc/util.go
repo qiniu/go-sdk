@@ -25,9 +25,9 @@ func newResInfo() resInfo {
 }
 
 func getReqid(src *http.Header) string {
+	titler := cases.Title(language.Und)
 	for k, v := range *src {
-		K := cases.Title(language.Und).String(k)
-		if strings.Contains(K, "Reqid") {
+		if strings.Contains(titler.String(k), "Reqid") {
 			return strings.Join(v, ", ")
 		}
 	}

@@ -35,7 +35,7 @@ func TestResumeUploadPutFile(t *testing.T) {
 	// prepare file for test uploading
 	testLocalFile, err := os.CreateTemp("", "TestResumeUploadPutFile")
 	if err != nil {
-		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
+		t.Fatalf("os.CreateTemp file failed, err: %v", err)
 	}
 	defer os.Remove(testLocalFile.Name())
 
@@ -60,7 +60,7 @@ func TestResumeUploadWithInvalidUpHost(t *testing.T) {
 	// prepare file for test uploading
 	testLocalFile, err := os.CreateTemp("", "TestResumeUploadPutFile")
 	if err != nil {
-		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
+		t.Fatalf("os.CreateTemp file failed, err: %v", err)
 	}
 	defer os.Remove(testLocalFile.Name())
 

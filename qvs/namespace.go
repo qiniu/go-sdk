@@ -36,8 +36,8 @@ type NameSpace struct {
 	Domains                []string `json:"domains"`                      // 直播域名
 	Callback               string   `json:"callback,omitempty"`           // 后台服务器回调URL
 	Disabled               bool     `json:"disabled"`                     // 流是否被启用, false:启用,true:禁用
-	RecordTemplateId       string   `jons:"recordTemplateId,omitempty"`   // 录制模版id
-	SnapShotTemplateId     string   `jons:"snapshotTemplateId,omitempty"` // 截图模版id
+	RecordTemplateId       string   `json:"recordTemplateId,omitempty"`   // 录制模版id
+	SnapShotTemplateId     string   `json:"snapshotTemplateId,omitempty"` // 截图模版id
 	RecordTemplateApplyAll bool     `json:"recordTemplateApplyAll"`       // 空间模版是否应用到全局
 	SnapTemplateApplyAll   bool     `json:"snapshotTemplateApplyAll"`     // 截图模版是否应用到全局
 	HLSLowLatency          bool     `json:"hlsLowLatency"`                // HLS低延时开关
