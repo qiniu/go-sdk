@@ -42,10 +42,21 @@ func (p *Pty) Create(ctx context.Context, size PtySize, opts ...CommandOption) (
 
 	ptyCtx, ptyCancel := context.WithCancel(ctx)
 
+	// 合并默认 PTY 环境变量和用户自定义环境变量
+	envs := map[string]string{
+		"TERM":   "xterm",
+		"LANG":   "C.UTF-8",
+		"LC_ALL": "C.UTF-8",
+	}
+	for k, v := range o.envs {
+		envs[k] = v
+	}
+
 	startReq := &process.StartRequest{
 		Process: &process.ProcessConfig{
 			Cmd:  "/bin/bash",
-			Envs: o.envs,
+			Args: []string{"-i", "-l"},
+			Envs: envs,
 		},
 		Pty: &process.PTY{
 			Size: &process.PTY_Size{

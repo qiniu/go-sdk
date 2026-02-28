@@ -351,3 +351,29 @@ func TestIntegrationFilesystemOperations(t *testing.T) {
 		t.Fatal("文件应已不存在")
 	}
 }
+
+func TestIntegrationUploadDownload(t *testing.T) {
+	c := testClient(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	sb := createTestSandbox(t, c, ctx)
+	t.Logf("沙箱: %s", sb.SandboxID)
+
+	// Upload
+	content := []byte("upload test content\n")
+	if err := sb.Upload(ctx, "/tmp/uploaded.txt", content); err != nil {
+		t.Fatalf("Upload 失败: %v", err)
+	}
+	t.Log("文件上传成功")
+
+	// Download
+	got, err := sb.Download(ctx, "/tmp/uploaded.txt")
+	if err != nil {
+		t.Fatalf("Download 失败: %v", err)
+	}
+	if string(got) != string(content) {
+		t.Fatalf("文件内容不匹配: got %q, want %q", string(got), string(content))
+	}
+	t.Log("文件下载内容一致")
+}

@@ -5,8 +5,11 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -386,4 +389,79 @@ func (s *Sandbox) UploadURL(path string, opts ...FileURLOption) string {
 	}
 
 	return s.envdURL() + "/files?" + q.Encode()
+}
+
+// Upload 向沙箱上传文件。data 为文件内容，path 为沙箱内目标路径。
+// 如果文件已存在则覆盖，自动创建父目录。
+func (s *Sandbox) Upload(ctx context.Context, path string, data []byte, opts ...FileURLOption) error {
+	uploadURL := s.UploadURL(path, opts...)
+
+	pr, pw := io.Pipe()
+	mw := multipart.NewWriter(pw)
+
+	go func() {
+		part, err := mw.CreateFormFile("file", filepath.Base(path))
+		if err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		if _, err := part.Write(data); err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		if err := mw.Close(); err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		pw.Close()
+	}()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, pr)
+	if err != nil {
+		return fmt.Errorf("create upload request: %w", err)
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+
+	httpClient := s.client.config.HTTPClient
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("upload file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return &APIError{StatusCode: resp.StatusCode, Body: body}
+	}
+	return nil
+}
+
+// Download 从沙箱下载文件，返回文件内容。
+func (s *Sandbox) Download(ctx context.Context, path string, opts ...FileURLOption) ([]byte, error) {
+	downloadURL := s.DownloadURL(path, opts...)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create download request: %w", err)
+	}
+
+	httpClient := s.client.config.HTTPClient
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("download file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, &APIError{StatusCode: resp.StatusCode, Body: body}
+	}
+
+	return io.ReadAll(resp.Body)
 }

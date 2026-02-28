@@ -159,7 +159,7 @@ func (c *Commands) Start(ctx context.Context, cmd string, opts ...CommandOption)
 	startReq := &process.StartRequest{
 		Process: &process.ProcessConfig{
 			Cmd:  "/bin/bash",
-			Args: []string{"-c", cmd},
+			Args: []string{"-l", "-c", cmd},
 			Envs: o.envs,
 		},
 	}
