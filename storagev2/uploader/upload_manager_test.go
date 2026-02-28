@@ -11,7 +11,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +31,7 @@ import (
 )
 
 func TestUploadManagerUploadFile(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "multi-parts-uploader-test-*")
+	tmpFile, err := os.CreateTemp("", "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +221,7 @@ func TestUploadManagerUploadFile(t *testing.T) {
 }
 
 func TestUploadManagerUploadReader(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "multi-parts-uploader-test-*")
+	tmpFile, err := os.CreateTemp("", "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -433,7 +432,7 @@ func TestUploadManagerUploadDirectory(t *testing.T) {
 func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	var localFiles, remoteObjects sync.Map
 
-	tmpDir_1, err := ioutil.TempDir("", "multi-parts-uploader-test-*")
+	tmpDir_1, err := os.MkdirTemp("", "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -444,7 +443,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	tmpFile_1, err := ioutil.TempFile(tmpDir_1, "multi-parts-uploader-test-*")
+	tmpFile_1, err := os.CreateTemp(tmpDir_1, "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -461,7 +460,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	}
 	localFiles.Store(tmpFile_1.Name(), uint64(0))
 
-	tmpDir_2, err := ioutil.TempDir(tmpDir_1, "multi-parts-uploader-test-*")
+	tmpDir_2, err := os.MkdirTemp(tmpDir_1, "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -471,7 +470,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 		remoteObjects.Store(strings.Replace(filepath.Join(objectPrefix, relativeDir)+string(filepath.Separator), string(filepath.Separator), "/", -1), (*os.File)(nil))
 	}
 
-	tmpFile_2, err := ioutil.TempFile(tmpDir_2, "multi-parts-uploader-test-*")
+	tmpFile_2, err := os.CreateTemp(tmpDir_2, "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -488,7 +487,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 	}
 	localFiles.Store(tmpFile_2.Name(), uint64(0))
 
-	tmpDir_3, err := ioutil.TempDir(tmpDir_2, "multi-parts-uploader-test-*")
+	tmpDir_3, err := os.MkdirTemp(tmpDir_2, "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -498,7 +497,7 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 		remoteObjects.Store(strings.Replace(filepath.Join(objectPrefix, relativeDir)+string(filepath.Separator), string(filepath.Separator), "/", -1), (*os.File)(nil))
 	}
 
-	tmpFile_3, err := ioutil.TempFile(tmpDir_3, "multi-parts-uploader-test-*")
+	tmpFile_3, err := os.CreateTemp(tmpDir_3, "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -619,20 +618,20 @@ func testUploadManagerUploadDirectory(t *testing.T, createDirectory bool) {
 }
 
 func TestUploadManagerUploadDirectoryWithFilter(t *testing.T) {
-	tmpDir_1, err := ioutil.TempDir("", "multi-parts-uploader-test-*")
+	tmpDir_1, err := os.MkdirTemp("", "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir_1)
 
-	tmpFile_1, err := ioutil.TempFile(tmpDir_1, "multi-parts-uploader-test-*")
+	tmpFile_1, err := os.CreateTemp(tmpDir_1, "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.Remove(tmpFile_1.Name())
 	defer tmpFile_1.Close()
 
-	tmpFile_2, err := ioutil.TempFile(tmpDir_1, "multi-parts-uploader-test-*")
+	tmpFile_2, err := os.CreateTemp(tmpDir_1, "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,7 +6,6 @@ package storage
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"sync"
@@ -41,9 +40,9 @@ func TestWorkerCopy(t *testing.T) {
 
 func TestWorkerUpload(t *testing.T) {
 	// prepare file for test uploading
-	testLocalFile, err := ioutil.TempFile("", "TestWorkerUpload")
+	testLocalFile, err := os.CreateTemp("", "TestWorkerUpload")
 	if err != nil {
-		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
+		t.Fatalf("os.CreateTemp file failed, err: %v", err)
 	}
 	defer os.Remove(testLocalFile.Name())
 

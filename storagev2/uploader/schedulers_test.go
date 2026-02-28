@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"hash/crc32"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -30,7 +29,7 @@ import (
 )
 
 func TestMultiPartsUploaderScheduler(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "multi-parts-uploader-test-*")
+	tmpFile, err := os.CreateTemp("", "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}

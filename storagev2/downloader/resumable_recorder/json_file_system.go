@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -110,12 +109,12 @@ func (frr jsonFileSystemResumableRecorder) ClearOutdated(createdBefore time.Dura
 	}
 	defer lock.Unlock()
 
-	fileInfos, err := ioutil.ReadDir(frr.dirPath)
+	fileInfos, err := os.ReadDir(frr.dirPath)
 	if err != nil {
 		return err
 	}
 	for _, fileInfo := range fileInfos {
-		if !fileInfo.Mode().IsRegular() {
+		if !fileInfo.Type().IsRegular() {
 			continue
 		}
 		if fileInfo.Name() == jsonFileSystemResumableRecorderLock {

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -365,14 +364,14 @@ func (r *multipleFileReader) Close() error {
 }
 
 func getArchivedUplogFileBufferPaths(dirPath string) ([]string, error) {
-	dirEntries, err := ioutil.ReadDir(dirPath)
+	dirEntries, err := os.ReadDir(dirPath)
 	if err != nil {
 		return nil, err
 	}
 
 	archivedPaths := make([]string, 0, len(dirEntries))
 	for _, dirEntry := range dirEntries {
-		if !dirEntry.Mode().IsRegular() ||
+		if !dirEntry.Type().IsRegular() ||
 			!strings.HasPrefix(dirEntry.Name(), UPLOG_FILE_BUFFER_NAME+".") ||
 			strings.HasSuffix(dirEntry.Name(), ".lock") {
 			continue

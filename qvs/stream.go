@@ -2,7 +2,7 @@ package qvs
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 )
@@ -235,7 +235,7 @@ func (manager *Manager) StreamsSnapshots(nsId string, streamId string, start, en
 	if err != nil {
 		return nil, err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

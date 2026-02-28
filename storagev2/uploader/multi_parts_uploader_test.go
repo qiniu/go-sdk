@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +31,7 @@ import (
 )
 
 func TestMultiPartsUploader(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "multi-parts-uploader-test-*")
+	tmpFile, err := os.CreateTemp("", "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,13 +236,13 @@ func TestMultiPartsUploader(t *testing.T) {
 }
 
 func TestMultiPartsUploaderResuming(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "multi-parts-uploader-test-*")
+	tmpDir, err := os.MkdirTemp("", "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	tmpFile, err := ioutil.TempFile("", "multi-parts-uploader-test-*")
+	tmpFile, err := os.CreateTemp("", "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -431,7 +430,7 @@ func TestMultiPartsUploaderResuming(t *testing.T) {
 }
 
 func TestMultiPartsUploaderRetry(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "multi-parts-uploader-test-*")
+	tmpFile, err := os.CreateTemp("", "multi-parts-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}

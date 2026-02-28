@@ -6,7 +6,6 @@ package storage
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +17,7 @@ import (
 )
 
 func TestUploadManagerUplogForm(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "test-uplog-*")
+	tmpDir, err := os.MkdirTemp("", "test-uplog-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +42,7 @@ func TestUploadManagerUplogForm(t *testing.T) {
 	data := []byte("hello, 七牛！！！")
 	dataLen := int64(len(data))
 
-	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut-*")
+	tempFile, err := os.CreateTemp("", "TestUploadManagerFormPut-*")
 	if err != nil {
 		t.Fatalf("create temp file error:%v", err)
 	}
@@ -192,7 +191,7 @@ func TestUploadManagerUplogForm(t *testing.T) {
 }
 
 func TestUploadManagerUplogResumableV1(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "test-uplog-*")
+	tmpDir, err := os.MkdirTemp("", "test-uplog-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +217,7 @@ func TestUploadManagerUplogResumableV1(t *testing.T) {
 	data := make([]byte, length, length)
 	data[0] = 8
 	data[length-1] = 8
-	tempFile, err := ioutil.TempFile("", "TestUploadManagerResumeV1Upload-*")
+	tempFile, err := os.CreateTemp("", "TestUploadManagerResumeV1Upload-*")
 	if err != nil {
 		t.Fatalf("create temp file error:%v", err)
 	}

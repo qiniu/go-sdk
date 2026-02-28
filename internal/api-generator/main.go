@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -39,7 +38,7 @@ func main() {
 	}
 	os.RemoveAll(flags.OutputDirPath)
 	for _, apiSpecsPath := range flags.ApiSpecsPaths {
-		entries, err := ioutil.ReadDir(apiSpecsPath)
+		entries, err := os.ReadDir(apiSpecsPath)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to read directory %s: %s\n", apiSpecsPath, err)
 			os.Exit(1)

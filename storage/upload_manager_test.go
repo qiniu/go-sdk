@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -54,7 +53,7 @@ func TestUploadManagerFormUpload(t *testing.T) {
 	}()
 
 	data := []byte("hello, 七牛！！！")
-	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut")
+	tempFile, err := os.CreateTemp("", "TestUploadManagerFormPut")
 	if err != nil {
 		t.Fatalf("create temp file error:%v", err)
 	}
@@ -149,7 +148,7 @@ func TestUploadManagerResumeV1Upload(t *testing.T) {
 	data[0] = 8
 	data[length-1] = 8
 
-	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut")
+	tempFile, err := os.CreateTemp("", "TestUploadManagerFormPut")
 	if err != nil {
 		t.Fatalf("create temp file error:%v", err)
 	}
@@ -247,7 +246,7 @@ func TestUploadManagerResumeV1UploadRecord(t *testing.T) {
 	data[0] = 8
 	data[length-1] = 8
 
-	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut")
+	tempFile, err := os.CreateTemp("", "TestUploadManagerFormPut")
 	if err != nil {
 		t.Fatalf("create temp file error:%v", err)
 	}
@@ -326,7 +325,7 @@ func TestUploadManagerResumeV2Upload(t *testing.T) {
 	data[0] = 8
 	data[length-1] = 8
 
-	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut")
+	tempFile, err := os.CreateTemp("", "TestUploadManagerFormPut")
 	if err != nil {
 		t.Fatalf("create temp file error:%v", err)
 	}
@@ -424,7 +423,7 @@ func TestUploadManagerResumeV2UploadRecord(t *testing.T) {
 	data[0] = 8
 	data[length-1] = 8
 
-	tempFile, err := ioutil.TempFile("", "TestUploadManagerFormPut")
+	tempFile, err := os.CreateTemp("", "TestUploadManagerFormPut")
 	if err != nil {
 		t.Fatalf("create temp file error:%v", err)
 	}

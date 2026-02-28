@@ -8,7 +8,6 @@ import (
 	"compress/gzip"
 	"crypto/md5"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -28,7 +27,7 @@ func TestUplogWriteMemoryBufferToFileBuffer(t *testing.T) {
 	testLock.Lock()
 	defer testLock.Unlock()
 
-	tmpDir, err := ioutil.TempDir("", "test-uplog-*")
+	tmpDir, err := os.MkdirTemp("", "test-uplog-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +78,7 @@ func TestUplogArchiveFileBuffer(t *testing.T) {
 	testLock.Lock()
 	defer testLock.Unlock()
 
-	tmpDir, err := ioutil.TempDir("", "test-uplog-*")
+	tmpDir, err := os.MkdirTemp("", "test-uplog-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +163,7 @@ func TestUplogArchiveFileBuffer(t *testing.T) {
 	if !bytes.Equal(md5HasherClient.Sum(nil), md5HasherServer.Sum(nil)) {
 		t.Fatal("unexpected request body")
 	}
-	entries, err := ioutil.ReadDir(tmpDir)
+	entries, err := os.ReadDir(tmpDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +181,7 @@ func TestUplogArchiveFileBufferFailed(t *testing.T) {
 	testLock.Lock()
 	defer testLock.Unlock()
 
-	tmpDir, err := ioutil.TempDir("", "test-uplog-*")
+	tmpDir, err := os.MkdirTemp("", "test-uplog-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,13 +260,17 @@ func TestUplogArchiveFileBufferFailed(t *testing.T) {
 		t.Fatal("unexpected upload count")
 	}
 
-	entries, err := ioutil.ReadDir(tmpDir)
+	entries, err := os.ReadDir(tmpDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	totalSize := uint64(0)
 	for _, entry := range entries {
-		totalSize += uint64(entry.Size())
+		info, err := entry.Info()
+		if err != nil {
+			t.Fatal(err)
+		}
+		totalSize += uint64(info.Size())
 	}
 	if totalSize > 48*1024 {
 		t.Fatalf("unexpected uplog buffer file size: %d", totalSize)

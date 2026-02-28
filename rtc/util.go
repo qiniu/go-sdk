@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
 	"github.com/qiniu/go-sdk/v7/auth"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // resInfo is httpresponse infomation
@@ -23,9 +25,9 @@ func newResInfo() resInfo {
 }
 
 func getReqid(src *http.Header) string {
+	titler := cases.Title(language.Und)
 	for k, v := range *src {
-		K := strings.Title(k)
-		if strings.Contains(K, "Reqid") {
+		if strings.Contains(titler.String(k), "Reqid") {
 			return strings.Join(v, ", ")
 		}
 	}
@@ -123,7 +125,7 @@ func callReq(httpClient *http.Client, req *http.Request, mac *auth.Credentials,
 		info.Err = err
 		return
 	}
-	resData, err := ioutil.ReadAll(resp.Body)
+	resData, err := io.ReadAll(resp.Body)
 	if err != nil {
 		info.Err = rebuildErr(err.Error())
 		return

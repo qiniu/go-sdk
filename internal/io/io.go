@@ -3,7 +3,6 @@ package io
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"strings"
 )
 
@@ -13,7 +12,7 @@ func ReadAll(r io.Reader) ([]byte, error) {
 		_, err := b.Seek(0, io.SeekEnd)
 		return b.Bytes(), err
 	default:
-		return ioutil.ReadAll(r)
+		return io.ReadAll(r)
 	}
 }
 
@@ -28,7 +27,7 @@ func SinkAll(r io.Reader) (err error) {
 	case *strings.Reader:
 		_, err = b.Seek(0, io.SeekEnd)
 	default:
-		_, err = io.Copy(ioutil.Discard, r)
+		_, err = io.Copy(io.Discard, r)
 	}
 	return
 }

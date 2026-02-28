@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -348,7 +348,7 @@ func postRequest(mac *auth.Credentials, path string, body interface{}) (resData 
 	}
 	defer resp.Body.Close()
 
-	resData, ioErr := ioutil.ReadAll(resp.Body)
+	resData, ioErr := io.ReadAll(resp.Body)
 	if ioErr != nil {
 		err = ioErr
 		return

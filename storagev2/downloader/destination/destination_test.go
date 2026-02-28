@@ -8,7 +8,6 @@ import (
 	"crypto/md5"
 	"errors"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"sync"
@@ -19,7 +18,7 @@ import (
 )
 
 func TestSeekableDestination(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "test-seekable-destination-*")
+	tmpFile, err := os.CreateTemp("", "test-seekable-destination-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +84,7 @@ func TestSeekableDestination(t *testing.T) {
 }
 
 func TestUnseekableDestination(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "test-unseekable-destination-*")
+	tmpFile, err := os.CreateTemp("", "test-unseekable-destination-*")
 	if err != nil {
 		t.Fatal(err)
 	}

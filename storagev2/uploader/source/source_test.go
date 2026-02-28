@@ -6,7 +6,6 @@ package source_test
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"sync"
@@ -18,7 +17,7 @@ import (
 )
 
 func TestSeekableSource(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "test-seekable-source-*")
+	tmpFile, err := os.CreateTemp("", "test-seekable-source-*")
 	if err != nil {
 		t.Fatal(err)
 	}

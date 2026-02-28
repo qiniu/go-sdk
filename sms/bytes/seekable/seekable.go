@@ -4,7 +4,6 @@ package seekable
 import (
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/qiniu/go-sdk/v7/sms/bytes"
@@ -69,7 +68,7 @@ func ReadAll(req *http.Request) (b []byte, err error) {
 	} else if req.ContentLength == 0 {
 		return nil, ErrNoBody
 	}
-	b, err = ioutil.ReadAll(io.LimitReader(req.Body, MaxBodyLength+1))
+	b, err = io.ReadAll(io.LimitReader(req.Body, MaxBodyLength+1))
 	if int64(len(b)) > MaxBodyLength {
 		r := io.MultiReader(bytes.NewReader(b), req.Body)
 		req.Body = readCloser2{r, req.Body}
