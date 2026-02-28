@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
@@ -34,7 +33,7 @@ func TestResumeUploadPutFile(t *testing.T) {
 	testKey := fmt.Sprintf("testRPutFileKey_%d", r.Int())
 
 	// prepare file for test uploading
-	testLocalFile, err := ioutil.TempFile("", "TestResumeUploadPutFile")
+	testLocalFile, err := os.CreateTemp("", "TestResumeUploadPutFile")
 	if err != nil {
 		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
 	}
@@ -59,7 +58,7 @@ func TestResumeUploadWithInvalidUpHost(t *testing.T) {
 	testKey := fmt.Sprintf("testRPutFileKey_%d", r.Int())
 
 	// prepare file for test uploading
-	testLocalFile, err := ioutil.TempFile("", "TestResumeUploadPutFile")
+	testLocalFile, err := os.CreateTemp("", "TestResumeUploadPutFile")
 	if err != nil {
 		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
 	}
@@ -226,7 +225,7 @@ func TestPutWithRecovery(t *testing.T) {
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	testKey := fmt.Sprintf("testRPutFileKey_%d", r.Int())
-	dirName, err := ioutil.TempDir("", "")
+	dirName, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}

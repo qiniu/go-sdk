@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"crypto/md5"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"mime"
 	"mime/multipart"
@@ -73,7 +72,7 @@ func TestMultipart(t *testing.T) {
 }
 
 func randFile(t *testing.T, n int64) *os.File {
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}

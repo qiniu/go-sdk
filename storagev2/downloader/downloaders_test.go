@@ -7,7 +7,6 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -230,19 +229,19 @@ func TestConcurrentDownloaderWithCompression(t *testing.T) {
 }
 
 func TestConcurrentDownloaderWithMultipleParts(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "")
+	tmpDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	srcFile, err := ioutil.TempFile(tmpDir, "testfile")
+	srcFile, err := os.CreateTemp(tmpDir, "testfile")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer srcFile.Close()
 
-	dstFile, err := ioutil.TempFile(tmpDir, "testfile2")
+	dstFile, err := os.CreateTemp(tmpDir, "testfile2")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,19 +325,19 @@ func TestConcurrentDownloaderWithMultipleParts(t *testing.T) {
 }
 
 func TestConcurrentDownloaderWithMultiplePartsAndRange(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "")
+	tmpDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	srcFile, err := ioutil.TempFile(tmpDir, "testfile")
+	srcFile, err := os.CreateTemp(tmpDir, "testfile")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer srcFile.Close()
 
-	dstFile, err := ioutil.TempFile(tmpDir, "testfile2")
+	dstFile, err := os.CreateTemp(tmpDir, "testfile2")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -424,19 +423,19 @@ func TestConcurrentDownloaderWithMultiplePartsAndRange(t *testing.T) {
 }
 
 func TestConcurrentDownloaderWithResumableRecorder(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "")
+	tmpDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	srcFile, err := ioutil.TempFile(tmpDir, "srcFile")
+	srcFile, err := os.CreateTemp(tmpDir, "srcFile")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer srcFile.Close()
 
-	dstFile, err := ioutil.TempFile(tmpDir, "dstFile")
+	dstFile, err := os.CreateTemp(tmpDir, "dstFile")
 	if err != nil {
 		t.Fatal(err)
 	}

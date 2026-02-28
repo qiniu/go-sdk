@@ -5,7 +5,6 @@ package resolver_test
 
 import (
 	"context"
-	"io/ioutil"
 	"net"
 	"os"
 	"testing"
@@ -38,7 +37,7 @@ func (mr *mockResolver) FeedbackGood(context.Context, string, []net.IP) {}
 func (mr *mockResolver) FeedbackBad(context.Context, string, []net.IP) {}
 
 func TestCacheResolver(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}

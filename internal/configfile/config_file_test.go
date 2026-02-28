@@ -4,13 +4,12 @@
 package configfile
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 )
 
 func TestLoad(t *testing.T) {
-	file, err := ioutil.TempFile("", "config.toml")
+	file, err := os.CreateTemp("", "config.toml")
 	if err != nil {
 		t.Fatal(err)
 	}

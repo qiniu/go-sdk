@@ -6,7 +6,6 @@ package io_test
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -34,7 +33,7 @@ func TestReadAll(t *testing.T) {
 	expected := buf.Bytes()
 	runTestCase(t, buf, expected)
 
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +71,7 @@ func TestSinkAll(t *testing.T) {
 	expected := buf.Bytes()
 	runTestCase(t, buf)
 
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}

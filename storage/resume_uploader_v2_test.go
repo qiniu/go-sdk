@@ -10,7 +10,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -119,7 +118,7 @@ func TestPutWithSizeV2(t *testing.T) {
 		for _, size := range sizes {
 			md5Sumer := md5.New()
 			testKey := fmt.Sprintf("testRPutFileV2Key_%d_*", r.Int())
-			tmpFile, err := ioutil.TempFile("", testKey)
+			tmpFile, err := os.CreateTemp("", testKey)
 			if err != nil {
 				t.Error(err)
 			}
@@ -177,7 +176,7 @@ func TestPutWithoutKeyV2(t *testing.T) {
 	}
 	t.Logf("Key: %s, Hash:%s", putRet.Key, putRet.Hash)
 
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -210,7 +209,7 @@ func TestPutWithRecoveryV2(t *testing.T) {
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	testKey := fmt.Sprintf("testRPutFileKey_%d", r.Int())
-	dirName, err := ioutil.TempDir("", "")
+	dirName, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}

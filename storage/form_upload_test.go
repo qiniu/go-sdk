@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"strings"
@@ -25,7 +24,7 @@ func TestFormUploadPutFileWithoutExtra(t *testing.T) {
 	}
 
 	// prepare file for test uploading
-	testLocalFile, err := ioutil.TempFile("", "TestFormUploadPutFile")
+	testLocalFile, err := os.CreateTemp("", "TestFormUploadPutFile")
 	if err != nil {
 		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
 	}
@@ -60,7 +59,7 @@ func TestFormUploaderWithInvalidUpHost(t *testing.T) {
 	}
 
 	// prepare file for test uploading
-	testLocalFile, err := ioutil.TempFile("", "TestFormUploadPutFile")
+	testLocalFile, err := os.CreateTemp("", "TestFormUploadPutFile")
 	if err != nil {
 		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
 	}
@@ -95,7 +94,7 @@ func TestFormUploadPutFile(t *testing.T) {
 	ctx := context.TODO()
 
 	// prepare file for test uploading
-	testLocalFile, err := ioutil.TempFile("", "TestFormUploadPutFile")
+	testLocalFile, err := os.CreateTemp("", "TestFormUploadPutFile")
 	if err != nil {
 		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
 	}
@@ -134,7 +133,7 @@ func TestFormUploadTrafficLimit(t *testing.T) {
 	var putRet PutRet
 	ctx := context.TODO()
 
-	testLocalFile, err := ioutil.TempFile("", "TestFormUploadPutFile")
+	testLocalFile, err := os.CreateTemp("", "TestFormUploadPutFile")
 	if err != nil {
 		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
 	}
@@ -176,7 +175,7 @@ func TestFormUploadPutFileWithBackup(t *testing.T) {
 	}
 
 	// prepare file for test uploading
-	testLocalFile, err := ioutil.TempFile("", "TestFormUploadPutFileWithBackup")
+	testLocalFile, err := os.CreateTemp("", "TestFormUploadPutFileWithBackup")
 	if err != nil {
 		t.Fatalf("ioutil.TempFile file failed, err: %v", err)
 	}

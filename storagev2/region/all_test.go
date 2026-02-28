@@ -6,7 +6,6 @@ package region
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -36,7 +35,7 @@ func TestAllRegionsProvider(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	cacheFile, err := ioutil.TempFile("", "")
+	cacheFile, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}

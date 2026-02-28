@@ -6,7 +6,7 @@ package rtc
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -152,7 +152,7 @@ func checkRoomToken(t *testing.T, appID string) {
 	if res.ContentLength > 2*1024*1024 {
 		t.Errorf("response is too long. url: %v, response headers: %v", req.URL.RequestURI(), res.Header)
 	}
-	resData, err := ioutil.ReadAll(res.Body)
+	resData, err := io.ReadAll(res.Body)
 	ret := string(resData)
 	if res.StatusCode != 200 || strings.Index(ret, "accessToken") == -1 {
 		t.Errorf("result is wrong: %v", ret)

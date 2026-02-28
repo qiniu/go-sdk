@@ -1,79 +1,12 @@
 on: [push, pull_request]
 name: Run Test Cases
 jobs:
-  go-path-test:
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          path: src/github.com/qiniu/go-sdk
-          ref: ${{ github.ref }}
-          submodules: recursive
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.10'
-      - name: Run unit cases
-        run: |
-          set -ex
-          rm -rf $GITHUB_WORKSPACE/src/github.com/qiniu/x && git clone -b v1.12.21 --depth 1 https://github.com/qiniu/x.git $GITHUB_WORKSPACE/src/github.com/qiniu/x
-
-          GOPATH=$GITHUB_WORKSPACE go get github.com/qiniu/dyn
-
-          rm -rf $GITHUB_WORKSPACE/src/github.com/gofrs/flock && git clone -b v0.8.1 --depth 1 https://github.com/gofrs/flock $GITHUB_WORKSPACE/src/github.com/gofrs/flock
-
-          GOPATH=$GITHUB_WORKSPACE go get github.com/alex-ant/gomath/rational
-          GOPATH=$GITHUB_WORKSPACE go get github.com/gammazero/toposort
-          GOPATH=$GITHUB_WORKSPACE go get github.com/joeshaw/multierror
-
-          # FIXME special package
-          # github.com/go-playground/validator/v10
-          # validator modified package name
-          # from gopkg.in/go-playground/validator.v10 to github.com/go-playground/validator/v10
-          # new package name don't work in non-module mode
-          rm -rf $GITHUB_WORKSPACE/src/github.com/go-playground/validator/v10 && git clone -b v10.9.0 --depth 1 https://github.com/go-playground/validator.git $GITHUB_WORKSPACE/src/github.com/go-playground/validator/v10
-          rm -rf $GITHUB_WORKSPACE/src/github.com/universal-translator && git clone -b v0.18.0 --depth 1 https://github.com/go-playground/universal-translator.git $GITHUB_WORKSPACE/src/github.com/go-playground/universal-translator
-          rm -rf $GITHUB_WORKSPACE/src/github.com/elastic/go-sysinfo && git clone -b v1.0.2 --depth 1 https://github.com/elastic/go-sysinfo.git $GITHUB_WORKSPACE/src/github.com/elastic/go-sysinfo
-          rm -rf $GITHUB_WORKSPACE/src/github.com/pkg/errors && git clone -b v0.9.1 --depth 1 https://github.com/pkg/errors.git $GITHUB_WORKSPACE/src/github.com/pkg/errors
-          rm -rf $GITHUB_WORKSPACE/src/github.com/prometheus/procfs && git clone -b v0.0.6 --depth 1 https://github.com/prometheus/procfs.git $GITHUB_WORKSPACE/src/github.com/prometheus/procfs
-          rm -rf $GITHUB_WORKSPACE/src/howett.net/plist && git clone -b v1.0.0 --depth 1 https://github.com/DHowett/go-plist.git $GITHUB_WORKSPACE/src/howett.net/plist
-          rm -rf $GITHUB_WORKSPACE/src/golang.org/x/sys && git clone -b v0.13.0 --depth 1 https://github.com/golang/sys $GITHUB_WORKSPACE/src/golang.org/x/sys
-          rm -rf $GITHUB_WORKSPACE/src/github.com/jessevdk/go-flags && git clone -b v1.4.0 --depth 1 https://github.com/jessevdk/go-flags.git $GITHUB_WORKSPACE/src/github.com/jessevdk/go-flags
-          rm -rf $GITHUB_WORKSPACE/src/golang.org/x/crypto && git clone -b v0.10.0 --depth 1 https://go.googlesource.com/crypto $GITHUB_WORKSPACE/src/golang.org/x/crypto
-          rm -rf $GITHUB_WORKSPACE/src/golang.org/x/text && git clone -b v0.10.0 --depth 1 https://github.com/golang/text.git $GITHUB_WORKSPACE/src/golang.org/x/text
-          rm -rf $GITHUB_WORKSPACE/src/golang.org/x/sync && git clone -b v0.3.0 --depth 1 https://github.com/golang/sync.git $GITHUB_WORKSPACE/src/golang.org/x/sync
-
-          GOPATH=$GITHUB_WORKSPACE go get github.com/leodido/go-urn
-          GOPATH=$GITHUB_WORKSPACE go get github.com/go-playground/locales
-
-          rm -rf $GITHUB_WORKSPACE/src/github.com/dave/jennifer && git clone -b v1.6.1 --depth 1 https://github.com/dave/jennifer.git $GITHUB_WORKSPACE/src/github.com/dave/jennifer
-          rm -rf $GITHUB_WORKSPACE/src/modernc.org/fileutil && git clone -b v1.0.0 --depth 1 https://gitlab.com/cznic/fileutil.git $GITHUB_WORKSPACE/src/modernc.org/fileutil
-          rm -rf $GITHUB_WORKSPACE/src/github.com/gorilla/mux && git clone -b v1.7.4 --depth 1 https://github.com/gorilla/mux.git $GITHUB_WORKSPACE/src/github.com/gorilla/mux
-
-          GOPATH=$GITHUB_WORKSPACE go get github.com/iancoleman/strcase
-
-          # github.com/stretchr/testify
-          # newer version require newer go feature
-          rm -rf $GITHUB_WORKSPACE/src/github.com/stretchr/testify && git clone -b v1.6.1 --depth 1 https://github.com/stretchr/testify.git $GITHUB_WORKSPACE/src/github.com/stretchr/testify
-          GOPATH=$GITHUB_WORKSPACE go get github.com/davecgh/go-spew/spew
-          GOPATH=$GITHUB_WORKSPACE go get github.com/pmezard/go-difflib/difflib
-          GOPATH=$GITHUB_WORKSPACE go get gopkg.in/yaml.v3
-          rm -rf $GITHUB_WORKSPACE/src/github.com/BurntSushi/toml && git clone -b v0.3.1 --depth 1 https://github.com/BurntSushi/toml.git $GITHUB_WORKSPACE/src/github.com/BurntSushi/toml
-
-          GOPATH=$GITHUB_WORKSPACE make unittest
-        working-directory: src/github.com/qiniu/go-sdk
   go-mod-test:
-    needs: 'go-path-test'
     strategy:
       fail-fast: false
       max-parallel: 1
       matrix:
-        go_version: ['1.11', '1.12', '1.13', '1.14', '1.15', '1.16', '1.17', '1.18', '1.19', '1.20', '1.21', '1.22', 'stable']
+        go_version: ['1.22', 'stable']
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -92,7 +25,10 @@ jobs:
       - name: Format
         run: |
           if [ "${{ matrix.go_version }}" = "stable" ]; then
-            if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+            UNFORMATTED=$(gofmt -s -l . | grep -v vendor/ || true)
+            if [ -n "$UNFORMATTED" ]; then
+              echo "Files not formatted:"
+              echo "$UNFORMATTED"
               exit 1
             fi
           fi

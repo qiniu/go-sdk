@@ -8,7 +8,6 @@ import (
 	"context"
 	"crypto/md5"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -25,7 +24,7 @@ import (
 )
 
 func TestFormUploader(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "form-uploader-test-*")
+	tmpFile, err := os.CreateTemp("", "form-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +127,7 @@ func TestFormUploader(t *testing.T) {
 }
 
 func TestFormUploaderRetry(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "form-uploader-test-*")
+	tmpFile, err := os.CreateTemp("", "form-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +310,7 @@ func TestFormUploaderRetry(t *testing.T) {
 }
 
 func TestFormUploaderAccelaratedUploading(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "form-uploader-test-*")
+	tmpFile, err := os.CreateTemp("", "form-uploader-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}

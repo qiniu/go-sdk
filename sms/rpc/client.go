@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -262,7 +261,7 @@ func CallRet(ret interface{}, resp *http.Response) (err error) {
 // callRet parse http response
 func callRet(ret interface{}, resp *http.Response) (err error) {
 	defer func() {
-		io.Copy(ioutil.Discard, resp.Body)
+		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 

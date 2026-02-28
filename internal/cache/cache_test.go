@@ -5,7 +5,6 @@ package cache
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -104,7 +103,7 @@ func TestCache(t *testing.T) {
 }
 
 func TestCachePersist(t *testing.T) {
-	cacheFile, err := ioutil.TempFile("", "")
+	cacheFile, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}

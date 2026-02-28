@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -106,7 +105,7 @@ func TestDownloadManagerDownloadDirectory(t *testing.T) {
 	ioServer := httptest.NewServer(ioMux)
 	defer ioServer.Close()
 
-	tmpDir, err := ioutil.TempDir("", "")
+	tmpDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +206,7 @@ func TestDownloadManagerDownloadDirectoryWithPrefix(t *testing.T) {
 	ioServer := httptest.NewServer(ioMux)
 	defer ioServer.Close()
 
-	tmpDir, err := ioutil.TempDir("", "")
+	tmpDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +315,7 @@ func TestDownloadManagerDownloadDirectoryWithFilter(t *testing.T) {
 	ioServer := httptest.NewServer(ioMux)
 	defer ioServer.Close()
 
-	tmpDir, err := ioutil.TempDir("", "")
+	tmpDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}

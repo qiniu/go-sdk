@@ -6,7 +6,6 @@ import (
 	stderrors "errors"
 	"hash/crc32"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
@@ -226,7 +225,7 @@ func (uploader multiPartsUploader) UploadReader(ctx context.Context, reader io.R
 			src = source.NewReadSeekCloserSource(internal_io.MakeReadSeekCloserFromReader(rss), "")
 		}
 	} else {
-		src = source.NewReadCloserSource(ioutil.NopCloser(reader), "")
+		src = source.NewReadCloserSource(io.NopCloser(reader), "")
 	}
 
 	return uploader.upload(ctx, src, &options.Options, objectOptions, returnValue)

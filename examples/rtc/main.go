@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -39,7 +39,7 @@ func dosomethingbyRoomToken(token string, appId, roomName, userID string) (err e
 		return
 	}
 	defer res.Body.Close()
-	resData, err := ioutil.ReadAll(res.Body)
+	resData, err := io.ReadAll(res.Body)
 	if err != nil {
 		return
 	}
