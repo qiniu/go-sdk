@@ -30,7 +30,7 @@ generate-sandbox:
 	# envd ConnectRPC（需要安装 buf、protoc-gen-go、protoc-gen-connect-go）
 	cd ../api-specs/sandbox/envd && buf generate
 	# 验证编译
-	cd sandbox && go build ./...
+	go build ./sandbox/...
 
 sandbox-examples:
 	@for dir in examples/sandbox_*/; do \
