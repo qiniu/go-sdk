@@ -52,8 +52,12 @@ func pollLoop[T any](ctx context.Context, opts *pollOpts, pollFn func() (bool, T
 	}
 
 	interval := opts.interval
-	timer := time.NewTimer(interval)
-	defer timer.Stop()
+	var timer *time.Timer
+	defer func() {
+		if timer != nil {
+			timer.Stop()
+		}
+	}()
 
 	attempt := 0
 	for {
@@ -78,7 +82,11 @@ func pollLoop[T any](ctx context.Context, opts *pollOpts, pollFn func() (bool, T
 			}
 		}
 
-		timer.Reset(interval)
+		if timer == nil {
+			timer = time.NewTimer(interval)
+		} else {
+			timer.Reset(interval)
+		}
 		select {
 		case <-ctx.Done():
 			var zero T

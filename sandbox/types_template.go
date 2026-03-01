@@ -3,8 +3,6 @@ package sandbox
 import (
 	"time"
 
-	openapi_types "github.com/oapi-codegen/runtime/types"
-
 	"github.com/qiniu/go-sdk/v7/sandbox/apis"
 )
 
@@ -71,7 +69,7 @@ type Template struct {
 
 // TemplateBuild 模板构建记录。
 type TemplateBuild struct {
-	BuildID     openapi_types.UUID
+	BuildID     string
 	Status      TemplateBuildStatus
 	CPUCount    int32
 	MemoryMB    int32
@@ -141,7 +139,7 @@ type TemplateAliasResponse struct {
 
 // AssignedTemplateTags 分配的模板标签。
 type AssignedTemplateTags struct {
-	BuildID openapi_types.UUID
+	BuildID string
 	Tags    []string
 }
 
@@ -181,7 +179,7 @@ func templatesFromAPI(a []apis.Template) []Template {
 
 func templateBuildFromAPI(a apis.TemplateBuild) TemplateBuild {
 	return TemplateBuild{
-		BuildID:     a.BuildID,
+		BuildID:     a.BuildID.String(),
 		Status:      TemplateBuildStatus(a.Status),
 		CPUCount:    a.CPUCount,
 		MemoryMB:    a.MemoryMB,
@@ -279,7 +277,7 @@ func assignedTemplateTagsFromAPI(a *apis.AssignedTemplateTags) *AssignedTemplate
 		return nil
 	}
 	return &AssignedTemplateTags{
-		BuildID: a.BuildID,
+		BuildID: a.BuildID.String(),
 		Tags:    a.Tags,
 	}
 }

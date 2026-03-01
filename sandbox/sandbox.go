@@ -14,6 +14,8 @@ import (
 
 	"github.com/qiniu/go-sdk/v7/sandbox/apis"
 	"github.com/qiniu/go-sdk/v7/sandbox/envdapi/process/processconnect"
+
+	connect "connectrpc.com/connect"
 )
 
 // envdPort 是 envd agent 的默认端口。
@@ -352,6 +354,12 @@ func envdAuthHeader(user string) http.Header {
 	return h
 }
 
+// setEnvdAuth 将 envd 认证头设置到 ConnectRPC 请求。
+func setEnvdAuth[T any](req *connect.Request[T], user string) {
+	cred := base64.StdEncoding.EncodeToString([]byte(user + ":"))
+	req.Header().Set("Authorization", "Basic "+cred)
+}
+
 // FileURLOption 文件 URL 选项。
 type FileURLOption func(*fileURLOpts)
 
@@ -387,30 +395,16 @@ func fileSignature(path, operation, username, accessToken string, expiration int
 
 // DownloadURL 返回从沙箱下载文件的 URL。
 func (s *Sandbox) DownloadURL(path string, opts ...FileURLOption) string {
-	o := &fileURLOpts{user: DefaultUser}
-	for _, fn := range opts {
-		fn(o)
-	}
-
-	q := url.Values{}
-	q.Set("path", path)
-	q.Set("username", o.user)
-
-	if s.envdAccessToken != nil && *s.envdAccessToken != "" {
-		exp := o.signatureExpiration
-		if exp == 0 {
-			exp = 300
-		}
-		sig := fileSignature(path, "read", o.user, *s.envdAccessToken, exp)
-		q.Set("signature", sig)
-		q.Set("signature_expiration", strconv.Itoa(exp))
-	}
-
-	return s.envdURL() + "/files?" + q.Encode()
+	return s.fileURL(path, "read", opts...)
 }
 
 // UploadURL 返回向沙箱上传文件的 URL（POST multipart/form-data）。
 func (s *Sandbox) UploadURL(path string, opts ...FileURLOption) string {
+	return s.fileURL(path, "write", opts...)
+}
+
+// fileURL 构造带签名的 envd 文件操作 URL。
+func (s *Sandbox) fileURL(path, operation string, opts ...FileURLOption) string {
 	o := &fileURLOpts{user: DefaultUser}
 	for _, fn := range opts {
 		fn(o)
@@ -425,7 +419,7 @@ func (s *Sandbox) UploadURL(path string, opts ...FileURLOption) string {
 		if exp == 0 {
 			exp = 300
 		}
-		sig := fileSignature(path, "write", o.user, *s.envdAccessToken, exp)
+		sig := fileSignature(path, operation, o.user, *s.envdAccessToken, exp)
 		q.Set("signature", sig)
 		q.Set("signature_expiration", strconv.Itoa(exp))
 	}

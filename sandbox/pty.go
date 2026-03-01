@@ -65,11 +65,7 @@ func (p *Pty) Create(ctx context.Context, size PtySize, opts ...CommandOption) (
 	}
 
 	req := connect.NewRequest(startReq)
-	for k, vs := range envdAuthHeader(o.user) {
-		for _, v := range vs {
-			req.Header().Add(k, v)
-		}
-	}
+	setEnvdAuth(req, o.user)
 
 	stream, err := p.rpc.Start(ptyCtx, req)
 	if err != nil {
@@ -114,11 +110,7 @@ func (p *Pty) SendInput(ctx context.Context, pid uint32, data []byte) error {
 			Input: &process.ProcessInput_Pty{Pty: data},
 		},
 	})
-	for k, vs := range envdAuthHeader(DefaultUser) {
-		for _, v := range vs {
-			req.Header().Add(k, v)
-		}
-	}
+	setEnvdAuth(req, DefaultUser)
 
 	_, err := p.rpc.SendInput(ctx, req)
 	if err != nil {
@@ -140,11 +132,7 @@ func (p *Pty) Resize(ctx context.Context, pid uint32, size PtySize) error {
 			},
 		},
 	})
-	for k, vs := range envdAuthHeader(DefaultUser) {
-		for _, v := range vs {
-			req.Header().Add(k, v)
-		}
-	}
+	setEnvdAuth(req, DefaultUser)
 
 	_, err := p.rpc.Update(ctx, req)
 	if err != nil {
@@ -161,11 +149,7 @@ func (p *Pty) Kill(ctx context.Context, pid uint32) error {
 		},
 		Signal: process.Signal_SIGNAL_SIGKILL,
 	})
-	for k, vs := range envdAuthHeader(DefaultUser) {
-		for _, v := range vs {
-			req.Header().Add(k, v)
-		}
-	}
+	setEnvdAuth(req, DefaultUser)
 
 	_, err := p.rpc.SendSignal(ctx, req)
 	if err != nil {

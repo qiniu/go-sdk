@@ -194,11 +194,7 @@ func (c *Commands) Start(ctx context.Context, cmd string, opts ...CommandOption)
 	startReq.Stdin = &stdinEnabled
 
 	req := connect.NewRequest(startReq)
-	for k, vs := range envdAuthHeader(o.user) {
-		for _, v := range vs {
-			req.Header().Add(k, v)
-		}
-	}
+	setEnvdAuth(req, o.user)
 
 	stream, err := c.rpc.Start(cmdCtx, req)
 	if err != nil {
@@ -309,11 +305,7 @@ func (c *Commands) Connect(ctx context.Context, pid uint32) (*CommandHandle, err
 			Selector: &process.ProcessSelector_Pid{Pid: pid},
 		},
 	})
-	for k, vs := range envdAuthHeader(DefaultUser) {
-		for _, v := range vs {
-			req.Header().Add(k, v)
-		}
-	}
+	setEnvdAuth(req, DefaultUser)
 
 	stream, err := c.rpc.Connect(connectCtx, req)
 	if err != nil {
@@ -340,11 +332,7 @@ func (c *Commands) Connect(ctx context.Context, pid uint32) (*CommandHandle, err
 // List 列出所有运行中的进程。
 func (c *Commands) List(ctx context.Context) ([]ProcessInfo, error) {
 	req := connect.NewRequest(&process.ListRequest{})
-	for k, vs := range envdAuthHeader(DefaultUser) {
-		for _, v := range vs {
-			req.Header().Add(k, v)
-		}
-	}
+	setEnvdAuth(req, DefaultUser)
 
 	resp, err := c.rpc.List(ctx, req)
 	if err != nil {
@@ -378,11 +366,7 @@ func (c *Commands) SendStdin(ctx context.Context, pid uint32, data []byte) error
 			Input: &process.ProcessInput_Stdin{Stdin: data},
 		},
 	})
-	for k, vs := range envdAuthHeader(DefaultUser) {
-		for _, v := range vs {
-			req.Header().Add(k, v)
-		}
-	}
+	setEnvdAuth(req, DefaultUser)
 
 	_, err := c.rpc.SendInput(ctx, req)
 	if err != nil {
@@ -399,11 +383,7 @@ func (c *Commands) Kill(ctx context.Context, pid uint32) error {
 		},
 		Signal: process.Signal_SIGNAL_SIGKILL,
 	})
-	for k, vs := range envdAuthHeader(DefaultUser) {
-		for _, v := range vs {
-			req.Header().Add(k, v)
-		}
-	}
+	setEnvdAuth(req, DefaultUser)
 
 	_, err := c.rpc.SendSignal(ctx, req)
 	if err != nil {
