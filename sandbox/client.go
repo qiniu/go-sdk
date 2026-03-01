@@ -64,6 +64,8 @@ func apiKeyEditor(apiKey string) apis.RequestEditorFn {
 }
 
 // API 返回底层 API 客户端，用于直接访问生成的 API 方法。
+// 这是高级用法，日常开发请优先使用 SDK 提供的封装方法（如 Create、List、Kill 等）。
+// 注意: 底层生成代码的接口可能随 OpenAPI 规范版本变化而变更，不保证跨版本兼容。
 func (c *Client) API() apis.ClientWithResponsesInterface {
 	return c.api
 }

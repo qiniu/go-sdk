@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/sandbox"
-	"github.com/qiniu/go-sdk/v7/sandbox/apis"
 )
 
 func main() {
@@ -72,10 +71,10 @@ func main() {
 
 	// 3. 创建模板
 	fmt.Println("\n=== 创建模板 ===")
-	cpuCount := apis.CPUCount(2)
-	memoryMB := apis.MemoryMB(512)
+	cpuCount := int32(2)
+	memoryMB := int32(512)
 	templateName := "sdk-example-template"
-	resp, err := c.CreateTemplate(ctx, apis.CreateTemplateV3JSONRequestBody{
+	resp, err := c.CreateTemplate(ctx, sandbox.CreateTemplateParams{
 		Name:     &templateName,
 		CPUCount: &cpuCount,
 		MemoryMB: &memoryMB,
@@ -100,7 +99,7 @@ func main() {
 	// 4. 更新模板
 	fmt.Println("\n=== 更新模板 ===")
 	public := true
-	if err := c.UpdateTemplate(ctx, templateID, apis.UpdateTemplateJSONRequestBody{
+	if err := c.UpdateTemplate(ctx, templateID, sandbox.UpdateTemplateParams{
 		Public: &public,
 	}); err != nil {
 		log.Fatalf("更新模板失败: %v", err)
@@ -139,7 +138,7 @@ func main() {
 
 	// 7. 管理模板标签（ManageTemplateTags）
 	fmt.Println("\n=== 管理模板标签 ===")
-	tagResult, err := c.ManageTemplateTags(ctx, apis.ManageTemplateTagsJSONRequestBody{
+	tagResult, err := c.ManageTemplateTags(ctx, sandbox.ManageTagsParams{
 		Target: fmt.Sprintf("%s:%s", templateName, "v1"),
 		Tags:   []string{"latest", "stable"},
 	})
@@ -151,7 +150,7 @@ func main() {
 
 	// 8. 删除模板标签（DeleteTemplateTags）
 	fmt.Println("\n=== 删除模板标签 ===")
-	if err := c.DeleteTemplateTags(ctx, apis.DeleteTemplateTagsJSONRequestBody{
+	if err := c.DeleteTemplateTags(ctx, sandbox.DeleteTagsParams{
 		Name: templateName,
 		Tags: []string{"stable"},
 	}); err != nil {
@@ -190,7 +189,7 @@ func main() {
 	// 11. 启动模板构建（StartTemplateBuild）
 	fmt.Println("\n=== 启动模板构建 ===")
 	fromImage := "ubuntu:latest"
-	if err := c.StartTemplateBuild(ctx, templateID, buildID, apis.StartTemplateBuildV2JSONRequestBody{
+	if err := c.StartTemplateBuild(ctx, templateID, buildID, sandbox.StartTemplateBuildParams{
 		FromImage: &fromImage,
 	}); err != nil {
 		fmt.Printf("启动构建失败（可能已在构建中）: %v\n", err)
@@ -200,7 +199,7 @@ func main() {
 
 	// 12. 等待构建完成（WaitForBuild）
 	fmt.Println("\n=== 等待构建完成 ===")
-	finalBuild, err := c.WaitForBuild(ctx, templateID, buildID, 3*time.Second)
+	finalBuild, err := c.WaitForBuild(ctx, templateID, buildID, sandbox.WithPollInterval(3*time.Second))
 	if err != nil {
 		fmt.Printf("等待构建完成失败: %v\n", err)
 	} else {

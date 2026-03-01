@@ -221,7 +221,7 @@ func newTestClient(api apis.ClientWithResponsesInterface) *Client {
 }
 
 func newTestSandbox(c *Client, id string) *Sandbox {
-	return &Sandbox{SandboxID: id, client: c}
+	return &Sandbox{sandboxID: id, client: c}
 }
 
 // --- 客户端测试 ---
@@ -282,15 +282,15 @@ func TestCreate(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb, err := c.Create(context.Background(), apis.NewSandbox{TemplateID: "tmpl-1"})
+	sb, err := c.Create(context.Background(), CreateParams{TemplateID: "tmpl-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if sb.SandboxID != "sb-123" {
-		t.Errorf("expected sandbox ID 'sb-123', got %q", sb.SandboxID)
+	if sb.ID() != "sb-123" {
+		t.Errorf("expected sandbox ID 'sb-123', got %q", sb.ID())
 	}
-	if sb.TemplateID != "tmpl-1" {
-		t.Errorf("expected template ID 'tmpl-1', got %q", sb.TemplateID)
+	if sb.TemplateID() != "tmpl-1" {
+		t.Errorf("expected template ID 'tmpl-1', got %q", sb.TemplateID())
 	}
 }
 
@@ -304,7 +304,7 @@ func TestCreateError(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	_, err := c.Create(context.Background(), apis.NewSandbox{TemplateID: "tmpl-1"})
+	_, err := c.Create(context.Background(), CreateParams{TemplateID: "tmpl-1"})
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -329,12 +329,12 @@ func TestConnect(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb, err := c.Connect(context.Background(), "sb-123", apis.ConnectSandbox{Timeout: 60})
+	sb, err := c.Connect(context.Background(), "sb-123", ConnectParams{Timeout: 60})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if sb.SandboxID != "sb-123" {
-		t.Errorf("expected sandbox ID 'sb-123', got %q", sb.SandboxID)
+	if sb.ID() != "sb-123" {
+		t.Errorf("expected sandbox ID 'sb-123', got %q", sb.ID())
 	}
 }
 
@@ -415,7 +415,7 @@ func TestGetInfo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if info.State != apis.Running {
+	if info.State != StateRunning {
 		t.Errorf("expected state 'running', got %q", info.State)
 	}
 }
@@ -490,7 +490,7 @@ func TestWaitForReadyImmediate(t *testing.T) {
 	}
 	c := newTestClient(mock)
 	sb := newTestSandbox(c, "sb-123")
-	info, err := sb.WaitForReady(context.Background(), 100*time.Millisecond)
+	info, err := sb.WaitForReady(context.Background(), WithPollInterval(100*time.Millisecond))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -512,7 +512,7 @@ func TestWaitForReadyTimeout(t *testing.T) {
 	sb := newTestSandbox(c, "sb-123")
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
-	_, err := sb.WaitForReady(ctx, 50*time.Millisecond)
+	_, err := sb.WaitForReady(ctx, WithPollInterval(50*time.Millisecond))
 	if err == nil {
 		t.Fatal("expected timeout error")
 	}
@@ -600,11 +600,11 @@ func TestWaitForBuildReady(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	info, err := c.WaitForBuild(context.Background(), "tmpl-1", "build-1", 100*time.Millisecond)
+	info, err := c.WaitForBuild(context.Background(), "tmpl-1", "build-1", WithPollInterval(100*time.Millisecond))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if info.Status != apis.TemplateBuildStatusReady {
+	if info.Status != BuildStatusReady {
 		t.Errorf("expected status 'ready', got %q", info.Status)
 	}
 }
@@ -619,14 +619,14 @@ func TestWaitForBuildError(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	info, err := c.WaitForBuild(context.Background(), "tmpl-1", "build-1", 100*time.Millisecond)
+	info, err := c.WaitForBuild(context.Background(), "tmpl-1", "build-1", WithPollInterval(100*time.Millisecond))
 	if err == nil {
 		t.Fatal("expected error for failed build")
 	}
 	if info == nil {
 		t.Fatal("expected non-nil build info even on error")
 	}
-	if info.Status != apis.TemplateBuildStatusError {
+	if info.Status != BuildStatusError {
 		t.Errorf("expected status 'error', got %q", info.Status)
 	}
 }
@@ -634,10 +634,40 @@ func TestWaitForBuildError(t *testing.T) {
 // --- APIError ---
 
 func TestAPIErrorMessage(t *testing.T) {
+	// 直接构造（不使用工厂），Message 为空，回退到 body 格式
 	err := &APIError{StatusCode: 404, Body: []byte(`{"message":"not found"}`)}
 	msg := err.Error()
 	if msg != `api error: status 404, body: {"message":"not found"}` {
 		t.Errorf("unexpected error message: %s", msg)
+	}
+
+	// 使用 newAPIError 工厂，自动解析 JSON body 中的 message
+	err2 := newAPIError(404, []byte(`{"code":"not_found","message":"resource not found"}`))
+	if err2.Code != "not_found" {
+		t.Errorf("expected code 'not_found', got %q", err2.Code)
+	}
+	if err2.Message != "resource not found" {
+		t.Errorf("expected message 'resource not found', got %q", err2.Message)
+	}
+	msg2 := err2.Error()
+	if msg2 != "api error: status 404: resource not found" {
+		t.Errorf("unexpected error message: %s", msg2)
+	}
+
+	// 非 JSON body，回退到 body 格式
+	err3 := newAPIError(500, []byte("internal error"))
+	if err3.Code != "" || err3.Message != "" {
+		t.Errorf("expected empty code/message for non-JSON body, got code=%q message=%q", err3.Code, err3.Message)
+	}
+	msg3 := err3.Error()
+	if msg3 != "api error: status 500, body: internal error" {
+		t.Errorf("unexpected error message: %s", msg3)
+	}
+
+	// 空 body
+	err4 := newAPIError(502, nil)
+	if err4.Code != "" || err4.Message != "" {
+		t.Errorf("expected empty code/message for nil body, got code=%q message=%q", err4.Code, err4.Message)
 	}
 }
 
@@ -743,7 +773,7 @@ func TestRefresh(t *testing.T) {
 	}
 	c := newTestClient(mock)
 	sb := newTestSandbox(c, "sb-123")
-	if err := sb.Refresh(context.Background(), apis.RefreshSandboxJSONRequestBody{}); err != nil {
+	if err := sb.Refresh(context.Background(), RefreshParams{}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -766,14 +796,14 @@ func TestCreateAndWait(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb, info, err := c.CreateAndWait(context.Background(), apis.NewSandbox{TemplateID: "tmpl-1"}, 100*time.Millisecond)
+	sb, info, err := c.CreateAndWait(context.Background(), CreateParams{TemplateID: "tmpl-1"}, WithPollInterval(100*time.Millisecond))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if sb.SandboxID != "sb-new" {
-		t.Errorf("expected sandbox ID 'sb-new', got %q", sb.SandboxID)
+	if sb.ID() != "sb-new" {
+		t.Errorf("expected sandbox ID 'sb-new', got %q", sb.ID())
 	}
-	if info.State != apis.Running {
+	if info.State != StateRunning {
 		t.Errorf("expected state 'running', got %q", info.State)
 	}
 }
@@ -788,7 +818,7 @@ func TestCreateAndWaitCreateFails(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	_, _, err := c.CreateAndWait(context.Background(), apis.NewSandbox{TemplateID: "tmpl-1"}, 100*time.Millisecond)
+	_, _, err := c.CreateAndWait(context.Background(), CreateParams{TemplateID: "tmpl-1"}, WithPollInterval(100*time.Millisecond))
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -813,14 +843,14 @@ func TestWaitForReadyPolling(t *testing.T) {
 	}
 	c := newTestClient(mock)
 	sb := newTestSandbox(c, "sb-123")
-	info, err := sb.WaitForReady(context.Background(), 50*time.Millisecond)
+	info, err := sb.WaitForReady(context.Background(), WithPollInterval(50*time.Millisecond))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if callCount < 3 {
 		t.Errorf("expected at least 3 calls, got %d", callCount)
 	}
-	if info.State != apis.Running {
+	if info.State != StateRunning {
 		t.Errorf("expected state 'running', got %q", info.State)
 	}
 }
@@ -895,7 +925,7 @@ func TestConnectError(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	_, err := c.Connect(context.Background(), "sb-999", apis.ConnectSandbox{Timeout: 60})
+	_, err := c.Connect(context.Background(), "sb-999", ConnectParams{Timeout: 60})
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -1014,7 +1044,7 @@ func TestGetTemplateBuildStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if info.Status != apis.TemplateBuildStatusBuilding {
+	if info.Status != BuildStatusBuilding {
 		t.Errorf("expected status 'building', got %q", info.Status)
 	}
 }
@@ -1037,14 +1067,14 @@ func TestWaitForBuildPolling(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	info, err := c.WaitForBuild(context.Background(), "tmpl-1", "build-1", 50*time.Millisecond)
+	info, err := c.WaitForBuild(context.Background(), "tmpl-1", "build-1", WithPollInterval(50*time.Millisecond))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if callCount < 3 {
 		t.Errorf("expected at least 3 calls, got %d", callCount)
 	}
-	if info.Status != apis.TemplateBuildStatusReady {
+	if info.Status != BuildStatusReady {
 		t.Errorf("expected status 'ready', got %q", info.Status)
 	}
 }
@@ -1061,7 +1091,7 @@ func TestWaitForBuildTimeout(t *testing.T) {
 	c := newTestClient(mock)
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
-	_, err := c.WaitForBuild(ctx, "tmpl-1", "build-1", 50*time.Millisecond)
+	_, err := c.WaitForBuild(ctx, "tmpl-1", "build-1", WithPollInterval(50*time.Millisecond))
 	if err == nil {
 		t.Fatal("expected timeout error")
 	}
@@ -1172,11 +1202,11 @@ func TestConnectCreated(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb, err := c.Connect(context.Background(), "sb-new", apis.ConnectSandbox{Timeout: 60})
+	sb, err := c.Connect(context.Background(), "sb-new", ConnectParams{Timeout: 60})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if sb.SandboxID != "sb-new" {
-		t.Errorf("expected sandbox ID 'sb-new', got %q", sb.SandboxID)
+	if sb.ID() != "sb-new" {
+		t.Errorf("expected sandbox ID 'sb-new', got %q", sb.ID())
 	}
 }

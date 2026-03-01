@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/sandbox"
-	"github.com/qiniu/go-sdk/v7/sandbox/apis"
 )
 
 func main() {
@@ -55,7 +54,7 @@ func main() {
 
 		var templateID string
 		for _, tmpl := range templates {
-			if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == sandbox.TemplateBuildStatusUploaded {
+			if tmpl.BuildStatus == sandbox.BuildStatusReady || tmpl.BuildStatus == sandbox.BuildStatusUploaded {
 				templateID = tmpl.TemplateID
 				break
 			}
@@ -65,14 +64,14 @@ func main() {
 		}
 
 		timeout := int32(60)
-		created, _, err := c.CreateAndWait(ctx, apis.CreateSandboxJSONRequestBody{
+		created, _, err := c.CreateAndWait(ctx, sandbox.CreateParams{
 			TemplateID: templateID,
 			Timeout:    &timeout,
-		}, 2*time.Second)
+		}, sandbox.WithPollInterval(2*time.Second))
 		if err != nil {
 			log.Fatalf("创建沙箱失败: %v", err)
 		}
-		sandboxID = created.SandboxID
+		sandboxID = created.ID()
 		fmt.Printf("沙箱已创建: %s\n", sandboxID)
 
 		defer func() {
@@ -87,14 +86,14 @@ func main() {
 	}
 
 	timeout := int32(300)
-	sb, err := c.Connect(ctx, sandboxID, apis.ConnectSandboxJSONRequestBody{
+	sb, err := c.Connect(ctx, sandboxID, sandbox.ConnectParams{
 		Timeout: timeout,
 	})
 	if err != nil {
 		log.Fatalf("连接沙箱失败: %v", err)
 	}
 
-	fmt.Printf("已连接到沙箱: %s (模板: %s)\n", sb.SandboxID, sb.TemplateID)
+	fmt.Printf("已连接到沙箱: %s (模板: %s)\n", sb.ID(), sb.TemplateID())
 
 	// 获取沙箱详情
 	info, err := sb.GetInfo(ctx)

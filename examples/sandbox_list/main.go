@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/sandbox"
-	"github.com/qiniu/go-sdk/v7/sandbox/apis"
 )
 
 func main() {
@@ -43,8 +42,8 @@ func main() {
 
 	// 使用 ListV2 列出沙箱（支持分页和状态过滤）
 	fmt.Println("\n=== ListV2（按状态过滤）===")
-	states := []apis.SandboxState{apis.Running}
-	sandboxesV2, err := c.ListV2(ctx, &apis.ListSandboxesV2Params{
+	states := []sandbox.SandboxState{sandbox.StateRunning}
+	sandboxesV2, err := c.ListV2(ctx, &sandbox.ListV2Params{
 		State: &states,
 	})
 	if err != nil {
@@ -59,7 +58,7 @@ func main() {
 		for _, sb := range sandboxes {
 			ids = append(ids, sb.SandboxID)
 		}
-		metrics, err := c.GetSandboxesMetrics(ctx, &apis.GetSandboxesMetricsParams{
+		metrics, err := c.GetSandboxesMetrics(ctx, &sandbox.GetSandboxesMetricsParams{
 			SandboxIds: ids,
 		})
 		if err != nil {

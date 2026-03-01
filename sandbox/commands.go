@@ -22,7 +22,7 @@ type CommandResult struct {
 
 // CommandHandle 后台命令句柄。
 type CommandHandle struct {
-	PID uint32
+	pid uint32
 
 	commands *Commands
 	cancel   context.CancelFunc
@@ -36,6 +36,11 @@ type CommandHandle struct {
 	onPtyData func(data []byte)
 }
 
+// PID 返回进程 ID。
+func (h *CommandHandle) PID() uint32 {
+	return h.pid
+}
+
 // Wait 等待命令完成并返回结果。
 func (h *CommandHandle) Wait() (*CommandResult, error) {
 	<-h.done
@@ -47,7 +52,7 @@ func (h *CommandHandle) Wait() (*CommandResult, error) {
 
 // Kill 终止命令。
 func (h *CommandHandle) Kill(ctx context.Context) error {
-	return h.commands.Kill(ctx, h.PID)
+	return h.commands.Kill(ctx, h.pid)
 }
 
 // WaitPID 等待进程 PID 被分配。
@@ -55,7 +60,7 @@ func (h *CommandHandle) Kill(ctx context.Context) error {
 func (h *CommandHandle) WaitPID(ctx context.Context) (uint32, error) {
 	select {
 	case <-h.pidCh:
-		return h.PID, nil
+		return h.pid, nil
 	case <-ctx.Done():
 		return 0, ctx.Err()
 	}
@@ -128,7 +133,7 @@ func WithTimeout(timeout time.Duration) CommandOption {
 }
 
 func applyCommandOpts(opts []CommandOption) *commandOpts {
-	o := &commandOpts{user: "user"}
+	o := &commandOpts{user: DefaultUser}
 	for _, fn := range opts {
 		fn(o)
 	}
@@ -239,7 +244,7 @@ func processEventStream[T eventMessage](stream streamReceiver[T], handle *Comman
 		}
 		switch ev := event.Event.(type) {
 		case *process.ProcessEvent_Start:
-			handle.PID = ev.Start.Pid
+			handle.pid = ev.Start.Pid
 			close(handle.pidCh)
 		case *process.ProcessEvent_Data:
 			if data := ev.Data.GetStdout(); len(data) > 0 {
@@ -304,7 +309,7 @@ func (c *Commands) Connect(ctx context.Context, pid uint32) (*CommandHandle, err
 			Selector: &process.ProcessSelector_Pid{Pid: pid},
 		},
 	})
-	for k, vs := range envdAuthHeader("user") {
+	for k, vs := range envdAuthHeader(DefaultUser) {
 		for _, v := range vs {
 			req.Header().Add(k, v)
 		}
@@ -320,7 +325,7 @@ func (c *Commands) Connect(ctx context.Context, pid uint32) (*CommandHandle, err
 	close(pidCh) // PID 已知，无需等待
 
 	handle := &CommandHandle{
-		PID:      pid,
+		pid:      pid,
 		commands: c,
 		cancel:   connectCancel,
 		done:     make(chan struct{}),
@@ -335,7 +340,7 @@ func (c *Commands) Connect(ctx context.Context, pid uint32) (*CommandHandle, err
 // List 列出所有运行中的进程。
 func (c *Commands) List(ctx context.Context) ([]ProcessInfo, error) {
 	req := connect.NewRequest(&process.ListRequest{})
-	for k, vs := range envdAuthHeader("user") {
+	for k, vs := range envdAuthHeader(DefaultUser) {
 		for _, v := range vs {
 			req.Header().Add(k, v)
 		}
@@ -373,7 +378,7 @@ func (c *Commands) SendStdin(ctx context.Context, pid uint32, data []byte) error
 			Input: &process.ProcessInput_Stdin{Stdin: data},
 		},
 	})
-	for k, vs := range envdAuthHeader("user") {
+	for k, vs := range envdAuthHeader(DefaultUser) {
 		for _, v := range vs {
 			req.Header().Add(k, v)
 		}
@@ -394,7 +399,7 @@ func (c *Commands) Kill(ctx context.Context, pid uint32) error {
 		},
 		Signal: process.Signal_SIGNAL_SIGKILL,
 	})
-	for k, vs := range envdAuthHeader("user") {
+	for k, vs := range envdAuthHeader(DefaultUser) {
 		for _, v := range vs {
 			req.Header().Add(k, v)
 		}

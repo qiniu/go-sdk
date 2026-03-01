@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/sandbox"
-	"github.com/qiniu/go-sdk/v7/sandbox/apis"
 )
 
 func main() {
@@ -33,14 +32,14 @@ func main() {
 	// 1. 创建沙箱
 	templateID := "base"
 	timeout := int32(120)
-	sb, info, err := c.CreateAndWait(ctx, apis.CreateSandboxJSONRequestBody{
+	sb, info, err := c.CreateAndWait(ctx, sandbox.CreateParams{
 		TemplateID: templateID,
 		Timeout:    &timeout,
-	}, 2*time.Second)
+	}, sandbox.WithPollInterval(2*time.Second))
 	if err != nil {
 		log.Fatalf("创建沙箱失败: %v", err)
 	}
-	fmt.Printf("沙箱已就绪: %s (状态: %s)\n", sb.SandboxID, info.State)
+	fmt.Printf("沙箱已就绪: %s (状态: %s)\n", sb.ID(), info.State)
 
 	// 2. 暂停沙箱
 	fmt.Println("正在暂停沙箱...")
@@ -58,7 +57,7 @@ func main() {
 
 	// 4. 恢复沙箱（通过 Connect）
 	fmt.Println("正在恢复沙箱...")
-	resumed, err := c.Connect(ctx, sb.SandboxID, apis.ConnectSandboxJSONRequestBody{
+	resumed, err := c.Connect(ctx, sb.ID(), sandbox.ConnectParams{
 		Timeout: 120,
 	})
 	if err != nil {
@@ -66,11 +65,11 @@ func main() {
 	}
 
 	// 等待恢复就绪
-	readyInfo, err := resumed.WaitForReady(ctx, 2*time.Second)
+	readyInfo, err := resumed.WaitForReady(ctx, sandbox.WithPollInterval(2*time.Second))
 	if err != nil {
 		log.Fatalf("等待就绪失败: %v", err)
 	}
-	fmt.Printf("沙箱已恢复: %s (状态: %s)\n", resumed.SandboxID, readyInfo.State)
+	fmt.Printf("沙箱已恢复: %s (状态: %s)\n", resumed.ID(), readyInfo.State)
 
 	// 5. 清理
 	if err := resumed.Kill(ctx); err != nil {

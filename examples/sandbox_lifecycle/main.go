@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/sandbox"
-	"github.com/qiniu/go-sdk/v7/sandbox/apis"
 )
 
 func main() {
@@ -41,7 +40,7 @@ func main() {
 
 	var templateID string
 	for _, tmpl := range templates {
-		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == sandbox.TemplateBuildStatusUploaded {
+		if tmpl.BuildStatus == sandbox.BuildStatusReady || tmpl.BuildStatus == sandbox.BuildStatusUploaded {
 			templateID = tmpl.TemplateID
 			break
 		}
@@ -53,14 +52,14 @@ func main() {
 
 	// 2. 创建沙箱并等待就绪
 	timeout := int32(120)
-	sb, info, err := c.CreateAndWait(ctx, apis.CreateSandboxJSONRequestBody{
+	sb, info, err := c.CreateAndWait(ctx, sandbox.CreateParams{
 		TemplateID: templateID,
 		Timeout:    &timeout,
-	}, 2*time.Second)
+	}, sandbox.WithPollInterval(2*time.Second))
 	if err != nil {
 		log.Fatalf("创建沙箱失败: %v", err)
 	}
-	fmt.Printf("沙箱已就绪: %s (状态: %s)\n", sb.SandboxID, info.State)
+	fmt.Printf("沙箱已就绪: %s (状态: %s)\n", sb.ID(), info.State)
 
 	// 3. 获取沙箱详情
 	detail, err := sb.GetInfo(ctx)
@@ -84,7 +83,7 @@ func main() {
 
 	// 6. 延长存活时间（Refresh）
 	duration := 300
-	if err := sb.Refresh(ctx, apis.RefreshSandboxJSONRequestBody{
+	if err := sb.Refresh(ctx, sandbox.RefreshParams{
 		Duration: &duration,
 	}); err != nil {
 		log.Fatalf("Refresh 失败: %v", err)
@@ -95,5 +94,5 @@ func main() {
 	if err := sb.Kill(ctx); err != nil {
 		log.Fatalf("终止沙箱失败: %v", err)
 	}
-	fmt.Printf("沙箱 %s 已终止\n", sb.SandboxID)
+	fmt.Printf("沙箱 %s 已终止\n", sb.ID())
 }

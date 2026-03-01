@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/sandbox"
-	"github.com/qiniu/go-sdk/v7/sandbox/apis"
 )
 
 func main() {
@@ -39,7 +38,7 @@ func main() {
 
 	var templateID string
 	for _, tmpl := range templates {
-		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == sandbox.TemplateBuildStatusUploaded {
+		if tmpl.BuildStatus == sandbox.BuildStatusReady || tmpl.BuildStatus == sandbox.BuildStatusUploaded {
 			templateID = tmpl.TemplateID
 			break
 		}
@@ -55,16 +54,16 @@ func main() {
 	network := sandbox.NetworkConfig{
 		AllowPublicTraffic: boolPtr(true),
 	}
-	sb, _, err := c.CreateAndWait(ctx, apis.CreateSandboxJSONRequestBody{
+	sb, _, err := c.CreateAndWait(ctx, sandbox.CreateParams{
 		TemplateID: templateID,
 		Timeout:    &timeout,
 		Metadata:   &meta,
 		Network:    &network,
-	}, 2*time.Second)
+	}, sandbox.WithPollInterval(2*time.Second))
 	if err != nil {
 		log.Fatalf("创建沙箱失败: %v", err)
 	}
-	fmt.Printf("沙箱已就绪: %s\n", sb.SandboxID)
+	fmt.Printf("沙箱已就绪: %s\n", sb.ID())
 
 	// 验证 Metadata
 	info, err := sb.GetInfo(ctx)
@@ -81,7 +80,7 @@ func main() {
 		if err := sb.Kill(killCtx); err != nil {
 			log.Printf("终止沙箱失败: %v", err)
 		} else {
-			fmt.Printf("沙箱 %s 已终止\n", sb.SandboxID)
+			fmt.Printf("沙箱 %s 已终止\n", sb.ID())
 		}
 	}()
 
@@ -300,7 +299,7 @@ loop:
 	if _, err := handle.WaitPID(ctx); err != nil {
 		log.Fatalf("WaitPID 失败: %v", err)
 	}
-	fmt.Printf("后台命令已启动: PID=%d\n", handle.PID)
+	fmt.Printf("后台命令已启动: PID=%d\n", handle.PID())
 
 	// List — 列出运行中的进程
 	processes, err := sb.Commands().List(ctx)
@@ -317,32 +316,31 @@ loop:
 	}
 
 	// Kill — 终止后台进程
-	if err := sb.Commands().Kill(ctx, handle.PID); err != nil {
+	if err := sb.Commands().Kill(ctx, handle.PID()); err != nil {
 		log.Fatalf("Kill 失败: %v", err)
 	}
-	fmt.Printf("进程 PID=%d 已终止\n", handle.PID)
+	fmt.Printf("进程 PID=%d 已终止\n", handle.PID())
 
-	// 6. 下载/上传 URL 和 Upload/Download
-	fmt.Println("\n--- 文件 URL / Upload / Download ---")
+	// 6. 下载/上传 URL
+	fmt.Println("\n--- 文件 URL ---")
 	downloadURL := sb.DownloadURL("/tmp/hello.txt")
 	fmt.Printf("下载 URL: %s\n", downloadURL)
 
 	uploadURL := sb.UploadURL("/tmp/upload.txt")
 	fmt.Printf("上传 URL: %s\n", uploadURL)
 
-	// Upload — 直接上传文件
-	uploadContent := []byte("uploaded via Upload()\n")
-	if err := sb.Upload(ctx, "/tmp/upload-test.txt", uploadContent); err != nil {
-		log.Fatalf("Upload 失败: %v", err)
+	// 通过 Files().Write() / Files().Read() 进行文件上传下载
+	writeContent := []byte("uploaded via Files().Write()\n")
+	if _, err := sb.Files().Write(ctx, "/tmp/upload-test.txt", writeContent); err != nil {
+		log.Fatalf("Files().Write 失败: %v", err)
 	}
-	fmt.Println("Upload 成功: /tmp/upload-test.txt")
+	fmt.Println("Files().Write 成功: /tmp/upload-test.txt")
 
-	// Download — 直接下载文件
-	downloaded, err := sb.Download(ctx, "/tmp/upload-test.txt")
+	readContent, err := sb.Files().Read(ctx, "/tmp/upload-test.txt")
 	if err != nil {
-		log.Fatalf("Download 失败: %v", err)
+		log.Fatalf("Files().Read 失败: %v", err)
 	}
-	fmt.Printf("Download 结果: %q\n", string(downloaded))
+	fmt.Printf("Files().Read 结果: %q\n", string(readContent))
 
 	// 7. PTY 终端
 	fmt.Println("\n--- PTY 终端 ---")
@@ -360,26 +358,26 @@ loop:
 	if _, err := ptyHandle.WaitPID(ctx); err != nil {
 		log.Fatalf("WaitPID 失败: %v", err)
 	}
-	fmt.Printf("PTY 已创建: PID=%d\n", ptyHandle.PID)
+	fmt.Printf("PTY 已创建: PID=%d\n", ptyHandle.PID())
 
 	// SendInput — 向 PTY 发送输入
-	if err := sb.Pty().SendInput(ctx, ptyHandle.PID, []byte("echo pty-hello\n")); err != nil {
+	if err := sb.Pty().SendInput(ctx, ptyHandle.PID(), []byte("echo pty-hello\n")); err != nil {
 		log.Fatalf("Pty.SendInput 失败: %v", err)
 	}
 	time.Sleep(500 * time.Millisecond)
 	fmt.Printf("PTY 输出片段: %q\n", truncate(string(ptyOutput), 200))
 
 	// Resize — 调整终端大小
-	if err := sb.Pty().Resize(ctx, ptyHandle.PID, sandbox.PtySize{Cols: 120, Rows: 40}); err != nil {
+	if err := sb.Pty().Resize(ctx, ptyHandle.PID(), sandbox.PtySize{Cols: 120, Rows: 40}); err != nil {
 		log.Fatalf("Pty.Resize 失败: %v", err)
 	}
 	fmt.Println("PTY 已调整为 120x40")
 
 	// Kill — 终止 PTY 会话
-	if err := sb.Pty().Kill(ctx, ptyHandle.PID); err != nil {
+	if err := sb.Pty().Kill(ctx, ptyHandle.PID()); err != nil {
 		log.Fatalf("Pty.Kill 失败: %v", err)
 	}
-	fmt.Printf("PTY PID=%d 已终止\n", ptyHandle.PID)
+	fmt.Printf("PTY PID=%d 已终止\n", ptyHandle.PID())
 }
 
 // boolPtr 返回 bool 值的指针。

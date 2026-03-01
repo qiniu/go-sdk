@@ -139,7 +139,7 @@ func newTestFilesystem(handler *testFilesystemHandler) (*Filesystem, *httptest.S
 
 	rpcClient := filesystemconnect.NewFilesystemClient(ts.Client(), ts.URL)
 	c := &Client{config: &Config{Domain: "test.dev"}}
-	sb := &Sandbox{SandboxID: "sb-test", client: c}
+	sb := &Sandbox{sandboxID: "sb-test", client: c}
 	fs := &Filesystem{sandbox: sb, rpc: rpcClient}
 	return fs, ts
 }
@@ -153,7 +153,7 @@ func newTestCommands(handler *testProcessHandler) (*Commands, *httptest.Server) 
 
 	rpcClient := processconnect.NewProcessClient(ts.Client(), ts.URL)
 	c := &Client{config: &Config{Domain: "test.dev"}}
-	sb := &Sandbox{SandboxID: "sb-test", client: c}
+	sb := &Sandbox{sandboxID: "sb-test", client: c}
 	cmd := &Commands{sandbox: sb, rpc: rpcClient}
 	return cmd, ts
 }
@@ -167,16 +167,16 @@ func newTestPty(handler *testProcessHandler) (*Pty, *httptest.Server) {
 
 	rpcClient := processconnect.NewProcessClient(ts.Client(), ts.URL)
 	c := &Client{config: &Config{Domain: "test.dev"}}
-	sb := &Sandbox{SandboxID: "sb-test", client: c}
+	sb := &Sandbox{sandboxID: "sb-test", client: c}
 	p := &Pty{sandbox: sb, rpc: rpcClient}
 	return p, ts
 }
 
 // newTestSandboxWithHTTP creates a Sandbox whose HTTPClient routes to the given
-// test server. Useful for Upload/Download/Filesystem.Read/Write tests.
+// test server. Useful for Filesystem.Read/Write tests.
 func newTestSandboxWithHTTP(ts *httptest.Server) *Sandbox {
 	c := &Client{config: &Config{Domain: "test.dev", HTTPClient: ts.Client()}}
-	sb := &Sandbox{SandboxID: "sb-test", client: c}
+	sb := &Sandbox{sandboxID: "sb-test", client: c}
 	return sb
 }
 
@@ -768,8 +768,8 @@ func TestCommandsStart(t *testing.T) {
 	if result.ExitCode != 1 {
 		t.Errorf("ExitCode = %d, want 1", result.ExitCode)
 	}
-	if handle.PID != 100 {
-		t.Errorf("PID = %d, want 100", handle.PID)
+	if handle.PID() != 100 {
+		t.Errorf("PID = %d, want 100", handle.PID())
 	}
 }
 
@@ -1174,117 +1174,6 @@ func TestPtyKill(t *testing.T) {
 }
 
 // =========================================================================
-// 5. Upload / Download tests
-// =========================================================================
-
-func TestSandboxUpload(t *testing.T) {
-	var receivedContentType string
-	var receivedBody []byte
-	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedContentType = r.Header.Get("Content-Type")
-		body, _ := io.ReadAll(r.Body)
-		receivedBody = body
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer httpServer.Close()
-
-	sb := newTestSandboxWithHTTP(httpServer)
-	sb.client.config.HTTPClient.Transport = &rewriteTransport{
-		base:    httpServer.Client().Transport,
-		baseURL: httpServer.URL,
-	}
-
-	err := sb.Upload(context.Background(), "/remote/file.txt", []byte("upload data"))
-	if err != nil {
-		t.Fatalf("Upload error: %v", err)
-	}
-	if receivedContentType == "" {
-		t.Error("Content-Type was empty")
-	}
-	if len(receivedBody) == 0 {
-		t.Error("body was empty")
-	}
-	// 验证 multipart body 中包含文件内容
-	if !containsBytes(receivedBody, []byte("upload data")) {
-		t.Error("body does not contain uploaded data")
-	}
-}
-
-func TestSandboxDownload(t *testing.T) {
-	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("downloaded content"))
-	}))
-	defer httpServer.Close()
-
-	sb := newTestSandboxWithHTTP(httpServer)
-	sb.client.config.HTTPClient.Transport = &rewriteTransport{
-		base:    httpServer.Client().Transport,
-		baseURL: httpServer.URL,
-	}
-
-	data, err := sb.Download(context.Background(), "/remote/file.txt")
-	if err != nil {
-		t.Fatalf("Download error: %v", err)
-	}
-	if string(data) != "downloaded content" {
-		t.Errorf("Download = %q, want %q", string(data), "downloaded content")
-	}
-}
-
-func TestSandboxUploadError(t *testing.T) {
-	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("internal error"))
-	}))
-	defer httpServer.Close()
-
-	sb := newTestSandboxWithHTTP(httpServer)
-	sb.client.config.HTTPClient.Transport = &rewriteTransport{
-		base:    httpServer.Client().Transport,
-		baseURL: httpServer.URL,
-	}
-
-	err := sb.Upload(context.Background(), "/file.txt", []byte("data"))
-	if err == nil {
-		t.Fatal("expected error for 500 response")
-	}
-	apiErr, ok := err.(*APIError)
-	if !ok {
-		t.Fatalf("error type = %T, want *APIError", err)
-	}
-	if apiErr.StatusCode != http.StatusInternalServerError {
-		t.Errorf("StatusCode = %d, want 500", apiErr.StatusCode)
-	}
-}
-
-func TestSandboxDownloadError(t *testing.T) {
-	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("not found"))
-	}))
-	defer httpServer.Close()
-
-	sb := newTestSandboxWithHTTP(httpServer)
-	sb.client.config.HTTPClient.Transport = &rewriteTransport{
-		base:    httpServer.Client().Transport,
-		baseURL: httpServer.URL,
-	}
-
-	_, err := sb.Download(context.Background(), "/missing.txt")
-	if err == nil {
-		t.Fatal("expected error for 404 response")
-	}
-	apiErr, ok := err.(*APIError)
-	if !ok {
-		t.Fatalf("error type = %T, want *APIError", err)
-	}
-	if apiErr.StatusCode != http.StatusNotFound {
-		t.Errorf("StatusCode = %d, want 404", apiErr.StatusCode)
-	}
-}
-
-// =========================================================================
 // 6. 纯函数 / Option 补充测试
 // =========================================================================
 
@@ -1511,27 +1400,4 @@ func (t *rewriteTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	req.URL.Scheme = "http"
 	req.URL.Host = t.baseURL[len("http://"):]
 	return t.base.RoundTrip(req)
-}
-
-// containsBytes 检查 haystack 中是否包含 needle。
-func containsBytes(haystack, needle []byte) bool {
-	return len(haystack) > 0 && len(needle) > 0 &&
-		len(haystack) >= len(needle) &&
-		searchBytes(haystack, needle)
-}
-
-func searchBytes(haystack, needle []byte) bool {
-	for i := 0; i <= len(haystack)-len(needle); i++ {
-		found := true
-		for j := range needle {
-			if haystack[i+j] != needle[j] {
-				found = false
-				break
-			}
-		}
-		if found {
-			return true
-		}
-	}
-	return false
 }

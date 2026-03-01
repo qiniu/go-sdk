@@ -21,6 +21,9 @@ const (
 	FileTypeFile FileType = "file"
 	// FileTypeDirectory 表示目录。
 	FileTypeDirectory FileType = "dir"
+	// FileTypeUnknown 表示未知文件类型。
+	// 当 protobuf 返回了 SDK 尚未识别的新文件类型时使用此值。
+	FileTypeUnknown FileType = "unknown"
 )
 
 // EntryInfo 文件或目录的元信息。
@@ -56,6 +59,8 @@ func entryInfoFromProto(e *filesystem.EntryInfo) *EntryInfo {
 		info.Type = FileTypeFile
 	case filesystem.FileType_FILE_TYPE_DIRECTORY:
 		info.Type = FileTypeDirectory
+	default:
+		info.Type = FileTypeUnknown
 	}
 	if e.ModifiedTime != nil {
 		info.ModifiedTime = e.ModifiedTime.AsTime()
@@ -120,7 +125,7 @@ func WithUser(user string) FilesystemOption {
 }
 
 func applyFilesystemOpts(opts []FilesystemOption) *filesystemOpts {
-	o := &filesystemOpts{user: "user"}
+	o := &filesystemOpts{user: DefaultUser}
 	for _, fn := range opts {
 		fn(o)
 	}
@@ -147,7 +152,7 @@ func WithListUser(user string) ListOption {
 
 func applyListOpts(opts []ListOption) *listOpts {
 	o := &listOpts{
-		filesystemOpts: filesystemOpts{user: "user"},
+		filesystemOpts: filesystemOpts{user: DefaultUser},
 		depth:          1,
 	}
 	for _, fn := range opts {
@@ -176,7 +181,7 @@ func WithWatchUser(user string) WatchOption {
 
 func applyWatchOpts(opts []WatchOption) *watchOpts {
 	o := &watchOpts{
-		filesystemOpts: filesystemOpts{user: "user"},
+		filesystemOpts: filesystemOpts{user: DefaultUser},
 	}
 	for _, fn := range opts {
 		fn(o)
@@ -281,7 +286,7 @@ func (fs *Filesystem) doRead(ctx context.Context, path string, opts ...Filesyste
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		return nil, &APIError{StatusCode: resp.StatusCode, Body: body}
+		return nil, newAPIError(resp.StatusCode, body)
 	}
 
 	return resp, nil
@@ -326,7 +331,7 @@ func (fs *Filesystem) Write(ctx context.Context, path string, data []byte, opts 
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, &APIError{StatusCode: resp.StatusCode, Body: body}
+		return nil, newAPIError(resp.StatusCode, body)
 	}
 
 	// 上传成功后通过 Stat 获取文件信息
@@ -398,7 +403,7 @@ func (fs *Filesystem) WriteFiles(ctx context.Context, files []WriteEntry, opts .
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, &APIError{StatusCode: resp.StatusCode, Body: body}
+		return nil, newAPIError(resp.StatusCode, body)
 	}
 
 	// 逐个获取文件元信息

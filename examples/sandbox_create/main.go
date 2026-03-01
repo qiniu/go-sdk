@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/sandbox"
-	"github.com/qiniu/go-sdk/v7/sandbox/apis"
 )
 
 func main() {
@@ -33,7 +32,7 @@ func main() {
 	// 创建沙箱，templateID 需替换为实际可用的模板 ID
 	templateID := "base"
 	timeout := int32(300)
-	sb, err := c.Create(ctx, apis.CreateSandboxJSONRequestBody{
+	sb, err := c.Create(ctx, sandbox.CreateParams{
 		TemplateID: templateID,
 		Timeout:    &timeout,
 	})
@@ -41,7 +40,7 @@ func main() {
 		log.Fatalf("创建沙箱失败: %v", err)
 	}
 
-	fmt.Printf("沙箱已创建: %s (模板: %s)\n", sb.SandboxID, sb.TemplateID)
+	fmt.Printf("沙箱已创建: %s (模板: %s)\n", sb.ID(), sb.TemplateID())
 
 	// 演示完毕，终止沙箱释放资源
 	killCtx, killCancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -49,6 +48,6 @@ func main() {
 	if err := sb.Kill(killCtx); err != nil {
 		log.Printf("终止沙箱失败: %v", err)
 	} else {
-		fmt.Printf("沙箱 %s 已终止\n", sb.SandboxID)
+		fmt.Printf("沙箱 %s 已终止\n", sb.ID())
 	}
 }

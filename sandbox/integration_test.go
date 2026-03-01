@@ -11,8 +11,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/qiniu/go-sdk/v7/sandbox/apis"
 )
 
 // testClient 从环境变量创建集成测试用的客户端。
@@ -89,7 +87,7 @@ func TestIntegrationSandboxLifecycle(t *testing.T) {
 
 	var templateID string
 	for _, tmpl := range templates {
-		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == TemplateBuildStatusUploaded {
+		if tmpl.BuildStatus == BuildStatusReady || tmpl.BuildStatus == BuildStatusUploaded {
 			templateID = tmpl.TemplateID
 			break
 		}
@@ -101,14 +99,14 @@ func TestIntegrationSandboxLifecycle(t *testing.T) {
 
 	// 2. 创建沙箱并等待就绪
 	timeout := int32(60)
-	sb, info, err := c.CreateAndWait(ctx, apis.CreateSandboxJSONRequestBody{
+	sb, info, err := c.CreateAndWait(ctx, CreateParams{
 		TemplateID: templateID,
 		Timeout:    &timeout,
-	}, 2*time.Second)
+	}, WithPollInterval(2*time.Second))
 	if err != nil {
 		t.Fatalf("CreateAndWait 失败: %v", err)
 	}
-	t.Logf("沙箱已创建: %s (state=%s)", sb.SandboxID, info.State)
+	t.Logf("沙箱已创建: %s (state=%s)", sb.ID(), info.State)
 
 	// 确保测试结束时清理沙箱
 	killed := false
@@ -119,9 +117,9 @@ func TestIntegrationSandboxLifecycle(t *testing.T) {
 		killCtx, killCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer killCancel()
 		if err := sb.Kill(killCtx); err != nil {
-			t.Logf("清理沙箱 %s 失败: %v", sb.SandboxID, err)
+			t.Logf("清理沙箱 %s 失败: %v", sb.ID(), err)
 		} else {
-			t.Logf("沙箱 %s 已清理", sb.SandboxID)
+			t.Logf("沙箱 %s 已清理", sb.ID())
 		}
 	}()
 
@@ -155,7 +153,7 @@ func TestIntegrationSandboxLifecycle(t *testing.T) {
 	}
 	found := false
 	for _, s := range sandboxes {
-		if s.SandboxID == sb.SandboxID {
+		if s.SandboxID == sb.ID() {
 			found = true
 			break
 		}
@@ -183,7 +181,7 @@ func createTestSandbox(t *testing.T, c *Client, ctx context.Context) *Sandbox {
 
 	var templateID string
 	for _, tmpl := range templates {
-		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == TemplateBuildStatusUploaded {
+		if tmpl.BuildStatus == BuildStatusReady || tmpl.BuildStatus == BuildStatusUploaded {
 			templateID = tmpl.TemplateID
 			break
 		}
@@ -193,10 +191,10 @@ func createTestSandbox(t *testing.T, c *Client, ctx context.Context) *Sandbox {
 	}
 
 	timeout := int32(120)
-	sb, _, err := c.CreateAndWait(ctx, apis.CreateSandboxJSONRequestBody{
+	sb, _, err := c.CreateAndWait(ctx, CreateParams{
 		TemplateID: templateID,
 		Timeout:    &timeout,
-	}, 2*time.Second)
+	}, WithPollInterval(2*time.Second))
 	if err != nil {
 		t.Fatalf("CreateAndWait 失败: %v", err)
 	}
@@ -205,7 +203,7 @@ func createTestSandbox(t *testing.T, c *Client, ctx context.Context) *Sandbox {
 		killCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := sb.Kill(killCtx); err != nil {
-			t.Logf("清理沙箱 %s 失败: %v", sb.SandboxID, err)
+			t.Logf("清理沙箱 %s 失败: %v", sb.ID(), err)
 		}
 	})
 
@@ -218,7 +216,7 @@ func TestIntegrationFilesWriteRead(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	// 写入文件
 	content := []byte("hello sandbox\n")
@@ -245,7 +243,7 @@ func TestIntegrationCommandsRun(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	// 执行简单命令
 	result, err := sb.Commands().Run(ctx, "echo hello world")
@@ -275,7 +273,7 @@ func TestIntegrationGetHost(t *testing.T) {
 	t.Logf("GetHost(8080) = %s", host)
 
 	// 验证格式: {port}-{sandboxID}.{domain}
-	expected := "8080-" + sb.SandboxID
+	expected := "8080-" + sb.ID()
 	if len(host) < len(expected) || host[:len(expected)] != expected {
 		t.Fatalf("GetHost 格式不符: got %q, want prefix %q", host, expected)
 	}
@@ -287,7 +285,7 @@ func TestIntegrationFilesystemOperations(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	fs := sb.Files()
 
@@ -356,24 +354,25 @@ func TestIntegrationUploadDownload(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
-	// Upload
+	// 通过 Files().Write() 写入文件
 	content := []byte("upload test content\n")
-	if err := sb.Upload(ctx, "/tmp/uploaded.txt", content); err != nil {
-		t.Fatalf("Upload 失败: %v", err)
-	}
-	t.Log("文件上传成功")
-
-	// Download
-	got, err := sb.Download(ctx, "/tmp/uploaded.txt")
+	_, err := sb.Files().Write(ctx, "/tmp/uploaded.txt", content)
 	if err != nil {
-		t.Fatalf("Download 失败: %v", err)
+		t.Fatalf("Files().Write 失败: %v", err)
+	}
+	t.Log("文件写入成功")
+
+	// 通过 Files().Read() 读取文件
+	got, err := sb.Files().Read(ctx, "/tmp/uploaded.txt")
+	if err != nil {
+		t.Fatalf("Files().Read 失败: %v", err)
 	}
 	if string(got) != string(content) {
 		t.Fatalf("文件内容不匹配: got %q, want %q", string(got), string(content))
 	}
-	t.Log("文件下载内容一致")
+	t.Log("文件读取内容一致")
 }
 
 func TestIntegrationWriteFiles(t *testing.T) {
@@ -382,7 +381,7 @@ func TestIntegrationWriteFiles(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	files := []WriteEntry{
 		{Path: "/tmp/batch-1.txt", Data: []byte("content one")},
@@ -417,7 +416,7 @@ func TestIntegrationReadText(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	content := "hello read text\n"
 	_, err := sb.Files().Write(ctx, "/tmp/readtext.txt", []byte(content))
@@ -441,7 +440,7 @@ func TestIntegrationReadStream(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	content := []byte("hello read stream\n")
 	_, err := sb.Files().Write(ctx, "/tmp/readstream.txt", content)
@@ -473,7 +472,7 @@ func TestIntegrationCommandsStartWait(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	handle, err := sb.Commands().Start(ctx, "sleep 1 && echo done")
 	if err != nil {
@@ -485,7 +484,7 @@ func TestIntegrationCommandsStartWait(t *testing.T) {
 		t.Fatalf("Wait 失败: %v", err)
 	}
 
-	if handle.PID == 0 {
+	if handle.PID() == 0 {
 		t.Fatal("PID 应大于 0")
 	}
 	if result.ExitCode != 0 {
@@ -494,7 +493,7 @@ func TestIntegrationCommandsStartWait(t *testing.T) {
 	if !strings.Contains(result.Stdout, "done") {
 		t.Fatalf("Stdout = %q, 应包含 'done'", result.Stdout)
 	}
-	t.Logf("Start/Wait 验证通过: PID=%d, ExitCode=%d, Stdout=%q", handle.PID, result.ExitCode, result.Stdout)
+	t.Logf("Start/Wait 验证通过: PID=%d, ExitCode=%d, Stdout=%q", handle.PID(), result.ExitCode, result.Stdout)
 }
 
 func TestIntegrationCommandsKill(t *testing.T) {
@@ -503,7 +502,7 @@ func TestIntegrationCommandsKill(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	handle, err := sb.Commands().Start(ctx, "sleep 300")
 	if err != nil {
@@ -514,10 +513,10 @@ func TestIntegrationCommandsKill(t *testing.T) {
 	if _, err := handle.WaitPID(ctx); err != nil {
 		t.Fatalf("WaitPID 失败: %v", err)
 	}
-	t.Logf("进程已启动: PID=%d", handle.PID)
+	t.Logf("进程已启动: PID=%d", handle.PID())
 
 	// Kill 进程
-	if err := sb.Commands().Kill(ctx, handle.PID); err != nil {
+	if err := sb.Commands().Kill(ctx, handle.PID()); err != nil {
 		t.Fatalf("Kill 失败: %v", err)
 	}
 
@@ -538,7 +537,7 @@ func TestIntegrationCommandsList(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	handle, err := sb.Commands().Start(ctx, "sleep 300")
 	if err != nil {
@@ -549,7 +548,7 @@ func TestIntegrationCommandsList(t *testing.T) {
 	if _, err := handle.WaitPID(ctx); err != nil {
 		t.Fatalf("WaitPID 失败: %v", err)
 	}
-	t.Logf("进程已启动: PID=%d", handle.PID)
+	t.Logf("进程已启动: PID=%d", handle.PID())
 
 	// 列出进程
 	infos, err := sb.Commands().List(ctx)
@@ -559,14 +558,14 @@ func TestIntegrationCommandsList(t *testing.T) {
 
 	found := false
 	for _, info := range infos {
-		if info.PID == handle.PID {
+		if info.PID == handle.PID() {
 			found = true
 			t.Logf("找到进程: PID=%d, Cmd=%s, Args=%v", info.PID, info.Cmd, info.Args)
 			break
 		}
 	}
 	if !found {
-		t.Fatalf("进程列表中未找到 PID=%d，共 %d 个进程", handle.PID, len(infos))
+		t.Fatalf("进程列表中未找到 PID=%d，共 %d 个进程", handle.PID(), len(infos))
 	}
 
 	// 清理
@@ -581,7 +580,7 @@ func TestIntegrationCommandsSendStdin(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	// 启动 sleep 长命令（stdin 默认禁用，SendStdin 验证 RPC 调用不报错即可）
 	handle, err := sb.Commands().Start(ctx, "sleep 300")
@@ -595,7 +594,7 @@ func TestIntegrationCommandsSendStdin(t *testing.T) {
 	}
 
 	// 发送 stdin（stdin 未启用，服务端会返回错误，验证错误信息符合预期）
-	err = sb.Commands().SendStdin(ctx, handle.PID, []byte("hello\n"))
+	err = sb.Commands().SendStdin(ctx, handle.PID(), []byte("hello\n"))
 	if err != nil {
 		// stdin 未启用时，服务端返回 "stdin not enabled" 错误是预期行为
 		if strings.Contains(err.Error(), "stdin not enabled") {
@@ -619,7 +618,7 @@ func TestIntegrationCommandsWithCallbacks(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	var (
 		mu        sync.Mutex
@@ -666,7 +665,7 @@ func TestIntegrationCommandsWithOptions(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	// 测试 WithCwd
 	result, err := sb.Commands().Run(ctx, "pwd", WithCwd("/tmp"))
@@ -697,7 +696,7 @@ func TestIntegrationPtyCreateAndKill(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	var (
 		mu     sync.Mutex
@@ -719,13 +718,13 @@ func TestIntegrationPtyCreateAndKill(t *testing.T) {
 	if _, err := handle.WaitPID(ctx); err != nil {
 		t.Fatalf("WaitPID 失败: %v", err)
 	}
-	t.Logf("PTY 已创建: PID=%d", handle.PID)
+	t.Logf("PTY 已创建: PID=%d", handle.PID())
 
 	// 等待一些 PTY 输出
 	time.Sleep(2 * time.Second)
 
 	// Kill PTY
-	if err := sb.Pty().Kill(ctx, handle.PID); err != nil {
+	if err := sb.Pty().Kill(ctx, handle.PID()); err != nil {
 		t.Fatalf("Pty.Kill 失败: %v", err)
 	}
 
@@ -751,7 +750,7 @@ func TestIntegrationPtySendInput(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	var (
 		mu     sync.Mutex
@@ -776,7 +775,7 @@ func TestIntegrationPtySendInput(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// 发送输入
-	if err := sb.Pty().SendInput(ctx, handle.PID, []byte("echo pty-test\n")); err != nil {
+	if err := sb.Pty().SendInput(ctx, handle.PID(), []byte("echo pty-test\n")); err != nil {
 		t.Fatalf("Pty.SendInput 失败: %v", err)
 	}
 
@@ -800,7 +799,7 @@ func TestIntegrationPtySendInput(t *testing.T) {
 	}
 
 	// 清理
-	_ = sb.Pty().Kill(ctx, handle.PID)
+	_ = sb.Pty().Kill(ctx, handle.PID())
 	_, _ = handle.Wait()
 
 	mu.Lock()
@@ -815,7 +814,7 @@ func TestIntegrationPtyResize(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	handle, err := sb.Pty().Create(ctx, PtySize{Cols: 80, Rows: 24})
 	if err != nil {
@@ -828,13 +827,13 @@ func TestIntegrationPtyResize(t *testing.T) {
 	}
 
 	// Resize
-	if err := sb.Pty().Resize(ctx, handle.PID, PtySize{Cols: 200, Rows: 50}); err != nil {
+	if err := sb.Pty().Resize(ctx, handle.PID(), PtySize{Cols: 200, Rows: 50}); err != nil {
 		t.Fatalf("Pty.Resize 失败: %v", err)
 	}
 	t.Log("Resize 调用成功")
 
 	// 清理
-	_ = sb.Pty().Kill(ctx, handle.PID)
+	_ = sb.Pty().Kill(ctx, handle.PID())
 	_, _ = handle.Wait()
 	t.Log("Pty.Resize 验证通过")
 }
@@ -847,7 +846,7 @@ func TestIntegrationWatchDir(t *testing.T) {
 	defer cancel()
 
 	sb := createTestSandbox(t, c, ctx)
-	t.Logf("沙箱: %s", sb.SandboxID)
+	t.Logf("沙箱: %s", sb.ID())
 
 	// 创建监听目标目录
 	watchPath := "/tmp/watch-test-" + fmt.Sprintf("%d", time.Now().UnixNano())
@@ -910,7 +909,7 @@ func TestIntegrationMetadata(t *testing.T) {
 
 	var templateID string
 	for _, tmpl := range templates {
-		if tmpl.BuildStatus == apis.TemplateBuildStatusReady || tmpl.BuildStatus == TemplateBuildStatusUploaded {
+		if tmpl.BuildStatus == BuildStatusReady || tmpl.BuildStatus == BuildStatusUploaded {
 			templateID = tmpl.TemplateID
 			break
 		}
@@ -921,11 +920,11 @@ func TestIntegrationMetadata(t *testing.T) {
 
 	timeout := int32(60)
 	meta := Metadata{"env": "test", "team": "backend"}
-	sb, _, err := c.CreateAndWait(ctx, apis.CreateSandboxJSONRequestBody{
+	sb, _, err := c.CreateAndWait(ctx, CreateParams{
 		TemplateID: templateID,
 		Timeout:    &timeout,
 		Metadata:   &meta,
-	}, 2*time.Second)
+	}, WithPollInterval(2*time.Second))
 	if err != nil {
 		t.Fatalf("CreateAndWait 失败: %v", err)
 	}
@@ -933,7 +932,7 @@ func TestIntegrationMetadata(t *testing.T) {
 		killCtx, killCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer killCancel()
 		if err := sb.Kill(killCtx); err != nil {
-			t.Logf("清理沙箱 %s 失败: %v", sb.SandboxID, err)
+			t.Logf("清理沙箱 %s 失败: %v", sb.ID(), err)
 		}
 	})
 

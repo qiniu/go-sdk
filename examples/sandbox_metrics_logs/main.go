@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/sandbox"
-	"github.com/qiniu/go-sdk/v7/sandbox/apis"
 )
 
 func main() {
@@ -33,14 +32,14 @@ func main() {
 	// 1. 创建沙箱
 	templateID := "base"
 	timeout := int32(120)
-	sb, _, err := c.CreateAndWait(ctx, apis.CreateSandboxJSONRequestBody{
+	sb, _, err := c.CreateAndWait(ctx, sandbox.CreateParams{
 		TemplateID: templateID,
 		Timeout:    &timeout,
-	}, 2*time.Second)
+	}, sandbox.WithPollInterval(2*time.Second))
 	if err != nil {
 		log.Fatalf("创建沙箱失败: %v", err)
 	}
-	fmt.Printf("沙箱已就绪: %s\n", sb.SandboxID)
+	fmt.Printf("沙箱已就绪: %s\n", sb.ID())
 	defer func() {
 		_ = sb.Kill(context.Background())
 		fmt.Println("沙箱已终止")

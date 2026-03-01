@@ -13,7 +13,7 @@ import (
 
 func TestGetHost(t *testing.T) {
 	c := &Client{config: &Config{Domain: "example.com"}}
-	sb := &Sandbox{SandboxID: "sb-123", client: c}
+	sb := &Sandbox{sandboxID: "sb-123", client: c}
 
 	got := sb.GetHost(8080)
 	want := "8080-sb-123.example.com"
@@ -24,7 +24,7 @@ func TestGetHost(t *testing.T) {
 
 func TestGetHostDefaultDomain(t *testing.T) {
 	c := &Client{config: &Config{}}
-	sb := &Sandbox{SandboxID: "sb-456", client: c}
+	sb := &Sandbox{sandboxID: "sb-456", client: c}
 
 	got := sb.GetHost(3000)
 	want := "3000-sb-456."
@@ -36,7 +36,7 @@ func TestGetHostDefaultDomain(t *testing.T) {
 func TestGetHostSandboxDomainOverride(t *testing.T) {
 	c := &Client{config: &Config{Domain: "default.com"}}
 	domain := "custom.sandbox.com"
-	sb := &Sandbox{SandboxID: "sb-789", Domain: &domain, client: c}
+	sb := &Sandbox{sandboxID: "sb-789", domain: &domain, client: c}
 
 	got := sb.GetHost(443)
 	want := "443-sb-789.custom.sandbox.com"
@@ -47,7 +47,7 @@ func TestGetHostSandboxDomainOverride(t *testing.T) {
 
 func TestEnvdURL(t *testing.T) {
 	c := &Client{config: &Config{Domain: "test.dev"}}
-	sb := &Sandbox{SandboxID: "sb-100", client: c}
+	sb := &Sandbox{sandboxID: "sb-100", client: c}
 
 	got := sb.envdURL()
 	want := "https://49983-sb-100.test.dev"
@@ -79,7 +79,7 @@ func TestFileSignature(t *testing.T) {
 func TestDownloadURL(t *testing.T) {
 	c := &Client{config: &Config{Domain: "test.dev"}}
 	token := "mytoken"
-	sb := &Sandbox{SandboxID: "sb-100", EnvdAccessToken: &token, client: c}
+	sb := &Sandbox{sandboxID: "sb-100", envdAccessToken: &token, client: c}
 
 	u := sb.DownloadURL("/home/user/file.txt")
 	// 验证 URL 包含必要的查询参数
@@ -95,7 +95,7 @@ func TestDownloadURL(t *testing.T) {
 func TestUploadURL(t *testing.T) {
 	c := &Client{config: &Config{Domain: "test.dev"}}
 	token := "mytoken"
-	sb := &Sandbox{SandboxID: "sb-100", EnvdAccessToken: &token, client: c}
+	sb := &Sandbox{sandboxID: "sb-100", envdAccessToken: &token, client: c}
 
 	u := sb.UploadURL("/home/user/file.txt")
 	if u == "" {
@@ -108,7 +108,7 @@ func TestUploadURL(t *testing.T) {
 
 func TestDownloadURLWithoutToken(t *testing.T) {
 	c := &Client{config: &Config{Domain: "test.dev"}}
-	sb := &Sandbox{SandboxID: "sb-100", client: c}
+	sb := &Sandbox{sandboxID: "sb-100", client: c}
 
 	u := sb.DownloadURL("/file.txt")
 	// 没有 token 时不应包含 signature 参数
@@ -119,7 +119,7 @@ func TestDownloadURLWithoutToken(t *testing.T) {
 
 func TestFilesLazyInit(t *testing.T) {
 	c := &Client{config: &Config{Domain: "test.dev"}}
-	sb := &Sandbox{SandboxID: "sb-100", client: c}
+	sb := &Sandbox{sandboxID: "sb-100", client: c}
 
 	fs1 := sb.Files()
 	fs2 := sb.Files()
@@ -130,7 +130,7 @@ func TestFilesLazyInit(t *testing.T) {
 
 func TestCommandsLazyInit(t *testing.T) {
 	c := &Client{config: &Config{Domain: "test.dev"}}
-	sb := &Sandbox{SandboxID: "sb-100", client: c}
+	sb := &Sandbox{sandboxID: "sb-100", client: c}
 
 	cmd1 := sb.Commands()
 	cmd2 := sb.Commands()
@@ -141,7 +141,7 @@ func TestCommandsLazyInit(t *testing.T) {
 
 func TestPtyLazyInit(t *testing.T) {
 	c := &Client{config: &Config{Domain: "test.dev"}}
-	sb := &Sandbox{SandboxID: "sb-100", client: c}
+	sb := &Sandbox{sandboxID: "sb-100", client: c}
 
 	pty1 := sb.Pty()
 	pty2 := sb.Pty()
@@ -153,7 +153,7 @@ func TestPtyLazyInit(t *testing.T) {
 func TestFileURLOptionWithUser(t *testing.T) {
 	c := &Client{config: &Config{Domain: "test.dev"}}
 	token := "tok"
-	sb := &Sandbox{SandboxID: "sb-1", EnvdAccessToken: &token, client: c}
+	sb := &Sandbox{sandboxID: "sb-1", envdAccessToken: &token, client: c}
 
 	u := sb.DownloadURL("/file.txt", WithFileUser("admin"))
 	// 验证 URL 包含 username=admin
@@ -182,7 +182,7 @@ func TestEntryInfoFromProtoNil(t *testing.T) {
 
 func TestWriteFilesEmpty(t *testing.T) {
 	c := &Client{config: &Config{Domain: "test.dev"}}
-	sb := &Sandbox{SandboxID: "sb-100", client: c}
+	sb := &Sandbox{sandboxID: "sb-100", client: c}
 	fs := &Filesystem{sandbox: sb}
 
 	infos, err := fs.WriteFiles(context.Background(), nil)
@@ -196,7 +196,7 @@ func TestWriteFilesEmpty(t *testing.T) {
 
 func TestBatchUploadURL(t *testing.T) {
 	c := &Client{config: &Config{Domain: "test.dev"}}
-	sb := &Sandbox{SandboxID: "sb-100", client: c}
+	sb := &Sandbox{sandboxID: "sb-100", client: c}
 
 	u := sb.batchUploadURL("user")
 	want := "https://49983-sb-100.test.dev/files?username=user"

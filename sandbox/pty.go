@@ -114,7 +114,7 @@ func (p *Pty) SendInput(ctx context.Context, pid uint32, data []byte) error {
 			Input: &process.ProcessInput_Pty{Pty: data},
 		},
 	})
-	for k, vs := range envdAuthHeader("user") {
+	for k, vs := range envdAuthHeader(DefaultUser) {
 		for _, v := range vs {
 			req.Header().Add(k, v)
 		}
@@ -140,7 +140,7 @@ func (p *Pty) Resize(ctx context.Context, pid uint32, size PtySize) error {
 			},
 		},
 	})
-	for k, vs := range envdAuthHeader("user") {
+	for k, vs := range envdAuthHeader(DefaultUser) {
 		for _, v := range vs {
 			req.Header().Add(k, v)
 		}
@@ -161,7 +161,7 @@ func (p *Pty) Kill(ctx context.Context, pid uint32) error {
 		},
 		Signal: process.Signal_SIGNAL_SIGKILL,
 	})
-	for k, vs := range envdAuthHeader("user") {
+	for k, vs := range envdAuthHeader(DefaultUser) {
 		for _, v := range vs {
 			req.Header().Add(k, v)
 		}
