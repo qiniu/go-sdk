@@ -17,3 +17,25 @@ generate:
 	go generate ./audit/
 	gofmt -w .
 	gofumpt -w .
+
+generate-sandbox:
+	# 控制面 API
+	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 \
+		--config sandbox/apis/oapi-codegen.yaml \
+		../api-specs/sandbox/openapi.yml
+	# envd HTTP API
+	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 \
+		--config sandbox/envdapi/oapi-codegen.yaml \
+		../api-specs/sandbox/envd/envd.yaml
+	# envd ConnectRPC（需要安装 buf、protoc-gen-go、protoc-gen-connect-go）
+	cd ../api-specs/sandbox/envd && buf generate
+	# 验证编译
+	go build ./sandbox/...
+
+sandbox-examples:
+	@for dir in examples/sandbox_*/; do \
+		name=$$(basename $$dir); \
+		echo "=== $$name ==="; \
+		go run ./$$dir || exit 1; \
+		echo ""; \
+	done
