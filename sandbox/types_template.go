@@ -1,9 +1,10 @@
 package sandbox
 
 import (
+	"encoding/json"
 	"time"
 
-	"github.com/qiniu/go-sdk/v7/sandbox/apis"
+	"github.com/qiniu/go-sdk/v7/sandbox/internal/apis"
 )
 
 // ---------------------------------------------------------------------------
@@ -22,32 +23,288 @@ const (
 	BuildStatusUploaded TemplateBuildStatus = "uploaded"
 )
 
+// LogLevel 日志级别。
+type LogLevel string
+
+// 日志级别常量。
+const (
+	LogLevelDebug LogLevel = "debug"
+	LogLevelError LogLevel = "error"
+	LogLevelInfo  LogLevel = "info"
+	LogLevelWarn  LogLevel = "warn"
+)
+
+// LogsDirection 日志方向。
+type LogsDirection string
+
+// 日志方向常量。
+const (
+	LogsDirectionBackward LogsDirection = "backward"
+	LogsDirectionForward  LogsDirection = "forward"
+)
+
+// LogsSource 日志来源。
+type LogsSource string
+
+// 日志来源常量。
+const (
+	LogsSourcePersistent LogsSource = "persistent"
+	LogsSourceTemporary  LogsSource = "temporary"
+)
+
+// TemplateStep 模板构建步骤。
+type TemplateStep struct {
+	// Args 步骤参数。
+	Args *[]string
+
+	// FilesHash 步骤中使用文件的哈希值。
+	FilesHash *string
+
+	// Force 是否强制执行（忽略缓存）。
+	Force *bool
+
+	// Type 步骤类型。
+	Type string
+}
+
+func templateStepsToAPI(steps *[]TemplateStep) *[]apis.TemplateStep {
+	if steps == nil {
+		return nil
+	}
+	result := make([]apis.TemplateStep, len(*steps))
+	for i, s := range *steps {
+		result[i] = apis.TemplateStep{
+			Args:      s.Args,
+			FilesHash: s.FilesHash,
+			Force:     s.Force,
+			Type:      s.Type,
+		}
+	}
+	return &result
+}
+
+// FromImageRegistry 镜像仓库认证配置（union 类型，支持 AWS/GCP/General 三种 registry）。
+// 使用 json.RawMessage 保留原始 JSON 格式，由服务端解析具体类型。
+type FromImageRegistry = json.RawMessage
+
 // CreateTemplateParams 创建模板的请求参数。
-type CreateTemplateParams = apis.CreateTemplateV3JSONRequestBody
+type CreateTemplateParams struct {
+	// Alias 模板别名（已废弃，请使用 Name）。
+	Alias *string
+
+	// CPUCount 沙箱 CPU 核数。
+	CPUCount *int32
+
+	// MemoryMB 沙箱内存大小（MiB）。
+	MemoryMB *int32
+
+	// Name 模板名称，可包含标签（如 "my-template" 或 "my-template:v1"）。
+	Name *string
+
+	// Tags 分配给模板构建的标签列表。
+	Tags *[]string
+
+	// TeamID 团队 ID（已废弃）。
+	TeamID *string
+}
+
+func (p *CreateTemplateParams) toAPI() apis.CreateTemplateV3JSONRequestBody {
+	return apis.CreateTemplateV3JSONRequestBody{
+		Alias:    p.Alias,
+		CPUCount: p.CPUCount,
+		MemoryMB: p.MemoryMB,
+		Name:     p.Name,
+		Tags:     p.Tags,
+		TeamID:   p.TeamID,
+	}
+}
 
 // UpdateTemplateParams 更新模板的请求参数。
-type UpdateTemplateParams = apis.UpdateTemplateJSONRequestBody
+type UpdateTemplateParams struct {
+	// Public 模板是否公开。
+	Public *bool
+}
+
+func (p *UpdateTemplateParams) toAPI() apis.UpdateTemplateJSONRequestBody {
+	return apis.UpdateTemplateJSONRequestBody{
+		Public: p.Public,
+	}
+}
 
 // StartTemplateBuildParams 启动模板构建的请求参数。
-type StartTemplateBuildParams = apis.StartTemplateBuildV2JSONRequestBody
+type StartTemplateBuildParams struct {
+	// Force 是否强制完整构建（忽略缓存）。
+	Force *bool
+
+	// FromImage 用作模板构建基础的镜像。
+	FromImage *string
+
+	// FromImageRegistry 镜像仓库认证配置。
+	FromImageRegistry *FromImageRegistry
+
+	// FromTemplate 用作模板构建基础的模板。
+	FromTemplate *string
+
+	// ReadyCmd 构建完成后执行的就绪检查命令。
+	ReadyCmd *string
+
+	// StartCmd 构建完成后执行的启动命令。
+	StartCmd *string
+
+	// Steps 模板构建步骤列表。
+	Steps *[]TemplateStep
+}
+
+func (p *StartTemplateBuildParams) toAPI() apis.StartTemplateBuildV2JSONRequestBody {
+	body := apis.StartTemplateBuildV2JSONRequestBody{
+		Force:        p.Force,
+		FromImage:    p.FromImage,
+		FromTemplate: p.FromTemplate,
+		ReadyCmd:     p.ReadyCmd,
+		StartCmd:     p.StartCmd,
+		Steps:        templateStepsToAPI(p.Steps),
+	}
+	if p.FromImageRegistry != nil {
+		reg := apis.FromImageRegistry{}
+		_ = reg.UnmarshalJSON(*p.FromImageRegistry)
+		body.FromImageRegistry = &reg
+	}
+	return body
+}
 
 // ListTemplatesParams 列出模板的查询参数。
-type ListTemplatesParams = apis.ListTemplatesParams
+type ListTemplatesParams struct {
+	// TeamID 团队 ID。
+	TeamID *string
+}
+
+func (p *ListTemplatesParams) toAPI() *apis.ListTemplatesParams {
+	if p == nil {
+		return nil
+	}
+	return &apis.ListTemplatesParams{
+		TeamID: p.TeamID,
+	}
+}
 
 // GetTemplateParams 获取模板详情的查询参数。
-type GetTemplateParams = apis.GetTemplateParams
+type GetTemplateParams struct {
+	// NextToken 分页游标。
+	NextToken *string
+
+	// Limit 每页最大返回数。
+	Limit *int32
+}
+
+func (p *GetTemplateParams) toAPI() *apis.GetTemplateParams {
+	if p == nil {
+		return nil
+	}
+	return &apis.GetTemplateParams{
+		NextToken: p.NextToken,
+		Limit:     p.Limit,
+	}
+}
 
 // GetBuildStatusParams 获取构建状态的查询参数。
-type GetBuildStatusParams = apis.GetTemplateBuildStatusParams
+type GetBuildStatusParams struct {
+	// LogsOffset 起始构建日志的索引。
+	LogsOffset *int32
+
+	// Limit 返回的最大日志条数。
+	Limit *int32
+
+	// Level 日志级别过滤。
+	Level *LogLevel
+}
+
+func (p *GetBuildStatusParams) toAPI() *apis.GetTemplateBuildStatusParams {
+	if p == nil {
+		return nil
+	}
+	params := &apis.GetTemplateBuildStatusParams{
+		LogsOffset: p.LogsOffset,
+		Limit:      p.Limit,
+	}
+	if p.Level != nil {
+		level := apis.LogLevel(*p.Level)
+		params.Level = &level
+	}
+	return params
+}
 
 // GetBuildLogsParams 获取构建日志的查询参数。
-type GetBuildLogsParams = apis.GetTemplateBuildLogsParams
+type GetBuildLogsParams struct {
+	// Cursor 起始时间戳（毫秒）。
+	Cursor *int64
+
+	// Limit 返回的最大日志条数。
+	Limit *int32
+
+	// Direction 日志方向。
+	Direction *LogsDirection
+
+	// Level 日志级别过滤。
+	Level *LogLevel
+
+	// Source 日志来源过滤。
+	Source *LogsSource
+}
+
+func (p *GetBuildLogsParams) toAPI() *apis.GetTemplateBuildLogsParams {
+	if p == nil {
+		return nil
+	}
+	params := &apis.GetTemplateBuildLogsParams{
+		Cursor: p.Cursor,
+		Limit:  p.Limit,
+	}
+	if p.Direction != nil {
+		dir := apis.LogsDirection(*p.Direction)
+		params.Direction = &dir
+	}
+	if p.Level != nil {
+		level := apis.LogLevel(*p.Level)
+		params.Level = &level
+	}
+	if p.Source != nil {
+		src := apis.LogsSource(*p.Source)
+		params.Source = &src
+	}
+	return params
+}
 
 // ManageTagsParams 管理模板标签的请求参数。
-type ManageTagsParams = apis.ManageTemplateTagsJSONRequestBody
+type ManageTagsParams struct {
+	// Tags 要分配给模板的标签列表。
+	Tags []string
+
+	// Target 目标模板（格式："name:tag"）。
+	Target string
+}
+
+func (p *ManageTagsParams) toAPI() apis.ManageTemplateTagsJSONRequestBody {
+	return apis.ManageTemplateTagsJSONRequestBody{
+		Tags:   p.Tags,
+		Target: p.Target,
+	}
+}
 
 // DeleteTagsParams 删除模板标签的请求参数。
-type DeleteTagsParams = apis.DeleteTemplateTagsJSONRequestBody
+type DeleteTagsParams struct {
+	// Name 模板名称。
+	Name string
+
+	// Tags 要删除的标签列表。
+	Tags []string
+}
+
+func (p *DeleteTagsParams) toAPI() apis.DeleteTemplateTagsJSONRequestBody {
+	return apis.DeleteTemplateTagsJSONRequestBody{
+		Name: p.Name,
+		Tags: p.Tags,
+	}
+}
 
 // Template 模板信息。
 type Template struct {

@@ -1324,8 +1324,8 @@ const file_filesystem_filesystem_proto_rawDesc = "" +
 	"\bWatchDir\x12\x1b.filesystem.WatchDirRequest\x1a\x1c.filesystem.WatchDirResponse0\x01\x12T\n" +
 	"\rCreateWatcher\x12 .filesystem.CreateWatcherRequest\x1a!.filesystem.CreateWatcherResponse\x12]\n" +
 	"\x10GetWatcherEvents\x12#.filesystem.GetWatcherEventsRequest\x1a$.filesystem.GetWatcherEventsResponse\x12T\n" +
-	"\rRemoveWatcher\x12 .filesystem.RemoveWatcherRequest\x1a!.filesystem.RemoveWatcherResponseB\xa0\x01\n" +
-	"\x0ecom.filesystemB\x0fFilesystemProtoP\x01Z5github.com/qiniu/go-sdk/v7/sandbox/envdapi/filesystem\xa2\x02\x03FXX\xaa\x02\n" +
+	"\rRemoveWatcher\x12 .filesystem.RemoveWatcherRequest\x1a!.filesystem.RemoveWatcherResponseB\xa9\x01\n" +
+	"\x0ecom.filesystemB\x0fFilesystemProtoP\x01Z>github.com/qiniu/go-sdk/v7/sandbox/internal/envdapi/filesystem\xa2\x02\x03FXX\xaa\x02\n" +
 	"Filesystem\xca\x02\n" +
 	"Filesystem\xe2\x02\x16Filesystem\\GPBMetadata\xea\x02\n" +
 	"Filesystemb\x06proto3"

@@ -6,8 +6,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/qiniu/go-sdk/v7/sandbox/envdapi/process"
-	"github.com/qiniu/go-sdk/v7/sandbox/envdapi/process/processconnect"
+	"github.com/qiniu/go-sdk/v7/sandbox/internal/envdapi/process"
+	"github.com/qiniu/go-sdk/v7/sandbox/internal/envdapi/process/processconnect"
 )
 
 // PtySize PTY 终端大小。

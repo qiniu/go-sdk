@@ -8,7 +8,7 @@ import (
 
 // ListTemplates 列出所有模板。
 func (c *Client) ListTemplates(ctx context.Context, params *ListTemplatesParams) ([]Template, error) {
-	resp, err := c.api.ListTemplatesWithResponse(ctx, params)
+	resp, err := c.api.ListTemplatesWithResponse(ctx, params.toAPI())
 	if err != nil {
 		return nil, err
 	}
@@ -20,7 +20,7 @@ func (c *Client) ListTemplates(ctx context.Context, params *ListTemplatesParams)
 
 // CreateTemplate 创建一个新模板（v3 API）。
 func (c *Client) CreateTemplate(ctx context.Context, body CreateTemplateParams) (*TemplateCreateResponse, error) {
-	resp, err := c.api.CreateTemplateV3WithResponse(ctx, body)
+	resp, err := c.api.CreateTemplateV3WithResponse(ctx, body.toAPI())
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func (c *Client) CreateTemplate(ctx context.Context, body CreateTemplateParams) 
 
 // GetTemplate 返回模板详情及其构建记录。
 func (c *Client) GetTemplate(ctx context.Context, templateID string, params *GetTemplateParams) (*TemplateWithBuilds, error) {
-	resp, err := c.api.GetTemplateWithResponse(ctx, templateID, params)
+	resp, err := c.api.GetTemplateWithResponse(ctx, templateID, params.toAPI())
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (c *Client) DeleteTemplate(ctx context.Context, templateID string) error {
 
 // UpdateTemplate 更新一个模板。
 func (c *Client) UpdateTemplate(ctx context.Context, templateID string, body UpdateTemplateParams) error {
-	resp, err := c.api.UpdateTemplateWithResponse(ctx, templateID, body)
+	resp, err := c.api.UpdateTemplateWithResponse(ctx, templateID, body.toAPI())
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func (c *Client) UpdateTemplate(ctx context.Context, templateID string, body Upd
 
 // GetTemplateBuildStatus 返回模板的构建状态。
 func (c *Client) GetTemplateBuildStatus(ctx context.Context, templateID, buildID string, params *GetBuildStatusParams) (*TemplateBuildInfo, error) {
-	resp, err := c.api.GetTemplateBuildStatusWithResponse(ctx, templateID, buildID, params)
+	resp, err := c.api.GetTemplateBuildStatusWithResponse(ctx, templateID, buildID, params.toAPI())
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (c *Client) GetTemplateBuildStatus(ctx context.Context, templateID, buildID
 
 // GetTemplateBuildLogs 返回模板的构建日志。
 func (c *Client) GetTemplateBuildLogs(ctx context.Context, templateID, buildID string, params *GetBuildLogsParams) (*TemplateBuildLogs, error) {
-	resp, err := c.api.GetTemplateBuildLogsWithResponse(ctx, templateID, buildID, params)
+	resp, err := c.api.GetTemplateBuildLogsWithResponse(ctx, templateID, buildID, params.toAPI())
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (c *Client) GetTemplateBuildLogs(ctx context.Context, templateID, buildID s
 
 // StartTemplateBuild 启动模板构建（v2 API）。
 func (c *Client) StartTemplateBuild(ctx context.Context, templateID, buildID string, body StartTemplateBuildParams) error {
-	resp, err := c.api.StartTemplateBuildV2WithResponse(ctx, templateID, buildID, body)
+	resp, err := c.api.StartTemplateBuildV2WithResponse(ctx, templateID, buildID, body.toAPI())
 	if err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func (c *Client) GetTemplateByAlias(ctx context.Context, alias string) (*Templat
 
 // ManageTemplateTags 为模板构建分配标签。
 func (c *Client) ManageTemplateTags(ctx context.Context, body ManageTagsParams) (*AssignedTemplateTags, error) {
-	resp, err := c.api.ManageTemplateTagsWithResponse(ctx, body)
+	resp, err := c.api.ManageTemplateTagsWithResponse(ctx, body.toAPI())
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func (c *Client) ManageTemplateTags(ctx context.Context, body ManageTagsParams) 
 
 // DeleteTemplateTags 删除模板的标签。
 func (c *Client) DeleteTemplateTags(ctx context.Context, body DeleteTagsParams) error {
-	resp, err := c.api.DeleteTemplateTagsWithResponse(ctx, body)
+	resp, err := c.api.DeleteTemplateTagsWithResponse(ctx, body.toAPI())
 	if err != nil {
 		return err
 	}

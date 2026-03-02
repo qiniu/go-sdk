@@ -13,10 +13,10 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/qiniu/go-sdk/v7/sandbox/envdapi/filesystem"
-	"github.com/qiniu/go-sdk/v7/sandbox/envdapi/filesystem/filesystemconnect"
-	"github.com/qiniu/go-sdk/v7/sandbox/envdapi/process"
-	"github.com/qiniu/go-sdk/v7/sandbox/envdapi/process/processconnect"
+	"github.com/qiniu/go-sdk/v7/sandbox/internal/envdapi/filesystem"
+	"github.com/qiniu/go-sdk/v7/sandbox/internal/envdapi/filesystem/filesystemconnect"
+	"github.com/qiniu/go-sdk/v7/sandbox/internal/envdapi/process"
+	"github.com/qiniu/go-sdk/v7/sandbox/internal/envdapi/process/processconnect"
 )
 
 // ---------------------------------------------------------------------------

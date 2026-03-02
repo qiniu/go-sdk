@@ -1730,8 +1730,8 @@ const file_process_process_proto_rawDesc = "" +
 	"\vStreamInput\x12\x1b.process.StreamInputRequest\x1a\x1c.process.StreamInputResponse(\x01\x12B\n" +
 	"\tSendInput\x12\x19.process.SendInputRequest\x1a\x1a.process.SendInputResponse\x12E\n" +
 	"\n" +
-	"SendSignal\x12\x1a.process.SendSignalRequest\x1a\x1b.process.SendSignalResponseB\x8b\x01\n" +
-	"\vcom.processB\fProcessProtoP\x01Z2github.com/qiniu/go-sdk/v7/sandbox/envdapi/process\xa2\x02\x03PXX\xaa\x02\aProcess\xca\x02\aProcess\xe2\x02\x13Process\\GPBMetadata\xea\x02\aProcessb\x06proto3"
+	"SendSignal\x12\x1a.process.SendSignalRequest\x1a\x1b.process.SendSignalResponseB\x94\x01\n" +
+	"\vcom.processB\fProcessProtoP\x01Z;github.com/qiniu/go-sdk/v7/sandbox/internal/envdapi/process\xa2\x02\x03PXX\xaa\x02\aProcess\xca\x02\aProcess\xe2\x02\x13Process\\GPBMetadata\xea\x02\aProcessb\x06proto3"
 
 var (
 	file_process_process_proto_rawDescOnce sync.Once

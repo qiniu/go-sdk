@@ -9,8 +9,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/qiniu/go-sdk/v7/sandbox/envdapi/filesystem"
-	"github.com/qiniu/go-sdk/v7/sandbox/envdapi/filesystem/filesystemconnect"
+	"github.com/qiniu/go-sdk/v7/sandbox/internal/envdapi/filesystem"
+	"github.com/qiniu/go-sdk/v7/sandbox/internal/envdapi/filesystem/filesystemconnect"
 )
 
 // FileType 文件类型。

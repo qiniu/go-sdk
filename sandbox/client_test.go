@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/qiniu/go-sdk/v7/sandbox/apis"
+	"github.com/qiniu/go-sdk/v7/sandbox/internal/apis"
 )
 
 // mockAPI 实现 apis.ClientWithResponsesInterface 用于测试。
@@ -236,7 +236,7 @@ func TestNewClient(t *testing.T) {
 	if c == nil {
 		t.Fatal("expected non-nil client")
 	}
-	if c.API() == nil {
+	if c.api == nil {
 		t.Error("expected non-nil API client")
 	}
 }
@@ -938,7 +938,7 @@ func TestCreateTemplate(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	resp, err := c.CreateTemplate(context.Background(), apis.TemplateBuildRequestV3{})
+	resp, err := c.CreateTemplate(context.Background(), CreateTemplateParams{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -960,7 +960,7 @@ func TestCreateTemplateError(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	_, err := c.CreateTemplate(context.Background(), apis.TemplateBuildRequestV3{})
+	_, err := c.CreateTemplate(context.Background(), CreateTemplateParams{})
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -1136,7 +1136,7 @@ func TestGetSandboxesMetrics(t *testing.T) {
 		},
 	}
 	c := newTestClient(mockWithMetrics)
-	metrics, err := c.GetSandboxesMetrics(context.Background(), &apis.GetSandboxesMetricsParams{SandboxIds: []string{"sb-1"}})
+	metrics, err := c.GetSandboxesMetrics(context.Background(), &GetSandboxesMetricsParams{SandboxIds: []string{"sb-1"}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

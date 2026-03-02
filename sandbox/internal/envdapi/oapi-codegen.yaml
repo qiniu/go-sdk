@@ -1,5 +1,5 @@
 package: envdapi
-output: sandbox/envdapi/envd.gen.go
+output: sandbox/internal/envdapi/envd.gen.go
 generate:
   models: true
   client: true

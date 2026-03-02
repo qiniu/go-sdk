@@ -21,11 +21,11 @@ generate:
 generate-sandbox:
 	# 控制面 API
 	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 \
-		--config sandbox/apis/oapi-codegen.yaml \
+		--config sandbox/internal/apis/oapi-codegen.yaml \
 		../api-specs/sandbox/openapi.yml
 	# envd HTTP API
 	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 \
-		--config sandbox/envdapi/oapi-codegen.yaml \
+		--config sandbox/internal/envdapi/oapi-codegen.yaml \
 		../api-specs/sandbox/envd/envd.yaml
 	# envd ConnectRPC（需要安装 buf、protoc-gen-go、protoc-gen-connect-go）
 	cd ../api-specs/sandbox/envd && buf generate

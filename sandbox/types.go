@@ -3,7 +3,7 @@ package sandbox
 import (
 	"time"
 
-	"github.com/qiniu/go-sdk/v7/sandbox/apis"
+	"github.com/qiniu/go-sdk/v7/sandbox/internal/apis"
 )
 
 // ---------------------------------------------------------------------------
@@ -92,13 +92,57 @@ type ListParams struct {
 }
 
 // GetMetricsParams 获取沙箱指标的查询参数。
-type GetMetricsParams = apis.GetSandboxMetricsParams
+type GetMetricsParams struct {
+	// Start 起始时间的 Unix 时间戳（秒）。
+	Start *int64
+
+	// End 结束时间的 Unix 时间戳（秒）。
+	End *int64
+}
+
+func (p *GetMetricsParams) toAPI() *apis.GetSandboxMetricsParams {
+	if p == nil {
+		return nil
+	}
+	return &apis.GetSandboxMetricsParams{
+		Start: p.Start,
+		End:   p.End,
+	}
+}
 
 // GetLogsParams 获取沙箱日志的查询参数。
-type GetLogsParams = apis.GetSandboxLogsParams
+type GetLogsParams struct {
+	// Start 日志起始时间的毫秒级时间戳。
+	Start *int64
+
+	// Limit 返回的最大日志条数。
+	Limit *int32
+}
+
+func (p *GetLogsParams) toAPI() *apis.GetSandboxLogsParams {
+	if p == nil {
+		return nil
+	}
+	return &apis.GetSandboxLogsParams{
+		Start: p.Start,
+		Limit: p.Limit,
+	}
+}
 
 // GetSandboxesMetricsParams 批量获取沙箱指标的查询参数。
-type GetSandboxesMetricsParams = apis.GetSandboxesMetricsParams
+type GetSandboxesMetricsParams struct {
+	// SandboxIds 要获取指标的沙箱 ID 列表。
+	SandboxIds []string
+}
+
+func (p *GetSandboxesMetricsParams) toAPI() *apis.GetSandboxesMetricsParams {
+	if p == nil {
+		return nil
+	}
+	return &apis.GetSandboxesMetricsParams{
+		SandboxIds: p.SandboxIds,
+	}
+}
 
 // SandboxInfo 沙箱详细信息。
 type SandboxInfo struct {

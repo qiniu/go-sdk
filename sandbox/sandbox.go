@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/qiniu/go-sdk/v7/sandbox/apis"
-	"github.com/qiniu/go-sdk/v7/sandbox/envdapi/process/processconnect"
+	"github.com/qiniu/go-sdk/v7/sandbox/internal/apis"
+	"github.com/qiniu/go-sdk/v7/sandbox/internal/envdapi/process/processconnect"
 
 	connect "connectrpc.com/connect"
 )
@@ -201,7 +201,7 @@ func (s *Sandbox) IsRunning(ctx context.Context) (bool, error) {
 
 // GetMetrics 返回沙箱的资源指标。
 func (s *Sandbox) GetMetrics(ctx context.Context, params *GetMetricsParams) ([]SandboxMetric, error) {
-	resp, err := s.client.api.GetSandboxMetricsWithResponse(ctx, s.sandboxID, params)
+	resp, err := s.client.api.GetSandboxMetricsWithResponse(ctx, s.sandboxID, params.toAPI())
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +213,7 @@ func (s *Sandbox) GetMetrics(ctx context.Context, params *GetMetricsParams) ([]S
 
 // GetLogs 返回沙箱日志。
 func (s *Sandbox) GetLogs(ctx context.Context, params *GetLogsParams) (*SandboxLogs, error) {
-	resp, err := s.client.api.GetSandboxLogsWithResponse(ctx, s.sandboxID, params)
+	resp, err := s.client.api.GetSandboxLogsWithResponse(ctx, s.sandboxID, params.toAPI())
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func (c *Client) CreateAndWait(ctx context.Context, params CreateParams, opts ..
 
 // GetSandboxesMetrics 返回指定沙箱 ID 列表的指标数据。
 func (c *Client) GetSandboxesMetrics(ctx context.Context, params *GetSandboxesMetricsParams) (*SandboxesWithMetrics, error) {
-	resp, err := c.api.GetSandboxesMetricsWithResponse(ctx, params)
+	resp, err := c.api.GetSandboxesMetricsWithResponse(ctx, params.toAPI())
 	if err != nil {
 		return nil, err
 	}
