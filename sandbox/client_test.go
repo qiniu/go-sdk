@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -423,17 +424,30 @@ func TestGetInfo(t *testing.T) {
 
 // --- Sandbox.IsRunning ---
 
+// newEnvdHealthServer 启动一个 mock envd 服务，/health 端点返回指定状态码。
+func newEnvdHealthServer(statusCode int) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			w.WriteHeader(statusCode)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+}
+
 func TestIsRunning(t *testing.T) {
-	mock := &mockAPI{
-		getSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error) {
-			return &apis.GetSandboxResponse{
-				JSON200:      &apis.SandboxDetail{SandboxID: sandboxID, State: apis.Running},
-				HTTPResponse: httpResponse(200),
-			}, nil
-		},
-	}
-	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
+	ts := newEnvdHealthServer(http.StatusNoContent)
+	defer ts.Close()
+
+	// 构造 sandbox，envdURL() 指向 test server
+	// 需要让 GetHost 返回 test server 的 host，这里直接设置 domain 并覆盖 envdURL
+	c := &Client{config: &Config{APIKey: "test-key", HTTPClient: ts.Client()}}
+	sb := &Sandbox{sandboxID: "sb-123", client: c}
+	// 覆盖 envdURL: 通过设置一个 helper 来让 envdURL 返回 test server URL
+	// 由于 envdURL 依赖 GetHost，我们使用 httptest 的 URL 作为 base
+	// 直接测试: 使用自定义 transport 将请求重定向到 test server
+	c.config.HTTPClient = redirectClient(ts.URL)
+
 	running, err := sb.IsRunning(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -443,17 +457,13 @@ func TestIsRunning(t *testing.T) {
 	}
 }
 
-func TestIsRunningPaused(t *testing.T) {
-	mock := &mockAPI{
-		getSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error) {
-			return &apis.GetSandboxResponse{
-				JSON200:      &apis.SandboxDetail{SandboxID: sandboxID, State: apis.Paused},
-				HTTPResponse: httpResponse(200),
-			}, nil
-		},
-	}
-	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
+func TestIsRunningNotReachable(t *testing.T) {
+	ts := newEnvdHealthServer(http.StatusBadGateway)
+	defer ts.Close()
+
+	c := &Client{config: &Config{APIKey: "test-key", HTTPClient: redirectClient(ts.URL)}}
+	sb := &Sandbox{sandboxID: "sb-123", client: c}
+
 	running, err := sb.IsRunning(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -461,6 +471,31 @@ func TestIsRunningPaused(t *testing.T) {
 	if running {
 		t.Error("expected sandbox to not be running")
 	}
+}
+
+// redirectClient 返回一个 HTTP 客户端，将所有请求重定向到指定的 target URL。
+func redirectClient(target string) *http.Client {
+	return &http.Client{
+		Transport: &redirectTransport{target: target},
+	}
+}
+
+type redirectTransport struct {
+	target string
+}
+
+func (t *redirectTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// 保留原始路径和查询，将 scheme+host 替换为 test server
+	newURL := t.target + req.URL.Path
+	if req.URL.RawQuery != "" {
+		newURL += "?" + req.URL.RawQuery
+	}
+	newReq, err := http.NewRequestWithContext(req.Context(), req.Method, newURL, req.Body)
+	if err != nil {
+		return nil, err
+	}
+	newReq.Header = req.Header
+	return http.DefaultTransport.RoundTrip(newReq)
 }
 
 // --- Sandbox.Pause ---

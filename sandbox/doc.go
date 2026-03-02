@@ -43,7 +43,8 @@
 //   - [Sandbox.Pause]: 暂停沙箱（保留文件系统和内存状态）
 //   - [Sandbox.SetTimeout]: 更新超时时间
 //   - [Sandbox.Refresh]: 延长存活时间
-//   - [Sandbox.GetInfo] / [Sandbox.IsRunning]: 查询沙箱状态
+//   - [Sandbox.GetInfo]: 查询沙箱详细状态
+//   - [Sandbox.IsRunning]: 通过 envd /health 端点检查沙箱是否可用
 //   - [Sandbox.GetMetrics]: 获取 CPU、内存、磁盘等资源指标
 //   - [Sandbox.GetLogs]: 获取沙箱日志
 //   - [Sandbox.WaitForReady]: 轮询等待沙箱进入 running 状态

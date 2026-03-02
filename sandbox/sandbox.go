@@ -176,13 +176,27 @@ func (s *Sandbox) GetInfo(ctx context.Context) (*SandboxInfo, error) {
 	return sandboxInfoFromAPI(resp.JSON200), nil
 }
 
-// IsRunning 检查沙箱是否处于运行状态。
+// IsRunning 通过探测 envd /health 端点检查沙箱是否正在运行且可用。
+// 与 GetInfo（查询控制面状态）不同，此方法直接验证沙箱内部 agent 是否可达。
+// 返回 true 表示沙箱运行中且 envd agent 已就绪；返回 false 表示沙箱不可达（已暂停、已终止等）。
 func (s *Sandbox) IsRunning(ctx context.Context) (bool, error) {
-	info, err := s.GetInfo(ctx)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.envdURL()+"/health", nil)
 	if err != nil {
 		return false, err
 	}
-	return info.State == StateRunning, nil
+	resp, err := s.client.config.HTTPClient.Do(req)
+	if err != nil {
+		return false, err
+	}
+	resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNoContent {
+		return true, nil
+	}
+	if resp.StatusCode == http.StatusBadGateway {
+		return false, nil
+	}
+	return false, newAPIError(resp.StatusCode, nil)
 }
 
 // GetMetrics 返回沙箱的资源指标。
