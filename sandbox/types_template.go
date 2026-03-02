@@ -2,6 +2,7 @@ package sandbox
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/sandbox/internal/apis"
@@ -155,7 +156,7 @@ type StartTemplateBuildParams struct {
 	Steps *[]TemplateStep
 }
 
-func (p *StartTemplateBuildParams) toAPI() apis.StartTemplateBuildV2JSONRequestBody {
+func (p *StartTemplateBuildParams) toAPI() (apis.StartTemplateBuildV2JSONRequestBody, error) {
 	body := apis.StartTemplateBuildV2JSONRequestBody{
 		Force:        p.Force,
 		FromImage:    p.FromImage,
@@ -166,10 +167,12 @@ func (p *StartTemplateBuildParams) toAPI() apis.StartTemplateBuildV2JSONRequestB
 	}
 	if p.FromImageRegistry != nil {
 		reg := apis.FromImageRegistry{}
-		_ = reg.UnmarshalJSON(*p.FromImageRegistry)
+		if err := reg.UnmarshalJSON(*p.FromImageRegistry); err != nil {
+			return body, fmt.Errorf("unmarshal from_image_registry: %w", err)
+		}
 		body.FromImageRegistry = &reg
 	}
-	return body
+	return body, nil
 }
 
 // ListTemplatesParams 列出模板的查询参数。
@@ -364,7 +367,7 @@ type TemplateBuildLogs struct {
 
 // BuildLogEntry 构建日志条目。
 type BuildLogEntry struct {
-	Level     string
+	Level     LogLevel
 	Message   string
 	Step      *string
 	Timestamp time.Time
@@ -487,7 +490,7 @@ func templateBuildLogsFromAPI(a *apis.TemplateBuildLogsResponse) *TemplateBuildL
 	result := &TemplateBuildLogs{Logs: make([]BuildLogEntry, 0, len(a.Logs))}
 	for _, e := range a.Logs {
 		result.Logs = append(result.Logs, BuildLogEntry{
-			Level:     string(e.Level),
+			Level:     LogLevel(e.Level),
 			Message:   e.Message,
 			Step:      e.Step,
 			Timestamp: e.Timestamp,

@@ -278,6 +278,7 @@ func (fs *Filesystem) doRead(ctx context.Context, path string, opts ...Filesyste
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
+	setReqidHeader(ctx, req)
 
 	httpClient := fs.sandbox.client.config.HTTPClient
 	resp, err := httpClient.Do(req)
@@ -319,6 +320,7 @@ func (fs *Filesystem) Write(ctx context.Context, path string, data []byte, opts 
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", writer.contentType())
+	setReqidHeader(ctx, req)
 
 	httpClient := fs.sandbox.client.config.HTTPClient
 	resp, err := httpClient.Do(req)
@@ -387,6 +389,7 @@ func (fs *Filesystem) WriteFiles(ctx context.Context, files []WriteEntry, opts .
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", writer.contentType())
+	setReqidHeader(ctx, req)
 
 	httpClient := fs.sandbox.client.config.HTTPClient
 	resp, err := httpClient.Do(req)

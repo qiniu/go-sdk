@@ -93,7 +93,11 @@ func (c *Client) GetTemplateBuildLogs(ctx context.Context, templateID, buildID s
 
 // StartTemplateBuild 启动模板构建（v2 API）。
 func (c *Client) StartTemplateBuild(ctx context.Context, templateID, buildID string, body StartTemplateBuildParams) error {
-	resp, err := c.api.StartTemplateBuildV2WithResponse(ctx, templateID, buildID, body.toAPI())
+	apiBody, err := body.toAPI()
+	if err != nil {
+		return err
+	}
+	resp, err := c.api.StartTemplateBuildV2WithResponse(ctx, templateID, buildID, apiBody)
 	if err != nil {
 		return err
 	}

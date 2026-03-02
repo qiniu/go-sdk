@@ -203,7 +203,7 @@ type SandboxLog struct {
 
 // SandboxLogEntry 结构化沙箱日志条目。
 type SandboxLogEntry struct {
-	Level     string
+	Level     LogLevel
 	Message   string
 	Fields    map[string]string
 	Timestamp time.Time
@@ -312,7 +312,7 @@ func sandboxLogsFromAPI(a *apis.SandboxLogs) *SandboxLogs {
 	}
 	for _, e := range a.LogEntries {
 		result.LogEntries = append(result.LogEntries, SandboxLogEntry{
-			Level:     string(e.Level),
+			Level:     LogLevel(e.Level),
 			Message:   e.Message,
 			Fields:    e.Fields,
 			Timestamp: e.Timestamp,

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/qiniu/go-sdk/v7/reqid"
 	"github.com/qiniu/go-sdk/v7/sandbox/internal/apis"
 	"github.com/qiniu/go-sdk/v7/sandbox/internal/envdapi/process/processconnect"
 
@@ -184,6 +185,7 @@ func (s *Sandbox) IsRunning(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	setReqidHeader(ctx, req)
 	resp, err := s.client.config.HTTPClient.Do(req)
 	if err != nil {
 		return false, err
@@ -339,6 +341,14 @@ func envdBasicAuth(user string) string {
 // setEnvdAuth 将 envd 认证头设置到 ConnectRPC 请求。
 func setEnvdAuth[T any](req *connect.Request[T], user string) {
 	req.Header().Set("Authorization", envdBasicAuth(user))
+}
+
+// setReqidHeader 从 context 中提取 reqid 并注入到 HTTP 请求头。
+// 用于绕过 oapi-codegen 客户端的直接 HTTP 调用（如 envd API）。
+func setReqidHeader(ctx context.Context, req *http.Request) {
+	if id, ok := reqid.ReqidFromContext(ctx); ok {
+		req.Header.Set("X-Reqid", id)
+	}
 }
 
 // FileURLOption 文件 URL 选项。

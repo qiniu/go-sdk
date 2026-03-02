@@ -139,15 +139,6 @@ func (p *Pty) Resize(ctx context.Context, pid uint32, size PtySize) error {
 
 // Kill 终止 PTY 会话。
 func (p *Pty) Kill(ctx context.Context, pid uint32) error {
-	req := connect.NewRequest(&process.SendSignalRequest{
-		Process: pidSelector(pid),
-		Signal:  process.Signal_SIGNAL_SIGKILL,
-	})
-	setEnvdAuth(req, DefaultUser)
-
-	_, err := p.rpc.SendSignal(ctx, req)
-	if err != nil {
-		return fmt.Errorf("kill pty: %w", err)
-	}
-	return nil
+	commands := &Commands{sandbox: p.sandbox, rpc: p.rpc}
+	return commands.Kill(ctx, pid)
 }
