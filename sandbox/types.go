@@ -76,11 +76,8 @@ type RefreshParams struct {
 	Duration *int
 }
 
-// ListParams 列出沙箱的查询参数（v1）。
-type ListParams = apis.ListSandboxesParams
-
-// ListV2Params 列出沙箱的查询参数（v2，支持分页和状态过滤）。
-type ListV2Params struct {
+// ListParams 列出沙箱的查询参数，支持分页和状态过滤。
+type ListParams struct {
 	// Metadata 用于过滤沙箱的元数据查询（如 "user=abc&app=prod"）。
 	Metadata *string
 
@@ -334,7 +331,7 @@ func (p *RefreshParams) toAPI() apis.RefreshSandboxJSONRequestBody {
 	}
 }
 
-func (p *ListV2Params) toAPI() *apis.ListSandboxesV2Params {
+func (p *ListParams) toAPI() *apis.ListSandboxesV2Params {
 	if p == nil {
 		return nil
 	}

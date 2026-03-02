@@ -40,16 +40,16 @@ func main() {
 		fmt.Printf("  - %s (模板: %s)\n", sb.SandboxID, sb.TemplateID)
 	}
 
-	// 使用 ListV2 列出沙箱（支持分页和状态过滤）
-	fmt.Println("\n=== ListV2（按状态过滤）===")
+	// 按状态过滤列出沙箱
+	fmt.Println("\n=== 按状态过滤 ===")
 	states := []sandbox.SandboxState{sandbox.StateRunning}
-	sandboxesV2, err := c.ListV2(ctx, &sandbox.ListV2Params{
+	filtered, err := c.List(ctx, &sandbox.ListParams{
 		State: &states,
 	})
 	if err != nil {
-		log.Fatalf("ListV2 失败: %v", err)
+		log.Fatalf("列出沙箱失败: %v", err)
 	}
-	fmt.Printf("共 %d 个 running 状态的沙箱\n", len(sandboxesV2))
+	fmt.Printf("共 %d 个 running 状态的沙箱\n", len(filtered))
 
 	// 批量获取沙箱指标
 	if len(sandboxes) > 0 {

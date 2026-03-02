@@ -18,6 +18,7 @@ type mockAPI struct {
 	getSandboxFn             func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error)
 	deleteSandboxFn          func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.DeleteSandboxResponse, error)
 	listSandboxesFn          func(ctx context.Context, params *apis.ListSandboxesParams, editors ...apis.RequestEditorFn) (*apis.ListSandboxesResponse, error)
+	listSandboxesV2Fn        func(ctx context.Context, params *apis.ListSandboxesV2Params, editors ...apis.RequestEditorFn) (*apis.ListSandboxesV2Response, error)
 	connectSandboxFn         func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error)
 	updateSandboxTimeoutFn   func(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxTimeoutJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxTimeoutResponse, error)
 	pauseSandboxFn           func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.PauseSandboxResponse, error)
@@ -63,7 +64,7 @@ func (m *mockAPI) ListSandboxesWithResponse(ctx context.Context, params *apis.Li
 }
 
 func (m *mockAPI) ListSandboxesV2WithResponse(ctx context.Context, params *apis.ListSandboxesV2Params, editors ...apis.RequestEditorFn) (*apis.ListSandboxesV2Response, error) {
-	panic("not implemented")
+	return m.listSandboxesV2Fn(ctx, params, editors...)
 }
 
 func (m *mockAPI) ConnectSandboxWithResponse(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error) {
@@ -342,12 +343,12 @@ func TestConnect(t *testing.T) {
 
 func TestList(t *testing.T) {
 	mock := &mockAPI{
-		listSandboxesFn: func(ctx context.Context, params *apis.ListSandboxesParams, editors ...apis.RequestEditorFn) (*apis.ListSandboxesResponse, error) {
+		listSandboxesV2Fn: func(ctx context.Context, params *apis.ListSandboxesV2Params, editors ...apis.RequestEditorFn) (*apis.ListSandboxesV2Response, error) {
 			list := []apis.ListedSandbox{
 				{SandboxID: "sb-1"},
 				{SandboxID: "sb-2"},
 			}
-			return &apis.ListSandboxesResponse{
+			return &apis.ListSandboxesV2Response{
 				JSON200:      &list,
 				HTTPResponse: httpResponse(200),
 			}, nil
@@ -518,20 +519,6 @@ func TestWaitForReadyTimeout(t *testing.T) {
 	}
 }
 
-// --- Client.HealthCheck ---
-
-func TestHealthCheck(t *testing.T) {
-	mock := &mockAPI{
-		healthCheckFn: func(ctx context.Context, editors ...apis.RequestEditorFn) (*apis.HealthCheckResponse, error) {
-			return &apis.HealthCheckResponse{HTTPResponse: httpResponse(200)}, nil
-		},
-	}
-	c := newTestClient(mock)
-	if err := c.HealthCheck(context.Background()); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
 // --- 模板测试 ---
 
 func TestListTemplates(t *testing.T) {
@@ -669,50 +656,6 @@ func TestAPIErrorMessage(t *testing.T) {
 	if err4.Code != "" || err4.Message != "" {
 		t.Errorf("expected empty code/message for nil body, got code=%q message=%q", err4.Code, err4.Message)
 	}
-}
-
-// --- Sandbox.ListV2 ---
-
-func TestListV2(t *testing.T) {
-	mock := &mockAPI{
-		listSandboxesFn: func(ctx context.Context, params *apis.ListSandboxesParams, editors ...apis.RequestEditorFn) (*apis.ListSandboxesResponse, error) {
-			panic("should not be called")
-		},
-	}
-	// Override the V2 method via a wrapper
-	called := false
-	v2Mock := &mockAPIWithListV2{
-		mockAPI: mock,
-		listSandboxesV2Fn: func(ctx context.Context, params *apis.ListSandboxesV2Params, editors ...apis.RequestEditorFn) (*apis.ListSandboxesV2Response, error) {
-			called = true
-			list := []apis.ListedSandbox{{SandboxID: "sb-v2"}}
-			return &apis.ListSandboxesV2Response{
-				JSON200:      &list,
-				HTTPResponse: httpResponse(200),
-			}, nil
-		},
-	}
-	c := newTestClient(v2Mock)
-	sandboxes, err := c.ListV2(context.Background(), nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !called {
-		t.Error("expected V2 endpoint to be called")
-	}
-	if len(sandboxes) != 1 || sandboxes[0].SandboxID != "sb-v2" {
-		t.Errorf("unexpected sandboxes: %v", sandboxes)
-	}
-}
-
-// mockAPIWithListV2 包装 mockAPI 并覆盖 ListSandboxesV2WithResponse。
-type mockAPIWithListV2 struct {
-	*mockAPI
-	listSandboxesV2Fn func(ctx context.Context, params *apis.ListSandboxesV2Params, editors ...apis.RequestEditorFn) (*apis.ListSandboxesV2Response, error)
-}
-
-func (m *mockAPIWithListV2) ListSandboxesV2WithResponse(ctx context.Context, params *apis.ListSandboxesV2Params, editors ...apis.RequestEditorFn) (*apis.ListSandboxesV2Response, error) {
-	return m.listSandboxesV2Fn(ctx, params, editors...)
 }
 
 // --- Sandbox.GetMetrics ---
@@ -943,19 +886,6 @@ func TestGetInfoError(t *testing.T) {
 	c := newTestClient(mock)
 	sb := newTestSandbox(c, "sb-999")
 	_, err := sb.GetInfo(context.Background())
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func TestHealthCheckError(t *testing.T) {
-	mock := &mockAPI{
-		healthCheckFn: func(ctx context.Context, editors ...apis.RequestEditorFn) (*apis.HealthCheckResponse, error) {
-			return &apis.HealthCheckResponse{HTTPResponse: httpResponse(503)}, nil
-		},
-	}
-	c := newTestClient(mock)
-	err := c.HealthCheck(context.Background())
 	if err == nil {
 		t.Fatal("expected error")
 	}

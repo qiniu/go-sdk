@@ -22,7 +22,7 @@ type Config struct {
 	HTTPClient *http.Client
 }
 
-// Client 是沙箱 SDK 的高级客户端。
+// Client 是沙箱客户端。
 type Client struct {
 	config *Config
 	api    apis.ClientWithResponsesInterface

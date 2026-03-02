@@ -116,20 +116,8 @@ func (c *Client) Connect(ctx context.Context, sandboxID string, params ConnectPa
 	return nil, newAPIError(resp.StatusCode(), resp.Body)
 }
 
-// List 列出所有运行中的沙箱。
+// List 列出沙箱，支持分页和状态过滤。
 func (c *Client) List(ctx context.Context, params *ListParams) ([]ListedSandbox, error) {
-	resp, err := c.api.ListSandboxesWithResponse(ctx, params)
-	if err != nil {
-		return nil, err
-	}
-	if resp.JSON200 == nil {
-		return nil, newAPIError(resp.StatusCode(), resp.Body)
-	}
-	return listedSandboxesFromAPI(*resp.JSON200), nil
-}
-
-// ListV2 列出沙箱，支持分页和状态过滤。
-func (c *Client) ListV2(ctx context.Context, params *ListV2Params) ([]ListedSandbox, error) {
 	resp, err := c.api.ListSandboxesV2WithResponse(ctx, params.toAPI())
 	if err != nil {
 		return nil, err
@@ -278,18 +266,6 @@ func (c *Client) CreateAndWait(ctx context.Context, params CreateParams, opts ..
 	return sb, info, nil
 }
 
-// HealthCheck 对 API 执行健康检查。
-func (c *Client) HealthCheck(ctx context.Context) error {
-	resp, err := c.api.HealthCheckWithResponse(ctx)
-	if err != nil {
-		return err
-	}
-	if resp.HTTPResponse.StatusCode != http.StatusOK {
-		return newAPIError(resp.StatusCode(), resp.Body)
-	}
-	return nil
-}
-
 // GetSandboxesMetrics 返回指定沙箱 ID 列表的指标数据。
 func (c *Client) GetSandboxesMetrics(ctx context.Context, params *GetSandboxesMetricsParams) (*SandboxesWithMetrics, error) {
 	resp, err := c.api.GetSandboxesMetricsWithResponse(ctx, params)
@@ -344,13 +320,6 @@ func (s *Sandbox) envdURL() string {
 // 格式: Basic base64(username:)
 func envdBasicAuth(user string) string {
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(user+":"))
-}
-
-// envdAuthHeader 返回 envd 认证头。
-func envdAuthHeader(user string) http.Header {
-	h := http.Header{}
-	h.Set("Authorization", envdBasicAuth(user))
-	return h
 }
 
 // setEnvdAuth 将 envd 认证头设置到 ConnectRPC 请求。

@@ -52,13 +52,12 @@ func TestEnvdURL(t *testing.T) {
 	}
 }
 
-func TestEnvdAuthHeader(t *testing.T) {
-	h := envdAuthHeader("testuser")
-	auth := h.Get("Authorization")
+func TestEnvdBasicAuth(t *testing.T) {
+	auth := envdBasicAuth("testuser")
 	// base64("testuser:") = "dGVzdHVzZXI6"
 	want := "Basic dGVzdHVzZXI6"
 	if auth != want {
-		t.Errorf("envdAuthHeader = %q, want %q", auth, want)
+		t.Errorf("envdBasicAuth = %q, want %q", auth, want)
 	}
 }
 

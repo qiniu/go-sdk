@@ -33,17 +33,6 @@ func testClient(t *testing.T) *Client {
 	return c
 }
 
-func TestIntegrationHealthCheck(t *testing.T) {
-	c := testClient(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := c.HealthCheck(ctx); err != nil {
-		t.Fatalf("HealthCheck 失败: %v", err)
-	}
-	t.Log("HealthCheck 通过")
-}
-
 func TestIntegrationListTemplates(t *testing.T) {
 	c := testClient(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

@@ -35,7 +35,7 @@
 //
 //   - [Client.Create] / [Client.CreateAndWait]: 创建沙箱（后者会轮询等待就绪）
 //   - [Client.Connect]: 连接到已有沙箱，可恢复已暂停的沙箱
-//   - [Client.List] / [Client.ListV2]: 列出沙箱，支持按状态和元数据过滤
+//   - [Client.List]: 列出沙箱，支持按状态和元数据过滤
 //
 // Sandbox 实例提供生命周期管理:
 //
