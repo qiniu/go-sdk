@@ -151,6 +151,11 @@ func newCommands(s *Sandbox, rpc processconnect.ProcessClient) *Commands {
 	return &Commands{sandbox: s, rpc: rpc}
 }
 
+// pidSelector 返回按 PID 选择进程的 ProcessSelector。
+func pidSelector(pid uint32) *process.ProcessSelector {
+	return &process.ProcessSelector{Selector: &process.ProcessSelector_Pid{Pid: pid}}
+}
+
 // Run 在沙箱中执行命令并等待完成。返回执行结果。
 // 注意: stdout 和 stderr 在内存中累积，长时间运行或大量输出的命令
 // 应使用 Start() + WithOnStdout/WithOnStderr 流式回调处理输出。
@@ -301,9 +306,7 @@ func (c *Commands) Connect(ctx context.Context, pid uint32) (*CommandHandle, err
 	connectCtx, connectCancel := context.WithCancel(ctx)
 
 	req := connect.NewRequest(&process.ConnectRequest{
-		Process: &process.ProcessSelector{
-			Selector: &process.ProcessSelector_Pid{Pid: pid},
-		},
+		Process: pidSelector(pid),
 	})
 	setEnvdAuth(req, DefaultUser)
 
@@ -359,9 +362,7 @@ func (c *Commands) List(ctx context.Context) ([]ProcessInfo, error) {
 // SendStdin 向进程发送标准输入。
 func (c *Commands) SendStdin(ctx context.Context, pid uint32, data []byte) error {
 	req := connect.NewRequest(&process.SendInputRequest{
-		Process: &process.ProcessSelector{
-			Selector: &process.ProcessSelector_Pid{Pid: pid},
-		},
+		Process: pidSelector(pid),
 		Input: &process.ProcessInput{
 			Input: &process.ProcessInput_Stdin{Stdin: data},
 		},
@@ -378,10 +379,8 @@ func (c *Commands) SendStdin(ctx context.Context, pid uint32, data []byte) error
 // Kill 终止指定进程。
 func (c *Commands) Kill(ctx context.Context, pid uint32) error {
 	req := connect.NewRequest(&process.SendSignalRequest{
-		Process: &process.ProcessSelector{
-			Selector: &process.ProcessSelector_Pid{Pid: pid},
-		},
-		Signal: process.Signal_SIGNAL_SIGKILL,
+		Process: pidSelector(pid),
+		Signal:  process.Signal_SIGNAL_SIGKILL,
 	})
 	setEnvdAuth(req, DefaultUser)
 

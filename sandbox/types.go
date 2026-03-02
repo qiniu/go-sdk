@@ -262,7 +262,10 @@ func sandboxLogsFromAPI(a *apis.SandboxLogs) *SandboxLogs {
 	if a == nil {
 		return nil
 	}
-	result := &SandboxLogs{}
+	result := &SandboxLogs{
+		Logs:       make([]SandboxLog, 0, len(a.Logs)),
+		LogEntries: make([]SandboxLogEntry, 0, len(a.LogEntries)),
+	}
 	for _, l := range a.Logs {
 		result.Logs = append(result.Logs, SandboxLog{Line: l.Line, Timestamp: l.Timestamp})
 	}

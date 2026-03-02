@@ -81,12 +81,8 @@ func (s *Sandbox) Domain() *string { return s.domain }
 // processClient 返回共享的 ProcessClient 实例，Commands 和 Pty 共用。
 func (s *Sandbox) processClient() processconnect.ProcessClient {
 	s.processRPCOnce.Do(func() {
-		httpClient := s.client.config.HTTPClient
-		if httpClient == nil {
-			httpClient = http.DefaultClient
-		}
 		s.processRPC = processconnect.NewProcessClient(
-			httpClient,
+			s.client.config.HTTPClient,
 			s.envdURL(),
 		)
 	})
@@ -344,19 +340,22 @@ func (s *Sandbox) envdURL() string {
 	return fmt.Sprintf("https://%s", s.GetHost(envdPort))
 }
 
+// envdBasicAuth 返回 envd 认证的 Authorization 头值。
+// 格式: Basic base64(username:)
+func envdBasicAuth(user string) string {
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(user+":"))
+}
+
 // envdAuthHeader 返回 envd 认证头。
-// 认证格式为 Basic base64(username:)。
 func envdAuthHeader(user string) http.Header {
 	h := http.Header{}
-	cred := base64.StdEncoding.EncodeToString([]byte(user + ":"))
-	h.Set("Authorization", "Basic "+cred)
+	h.Set("Authorization", envdBasicAuth(user))
 	return h
 }
 
 // setEnvdAuth 将 envd 认证头设置到 ConnectRPC 请求。
 func setEnvdAuth[T any](req *connect.Request[T], user string) {
-	cred := base64.StdEncoding.EncodeToString([]byte(user + ":"))
-	req.Header().Set("Authorization", "Basic "+cred)
+	req.Header().Set("Authorization", envdBasicAuth(user))
 }
 
 // FileURLOption 文件 URL 选项。

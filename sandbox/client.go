@@ -34,10 +34,12 @@ func NewClient(config *Config) (*Client, error) {
 	if endpoint == "" {
 		endpoint = DefaultEndpoint
 	}
+	if config.HTTPClient == nil {
+		config.HTTPClient = http.DefaultClient
+	}
 
-	opts := []apis.ClientOption{}
-	if config.HTTPClient != nil {
-		opts = append(opts, apis.WithHTTPClient(config.HTTPClient))
+	opts := []apis.ClientOption{
+		apis.WithHTTPClient(config.HTTPClient),
 	}
 	if config.APIKey != "" {
 		opts = append(opts, apis.WithRequestEditorFn(apiKeyEditor(config.APIKey)))

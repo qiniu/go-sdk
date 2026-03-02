@@ -103,9 +103,7 @@ func (p *Pty) Connect(ctx context.Context, pid uint32) (*CommandHandle, error) {
 // SendInput 向 PTY 发送输入。
 func (p *Pty) SendInput(ctx context.Context, pid uint32, data []byte) error {
 	req := connect.NewRequest(&process.SendInputRequest{
-		Process: &process.ProcessSelector{
-			Selector: &process.ProcessSelector_Pid{Pid: pid},
-		},
+		Process: pidSelector(pid),
 		Input: &process.ProcessInput{
 			Input: &process.ProcessInput_Pty{Pty: data},
 		},
@@ -122,9 +120,7 @@ func (p *Pty) SendInput(ctx context.Context, pid uint32, data []byte) error {
 // Resize 调整 PTY 终端大小。
 func (p *Pty) Resize(ctx context.Context, pid uint32, size PtySize) error {
 	req := connect.NewRequest(&process.UpdateRequest{
-		Process: &process.ProcessSelector{
-			Selector: &process.ProcessSelector_Pid{Pid: pid},
-		},
+		Process: pidSelector(pid),
 		Pty: &process.PTY{
 			Size: &process.PTY_Size{
 				Cols: size.Cols,
@@ -144,10 +140,8 @@ func (p *Pty) Resize(ctx context.Context, pid uint32, size PtySize) error {
 // Kill 终止 PTY 会话。
 func (p *Pty) Kill(ctx context.Context, pid uint32) error {
 	req := connect.NewRequest(&process.SendSignalRequest{
-		Process: &process.ProcessSelector{
-			Selector: &process.ProcessSelector_Pid{Pid: pid},
-		},
-		Signal: process.Signal_SIGNAL_SIGKILL,
+		Process: pidSelector(pid),
+		Signal:  process.Signal_SIGNAL_SIGKILL,
 	})
 	setEnvdAuth(req, DefaultUser)
 

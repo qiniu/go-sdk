@@ -61,12 +61,8 @@ func main() {
 	}
 	fmt.Printf("沙箱已就绪: %s (状态: %s)\n", sb.ID(), info.State)
 
-	// 3. 获取沙箱详情
-	detail, err := sb.GetInfo(ctx)
-	if err != nil {
-		log.Fatalf("获取详情失败: %v", err)
-	}
-	fmt.Printf("CPU: %d 核, 内存: %d MB\n", detail.CPUCount, detail.MemoryMB)
+	// 3. 沙箱详情（直接使用 CreateAndWait 返回的 info）
+	fmt.Printf("CPU: %d 核, 内存: %d MB\n", info.CPUCount, info.MemoryMB)
 
 	// 4. 检查运行状态
 	running, err := sb.IsRunning(ctx)

@@ -203,6 +203,7 @@ func templateWithBuildsFromAPI(a *apis.TemplateWithBuilds) *TemplateWithBuilds {
 		CreatedAt:     a.CreatedAt,
 		UpdatedAt:     a.UpdatedAt,
 		LastSpawnedAt: a.LastSpawnedAt,
+		Builds:        make([]TemplateBuild, 0, len(a.Builds)),
 	}
 	for _, b := range a.Builds {
 		result.Builds = append(result.Builds, templateBuildFromAPI(b))
@@ -226,7 +227,7 @@ func templateBuildLogsFromAPI(a *apis.TemplateBuildLogsResponse) *TemplateBuildL
 	if a == nil {
 		return nil
 	}
-	result := &TemplateBuildLogs{}
+	result := &TemplateBuildLogs{Logs: make([]BuildLogEntry, 0, len(a.Logs))}
 	for _, e := range a.Logs {
 		result.Logs = append(result.Logs, BuildLogEntry{
 			Level:     string(e.Level),

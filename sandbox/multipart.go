@@ -6,6 +6,7 @@ import (
 	"mime/multipart"
 	"net/textproto"
 	"path/filepath"
+	"strings"
 )
 
 // multipartFileWriter 封装 multipart 文件上传的 writer。
@@ -38,7 +39,7 @@ func (m *multipartFileWriter) writeFile(fieldName, fileName string, data []byte)
 // 不使用 CreateFormFile，因为它会对 filename 执行 filepath.Base()。
 func (m *multipartFileWriter) writeFileFullPath(fieldName, fullPath string, data []byte) error {
 	h := make(textproto.MIMEHeader)
-	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, fullPath))
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, escapeQuotes(fieldName), escapeQuotes(fullPath)))
 	h.Set("Content-Type", "application/octet-stream")
 	part, err := m.w.CreatePart(h)
 	if err != nil {
@@ -46,6 +47,13 @@ func (m *multipartFileWriter) writeFileFullPath(fieldName, fullPath string, data
 	}
 	_, err = part.Write(data)
 	return err
+}
+
+var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
+
+// escapeQuotes 转义字符串中的反斜杠和双引号，用于 Content-Disposition 头部。
+func escapeQuotes(s string) string {
+	return quoteEscaper.Replace(s)
 }
 
 // close 关闭 multipart writer。

@@ -222,15 +222,20 @@ type Filesystem struct {
 
 // newFilesystem 创建 Filesystem 实例。
 func newFilesystem(s *Sandbox) *Filesystem {
-	httpClient := s.client.config.HTTPClient
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
 	rpc := filesystemconnect.NewFilesystemClient(
-		httpClient,
+		s.client.config.HTTPClient,
 		s.envdURL(),
 	)
 	return &Filesystem{sandbox: s, rpc: rpc}
+}
+
+// checkHTTPResponse 检查 HTTP 响应状态码，非 200 时读取 body 并返回 APIError。
+func checkHTTPResponse(resp *http.Response) error {
+	if resp.StatusCode == http.StatusOK {
+		return nil
+	}
+	body, _ := io.ReadAll(resp.Body)
+	return newAPIError(resp.StatusCode, body)
 }
 
 // Read 读取指定路径的文件内容。
@@ -275,18 +280,14 @@ func (fs *Filesystem) doRead(ctx context.Context, path string, opts ...Filesyste
 	}
 
 	httpClient := fs.sandbox.client.config.HTTPClient
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("download file: %w", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+	if err := checkHTTPResponse(resp); err != nil {
 		resp.Body.Close()
-		return nil, newAPIError(resp.StatusCode, body)
+		return nil, err
 	}
 
 	return resp, nil
@@ -320,18 +321,14 @@ func (fs *Filesystem) Write(ctx context.Context, path string, data []byte, opts 
 	req.Header.Set("Content-Type", writer.contentType())
 
 	httpClient := fs.sandbox.client.config.HTTPClient
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("upload file: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, newAPIError(resp.StatusCode, body)
+	if err := checkHTTPResponse(resp); err != nil {
+		return nil, err
 	}
 
 	// 上传成功后通过 Stat 获取文件信息
@@ -392,18 +389,14 @@ func (fs *Filesystem) WriteFiles(ctx context.Context, files []WriteEntry, opts .
 	req.Header.Set("Content-Type", writer.contentType())
 
 	httpClient := fs.sandbox.client.config.HTTPClient
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("upload files: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, newAPIError(resp.StatusCode, body)
+	if err := checkHTTPResponse(resp); err != nil {
+		return nil, err
 	}
 
 	// 逐个获取文件元信息

@@ -54,7 +54,7 @@ func main() {
 	network := sandbox.NetworkConfig{
 		AllowPublicTraffic: boolPtr(true),
 	}
-	sb, _, err := c.CreateAndWait(ctx, sandbox.CreateParams{
+	sb, info, err := c.CreateAndWait(ctx, sandbox.CreateParams{
 		TemplateID: templateID,
 		Timeout:    &timeout,
 		Metadata:   &meta,
@@ -66,10 +66,6 @@ func main() {
 	fmt.Printf("沙箱已就绪: %s\n", sb.ID())
 
 	// 验证 Metadata
-	info, err := sb.GetInfo(ctx)
-	if err != nil {
-		log.Fatalf("获取沙箱信息失败: %v", err)
-	}
 	if info.Metadata != nil {
 		fmt.Printf("Metadata: %v\n", *info.Metadata)
 	}
