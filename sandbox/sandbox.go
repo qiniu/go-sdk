@@ -333,11 +333,10 @@ func (s *Sandbox) Pty() *Pty {
 // GetHost 返回访问沙箱指定端口的外部域名。
 // 格式: {port}-{sandboxID}.{domain}
 func (s *Sandbox) GetHost(port int) string {
-	domain := s.client.config.Domain
-	if s.domain != nil && *s.domain != "" {
-		domain = *s.domain
+	if s.domain == nil || *s.domain == "" {
+		return ""
 	}
-	return fmt.Sprintf("%d-%s.%s", port, s.sandboxID, domain)
+	return fmt.Sprintf("%d-%s.%s", port, s.sandboxID, *s.domain)
 }
 
 // envdURL 返回 envd agent 的基础 URL。

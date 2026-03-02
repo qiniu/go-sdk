@@ -18,10 +18,6 @@ type Config struct {
 	// Endpoint 是沙箱 API 服务地址（可选，默认值：DefaultEndpoint）。
 	Endpoint string
 
-	// Domain 是沙箱运行时域名后缀（可选，优先使用沙箱实例自带的 Domain 字段）。
-	// 用于构造 envd agent 和端口访问的 URL。
-	Domain string
-
 	// HTTPClient 自定义 HTTP 客户端（可选，默认值：http.DefaultClient）。
 	HTTPClient *http.Client
 }

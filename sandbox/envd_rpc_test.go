@@ -138,8 +138,9 @@ func newTestFilesystem(handler *testFilesystemHandler) (*Filesystem, *httptest.S
 	ts := httptest.NewServer(mux)
 
 	rpcClient := filesystemconnect.NewFilesystemClient(ts.Client(), ts.URL)
-	c := &Client{config: &Config{Domain: "test.dev"}}
-	sb := &Sandbox{sandboxID: "sb-test", client: c}
+	domain := "test.dev"
+	c := &Client{config: &Config{}}
+	sb := &Sandbox{sandboxID: "sb-test", domain: &domain, client: c}
 	fs := &Filesystem{sandbox: sb, rpc: rpcClient}
 	return fs, ts
 }
@@ -152,8 +153,9 @@ func newTestCommands(handler *testProcessHandler) (*Commands, *httptest.Server) 
 	ts := httptest.NewServer(mux)
 
 	rpcClient := processconnect.NewProcessClient(ts.Client(), ts.URL)
-	c := &Client{config: &Config{Domain: "test.dev"}}
-	sb := &Sandbox{sandboxID: "sb-test", client: c}
+	domain := "test.dev"
+	c := &Client{config: &Config{}}
+	sb := &Sandbox{sandboxID: "sb-test", domain: &domain, client: c}
 	cmd := &Commands{sandbox: sb, rpc: rpcClient}
 	return cmd, ts
 }
@@ -166,8 +168,9 @@ func newTestPty(handler *testProcessHandler) (*Pty, *httptest.Server) {
 	ts := httptest.NewServer(mux)
 
 	rpcClient := processconnect.NewProcessClient(ts.Client(), ts.URL)
-	c := &Client{config: &Config{Domain: "test.dev"}}
-	sb := &Sandbox{sandboxID: "sb-test", client: c}
+	domain := "test.dev"
+	c := &Client{config: &Config{}}
+	sb := &Sandbox{sandboxID: "sb-test", domain: &domain, client: c}
 	p := &Pty{sandbox: sb, rpc: rpcClient}
 	return p, ts
 }
@@ -175,8 +178,9 @@ func newTestPty(handler *testProcessHandler) (*Pty, *httptest.Server) {
 // newTestSandboxWithHTTP creates a Sandbox whose HTTPClient routes to the given
 // test server. Useful for Filesystem.Read/Write tests.
 func newTestSandboxWithHTTP(ts *httptest.Server) *Sandbox {
-	c := &Client{config: &Config{Domain: "test.dev", HTTPClient: ts.Client()}}
-	sb := &Sandbox{sandboxID: "sb-test", client: c}
+	domain := "test.dev"
+	c := &Client{config: &Config{HTTPClient: ts.Client()}}
+	sb := &Sandbox{sandboxID: "sb-test", domain: &domain, client: c}
 	return sb
 }
 
