@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/qiniu/go-sdk/v7/reqid"
 	"github.com/qiniu/go-sdk/v7/sandbox/internal/apis"
 )
 
@@ -40,6 +41,7 @@ func NewClient(config *Config) (*Client, error) {
 
 	opts := []apis.ClientOption{
 		apis.WithHTTPClient(config.HTTPClient),
+		apis.WithRequestEditorFn(reqidEditor()),
 	}
 	if config.APIKey != "" {
 		opts = append(opts, apis.WithRequestEditorFn(apiKeyEditor(config.APIKey)))
@@ -51,6 +53,17 @@ func NewClient(config *Config) (*Client, error) {
 	}
 
 	return &Client{config: config, api: client}, nil
+}
+
+// reqidEditor 返回一个 RequestEditorFn，从 context 中提取 reqid 并注入 X-Reqid 请求头。
+// 与 SDK 其他子产品（如 storage、media 等）的行为保持一致，方便统一链路追踪。
+func reqidEditor() apis.RequestEditorFn {
+	return func(ctx context.Context, req *http.Request) error {
+		if id, ok := reqid.ReqidFromContext(ctx); ok {
+			req.Header.Set("X-Reqid", id)
+		}
+		return nil
+	}
 }
 
 // apiKeyEditor 返回一个 RequestEditorFn，用于注入 X-API-Key 请求头。

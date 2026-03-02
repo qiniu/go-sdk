@@ -235,7 +235,7 @@ func checkHTTPResponse(resp *http.Response) error {
 		return nil
 	}
 	body, _ := io.ReadAll(resp.Body)
-	return newAPIError(resp.StatusCode, body)
+	return newAPIError(resp, body)
 }
 
 // Read 读取指定路径的文件内容。

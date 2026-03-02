@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/qiniu/go-sdk/v7/reqid"
 	"github.com/qiniu/go-sdk/v7/sandbox/internal/apis"
 )
 
@@ -35,7 +36,13 @@ type mockAPI struct {
 }
 
 func httpResponse(statusCode int) *http.Response {
-	return &http.Response{StatusCode: statusCode}
+	return &http.Response{StatusCode: statusCode, Header: http.Header{}}
+}
+
+func httpResponseWithReqid(statusCode int, reqidVal string) *http.Response {
+	h := http.Header{}
+	h.Set("X-Reqid", reqidVal)
+	return &http.Response{StatusCode: statusCode, Header: h}
 }
 
 // --- 沙箱操作 ---
@@ -269,6 +276,29 @@ func TestAPIKeyEditor(t *testing.T) {
 	}
 	if got := req.Header.Get("X-API-Key"); got != "test-key" {
 		t.Errorf("expected X-API-Key 'test-key', got %q", got)
+	}
+}
+
+func TestReqidEditor(t *testing.T) {
+	editor := reqidEditor()
+
+	// 有 reqid 时注入
+	ctx := reqid.WithReqid(context.Background(), "test-reqid-123")
+	req, _ := http.NewRequest("GET", "https://example.com", nil)
+	if err := editor(ctx, req); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := req.Header.Get("X-Reqid"); got != "test-reqid-123" {
+		t.Errorf("expected X-Reqid 'test-reqid-123', got %q", got)
+	}
+
+	// 无 reqid 时不设置
+	req2, _ := http.NewRequest("GET", "https://example.com", nil)
+	if err := editor(context.Background(), req2); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := req2.Header.Get("X-Reqid"); got != "" {
+		t.Errorf("expected empty X-Reqid, got %q", got)
 	}
 }
 
@@ -664,7 +694,7 @@ func TestAPIErrorMessage(t *testing.T) {
 	}
 
 	// 使用 newAPIError 工厂，自动解析 JSON body 中的 message
-	err2 := newAPIError(404, []byte(`{"code":"not_found","message":"resource not found"}`))
+	err2 := newAPIError(httpResponse(404), []byte(`{"code":"not_found","message":"resource not found"}`))
 	if err2.Code != "not_found" {
 		t.Errorf("expected code 'not_found', got %q", err2.Code)
 	}
@@ -677,7 +707,7 @@ func TestAPIErrorMessage(t *testing.T) {
 	}
 
 	// 非 JSON body，回退到 body 格式
-	err3 := newAPIError(500, []byte("internal error"))
+	err3 := newAPIError(httpResponse(500), []byte("internal error"))
 	if err3.Code != "" || err3.Message != "" {
 		t.Errorf("expected empty code/message for non-JSON body, got code=%q message=%q", err3.Code, err3.Message)
 	}
@@ -687,9 +717,24 @@ func TestAPIErrorMessage(t *testing.T) {
 	}
 
 	// 空 body
-	err4 := newAPIError(502, nil)
+	err4 := newAPIError(httpResponse(502), nil)
 	if err4.Code != "" || err4.Message != "" {
 		t.Errorf("expected empty code/message for nil body, got code=%q message=%q", err4.Code, err4.Message)
+	}
+	msg4 := err4.Error()
+	if msg4 != "api error: status 502" {
+		t.Errorf("unexpected error message: %s", msg4)
+	}
+
+	// 带 X-Reqid 响应头
+	respWithReqid := httpResponseWithReqid(400, "req-abc-123")
+	err5 := newAPIError(respWithReqid, []byte(`{"code":"bad_request","message":"invalid param"}`))
+	if err5.Reqid != "req-abc-123" {
+		t.Errorf("expected reqid 'req-abc-123', got %q", err5.Reqid)
+	}
+	msg5 := err5.Error()
+	if msg5 != "api error: status 400, reqid: req-abc-123: invalid param" {
+		t.Errorf("unexpected error message: %s", msg5)
 	}
 }
 

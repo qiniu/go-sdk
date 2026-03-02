@@ -13,6 +13,8 @@ type APIError struct {
 	StatusCode int
 	Body       []byte
 
+	// Reqid 是从响应头 X-Reqid 中提取的请求 ID，用于链路追踪和日志排查。
+	Reqid string
 	// Code 是从响应 body 中解析出的错误码（如果有）。
 	Code string
 	// Message 是从响应 body 中解析出的错误消息（如果有）。
@@ -21,15 +23,26 @@ type APIError struct {
 
 // Error 实现 error 接口。
 func (e *APIError) Error() string {
-	if e.Message != "" {
-		return fmt.Sprintf("api error: status %d: %s", e.StatusCode, e.Message)
+	prefix := fmt.Sprintf("api error: status %d", e.StatusCode)
+	if e.Reqid != "" {
+		prefix += ", reqid: " + e.Reqid
 	}
-	return fmt.Sprintf("api error: status %d, body: %s", e.StatusCode, string(e.Body))
+	if e.Message != "" {
+		return prefix + ": " + e.Message
+	}
+	if len(e.Body) > 0 {
+		return prefix + ", body: " + string(e.Body)
+	}
+	return prefix
 }
 
-// newAPIError 创建 APIError 并尝试从 JSON body 中解析结构化字段。
-func newAPIError(statusCode int, body []byte) *APIError {
-	e := &APIError{StatusCode: statusCode, Body: body}
+// newAPIError 从 HTTP 响应创建 APIError，提取 X-Reqid 头并解析 JSON body。
+func newAPIError(resp *http.Response, body []byte) *APIError {
+	e := &APIError{
+		StatusCode: resp.StatusCode,
+		Body:       body,
+		Reqid:      resp.Header.Get("X-Reqid"),
+	}
 	e.Code, e.Message = parseAPIErrorBody(body)
 	return e
 }

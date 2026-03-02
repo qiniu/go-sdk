@@ -96,7 +96,7 @@ func (c *Client) Create(ctx context.Context, params CreateParams) (*Sandbox, err
 		return nil, err
 	}
 	if resp.JSON201 == nil {
-		return nil, newAPIError(resp.StatusCode(), resp.Body)
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return newSandbox(c, resp.JSON201), nil
 }
@@ -113,7 +113,7 @@ func (c *Client) Connect(ctx context.Context, sandboxID string, params ConnectPa
 	if resp.JSON201 != nil {
 		return newSandbox(c, resp.JSON201), nil
 	}
-	return nil, newAPIError(resp.StatusCode(), resp.Body)
+	return nil, newAPIError(resp.HTTPResponse, resp.Body)
 }
 
 // List 列出沙箱，支持分页和状态过滤。
@@ -123,7 +123,7 @@ func (c *Client) List(ctx context.Context, params *ListParams) ([]ListedSandbox,
 		return nil, err
 	}
 	if resp.JSON200 == nil {
-		return nil, newAPIError(resp.StatusCode(), resp.Body)
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return listedSandboxesFromAPI(*resp.JSON200), nil
 }
@@ -135,7 +135,7 @@ func (s *Sandbox) Kill(ctx context.Context) error {
 		return err
 	}
 	if resp.HTTPResponse.StatusCode != http.StatusNoContent {
-		return newAPIError(resp.StatusCode(), resp.Body)
+		return newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return nil
 }
@@ -159,7 +159,7 @@ func (s *Sandbox) SetTimeout(ctx context.Context, timeout time.Duration) error {
 		return err
 	}
 	if resp.HTTPResponse.StatusCode != http.StatusNoContent {
-		return newAPIError(resp.StatusCode(), resp.Body)
+		return newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return nil
 }
@@ -171,7 +171,7 @@ func (s *Sandbox) GetInfo(ctx context.Context) (*SandboxInfo, error) {
 		return nil, err
 	}
 	if resp.JSON200 == nil {
-		return nil, newAPIError(resp.StatusCode(), resp.Body)
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return sandboxInfoFromAPI(resp.JSON200), nil
 }
@@ -196,7 +196,7 @@ func (s *Sandbox) IsRunning(ctx context.Context) (bool, error) {
 	if resp.StatusCode == http.StatusBadGateway {
 		return false, nil
 	}
-	return false, newAPIError(resp.StatusCode, nil)
+	return false, newAPIError(resp, nil)
 }
 
 // GetMetrics 返回沙箱的资源指标。
@@ -206,7 +206,7 @@ func (s *Sandbox) GetMetrics(ctx context.Context, params *GetMetricsParams) ([]S
 		return nil, err
 	}
 	if resp.JSON200 == nil {
-		return nil, newAPIError(resp.StatusCode(), resp.Body)
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return sandboxMetricsFromAPI(*resp.JSON200), nil
 }
@@ -218,7 +218,7 @@ func (s *Sandbox) GetLogs(ctx context.Context, params *GetLogsParams) (*SandboxL
 		return nil, err
 	}
 	if resp.JSON200 == nil {
-		return nil, newAPIError(resp.StatusCode(), resp.Body)
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return sandboxLogsFromAPI(resp.JSON200), nil
 }
@@ -230,7 +230,7 @@ func (s *Sandbox) Pause(ctx context.Context) error {
 		return err
 	}
 	if resp.HTTPResponse.StatusCode != http.StatusNoContent {
-		return newAPIError(resp.StatusCode(), resp.Body)
+		return newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return nil
 }
@@ -242,7 +242,7 @@ func (s *Sandbox) Refresh(ctx context.Context, params RefreshParams) error {
 		return err
 	}
 	if resp.HTTPResponse.StatusCode != http.StatusNoContent {
-		return newAPIError(resp.StatusCode(), resp.Body)
+		return newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return nil
 }
@@ -287,7 +287,7 @@ func (c *Client) GetSandboxesMetrics(ctx context.Context, params *GetSandboxesMe
 		return nil, err
 	}
 	if resp.JSON200 == nil {
-		return nil, newAPIError(resp.StatusCode(), resp.Body)
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return sandboxesWithMetricsFromAPI(resp.JSON200), nil
 }

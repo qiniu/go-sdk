@@ -13,7 +13,7 @@ func (c *Client) ListTemplates(ctx context.Context, params *ListTemplatesParams)
 		return nil, err
 	}
 	if resp.JSON200 == nil {
-		return nil, newAPIError(resp.StatusCode(), resp.Body)
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return templatesFromAPI(*resp.JSON200), nil
 }
@@ -25,7 +25,7 @@ func (c *Client) CreateTemplate(ctx context.Context, body CreateTemplateParams) 
 		return nil, err
 	}
 	if resp.JSON202 == nil {
-		return nil, newAPIError(resp.StatusCode(), resp.Body)
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return templateCreateResponseFromAPI(resp.JSON202), nil
 }
@@ -37,7 +37,7 @@ func (c *Client) GetTemplate(ctx context.Context, templateID string, params *Get
 		return nil, err
 	}
 	if resp.JSON200 == nil {
-		return nil, newAPIError(resp.StatusCode(), resp.Body)
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return templateWithBuildsFromAPI(resp.JSON200), nil
 }
@@ -50,7 +50,7 @@ func (c *Client) DeleteTemplate(ctx context.Context, templateID string) error {
 	}
 	sc := resp.HTTPResponse.StatusCode
 	if sc != 200 && sc != 204 {
-		return newAPIError(resp.StatusCode(), resp.Body)
+		return newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return nil
 }
@@ -62,7 +62,7 @@ func (c *Client) UpdateTemplate(ctx context.Context, templateID string, body Upd
 		return err
 	}
 	if resp.HTTPResponse.StatusCode != 200 {
-		return newAPIError(resp.StatusCode(), resp.Body)
+		return newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return nil
 }
@@ -74,7 +74,7 @@ func (c *Client) GetTemplateBuildStatus(ctx context.Context, templateID, buildID
 		return nil, err
 	}
 	if resp.JSON200 == nil {
-		return nil, newAPIError(resp.StatusCode(), resp.Body)
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return templateBuildInfoFromAPI(resp.JSON200), nil
 }
@@ -86,7 +86,7 @@ func (c *Client) GetTemplateBuildLogs(ctx context.Context, templateID, buildID s
 		return nil, err
 	}
 	if resp.JSON200 == nil {
-		return nil, newAPIError(resp.StatusCode(), resp.Body)
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return templateBuildLogsFromAPI(resp.JSON200), nil
 }
@@ -98,7 +98,7 @@ func (c *Client) StartTemplateBuild(ctx context.Context, templateID, buildID str
 		return err
 	}
 	if resp.HTTPResponse.StatusCode != 202 {
-		return newAPIError(resp.StatusCode(), resp.Body)
+		return newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return nil
 }
@@ -110,7 +110,7 @@ func (c *Client) GetTemplateFiles(ctx context.Context, templateID, hash string) 
 		return nil, err
 	}
 	if resp.JSON201 == nil {
-		return nil, newAPIError(resp.StatusCode(), resp.Body)
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return templateBuildFileUploadFromAPI(resp.JSON201), nil
 }
@@ -122,7 +122,7 @@ func (c *Client) GetTemplateByAlias(ctx context.Context, alias string) (*Templat
 		return nil, err
 	}
 	if resp.JSON200 == nil {
-		return nil, newAPIError(resp.StatusCode(), resp.Body)
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return templateAliasResponseFromAPI(resp.JSON200), nil
 }
@@ -134,7 +134,7 @@ func (c *Client) ManageTemplateTags(ctx context.Context, body ManageTagsParams) 
 		return nil, err
 	}
 	if resp.JSON201 == nil {
-		return nil, newAPIError(resp.StatusCode(), resp.Body)
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return assignedTemplateTagsFromAPI(resp.JSON201), nil
 }
@@ -146,7 +146,7 @@ func (c *Client) DeleteTemplateTags(ctx context.Context, body DeleteTagsParams) 
 		return err
 	}
 	if resp.HTTPResponse.StatusCode != 204 {
-		return newAPIError(resp.StatusCode(), resp.Body)
+		return newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return nil
 }
