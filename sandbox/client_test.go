@@ -15,7 +15,6 @@ import (
 // mockAPI 实现 apis.ClientWithResponsesInterface 用于测试。
 // 每个方法字段可按测试设置；未设置的方法会 panic。
 type mockAPI struct {
-	healthCheckFn            func(ctx context.Context, editors ...apis.RequestEditorFn) (*apis.HealthCheckResponse, error)
 	createSandboxFn          func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error)
 	getSandboxFn             func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error)
 	deleteSandboxFn          func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.DeleteSandboxResponse, error)
@@ -46,10 +45,6 @@ func httpResponseWithReqid(statusCode int, reqidVal string) *http.Response {
 }
 
 // --- 沙箱操作 ---
-
-func (m *mockAPI) HealthCheckWithResponse(ctx context.Context, editors ...apis.RequestEditorFn) (*apis.HealthCheckResponse, error) {
-	return m.healthCheckFn(ctx, editors...)
-}
 
 func (m *mockAPI) CreateSandboxWithResponse(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
 	return m.createSandboxFn(ctx, body, editors...)
@@ -124,6 +119,10 @@ func (m *mockAPI) GetSandboxesMetricsWithResponse(ctx context.Context, params *a
 }
 
 // --- 模板操作 ---
+
+func (m *mockAPI) ListDefaultTemplatesWithResponse(ctx context.Context, editors ...apis.RequestEditorFn) (*apis.ListDefaultTemplatesResponse, error) {
+	panic("not implemented")
+}
 
 func (m *mockAPI) ListTemplatesWithResponse(ctx context.Context, params *apis.ListTemplatesParams, editors ...apis.RequestEditorFn) (*apis.ListTemplatesResponse, error) {
 	return m.listTemplatesFn(ctx, params, editors...)

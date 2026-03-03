@@ -1135,8 +1135,8 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// HealthCheck request
-	HealthCheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// ListDefaultTemplates request
+	ListDefaultTemplates(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListSandboxes request
 	ListSandboxes(ctx context.Context, params *ListSandboxesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1252,8 +1252,8 @@ type ClientInterface interface {
 	CreateTemplateV3(ctx context.Context, body CreateTemplateV3JSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) HealthCheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewHealthCheckRequest(c.Server)
+func (c *Client) ListDefaultTemplates(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDefaultTemplatesRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -1768,8 +1768,8 @@ func (c *Client) CreateTemplateV3(ctx context.Context, body CreateTemplateV3JSON
 	return c.Client.Do(req)
 }
 
-// NewHealthCheckRequest generates requests for HealthCheck
-func NewHealthCheckRequest(server string) (*http.Request, error) {
+// NewListDefaultTemplatesRequest generates requests for ListDefaultTemplates
+func NewListDefaultTemplatesRequest(server string) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -1777,7 +1777,7 @@ func NewHealthCheckRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/health")
+	operationPath := fmt.Sprintf("/default-templates")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -3344,8 +3344,8 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// HealthCheckWithResponse request
-	HealthCheckWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthCheckResponse, error)
+	// ListDefaultTemplatesWithResponse request
+	ListDefaultTemplatesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDefaultTemplatesResponse, error)
 
 	// ListSandboxesWithResponse request
 	ListSandboxesWithResponse(ctx context.Context, params *ListSandboxesParams, reqEditors ...RequestEditorFn) (*ListSandboxesResponse, error)
@@ -3461,14 +3461,16 @@ type ClientWithResponsesInterface interface {
 	CreateTemplateV3WithResponse(ctx context.Context, body CreateTemplateV3JSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTemplateV3Response, error)
 }
 
-type HealthCheckResponse struct {
+type ListDefaultTemplatesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *[]Template
 	JSON401      *N401
+	JSON500      *N500
 }
 
 // Status returns HTTPResponse.Status
-func (r HealthCheckResponse) Status() string {
+func (r ListDefaultTemplatesResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -3476,7 +3478,7 @@ func (r HealthCheckResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r HealthCheckResponse) StatusCode() int {
+func (r ListDefaultTemplatesResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -4201,13 +4203,13 @@ func (r CreateTemplateV3Response) StatusCode() int {
 	return 0
 }
 
-// HealthCheckWithResponse request returning *HealthCheckResponse
-func (c *ClientWithResponses) HealthCheckWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthCheckResponse, error) {
-	rsp, err := c.HealthCheck(ctx, reqEditors...)
+// ListDefaultTemplatesWithResponse request returning *ListDefaultTemplatesResponse
+func (c *ClientWithResponses) ListDefaultTemplatesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDefaultTemplatesResponse, error) {
+	rsp, err := c.ListDefaultTemplates(ctx, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseHealthCheckResponse(rsp)
+	return ParseListDefaultTemplatesResponse(rsp)
 }
 
 // ListSandboxesWithResponse request returning *ListSandboxesResponse
@@ -4575,26 +4577,40 @@ func (c *ClientWithResponses) CreateTemplateV3WithResponse(ctx context.Context, 
 	return ParseCreateTemplateV3Response(rsp)
 }
 
-// ParseHealthCheckResponse parses an HTTP response from a HealthCheckWithResponse call
-func ParseHealthCheckResponse(rsp *http.Response) (*HealthCheckResponse, error) {
+// ParseListDefaultTemplatesResponse parses an HTTP response from a ListDefaultTemplatesWithResponse call
+func ParseListDefaultTemplatesResponse(rsp *http.Response) (*ListDefaultTemplatesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &HealthCheckResponse{
+	response := &ListDefaultTemplatesResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Template
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest N401
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
 
 	}
 
