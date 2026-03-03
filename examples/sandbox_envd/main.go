@@ -12,12 +12,12 @@ import (
 )
 
 func main() {
-	apiKey := os.Getenv("Qiniu_API_KEY")
+	apiKey := os.Getenv("QINIU_API_KEY")
 	if apiKey == "" {
-		log.Fatal("请设置 Qiniu_API_KEY 环境变量")
+		log.Fatal("请设置 QINIU_API_KEY 环境变量")
 	}
 
-	apiURL := os.Getenv("Qiniu_SANDBOX_API_URL")
+	apiURL := os.Getenv("QINIU_SANDBOX_API_URL")
 
 	c, err := sandbox.NewClient(&sandbox.Config{
 		APIKey:   apiKey,

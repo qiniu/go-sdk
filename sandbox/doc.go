@@ -18,7 +18,7 @@
 // 创建客户端并启动沙箱:
 //
 //	c, err := sandbox.NewClient(&sandbox.Config{
-//	    APIKey: os.Getenv("Qiniu_API_KEY"),
+//	    APIKey: os.Getenv("QINIU_API_KEY"),
 //	})
 //
 //	timeout := int32(120)

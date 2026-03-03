@@ -17,10 +17,10 @@ import (
 func testClient(t *testing.T) *Client {
 	t.Helper()
 
-	apiKey := os.Getenv("Qiniu_API_KEY")
-	apiURL := os.Getenv("Qiniu_SANDBOX_API_URL")
+	apiKey := os.Getenv("QINIU_API_KEY")
+	apiURL := os.Getenv("QINIU_SANDBOX_API_URL")
 	if apiKey == "" {
-		t.Fatal("需要设置 Qiniu_API_KEY 环境变量")
+		t.Fatal("需要设置 QINIU_API_KEY 环境变量")
 	}
 
 	c, err := NewClient(&Config{
