@@ -136,9 +136,9 @@ func main() {
 		}
 	}
 
-	// 7. 管理模板标签（ManageTemplateTags）
-	fmt.Println("\n=== 管理模板标签 ===")
-	tagResult, err := c.ManageTemplateTags(ctx, sandbox.ManageTagsParams{
+	// 7. 分配模板标签（AssignTemplateTags）
+	fmt.Println("\n=== 分配模板标签 ===")
+	tagResult, err := c.AssignTemplateTags(ctx, sandbox.ManageTagsParams{
 		Target: fmt.Sprintf("%s:%s", templateName, "v1"),
 		Tags:   []string{"latest", "stable"},
 	})

@@ -131,8 +131,8 @@ func (c *Client) GetTemplateByAlias(ctx context.Context, alias string) (*Templat
 	return templateAliasResponseFromAPI(resp.JSON200), nil
 }
 
-// ManageTemplateTags 为模板构建分配标签。
-func (c *Client) ManageTemplateTags(ctx context.Context, body ManageTagsParams) (*AssignedTemplateTags, error) {
+// AssignTemplateTags 为模板构建分配标签。
+func (c *Client) AssignTemplateTags(ctx context.Context, body ManageTagsParams) (*AssignedTemplateTags, error) {
 	resp, err := c.api.AssignTemplateTagsWithResponse(ctx, body.toAPI())
 	if err != nil {
 		return nil, err
