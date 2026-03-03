@@ -925,8 +925,8 @@ type CreateTemplateJSONRequestBody = TemplateBuildRequest
 // DeleteTemplateTagsJSONRequestBody defines body for DeleteTemplateTags for application/json ContentType.
 type DeleteTemplateTagsJSONRequestBody = DeleteTemplateTagsRequest
 
-// ManageTemplateTagsJSONRequestBody defines body for ManageTemplateTags for application/json ContentType.
-type ManageTemplateTagsJSONRequestBody = AssignTemplateTagsRequest
+// AssignTemplateTagsJSONRequestBody defines body for AssignTemplateTags for application/json ContentType.
+type AssignTemplateTagsJSONRequestBody = AssignTemplateTagsRequest
 
 // UpdateTemplateJSONRequestBody defines body for UpdateTemplate for application/json ContentType.
 type UpdateTemplateJSONRequestBody = TemplateUpdateRequest
@@ -1200,10 +1200,10 @@ type ClientInterface interface {
 
 	DeleteTemplateTags(ctx context.Context, body DeleteTemplateTagsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ManageTemplateTagsWithBody request with any body
-	ManageTemplateTagsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// AssignTemplateTagsWithBody request with any body
+	AssignTemplateTagsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	ManageTemplateTags(ctx context.Context, body ManageTemplateTagsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	AssignTemplateTags(ctx context.Context, body AssignTemplateTagsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteTemplate request
 	DeleteTemplate(ctx context.Context, templateID TemplateID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1540,8 +1540,8 @@ func (c *Client) DeleteTemplateTags(ctx context.Context, body DeleteTemplateTags
 	return c.Client.Do(req)
 }
 
-func (c *Client) ManageTemplateTagsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewManageTemplateTagsRequestWithBody(c.Server, contentType, body)
+func (c *Client) AssignTemplateTagsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAssignTemplateTagsRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1552,8 +1552,8 @@ func (c *Client) ManageTemplateTagsWithBody(ctx context.Context, contentType str
 	return c.Client.Do(req)
 }
 
-func (c *Client) ManageTemplateTags(ctx context.Context, body ManageTemplateTagsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewManageTemplateTagsRequest(c.Server, body)
+func (c *Client) AssignTemplateTags(ctx context.Context, body AssignTemplateTagsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAssignTemplateTagsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2526,19 +2526,19 @@ func NewDeleteTemplateTagsRequestWithBody(server string, contentType string, bod
 	return req, nil
 }
 
-// NewManageTemplateTagsRequest calls the generic ManageTemplateTags builder with application/json body
-func NewManageTemplateTagsRequest(server string, body ManageTemplateTagsJSONRequestBody) (*http.Request, error) {
+// NewAssignTemplateTagsRequest calls the generic AssignTemplateTags builder with application/json body
+func NewAssignTemplateTagsRequest(server string, body AssignTemplateTagsJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewManageTemplateTagsRequestWithBody(server, "application/json", bodyReader)
+	return NewAssignTemplateTagsRequestWithBody(server, "application/json", bodyReader)
 }
 
-// NewManageTemplateTagsRequestWithBody generates requests for ManageTemplateTags with any type of body
-func NewManageTemplateTagsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewAssignTemplateTagsRequestWithBody generates requests for AssignTemplateTags with any type of body
+func NewAssignTemplateTagsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -3409,10 +3409,10 @@ type ClientWithResponsesInterface interface {
 
 	DeleteTemplateTagsWithResponse(ctx context.Context, body DeleteTemplateTagsJSONRequestBody, reqEditors ...RequestEditorFn) (*DeleteTemplateTagsResponse, error)
 
-	// ManageTemplateTagsWithBodyWithResponse request with any body
-	ManageTemplateTagsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ManageTemplateTagsResponse, error)
+	// AssignTemplateTagsWithBodyWithResponse request with any body
+	AssignTemplateTagsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AssignTemplateTagsResponse, error)
 
-	ManageTemplateTagsWithResponse(ctx context.Context, body ManageTemplateTagsJSONRequestBody, reqEditors ...RequestEditorFn) (*ManageTemplateTagsResponse, error)
+	AssignTemplateTagsWithResponse(ctx context.Context, body AssignTemplateTagsJSONRequestBody, reqEditors ...RequestEditorFn) (*AssignTemplateTagsResponse, error)
 
 	// DeleteTemplateWithResponse request
 	DeleteTemplateWithResponse(ctx context.Context, templateID TemplateID, reqEditors ...RequestEditorFn) (*DeleteTemplateResponse, error)
@@ -3885,7 +3885,7 @@ func (r DeleteTemplateTagsResponse) StatusCode() int {
 	return 0
 }
 
-type ManageTemplateTagsResponse struct {
+type AssignTemplateTagsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON201      *AssignedTemplateTags
@@ -3896,7 +3896,7 @@ type ManageTemplateTagsResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r ManageTemplateTagsResponse) Status() string {
+func (r AssignTemplateTagsResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -3904,7 +3904,7 @@ func (r ManageTemplateTagsResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r ManageTemplateTagsResponse) StatusCode() int {
+func (r AssignTemplateTagsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -4412,21 +4412,21 @@ func (c *ClientWithResponses) DeleteTemplateTagsWithResponse(ctx context.Context
 	return ParseDeleteTemplateTagsResponse(rsp)
 }
 
-// ManageTemplateTagsWithBodyWithResponse request with arbitrary body returning *ManageTemplateTagsResponse
-func (c *ClientWithResponses) ManageTemplateTagsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ManageTemplateTagsResponse, error) {
-	rsp, err := c.ManageTemplateTagsWithBody(ctx, contentType, body, reqEditors...)
+// AssignTemplateTagsWithBodyWithResponse request with arbitrary body returning *AssignTemplateTagsResponse
+func (c *ClientWithResponses) AssignTemplateTagsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AssignTemplateTagsResponse, error) {
+	rsp, err := c.AssignTemplateTagsWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseManageTemplateTagsResponse(rsp)
+	return ParseAssignTemplateTagsResponse(rsp)
 }
 
-func (c *ClientWithResponses) ManageTemplateTagsWithResponse(ctx context.Context, body ManageTemplateTagsJSONRequestBody, reqEditors ...RequestEditorFn) (*ManageTemplateTagsResponse, error) {
-	rsp, err := c.ManageTemplateTags(ctx, body, reqEditors...)
+func (c *ClientWithResponses) AssignTemplateTagsWithResponse(ctx context.Context, body AssignTemplateTagsJSONRequestBody, reqEditors ...RequestEditorFn) (*AssignTemplateTagsResponse, error) {
+	rsp, err := c.AssignTemplateTags(ctx, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseManageTemplateTagsResponse(rsp)
+	return ParseAssignTemplateTagsResponse(rsp)
 }
 
 // DeleteTemplateWithResponse request returning *DeleteTemplateResponse
@@ -5369,15 +5369,15 @@ func ParseDeleteTemplateTagsResponse(rsp *http.Response) (*DeleteTemplateTagsRes
 	return response, nil
 }
 
-// ParseManageTemplateTagsResponse parses an HTTP response from a ManageTemplateTagsWithResponse call
-func ParseManageTemplateTagsResponse(rsp *http.Response) (*ManageTemplateTagsResponse, error) {
+// ParseAssignTemplateTagsResponse parses an HTTP response from a AssignTemplateTagsWithResponse call
+func ParseAssignTemplateTagsResponse(rsp *http.Response) (*AssignTemplateTagsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &ManageTemplateTagsResponse{
+	response := &AssignTemplateTagsResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

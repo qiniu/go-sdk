@@ -133,7 +133,7 @@ func (c *Client) GetTemplateByAlias(ctx context.Context, alias string) (*Templat
 
 // ManageTemplateTags 为模板构建分配标签。
 func (c *Client) ManageTemplateTags(ctx context.Context, body ManageTagsParams) (*AssignedTemplateTags, error) {
-	resp, err := c.api.ManageTemplateTagsWithResponse(ctx, body.toAPI())
+	resp, err := c.api.AssignTemplateTagsWithResponse(ctx, body.toAPI())
 	if err != nil {
 		return nil, err
 	}

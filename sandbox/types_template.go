@@ -286,8 +286,8 @@ type ManageTagsParams struct {
 	Target string
 }
 
-func (p *ManageTagsParams) toAPI() apis.ManageTemplateTagsJSONRequestBody {
-	return apis.ManageTemplateTagsJSONRequestBody{
+func (p *ManageTagsParams) toAPI() apis.AssignTemplateTagsJSONRequestBody {
+	return apis.AssignTemplateTagsJSONRequestBody{
 		Tags:   p.Tags,
 		Target: p.Target,
 	}

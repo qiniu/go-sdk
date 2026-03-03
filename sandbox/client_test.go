@@ -204,11 +204,11 @@ func (m *mockAPI) GetTemplateByAliasWithResponse(ctx context.Context, alias stri
 	return m.getTemplateByAliasFn(ctx, alias, editors...)
 }
 
-func (m *mockAPI) ManageTemplateTagsWithResponse(ctx context.Context, body apis.ManageTemplateTagsJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ManageTemplateTagsResponse, error) {
+func (m *mockAPI) AssignTemplateTagsWithResponse(ctx context.Context, body apis.AssignTemplateTagsJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.AssignTemplateTagsResponse, error) {
 	panic("not implemented")
 }
 
-func (m *mockAPI) ManageTemplateTagsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, editors ...apis.RequestEditorFn) (*apis.ManageTemplateTagsResponse, error) {
+func (m *mockAPI) AssignTemplateTagsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, editors ...apis.RequestEditorFn) (*apis.AssignTemplateTagsResponse, error) {
 	panic("not implemented")
 }
 
