@@ -187,10 +187,14 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 	go func() {
 		n, err := m.downloadManager.DownloadToWriter(ctx, key, pipeW, &objectOptions)
 		getObjectOutput.ContentLength = int64(n)
-		if atomic.LoadInt32(&areChansClosed) == 0 {
-			errChan <- err
-		}
 		pipeW.CloseWithError(err)
+
+		// Use select + default to avoid send on closed channel
+		select {
+		case errChan <- err:
+		default:
+			// channel already closed, ignore
+		}
 	}()
 
 	select {
