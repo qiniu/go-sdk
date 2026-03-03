@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/storagev2/downloader"
@@ -139,10 +138,8 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 		getObjectOutput GetObjectOutput
 		headerChan      = make(chan struct{})
 		errChan         = make(chan error)
-		areChansClosed  int32
 	)
 	defer func() {
-		atomic.StoreInt32(&areChansClosed, 1)
 		close(headerChan)
 		close(errChan)
 	}()
@@ -152,8 +149,10 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 			Header: reqHeaders,
 			OnResponseHeader: func(h http.Header) {
 				defer func() {
-					if atomic.LoadInt32(&areChansClosed) == 0 {
-						headerChan <- struct{}{}
+					select {
+					case headerChan <- struct{}{}:
+					default:
+						// channel already closed, ignore
 					}
 				}()
 				getObjectOutput.ContentType = h.Get("Content-Type")
