@@ -1,0 +1,7 @@
+package: envdapi
+output: sandbox/internal/envdapi/envd.gen.go
+generate:
+  models: true
+  client: true
+output-options:
+  name-normalizer: ToCamelCaseWithInitialisms
