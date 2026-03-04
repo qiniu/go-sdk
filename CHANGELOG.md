@@ -1,9 +1,11 @@
 # Changelog
+## 7.26.1
+* 修复
+  * 处理 storage 下载时 send on closed channel
+  
 ## 7.26.0
 * 新增
   * 支持 sandbox
-* 修复
-  * 处理 storage 下载时 send on closed channel
 
 ## 7.25.6
 * 修复
