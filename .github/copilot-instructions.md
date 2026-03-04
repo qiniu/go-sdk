@@ -24,7 +24,7 @@
 - **上传凭证**：`storage.PutPolicy{Scope: "bucket"}.UploadToken(mac)`，或 v2 的 `uptoken.NewSigner(putPolicy, cred)`
 - **构造函数**：`New*()` 或 `New*Ex()`
 - **v1 Manager 构造**：`storage.NewBucketManager(mac, &cfg)`、`cdn.NewCdnManager(mac)`
-- **v2 客户端构造**：`apis.NewStorage(&httpclient.Options{Credentials: cred})`
+- **v2 客户端构造**：`apis.NewStorage(&http_client.Options{Credentials: cred})`
 - **错误类型**：根包 `QError`（Code + Message）、`storagev2/errors` 类型化错误
 - **注释默认中文**，导出标识符注释以标识符名称开头
 
