@@ -1,0 +1,38 @@
+# Qiniu Go SDK
+
+> 七牛云官方 Go SDK（github.com/qiniu/go-sdk/v7），提供对象存储、CDN、直播、短信、RTC、IoT、IAM、多媒体处理、审计日志、沙箱等七牛云服务的 Go 客户端。Go 1.22+，MIT 许可。
+
+重要说明：
+
+- 模块路径为 `github.com/qiniu/go-sdk/v7`，import 时必须带 `/v7` 后缀
+- 新项目推荐使用 `storagev2` 包（v2 API），`storage` 包（v1 API）仅做维护
+- 认证凭证通过 `auth.New(accessKey, secretKey)` 创建
+- storagev2 体系使用 Provider/Interface 模式（CredentialsProvider、RegionsProvider）
+- `storagev2/apis`、`iam/apis`、`media/apis`、`audit/apis` 中带 `DO NOT EDIT DIRECTLY` 注释的文件为自动生成代码
+
+## Docs
+
+- [auth — 认证与签名](https://pkg.go.dev/github.com/qiniu/go-sdk/v7/auth): AK/SK 凭证创建、HMAC-SHA1 签名、上传凭证生成、回调验证
+- [storage — 对象存储 v1](https://pkg.go.dev/github.com/qiniu/go-sdk/v7/storage): 表单上传、分片上传、Bucket/对象管理、数据处理（pfop）
+- [storagev2 — 对象存储 v2](https://pkg.go.dev/github.com/qiniu/go-sdk/v7/storagev2): 类型化 API、自动区域检测、连接池、重试、Provider/Interface 模式
+- [cdn — CDN 加速](https://pkg.go.dev/github.com/qiniu/go-sdk/v7/cdn): 刷新、预取、流量/带宽查询、时间戳防盗链
+- [pili — 直播云](https://pkg.go.dev/github.com/qiniu/go-sdk/v7/pili): 流管理、域名管理、推拉流地址生成
+- [sandbox — 沙箱服务](https://pkg.go.dev/github.com/qiniu/go-sdk/v7/sandbox): 沙箱生命周期管理、文件操作、命令执行、PTY 终端
+- [iam — 身份与访问管理](https://pkg.go.dev/github.com/qiniu/go-sdk/v7/iam): 子账号用户、组、策略 CRUD
+
+## Examples
+
+- [表单上传](https://github.com/qiniu/go-sdk/tree/master/examples/form_upload_simple): 小文件表单上传示例
+- [分片上传](https://github.com/qiniu/go-sdk/tree/master/examples/resume_upload_simple): 大文件分片上传示例
+- [对象管理](https://github.com/qiniu/go-sdk/tree/master/examples/rs_stat): 获取文件信息、复制、移动、删除
+- [CDN 操作](https://github.com/qiniu/go-sdk/tree/master/examples/cdn_refresh_urls_and_dirs): URL/目录刷新
+- [沙箱操作](https://github.com/qiniu/go-sdk/tree/master/examples/sandbox_create): 创建和使用沙箱
+
+## Optional
+
+- [rtc — 实时音视频](https://pkg.go.dev/github.com/qiniu/go-sdk/v7/rtc): 应用管理、房间 Token、用户管理
+- [sms — 短信](https://pkg.go.dev/github.com/qiniu/go-sdk/v7/sms): 发送短信、签名/模板管理
+- [linking — IoT 设备联网](https://pkg.go.dev/github.com/qiniu/go-sdk/v7/linking): 设备管理、密钥、录像片段
+- [qvs — 视频监控](https://pkg.go.dev/github.com/qiniu/go-sdk/v7/qvs): GB/T 28181 设备接入、空间/流管理
+- [media — 多媒体处理](https://pkg.go.dev/github.com/qiniu/go-sdk/v7/media): Pfop 触发、Prefop 查询
+- [audit — 审计日志](https://pkg.go.dev/github.com/qiniu/go-sdk/v7/audit): 账号操作审计日志查询
