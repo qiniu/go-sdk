@@ -134,13 +134,15 @@ cred := credentials.Default()
 
 ```go
 import (
+    "time"
+    "github.com/qiniu/go-sdk/v7/storagev2/http_client"
     "github.com/qiniu/go-sdk/v7/storagev2/uploader"
     "github.com/qiniu/go-sdk/v7/storagev2/uptoken"
 )
 
 putPolicy, _ := uptoken.NewPutPolicy("bucket", time.Now().Add(time.Hour))
 uploadManager := uploader.NewUploadManager(&uploader.UploadManagerOptions{
-    Options: httpclient.Options{Credentials: cred},
+    Options: http_client.Options{Credentials: cred},
 })
 
 objectName := "my-file.txt"
@@ -195,9 +197,12 @@ lister := bucket.List(ctx, &objects.ListObjectsOptions{Prefix: "photos/"})
 ### 低级 API 客户端
 
 ```go
-import "github.com/qiniu/go-sdk/v7/storagev2/apis"
+import (
+    "github.com/qiniu/go-sdk/v7/storagev2/apis"
+    "github.com/qiniu/go-sdk/v7/storagev2/http_client"
+)
 
-storageClient := apis.NewStorage(&httpclient.Options{Credentials: cred})
+storageClient := apis.NewStorage(&http_client.Options{Credentials: cred})
 // 所有操作都是类型化的方法：
 resp, err := storageClient.GetBucketInfo(ctx, &apis.GetBucketInfoRequest{...}, nil)
 ```
@@ -308,7 +313,10 @@ iamClient := apis.NewIam(&http_client.Options{Credentials: cred})
 ## 多媒体处理（media）
 
 ```go
-import "github.com/qiniu/go-sdk/v7/media/apis"
+import (
+    "github.com/qiniu/go-sdk/v7/media/apis"
+    "github.com/qiniu/go-sdk/v7/storagev2/http_client"
+)
 
 mediaClient := apis.NewMedia(&http_client.Options{Credentials: cred})
 ```
@@ -319,7 +327,10 @@ mediaClient := apis.NewMedia(&http_client.Options{Credentials: cred})
 ## 审计日志（audit）
 
 ```go
-import "github.com/qiniu/go-sdk/v7/audit/apis"
+import (
+    "github.com/qiniu/go-sdk/v7/audit/apis"
+    "github.com/qiniu/go-sdk/v7/storagev2/http_client"
+)
 
 auditClient := apis.NewAudit(&http_client.Options{Credentials: cred})
 ```
@@ -377,6 +388,8 @@ fs.Exists(ctx, "/app/main.go")
 ### 命令执行
 
 ```go
+import "time"
+
 cmds := sb.Commands()
 
 // 同步执行
