@@ -75,8 +75,8 @@ err := resumeUploaderV2.PutFile(ctx, &ret, upToken, "key", "/path/to/large-file"
 ### UploadManager（自动选择上传方式）
 
 ```go
-uploadManager := storage.NewUploadManager(&storage.UploadManagerConfig{Options: &cfg})
-ret, err := uploadManager.Put(ctx, &storage.UploadManagerPutParam{...})
+uploadManager := storage.NewUploadManager(&storage.UploadConfig{UseHTTPS: true})
+err := uploadManager.Put(ctx, &ret, upToken, &key, source, nil)
 ```
 
 ### Bucket 和对象管理
@@ -181,9 +181,7 @@ bucket := objectsManager.Bucket("my-bucket")
 obj := bucket.Object("my-key")
 
 // 单个操作
-statOp := obj.Stat()
-err := statOp.Call(ctx) // 执行
-info := statOp.Result() // 获取结果
+info, err := obj.Stat().Call(ctx)
 
 // 批量操作
 copyOp := obj.CopyTo("dst-bucket", "dst-key")
