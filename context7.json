@@ -7,10 +7,12 @@
     "internal",
     "vendor",
     "api-specs",
-    "storagev2/apis/*/api.go",
-    "iam/apis/*/api.go",
-    "media/apis/*/api.go",
-    "audit/apis/*/api.go"
+    "storagev2/apis",
+    "storagev2/internal",
+    "iam/apis",
+    "media/apis",
+    "audit/apis",
+    "sandbox/internal"
   ],
   "excludeFiles": [
     "CHANGELOG.md",
