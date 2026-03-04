@@ -7,8 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/storagev2/downloader"
@@ -137,27 +137,28 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 	}
 	var (
 		getObjectOutput GetObjectOutput
-		headerChan      = make(chan struct{})
-		errChan         = make(chan error)
-		areChansClosed  int32
+		// headerChan 和 errChan 只用于在当前调用周期内同步首次 header / error 事件，
+		// 不需要跨调用复用，也不需要显式关闭；goroutine 退出后，这两个 channel 由 GC 回收。
+		headerChan = make(chan struct{}, 1)
+		errChan    = make(chan error, 1)
 	)
-	defer func() {
-		atomic.StoreInt32(&areChansClosed, 1)
-		close(headerChan)
-		close(errChan)
-	}()
 
 	objectOptions := downloader.ObjectOptions{
 		DestinationDownloadOptions: downloader.DestinationDownloadOptions{
 			Header: reqHeaders,
 			OnResponseHeader: func(h http.Header) {
-				defer func() {
-					if atomic.LoadInt32(&areChansClosed) == 0 {
-						headerChan <- struct{}{}
-					}
-				}()
 				getObjectOutput.ContentType = h.Get("Content-Type")
 				getObjectOutput.ETag = parseEtag(h.Get("ETag"))
+
+				if cl := h.Get("Content-Length"); cl != "" {
+					if n, e := strconv.ParseInt(cl, 10, 64); e == nil {
+						getObjectOutput.ContentLength = n
+					} else {
+						getObjectOutput.ContentLength = -1
+					}
+				} else {
+					getObjectOutput.ContentLength = -1 // 分块传输等无 Content-Length 时表示未知
+				}
 
 				lm := h.Get("Last-Modified")
 				if len(lm) > 0 {
@@ -173,6 +174,12 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 					}
 				}
 				getObjectOutput.Metadata = metaData
+
+				// 填充完成后再发送，保证调用者收到返回时 getObjectOutput 已就绪；非阻塞避免 send on closed channel。
+				select {
+				case headerChan <- struct{}{}:
+				default:
+				}
 			},
 		},
 		GenerateOptions: downloader.GenerateOptions{
@@ -185,12 +192,14 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 	pipeR, pipeW := io.Pipe()
 	getObjectOutput.Body = pipeR
 	go func() {
-		n, err := m.downloadManager.DownloadToWriter(ctx, key, pipeW, &objectOptions)
-		getObjectOutput.ContentLength = int64(n)
-		if atomic.LoadInt32(&areChansClosed) == 0 {
-			errChan <- err
+		_, dErr := m.downloadManager.DownloadToWriter(ctx, key, pipeW, &objectOptions)
+		// ContentLength 已在 OnResponseHeader 中从响应头设置，此处不再写入，避免与走 header 返回的调用者产生数据竞争。
+		// 只尝试发送一次错误结果，不阻塞，不 close channel，避免并发竞态。
+		select {
+		case errChan <- dErr:
+		default:
 		}
-		pipeW.CloseWithError(err)
+		_ = pipeW.CloseWithError(dErr)
 	}()
 
 	select {
@@ -198,6 +207,8 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 		return &getObjectOutput, nil
 	case err := <-errChan:
 		return &getObjectOutput, err
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 }
 
