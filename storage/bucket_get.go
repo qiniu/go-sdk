@@ -192,14 +192,14 @@ func (m *BucketManager) Get(bucket, key string, options *GetObjectInput) (*GetOb
 	pipeR, pipeW := io.Pipe()
 	getObjectOutput.Body = pipeR
 	go func() {
-		_, err := m.downloadManager.DownloadToWriter(ctx, key, pipeW, &objectOptions)
+		_, dErr := m.downloadManager.DownloadToWriter(ctx, key, pipeW, &objectOptions)
 		// ContentLength 已在 OnResponseHeader 中从响应头设置，此处不再写入，避免与走 header 返回的调用者产生数据竞争。
 		// 只尝试发送一次错误结果，不阻塞，不 close channel，避免并发竞态。
 		select {
-		case errChan <- err:
+		case errChan <- dErr:
 		default:
 		}
-		pipeW.CloseWithError(err)
+		_ = pipeW.CloseWithError(dErr)
 	}()
 
 	select {
