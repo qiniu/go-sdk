@@ -122,7 +122,8 @@ func main() {
 - [七牛 SDK 文档站](https://developer.qiniu.com/kodo/sdk/1238/go)
 - [GoDoc API 文档](https://pkg.go.dev/github.com/qiniu/go-sdk/v7)
 - [项目 Wiki](https://github.com/qiniu/go-sdk/wiki)
-- [AGENTS.md](AGENTS.md) — SDK 模块结构和 API 使用指南（适用于 AI 编码工具）
+- [AGENTS.md](AGENTS.md) — SDK 开发维护指南（适用于 AI 编码工具）
+- [llms.txt](llms.txt) — AI 编码工具文档索引（支持 Context7 MCP）
 
 ## 许可证
 
