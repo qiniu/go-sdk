@@ -1,0 +1,48 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "Qiniu Go SDK",
+  "description": "七牛云服务 Go SDK（github.com/qiniu/go-sdk/v7），包含对象存储、CDN、直播、短信、视频监控、IAM 等服务",
+  "branch": "master",
+  "excludeFolders": [
+    "internal",
+    "vendor",
+    "api-specs",
+    "storagev2/apis",
+    "storagev2/internal",
+    "iam/apis",
+    "media/apis",
+    "audit/apis",
+    "sandbox/internal"
+  ],
+  "excludeFiles": [
+    "CHANGELOG.md",
+    "LICENSE",
+    "Makefile"
+  ],
+  "rules": [
+    "模块路径为 github.com/qiniu/go-sdk/v7，import 时必须带 /v7 后缀",
+    "新项目推荐使用 storagev2 包（v2 API），而非 storage 包（v1 API）",
+    "认证凭证通过 auth.New(accessKey, secretKey) 创建，AK/SK 从 https://portal.qiniu.com/user/key 获取",
+    "storagev2 体系使用 Provider 接口模式：CredentialsProvider、RegionsProvider、UpTokenProvider",
+    "上传使用 storagev2/uploader.NewUploadManager，会根据文件大小自动选择表单上传或分片上传",
+    "下载使用 storagev2/downloader.NewDownloadManager，支持并发分片下载",
+    "对象管理使用 storagev2/objects.NewObjectsManager，支持链式 API：Bucket(name).Object(key).Stat().Call(ctx)",
+    "上传凭证通过 storagev2/uptoken.NewPutPolicy 创建策略，uptoken.NewSigner 生成签名",
+    "storagev2 子包的 Options 结构体通常嵌入 http_client.Options，其中 Credentials 字段传递凭证",
+    "storage（v1）包使用 Manager 模式：BucketManager、FormUploader、ResumeUploaderV2",
+    "CDN 使用 cdn.NewCdnManager(mac)，直播使用 pili.NewManager(mac)",
+    "短信使用 sms.NewManager(mac)，视频监控使用 qvs.NewManager(mac, nil)",
+    "实时音视频使用 rtc.NewManager(mac)，IoT 设备联网使用 linking.NewManager(mac)",
+    "沙箱服务使用 sandbox 包，通过 sandbox.NewClient 创建客户端，管理沙箱生命周期、文件操作和命令执行",
+    "IAM 使用 iam/apis.NewIam(&http_client.Options{Credentials: cred})，管理子账号、用户组和策略",
+    "多媒体处理使用 media/apis.NewMedia(&http_client.Options{Credentials: cred})，触发和查询持久化数据处理",
+    "审计日志使用 audit/apis.NewAudit(&http_client.Options{Credentials: cred})，查询账号操作审计日志",
+    "storagev2/apis 和 iam/apis 等带 DO NOT EDIT DIRECTLY 注释的文件为自动生成代码，不要手动修改"
+  ],
+  "previousVersions": [
+    {
+      "tag": "v7.25.6",
+      "title": "v7.25.6"
+    }
+  ]
+}
