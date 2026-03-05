@@ -18,7 +18,7 @@ go get github.com/qiniu/go-sdk/v7
 在 `go.mod` 中：
 
 ```
-require github.com/qiniu/go-sdk/v7 v7.26.1
+require github.com/qiniu/go-sdk/v7 v7.26.2
 ```
 
 要求 **Go 1.22** 或更高版本。

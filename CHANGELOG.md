@@ -1,4 +1,12 @@
 # Changelog
+## 7.26.2
+* 新增
+  * 添加 AI 编码工具配置（AGENTS.md、doc.go、llms.txt、context7.json）
+  * 添加 .agents skills 和 rules，统一多工具配置目录
+* 完善
+  * 补充和完善各包的 doc.go 包级文档
+  * 重写 README.md，完善功能模块和示例说明
+
 ## 7.26.1
 * 修复
   * 处理 storage 下载时 send on closed channel
