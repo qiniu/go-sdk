@@ -1,3 +1,5 @@
+//go:build unit
+
 package sandbox
 
 import (
@@ -1449,7 +1451,61 @@ func TestKeepaliveHeaderInjected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create error: %v", err)
 	}
-	handle.Wait()
+	if _, err := handle.Wait(); err != nil {
+		t.Fatalf("Wait error: %v", err)
+	}
+
+	if receivedHeader != keepalivePingIntervalSec {
+		t.Errorf("Keepalive-Ping-Interval header = %q, want %q", receivedHeader, keepalivePingIntervalSec)
+	}
+}
+
+// TestKeepaliveHeaderInjectedCommands 验证通过 Sandbox.Commands().Start() 创建的命令会话包含 Keepalive-Ping-Interval header。
+func TestKeepaliveHeaderInjectedCommands(t *testing.T) {
+	var receivedHeader string
+	handler := &testProcessHandler{
+		startFn: func(_ context.Context, req *connect.Request[process.StartRequest], stream *connect.ServerStream[process.StartResponse]) error {
+			receivedHeader = req.Header().Get(keepalivePingHeader)
+			stream.Send(&process.StartResponse{
+				Event: &process.ProcessEvent{
+					Event: &process.ProcessEvent_Start{
+						Start: &process.ProcessEvent_StartEvent{Pid: 400},
+					},
+				},
+			})
+			stream.Send(&process.StartResponse{
+				Event: &process.ProcessEvent{
+					Event: &process.ProcessEvent_End{
+						End: &process.ProcessEvent_EndEvent{ExitCode: 0},
+					},
+				},
+			})
+			return nil
+		},
+	}
+
+	mux := http.NewServeMux()
+	path, h := processconnect.NewProcessHandler(handler)
+	mux.Handle(path, h)
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	// 通过 Sandbox.Commands() 走完整路径，触发 processClient() 中的 keepaliveInterceptor
+	domain := "test.dev"
+	c := &Client{config: &Config{
+		HTTPClient: &http.Client{
+			Transport: &rewriteTransport{base: http.DefaultTransport, baseURL: ts.URL},
+		},
+	}}
+	sb := &Sandbox{sandboxID: "sb-test", domain: &domain, client: c}
+
+	handle, err := sb.Commands().Start(context.Background(), "echo hello")
+	if err != nil {
+		t.Fatalf("Start error: %v", err)
+	}
+	if _, err := handle.Wait(); err != nil {
+		t.Fatalf("Wait error: %v", err)
+	}
 
 	if receivedHeader != keepalivePingIntervalSec {
 		t.Errorf("Keepalive-Ping-Interval header = %q, want %q", receivedHeader, keepalivePingIntervalSec)
