@@ -15,6 +15,12 @@
 go get github.com/qiniu/go-sdk/v7
 ```
 
+在 `go.mod` 中：
+
+```
+require github.com/qiniu/go-sdk/v7 v7.26.1
+```
+
 要求 **Go 1.22** 或更高版本。
 
 ## 快速开始
@@ -27,7 +33,6 @@ import (
     "fmt"
     "time"
 
-    "github.com/qiniu/go-sdk/v7/auth"
     "github.com/qiniu/go-sdk/v7/storagev2/credentials"
     "github.com/qiniu/go-sdk/v7/storagev2/http_client"
     "github.com/qiniu/go-sdk/v7/storagev2/uploader"

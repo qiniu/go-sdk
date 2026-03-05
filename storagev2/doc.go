@@ -24,7 +24,7 @@
 //	})
 //
 //	objectName := "my-file.txt"
-//	err := uploadManager.UploadFile(ctx, "/path/to/file", &uploader.ObjectOptions{
+//	err := uploadManager.UploadFile(context.Background(), "/path/to/file", &uploader.ObjectOptions{
 //	    BucketName: "bucket",
 //	    ObjectName: &objectName,
 //	    UpToken:    uptoken.NewSigner(putPolicy, cred),

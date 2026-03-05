@@ -9,10 +9,10 @@
 //	putPolicy, err := uptoken.NewPutPolicy("my-bucket", time.Now().Add(time.Hour))
 //
 //	// 仅允许上传到指定 key
-//	putPolicy, err := uptoken.NewPutPolicyWithKey("my-bucket", "my-file.txt", expiry)
+//	putPolicy, err := uptoken.NewPutPolicyWithKey("my-bucket", "my-file.txt", time.Now().Add(time.Hour))
 //
 //	// 仅允许上传到指定前缀
-//	putPolicy, err := uptoken.NewPutPolicyWithKeyPrefix("my-bucket", "images/", expiry)
+//	putPolicy, err := uptoken.NewPutPolicyWithKeyPrefix("my-bucket", "images/", time.Now().Add(time.Hour))
 //
 // # 生成上传凭证
 //

@@ -17,8 +17,7 @@
 //
 //	// 查询对象信息
 //	resp, err := storage.StatObject(ctx, &apis.StatObjectRequest{
-//	    BucketName: "my-bucket",
-//	    ObjectName: "my-file.txt",
+//	    Entry: "my-bucket:my-file.txt",
 //	}, nil)
 //
 //	// 获取存储空间列表

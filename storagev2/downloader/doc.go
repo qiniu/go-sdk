@@ -7,15 +7,16 @@
 //
 //	downloadManager := downloader.NewDownloadManager(&downloader.DownloadManagerOptions{
 //	    Options: http_client.Options{Credentials: cred},
+//	})
+//
+//	// 下载到文件（通过 ObjectOptions 指定 URL 生成策略）
+//	size, err := downloadManager.DownloadToFile(ctx, "my-file.txt", "/tmp/file.txt", &downloader.ObjectOptions{
 //	    DownloadURLsProvider: downloader.SignURLsProvider(
 //	        downloader.NewStaticDomainBasedURLsProvider([]string{"cdn.example.com"}),
 //	        downloader.NewCredentialsSigner(cred),
 //	        nil,
 //	    ),
 //	})
-//
-//	// 下载到文件
-//	size, err := downloadManager.DownloadToFile(ctx, "my-file.txt", "/tmp/file.txt", nil)
 //
 //	// 下载到 Writer
 //	size, err := downloadManager.DownloadToWriter(ctx, "my-file.txt", writer, nil)
