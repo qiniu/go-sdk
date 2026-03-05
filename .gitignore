@@ -37,5 +37,6 @@ go.work
 # Log files
 *.log
 
-# Claude Code local settings
+# AI tool local settings
 .claude/settings.local.json
+.cursor/settings.local.json
