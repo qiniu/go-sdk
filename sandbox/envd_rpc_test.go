@@ -1405,3 +1405,53 @@ func (t *rewriteTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	req.URL.Host = t.baseURL[len("http://"):]
 	return t.base.RoundTrip(req)
 }
+
+// TestKeepaliveHeaderInjected 验证通过 Sandbox.Pty() 创建的 PTY 会话包含 Keepalive-Ping-Interval header。
+func TestKeepaliveHeaderInjected(t *testing.T) {
+	var receivedHeader string
+	handler := &testProcessHandler{
+		startFn: func(_ context.Context, req *connect.Request[process.StartRequest], stream *connect.ServerStream[process.StartResponse]) error {
+			receivedHeader = req.Header().Get(keepalivePingHeader)
+			stream.Send(&process.StartResponse{
+				Event: &process.ProcessEvent{
+					Event: &process.ProcessEvent_Start{
+						Start: &process.ProcessEvent_StartEvent{Pid: 300},
+					},
+				},
+			})
+			stream.Send(&process.StartResponse{
+				Event: &process.ProcessEvent{
+					Event: &process.ProcessEvent_End{
+						End: &process.ProcessEvent_EndEvent{ExitCode: 0},
+					},
+				},
+			})
+			return nil
+		},
+	}
+
+	mux := http.NewServeMux()
+	path, h := processconnect.NewProcessHandler(handler)
+	mux.Handle(path, h)
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	// 通过 Sandbox.Pty() 走完整路径，触发 processClient() 中的 keepaliveInterceptor
+	domain := "test.dev"
+	c := &Client{config: &Config{
+		HTTPClient: &http.Client{
+			Transport: &rewriteTransport{base: http.DefaultTransport, baseURL: ts.URL},
+		},
+	}}
+	sb := &Sandbox{sandboxID: "sb-test", domain: &domain, client: c}
+
+	handle, err := sb.Pty().Create(context.Background(), PtySize{Cols: 80, Rows: 24})
+	if err != nil {
+		t.Fatalf("Create error: %v", err)
+	}
+	handle.Wait()
+
+	if receivedHeader != keepalivePingIntervalSec {
+		t.Errorf("Keepalive-Ping-Interval header = %q, want %q", receivedHeader, keepalivePingIntervalSec)
+	}
+}
