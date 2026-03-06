@@ -1,4 +1,8 @@
 # Changelog
+## 7.26.3
+* 修复
+  * sandbox: 为 gRPC 流式请求添加 Keepalive-Ping-Interval header，防止代理/LB 断开空闲连接
+
 ## 7.26.2
 * 新增
   * 添加 AI 编码工具配置（AGENTS.md、doc.go、llms.txt、context7.json）
