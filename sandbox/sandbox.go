@@ -85,6 +85,7 @@ func (s *Sandbox) processClient() processconnect.ProcessClient {
 		s.processRPC = processconnect.NewProcessClient(
 			s.client.config.HTTPClient,
 			s.envdURL(),
+			connect.WithInterceptors(keepaliveInterceptor{}),
 		)
 	})
 	return s.processRPC
@@ -341,6 +342,32 @@ func envdBasicAuth(user string) string {
 // setEnvdAuth 将 envd 认证头设置到 ConnectRPC 请求。
 func setEnvdAuth[T any](req *connect.Request[T], user string) {
 	req.Header().Set("Authorization", envdBasicAuth(user))
+}
+
+// keepalivePingIntervalSec 是 keepalive ping 间隔（秒），与 JS SDK 保持一致。
+// envd 服务端会按此间隔在 gRPC 流中发送 keepalive 消息，防止代理/LB 断开空闲连接。
+const keepalivePingIntervalSec = "50"
+
+// keepalivePingHeader 是 keepalive ping 间隔的 HTTP header 名。
+const keepalivePingHeader = "Keepalive-Ping-Interval"
+
+// keepaliveInterceptor 是一个 ConnectRPC 拦截器，为所有流式请求注入 Keepalive-Ping-Interval header。
+type keepaliveInterceptor struct{}
+
+func (keepaliveInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+	return next
+}
+
+func (keepaliveInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+	return func(ctx context.Context, spec connect.Spec) connect.StreamingClientConn {
+		conn := next(ctx, spec)
+		conn.RequestHeader().Set(keepalivePingHeader, keepalivePingIntervalSec)
+		return conn
+	}
+}
+
+func (keepaliveInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+	return next
 }
 
 // setReqidHeader 从 context 中提取 reqid 并注入到 HTTP 请求头。
