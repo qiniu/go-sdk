@@ -358,6 +358,12 @@ func TestConnect(t *testing.T) {
 				HTTPResponse: httpResponse(200),
 			}, nil
 		},
+		getSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error) {
+			return &apis.GetSandboxResponse{
+				JSON200:      &apis.SandboxDetail{SandboxID: sandboxID},
+				HTTPResponse: httpResponse(200),
+			}, nil
+		},
 	}
 	c := newTestClient(mock)
 	sb, err := c.Connect(context.Background(), "sb-123", ConnectParams{Timeout: 60})
@@ -1207,6 +1213,12 @@ func TestConnectCreated(t *testing.T) {
 			return &apis.ConnectSandboxResponse{
 				JSON201:      &apis.Sandbox{SandboxID: sandboxID, TemplateID: "tmpl-1"},
 				HTTPResponse: httpResponse(201),
+			}, nil
+		},
+		getSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error) {
+			return &apis.GetSandboxResponse{
+				JSON200:      &apis.SandboxDetail{SandboxID: sandboxID},
+				HTTPResponse: httpResponse(200),
 			}, nil
 		},
 	}
