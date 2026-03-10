@@ -421,7 +421,7 @@ func (fs *Filesystem) List(ctx context.Context, path string, opts ...ListOption)
 		Path:  path,
 		Depth: o.depth,
 	})
-	setEnvdAuth(req, o.user)
+	fs.sandbox.setEnvdAuth(req, o.user)
 
 	resp, err := fs.rpc.ListDir(ctx, req)
 	if err != nil {
@@ -455,7 +455,7 @@ func (fs *Filesystem) Exists(ctx context.Context, path string, opts ...Filesyste
 func (fs *Filesystem) GetInfo(ctx context.Context, path string, opts ...FilesystemOption) (*EntryInfo, error) {
 	o := applyFilesystemOpts(opts)
 	req := connect.NewRequest(&filesystem.StatRequest{Path: path})
-	setEnvdAuth(req, o.user)
+	fs.sandbox.setEnvdAuth(req, o.user)
 
 	resp, err := fs.rpc.Stat(ctx, req)
 	if err != nil {
@@ -468,7 +468,7 @@ func (fs *Filesystem) GetInfo(ctx context.Context, path string, opts ...Filesyst
 func (fs *Filesystem) MakeDir(ctx context.Context, path string, opts ...FilesystemOption) (*EntryInfo, error) {
 	o := applyFilesystemOpts(opts)
 	req := connect.NewRequest(&filesystem.MakeDirRequest{Path: path})
-	setEnvdAuth(req, o.user)
+	fs.sandbox.setEnvdAuth(req, o.user)
 
 	resp, err := fs.rpc.MakeDir(ctx, req)
 	if err != nil {
@@ -481,7 +481,7 @@ func (fs *Filesystem) MakeDir(ctx context.Context, path string, opts ...Filesyst
 func (fs *Filesystem) Remove(ctx context.Context, path string, opts ...FilesystemOption) error {
 	o := applyFilesystemOpts(opts)
 	req := connect.NewRequest(&filesystem.RemoveRequest{Path: path})
-	setEnvdAuth(req, o.user)
+	fs.sandbox.setEnvdAuth(req, o.user)
 
 	_, err := fs.rpc.Remove(ctx, req)
 	if err != nil {
@@ -497,7 +497,7 @@ func (fs *Filesystem) Rename(ctx context.Context, oldPath, newPath string, opts 
 		Source:      oldPath,
 		Destination: newPath,
 	})
-	setEnvdAuth(req, o.user)
+	fs.sandbox.setEnvdAuth(req, o.user)
 
 	resp, err := fs.rpc.Move(ctx, req)
 	if err != nil {
@@ -515,7 +515,7 @@ func (fs *Filesystem) WatchDir(ctx context.Context, path string, opts ...WatchOp
 		Path:      path,
 		Recursive: o.recursive,
 	})
-	setEnvdAuth(req, o.user)
+	fs.sandbox.setEnvdAuth(req, o.user)
 
 	stream, err := fs.rpc.WatchDir(watchCtx, req)
 	if err != nil {

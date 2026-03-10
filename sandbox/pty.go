@@ -65,7 +65,7 @@ func (p *Pty) Create(ctx context.Context, size PtySize, opts ...CommandOption) (
 	}
 
 	req := connect.NewRequest(startReq)
-	setEnvdAuth(req, o.user)
+	p.sandbox.setEnvdAuth(req, o.user)
 
 	stream, err := p.rpc.Start(ptyCtx, req)
 	if err != nil {
@@ -108,7 +108,7 @@ func (p *Pty) SendInput(ctx context.Context, pid uint32, data []byte) error {
 			Input: &process.ProcessInput_Pty{Pty: data},
 		},
 	})
-	setEnvdAuth(req, DefaultUser)
+	p.sandbox.setEnvdAuth(req, DefaultUser)
 
 	_, err := p.rpc.SendInput(ctx, req)
 	if err != nil {
@@ -128,7 +128,7 @@ func (p *Pty) Resize(ctx context.Context, pid uint32, size PtySize) error {
 			},
 		},
 	})
-	setEnvdAuth(req, DefaultUser)
+	p.sandbox.setEnvdAuth(req, DefaultUser)
 
 	_, err := p.rpc.Update(ctx, req)
 	if err != nil {

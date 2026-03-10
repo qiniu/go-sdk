@@ -109,13 +109,20 @@ func (c *Client) Connect(ctx context.Context, sandboxID string, params ConnectPa
 	if err != nil {
 		return nil, err
 	}
+	var sb *Sandbox
 	if resp.JSON200 != nil {
-		return newSandbox(c, resp.JSON200), nil
+		sb = newSandbox(c, resp.JSON200)
+	} else if resp.JSON201 != nil {
+		sb = newSandbox(c, resp.JSON201)
+	} else {
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
-	if resp.JSON201 != nil {
-		return newSandbox(c, resp.JSON201), nil
+	// Connect API 可能不返回 envdAccessToken，需要通过 GetSandbox 补充。
+	// envdAccessToken 用于 envd gRPC 认证，缺少时 PTY/命令执行等操作会静默失败。
+	if sb.envdAccessToken == nil {
+		sb.refreshEnvdToken(ctx)
 	}
-	return nil, newAPIError(resp.HTTPResponse, resp.Body)
+	return sb, nil
 }
 
 // List 列出沙箱，支持分页和状态过滤。
@@ -164,6 +171,16 @@ func (s *Sandbox) SetTimeout(ctx context.Context, timeout time.Duration) error {
 		return newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return nil
+}
+
+// refreshEnvdToken 通过 GetSandbox API 获取 envdAccessToken 并更新到当前实例。
+// 静默处理错误：若 API 调用失败，不更新 token（兼容无 token 的旧环境）。
+func (s *Sandbox) refreshEnvdToken(ctx context.Context) {
+	resp, err := s.client.api.GetSandboxWithResponse(ctx, s.sandboxID)
+	if err != nil || resp.JSON200 == nil {
+		return
+	}
+	s.envdAccessToken = resp.JSON200.EnvdAccessToken
 }
 
 // GetInfo 返回沙箱的详细信息。
@@ -333,15 +350,22 @@ func (s *Sandbox) envdURL() string {
 	return fmt.Sprintf("https://%s", s.GetHost(envdPort))
 }
 
-// envdBasicAuth 返回 envd 认证的 Authorization 头值。
-// 格式: Basic base64(username:)
+// envdBasicAuth 返回 envd 用户身份认证的 Authorization 头值。
+// 格式为 Basic base64(username:)，仅用于 OS 用户身份标识，不含密码。
+// envd 的访问控制通过独立的 X-Access-Token 头实现。
 func envdBasicAuth(user string) string {
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(user+":"))
 }
 
 // setEnvdAuth 将 envd 认证头设置到 ConnectRPC 请求。
-func setEnvdAuth[T any](req *connect.Request[T], user string) {
+// 设置两个独立的 header：
+//   - Authorization: Basic base64(user:) — OS 用户身份标识
+//   - X-Access-Token: <token> — envd 访问控制（仅当 token 存在时）
+func (s *Sandbox) setEnvdAuth(req interface{ Header() http.Header }, user string) {
 	req.Header().Set("Authorization", envdBasicAuth(user))
+	if s.envdAccessToken != nil && *s.envdAccessToken != "" {
+		req.Header().Set("X-Access-Token", *s.envdAccessToken)
+	}
 }
 
 // keepalivePingIntervalSec 是 keepalive ping 间隔（秒），与 JS SDK 保持一致。
