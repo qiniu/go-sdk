@@ -135,8 +135,8 @@ func WithTimeout(timeout time.Duration) CommandOption {
 
 // WithStdin 启用进程的标准输入。
 // 启用后可通过 Commands.SendStdin 向进程发送数据，通过 Commands.CloseStdin 发送 EOF。
-func WithStdin(enabled bool) CommandOption {
-	return func(o *commandOpts) { o.stdin = enabled }
+func WithStdin() CommandOption {
+	return func(o *commandOpts) { o.stdin = true }
 }
 
 func applyCommandOpts(opts []CommandOption) *commandOpts {
@@ -383,6 +383,7 @@ func (c *Commands) SendStdin(ctx context.Context, pid uint32, data []byte) error
 
 // CloseStdin 关闭进程的标准输入管道，向进程发送 EOF 信号。
 // 仅适用于非 PTY 进程。PTY 进程应通过 SendStdin 发送 Ctrl+D (0x04)。
+// 若服务端尚未支持此 RPC，将返回 Unimplemented 错误，调用方可安全忽略。
 func (c *Commands) CloseStdin(ctx context.Context, pid uint32) error {
 	req := connect.NewRequest(&process.CloseStdinRequest{
 		Process: pidSelector(pid),

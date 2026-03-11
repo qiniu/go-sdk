@@ -88,8 +88,9 @@ type testProcessHandler struct {
 	startFn      func(context.Context, *connect.Request[process.StartRequest], *connect.ServerStream[process.StartResponse]) error
 	listFn       func(context.Context, *connect.Request[process.ListRequest]) (*connect.Response[process.ListResponse], error)
 	sendInputFn  func(context.Context, *connect.Request[process.SendInputRequest]) (*connect.Response[process.SendInputResponse], error)
-	sendSignalFn func(context.Context, *connect.Request[process.SendSignalRequest]) (*connect.Response[process.SendSignalResponse], error)
-	updateFn     func(context.Context, *connect.Request[process.UpdateRequest]) (*connect.Response[process.UpdateResponse], error)
+	sendSignalFn    func(context.Context, *connect.Request[process.SendSignalRequest]) (*connect.Response[process.SendSignalResponse], error)
+	updateFn        func(context.Context, *connect.Request[process.UpdateRequest]) (*connect.Response[process.UpdateResponse], error)
+	closeStdinFn    func(context.Context, *connect.Request[process.CloseStdinRequest]) (*connect.Response[process.CloseStdinResponse], error)
 }
 
 func (h *testProcessHandler) Start(ctx context.Context, req *connect.Request[process.StartRequest], stream *connect.ServerStream[process.StartResponse]) error {
@@ -125,6 +126,13 @@ func (h *testProcessHandler) Update(ctx context.Context, req *connect.Request[pr
 		return h.updateFn(ctx, req)
 	}
 	return h.UnimplementedProcessHandler.Update(ctx, req)
+}
+
+func (h *testProcessHandler) CloseStdin(ctx context.Context, req *connect.Request[process.CloseStdinRequest]) (*connect.Response[process.CloseStdinResponse], error) {
+	if h.closeStdinFn != nil {
+		return h.closeStdinFn(ctx, req)
+	}
+	return h.UnimplementedProcessHandler.CloseStdin(ctx, req)
 }
 
 // ---------------------------------------------------------------------------
@@ -942,6 +950,28 @@ func TestCommandsSendStdin(t *testing.T) {
 	}
 	if string(receivedData) != "input data" {
 		t.Errorf("data = %q, want %q", string(receivedData), "input data")
+	}
+}
+
+func TestCommandsCloseStdin(t *testing.T) {
+	var receivedPID uint32
+	handler := &testProcessHandler{
+		closeStdinFn: func(_ context.Context, req *connect.Request[process.CloseStdinRequest]) (*connect.Response[process.CloseStdinResponse], error) {
+			if sel, ok := req.Msg.Process.Selector.(*process.ProcessSelector_Pid); ok {
+				receivedPID = sel.Pid
+			}
+			return connect.NewResponse(&process.CloseStdinResponse{}), nil
+		},
+	}
+	cmd, ts := newTestCommands(handler)
+	defer ts.Close()
+
+	err := cmd.CloseStdin(context.Background(), 88)
+	if err != nil {
+		t.Fatalf("CloseStdin error: %v", err)
+	}
+	if receivedPID != 88 {
+		t.Errorf("PID = %d, want 88", receivedPID)
 	}
 }
 
