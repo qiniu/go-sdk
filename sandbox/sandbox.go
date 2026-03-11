@@ -33,8 +33,12 @@ type Sandbox struct {
 	clientID           string
 	alias              *string
 	domain             *string
-	envdAccessToken    *string
 	trafficAccessToken *string
+
+	// envdAccessToken 用于 envd 认证，需通过 envdTokenMu 保护并发读写。
+	envdTokenMu     sync.RWMutex
+	envdAccessToken *string
+	envdTokenLoaded bool // 标记是否已尝试获取过 token（避免重复请求）
 
 	client *Client
 
@@ -55,16 +59,20 @@ type Sandbox struct {
 
 // newSandbox 从 API 响应创建 Sandbox 实例。
 func newSandbox(c *Client, s *apis.Sandbox) *Sandbox {
-	return &Sandbox{
+	sb := &Sandbox{
 		sandboxID:          s.SandboxID,
 		templateID:         s.TemplateID,
 		clientID:           s.ClientID,
 		alias:              s.Alias,
 		domain:             s.Domain,
-		envdAccessToken:    s.EnvdAccessToken,
 		trafficAccessToken: s.TrafficAccessToken,
 		client:             c,
 	}
+	if s.EnvdAccessToken != nil {
+		sb.envdAccessToken = s.EnvdAccessToken
+		sb.envdTokenLoaded = true
+	}
+	return sb
 }
 
 // ID 返回沙箱 ID。
@@ -100,7 +108,14 @@ func (c *Client) Create(ctx context.Context, params CreateParams) (*Sandbox, err
 	if resp.JSON201 == nil {
 		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
-	return newSandbox(c, resp.JSON201), nil
+	sb := newSandbox(c, resp.JSON201)
+	// Create API 可能不返回 envdAccessToken（与 Connect 同理），通过 GetSandbox 补充。
+	if !sb.envdTokenLoaded {
+		if err := sb.refreshEnvdToken(ctx); err != nil {
+			return nil, fmt.Errorf("create sandbox %s: %w", sb.sandboxID, err)
+		}
+	}
+	return sb, nil
 }
 
 // Connect 连接到一个已有的沙箱，可选择恢复已暂停的沙箱。
@@ -109,13 +124,22 @@ func (c *Client) Connect(ctx context.Context, sandboxID string, params ConnectPa
 	if err != nil {
 		return nil, err
 	}
+	var sb *Sandbox
 	if resp.JSON200 != nil {
-		return newSandbox(c, resp.JSON200), nil
+		sb = newSandbox(c, resp.JSON200)
+	} else if resp.JSON201 != nil {
+		sb = newSandbox(c, resp.JSON201)
+	} else {
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
-	if resp.JSON201 != nil {
-		return newSandbox(c, resp.JSON201), nil
+	// Connect API 可能不返回 envdAccessToken，需要通过 GetSandbox 补充。
+	// envdAccessToken 用于 envd gRPC 认证，缺少时 PTY/命令执行等操作会静默失败。
+	if !sb.envdTokenLoaded {
+		if err := sb.refreshEnvdToken(ctx); err != nil {
+			return nil, fmt.Errorf("connect sandbox %s: %w", sandboxID, err)
+		}
 	}
-	return nil, newAPIError(resp.HTTPResponse, resp.Body)
+	return sb, nil
 }
 
 // List 列出沙箱，支持分页和状态过滤。
@@ -163,6 +187,23 @@ func (s *Sandbox) SetTimeout(ctx context.Context, timeout time.Duration) error {
 	if resp.HTTPResponse.StatusCode != http.StatusNoContent {
 		return newAPIError(resp.HTTPResponse, resp.Body)
 	}
+	return nil
+}
+
+// refreshEnvdToken 通过 GetSandbox API 获取 envdAccessToken 并更新到当前实例。
+// 调用者必须确保已持有 envdTokenMu 的写锁或在初始化阶段调用。
+func (s *Sandbox) refreshEnvdToken(ctx context.Context) error {
+	resp, err := s.client.api.GetSandboxWithResponse(ctx, s.sandboxID)
+	if err != nil {
+		return fmt.Errorf("get sandbox %s for envd token: %w", s.sandboxID, err)
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("get sandbox %s for envd token: %w", s.sandboxID, newAPIError(resp.HTTPResponse, resp.Body))
+	}
+	s.envdTokenMu.Lock()
+	s.envdAccessToken = resp.JSON200.EnvdAccessToken
+	s.envdTokenLoaded = true
+	s.envdTokenMu.Unlock()
 	return nil
 }
 
@@ -333,15 +374,25 @@ func (s *Sandbox) envdURL() string {
 	return fmt.Sprintf("https://%s", s.GetHost(envdPort))
 }
 
-// envdBasicAuth 返回 envd 认证的 Authorization 头值。
-// 格式: Basic base64(username:)
+// envdBasicAuth 返回 envd 用户身份认证的 Authorization 头值。
+// 格式为 Basic base64(username:)，仅用于 OS 用户身份标识，不含密码。
+// envd 的访问控制通过独立的 X-Access-Token 头实现。
 func envdBasicAuth(user string) string {
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(user+":"))
 }
 
 // setEnvdAuth 将 envd 认证头设置到 ConnectRPC 请求。
-func setEnvdAuth[T any](req *connect.Request[T], user string) {
+// 设置两个独立的 header：
+//   - Authorization: Basic base64(user:) — OS 用户身份标识
+//   - X-Access-Token: <token> — envd 访问控制（仅当 token 存在时）
+func (s *Sandbox) setEnvdAuth(req interface{ Header() http.Header }, user string) {
 	req.Header().Set("Authorization", envdBasicAuth(user))
+	s.envdTokenMu.RLock()
+	tok := s.envdAccessToken
+	s.envdTokenMu.RUnlock()
+	if tok != nil && *tok != "" {
+		req.Header().Set("X-Access-Token", *tok)
+	}
 }
 
 // keepalivePingIntervalSec 是 keepalive ping 间隔（秒），与 JS SDK 保持一致。
@@ -432,12 +483,15 @@ func (s *Sandbox) fileURL(path, operation string, opts ...FileURLOption) string 
 	q.Set("path", path)
 	q.Set("username", o.user)
 
-	if s.envdAccessToken != nil && *s.envdAccessToken != "" {
+	s.envdTokenMu.RLock()
+	tok := s.envdAccessToken
+	s.envdTokenMu.RUnlock()
+	if tok != nil && *tok != "" {
 		exp := o.signatureExpiration
 		if exp == 0 {
 			exp = 300
 		}
-		sig := fileSignature(path, operation, o.user, *s.envdAccessToken, exp)
+		sig := fileSignature(path, operation, o.user, *tok, exp)
 		q.Set("signature", sig)
 		q.Set("signature_expiration", strconv.Itoa(exp))
 	}

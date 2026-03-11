@@ -2,9 +2,12 @@ package sandbox
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -304,10 +307,11 @@ func TestReqidEditor(t *testing.T) {
 // --- Sandbox.Create ---
 
 func TestCreate(t *testing.T) {
+	token := "create-token"
 	mock := &mockAPI{
 		createSandboxFn: func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
 			return &apis.CreateSandboxResponse{
-				JSON201:      &apis.Sandbox{SandboxID: "sb-123", TemplateID: "tmpl-1"},
+				JSON201:      &apis.Sandbox{SandboxID: "sb-123", TemplateID: "tmpl-1", EnvdAccessToken: &token},
 				HTTPResponse: httpResponse(201),
 			}, nil
 		},
@@ -322,6 +326,59 @@ func TestCreate(t *testing.T) {
 	}
 	if sb.TemplateID() != "tmpl-1" {
 		t.Errorf("expected template ID 'tmpl-1', got %q", sb.TemplateID())
+	}
+}
+
+func TestCreateWithoutToken(t *testing.T) {
+	// Create API 不返回 token，应通过 GetSandbox 补充
+	token := "fallback-token"
+	mock := &mockAPI{
+		createSandboxFn: func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+			return &apis.CreateSandboxResponse{
+				JSON201:      &apis.Sandbox{SandboxID: "sb-123", TemplateID: "tmpl-1"},
+				HTTPResponse: httpResponse(201),
+			}, nil
+		},
+		getSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error) {
+			return &apis.GetSandboxResponse{
+				JSON200:      &apis.SandboxDetail{SandboxID: sandboxID, EnvdAccessToken: &token},
+				HTTPResponse: httpResponse(200),
+			}, nil
+		},
+	}
+	c := newTestClient(mock)
+	sb, err := c.Create(context.Background(), CreateParams{TemplateID: "tmpl-1"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sb.ID() != "sb-123" {
+		t.Errorf("expected sandbox ID 'sb-123', got %q", sb.ID())
+	}
+	sb.envdTokenMu.RLock()
+	tok := sb.envdAccessToken
+	sb.envdTokenMu.RUnlock()
+	if tok == nil || *tok != "fallback-token" {
+		t.Errorf("expected envdAccessToken 'fallback-token', got %v", tok)
+	}
+}
+
+func TestCreateRefreshTokenError(t *testing.T) {
+	// Create API 不返回 token，GetSandbox 也失败 → Create 返回错误
+	mock := &mockAPI{
+		createSandboxFn: func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+			return &apis.CreateSandboxResponse{
+				JSON201:      &apis.Sandbox{SandboxID: "sb-123", TemplateID: "tmpl-1"},
+				HTTPResponse: httpResponse(201),
+			}, nil
+		},
+		getSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error) {
+			return nil, fmt.Errorf("network error")
+		},
+	}
+	c := newTestClient(mock)
+	_, err := c.Create(context.Background(), CreateParams{TemplateID: "tmpl-1"})
+	if err == nil {
+		t.Fatal("expected error when GetSandbox fails")
 	}
 }
 
@@ -350,12 +407,105 @@ func TestCreateError(t *testing.T) {
 
 // --- Sandbox.Connect ---
 
-func TestConnect(t *testing.T) {
+func TestConnectWithToken(t *testing.T) {
+	// Connect 返回 token 时，不应调用 GetSandbox
+	token := "connect-token"
+	var getSandboxCalled atomic.Bool
+	mock := &mockAPI{
+		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error) {
+			return &apis.ConnectSandboxResponse{
+				JSON200:      &apis.Sandbox{SandboxID: sandboxID, TemplateID: "tmpl-1", EnvdAccessToken: &token},
+				HTTPResponse: httpResponse(200),
+			}, nil
+		},
+		getSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error) {
+			getSandboxCalled.Store(true)
+			return &apis.GetSandboxResponse{
+				JSON200:      &apis.SandboxDetail{SandboxID: sandboxID},
+				HTTPResponse: httpResponse(200),
+			}, nil
+		},
+	}
+	c := newTestClient(mock)
+	sb, err := c.Connect(context.Background(), "sb-123", ConnectParams{Timeout: 60})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sb.ID() != "sb-123" {
+		t.Errorf("expected sandbox ID 'sb-123', got %q", sb.ID())
+	}
+	if getSandboxCalled.Load() {
+		t.Error("GetSandbox should not be called when Connect returns a token")
+	}
+	sb.envdTokenMu.RLock()
+	tok := sb.envdAccessToken
+	sb.envdTokenMu.RUnlock()
+	if tok == nil || *tok != "connect-token" {
+		t.Errorf("expected envdAccessToken 'connect-token', got %v", tok)
+	}
+}
+
+func TestConnectWithoutToken(t *testing.T) {
+	// Connect 不返回 token，通过 GetSandbox 获取
+	token := "fallback-token"
 	mock := &mockAPI{
 		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error) {
 			return &apis.ConnectSandboxResponse{
 				JSON200:      &apis.Sandbox{SandboxID: sandboxID, TemplateID: "tmpl-1"},
 				HTTPResponse: httpResponse(200),
+			}, nil
+		},
+		getSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error) {
+			return &apis.GetSandboxResponse{
+				JSON200:      &apis.SandboxDetail{SandboxID: sandboxID, EnvdAccessToken: &token},
+				HTTPResponse: httpResponse(200),
+			}, nil
+		},
+	}
+	c := newTestClient(mock)
+	sb, err := c.Connect(context.Background(), "sb-123", ConnectParams{Timeout: 60})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sb.ID() != "sb-123" {
+		t.Errorf("expected sandbox ID 'sb-123', got %q", sb.ID())
+	}
+	sb.envdTokenMu.RLock()
+	tok := sb.envdAccessToken
+	sb.envdTokenMu.RUnlock()
+	if tok == nil || *tok != "fallback-token" {
+		t.Errorf("expected envdAccessToken 'fallback-token', got %v", tok)
+	}
+}
+
+func TestConnectRefreshTokenError(t *testing.T) {
+	// Connect 不返回 token，GetSandbox 报错 → Connect 返回错误
+	mock := &mockAPI{
+		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error) {
+			return &apis.ConnectSandboxResponse{
+				JSON200:      &apis.Sandbox{SandboxID: sandboxID, TemplateID: "tmpl-1"},
+				HTTPResponse: httpResponse(200),
+			}, nil
+		},
+		getSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error) {
+			return nil, errors.New("network error")
+		},
+	}
+	c := newTestClient(mock)
+	_, err := c.Connect(context.Background(), "sb-123", ConnectParams{Timeout: 60})
+	if err == nil {
+		t.Fatal("expected error when GetSandbox fails")
+	}
+}
+
+func TestConnect201Response(t *testing.T) {
+	// Connect 返回 201（恢复已暂停的沙箱），带 token
+	token := "resumed-token"
+	mock := &mockAPI{
+		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error) {
+			return &apis.ConnectSandboxResponse{
+				JSON201:      &apis.Sandbox{SandboxID: sandboxID, TemplateID: "tmpl-1", EnvdAccessToken: &token},
+				HTTPResponse: httpResponse(201),
 			}, nil
 		},
 	}
@@ -1207,6 +1357,12 @@ func TestConnectCreated(t *testing.T) {
 			return &apis.ConnectSandboxResponse{
 				JSON201:      &apis.Sandbox{SandboxID: sandboxID, TemplateID: "tmpl-1"},
 				HTTPResponse: httpResponse(201),
+			}, nil
+		},
+		getSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error) {
+			return &apis.GetSandboxResponse{
+				JSON200:      &apis.SandboxDetail{SandboxID: sandboxID},
+				HTTPResponse: httpResponse(200),
 			}, nil
 		},
 	}

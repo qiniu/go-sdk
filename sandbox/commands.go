@@ -199,7 +199,7 @@ func (c *Commands) Start(ctx context.Context, cmd string, opts ...CommandOption)
 	startReq.Stdin = &stdinEnabled
 
 	req := connect.NewRequest(startReq)
-	setEnvdAuth(req, o.user)
+	c.sandbox.setEnvdAuth(req, o.user)
 
 	stream, err := c.rpc.Start(cmdCtx, req)
 	if err != nil {
@@ -308,7 +308,7 @@ func (c *Commands) Connect(ctx context.Context, pid uint32) (*CommandHandle, err
 	req := connect.NewRequest(&process.ConnectRequest{
 		Process: pidSelector(pid),
 	})
-	setEnvdAuth(req, DefaultUser)
+	c.sandbox.setEnvdAuth(req, DefaultUser)
 
 	stream, err := c.rpc.Connect(connectCtx, req)
 	if err != nil {
@@ -335,7 +335,7 @@ func (c *Commands) Connect(ctx context.Context, pid uint32) (*CommandHandle, err
 // List 列出所有运行中的进程。
 func (c *Commands) List(ctx context.Context) ([]ProcessInfo, error) {
 	req := connect.NewRequest(&process.ListRequest{})
-	setEnvdAuth(req, DefaultUser)
+	c.sandbox.setEnvdAuth(req, DefaultUser)
 
 	resp, err := c.rpc.List(ctx, req)
 	if err != nil {
@@ -367,7 +367,7 @@ func (c *Commands) SendStdin(ctx context.Context, pid uint32, data []byte) error
 			Input: &process.ProcessInput_Stdin{Stdin: data},
 		},
 	})
-	setEnvdAuth(req, DefaultUser)
+	c.sandbox.setEnvdAuth(req, DefaultUser)
 
 	_, err := c.rpc.SendInput(ctx, req)
 	if err != nil {
@@ -382,7 +382,7 @@ func (c *Commands) Kill(ctx context.Context, pid uint32) error {
 		Process: pidSelector(pid),
 		Signal:  process.Signal_SIGNAL_SIGKILL,
 	})
-	setEnvdAuth(req, DefaultUser)
+	c.sandbox.setEnvdAuth(req, DefaultUser)
 
 	_, err := c.rpc.SendSignal(ctx, req)
 	if err != nil {
