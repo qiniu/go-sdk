@@ -1,4 +1,10 @@
 # Changelog
+## 7.26.4
+* 新增
+  * sandbox: 添加 WithStdin 选项和 CloseStdin 方法，支持向命令的标准输入写入数据
+* 修复
+  * sandbox: 修复 envd 认证使用 X-Access-Token header
+
 ## 7.26.3
 * 修复
   * sandbox: 为 gRPC 流式请求添加 Keepalive-Ping-Interval header，防止代理/LB 断开空闲连接
