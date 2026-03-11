@@ -88,9 +88,9 @@ type testProcessHandler struct {
 	startFn      func(context.Context, *connect.Request[process.StartRequest], *connect.ServerStream[process.StartResponse]) error
 	listFn       func(context.Context, *connect.Request[process.ListRequest]) (*connect.Response[process.ListResponse], error)
 	sendInputFn  func(context.Context, *connect.Request[process.SendInputRequest]) (*connect.Response[process.SendInputResponse], error)
-	sendSignalFn    func(context.Context, *connect.Request[process.SendSignalRequest]) (*connect.Response[process.SendSignalResponse], error)
-	updateFn        func(context.Context, *connect.Request[process.UpdateRequest]) (*connect.Response[process.UpdateResponse], error)
-	closeStdinFn    func(context.Context, *connect.Request[process.CloseStdinRequest]) (*connect.Response[process.CloseStdinResponse], error)
+	sendSignalFn func(context.Context, *connect.Request[process.SendSignalRequest]) (*connect.Response[process.SendSignalResponse], error)
+	updateFn     func(context.Context, *connect.Request[process.UpdateRequest]) (*connect.Response[process.UpdateResponse], error)
+	closeStdinFn func(context.Context, *connect.Request[process.CloseStdinRequest]) (*connect.Response[process.CloseStdinResponse], error)
 }
 
 func (h *testProcessHandler) Start(ctx context.Context, req *connect.Request[process.StartRequest], stream *connect.ServerStream[process.StartResponse]) error {
