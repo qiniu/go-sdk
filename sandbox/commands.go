@@ -88,6 +88,7 @@ type commandOpts struct {
 	onStderr  func(data []byte)
 	onPtyData func(data []byte)
 	timeout   time.Duration
+	stdin     bool
 }
 
 // WithEnvs 设置命令的环境变量。
@@ -130,6 +131,12 @@ func WithOnPtyData(fn func(data []byte)) CommandOption {
 // WithTimeout 设置命令超时时间。
 func WithTimeout(timeout time.Duration) CommandOption {
 	return func(o *commandOpts) { o.timeout = timeout }
+}
+
+// WithStdin 启用进程的标准输入。
+// 启用后可通过 Commands.SendStdin 向进程发送数据，通过 Commands.CloseStdin 发送 EOF。
+func WithStdin() CommandOption {
+	return func(o *commandOpts) { o.stdin = true }
 }
 
 func applyCommandOpts(opts []CommandOption) *commandOpts {
@@ -194,9 +201,7 @@ func (c *Commands) Start(ctx context.Context, cmd string, opts ...CommandOption)
 	if o.tag != "" {
 		startReq.Tag = &o.tag
 	}
-	// 默认不启用 stdin
-	stdinEnabled := false
-	startReq.Stdin = &stdinEnabled
+	startReq.Stdin = &o.stdin
 
 	req := connect.NewRequest(startReq)
 	c.sandbox.setEnvdAuth(req, o.user)
@@ -372,6 +377,22 @@ func (c *Commands) SendStdin(ctx context.Context, pid uint32, data []byte) error
 	_, err := c.rpc.SendInput(ctx, req)
 	if err != nil {
 		return fmt.Errorf("send stdin: %w", err)
+	}
+	return nil
+}
+
+// CloseStdin 关闭进程的标准输入管道，向进程发送 EOF 信号。
+// 仅适用于非 PTY 进程。PTY 进程应通过 SendStdin 发送 Ctrl+D (0x04)。
+// 若服务端尚未支持此 RPC，将返回 Unimplemented 错误，调用方可安全忽略。
+func (c *Commands) CloseStdin(ctx context.Context, pid uint32) error {
+	req := connect.NewRequest(&process.CloseStdinRequest{
+		Process: pidSelector(pid),
+	})
+	c.sandbox.setEnvdAuth(req, DefaultUser)
+
+	_, err := c.rpc.CloseStdin(ctx, req)
+	if err != nil {
+		return fmt.Errorf("close stdin: %w", err)
 	}
 	return nil
 }
