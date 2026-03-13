@@ -74,6 +74,7 @@ type (
 		cache             *cache.Cache
 		cacheLifetime     time.Duration
 		cacheRefreshAfter time.Duration
+		cacheMaxLifetime  time.Duration
 	}
 
 	// CacheResolverConfig 缓存域名解析器选项
@@ -92,6 +93,9 @@ type (
 
 		// 缓存刷新时间（默认：80s）
 		CacheRefreshAfter time.Duration
+
+		// 缓存最大存活时间（默认：6h）
+		CacheMaxLifetime time.Duration
 	}
 
 	resolverCacheValueIP struct {
@@ -104,6 +108,7 @@ type (
 		IPs          []resolverCacheValueIP `json:"ips"`
 		RefreshAfter time.Time              `json:"refresh_after"`
 		ExpiredAt    time.Time              `json:"expired_at"`
+		CreatedAt    time.Time              `json:"created_at"`
 	}
 )
 
@@ -140,6 +145,10 @@ func NewCacheResolver(resolver Resolver, opts *CacheResolverConfig) (Resolver, e
 	if cacheRefreshAfter == time.Duration(0) {
 		cacheRefreshAfter = 80 * time.Second
 	}
+	cacheMaxLifetime := opts.CacheMaxLifetime
+	if cacheMaxLifetime == time.Duration(0) {
+		cacheMaxLifetime = 6 * time.Hour
+	}
 	if resolver == nil {
 		resolver = staticDefaultResolver
 	}
@@ -153,6 +162,7 @@ func NewCacheResolver(resolver Resolver, opts *CacheResolverConfig) (Resolver, e
 		resolver:          resolver,
 		cacheLifetime:     cacheLifetime,
 		cacheRefreshAfter: cacheRefreshAfter,
+		cacheMaxLifetime:  cacheMaxLifetime,
 	}, nil
 }
 
@@ -200,6 +210,7 @@ func (resolver *cacheResolver) resolve(ctx context.Context, host string) (*resol
 			IPs:          cacheValueIPs,
 			RefreshAfter: now.Add(resolver.cacheRefreshAfter),
 			ExpiredAt:    now.Add(resolver.cacheLifetime),
+			CreatedAt:    now,
 		}, nil
 	}
 }
@@ -281,7 +292,12 @@ func (resolver cacheResolver) FeedbackGood(ctx context.Context, host string, ips
 			}
 		}
 		if anyIPLiveLonger {
-			rcv.RefreshAfter = now.Add(resolver.cacheRefreshAfter)
+			refreshAfter := now.Add(resolver.cacheRefreshAfter)
+			maxRefreshDeadline := rcv.CreatedAt.Add(resolver.cacheMaxLifetime)
+			if refreshAfter.After(maxRefreshDeadline) {
+				refreshAfter = maxRefreshDeadline
+			}
+			rcv.RefreshAfter = refreshAfter
 			rcv.ExpiredAt = now.Add(resolver.cacheLifetime)
 		}
 	}
