@@ -103,7 +103,7 @@ type (
 		// 缓存刷新时间（默认：80s）
 		CacheRefreshAfter time.Duration
 
-		// 缓存最大存活时间（默认：30min）
+		// CacheMaxLifetime 限制 FeedbackGood 可推迟缓存刷新的最长期限，从首次解析时起算（默认：30min）
 		CacheMaxLifetime time.Duration
 	}
 

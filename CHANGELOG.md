@@ -1,4 +1,8 @@
 # Changelog
+## 7.26.5
+* 新增
+  * DNS Resolver 解析 IP 增加 CacheMaxLifetime
+
 ## 7.26.4
 * 新增
   * sandbox: 添加 WithStdin 选项和 CloseStdin 方法，支持向命令的标准输入写入数据

@@ -134,7 +134,7 @@ func TestCacheResolverMaxLifetime(t *testing.T) {
 	// 等待异步刷新完成
 	time.Sleep(1 * time.Second)
 
-	if mr.c["upload.qiniup.com"] < 2 {
-		t.Fatalf("Expected at least 2 resolve calls after max lifetime, got %d", mr.c["upload.qiniup.com"])
+	if mr.c["upload.qiniup.com"] != 2 {
+		t.Fatalf("Expected 2 resolve calls after max lifetime, got %d", mr.c["upload.qiniup.com"])
 	}
 }
