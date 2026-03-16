@@ -36,6 +36,15 @@ type (
 	}
 )
 
+// NewEmptyResolver 空的 DNS Resolver，相当于关闭 SDK 的 DNS 解析功能
+func NewEmptyResolver() Resolver {
+	return customizedResolver{
+		resolveFn: func(ctx context.Context, s string) ([]net.IP, error) {
+			return nil, nil
+		},
+	}
+}
+
 // NewResolver 创建自定义的域名解析器
 func NewResolver(fn func(context.Context, string) ([]net.IP, error)) Resolver {
 	return customizedResolver{resolveFn: fn}
@@ -94,7 +103,7 @@ type (
 		// 缓存刷新时间（默认：80s）
 		CacheRefreshAfter time.Duration
 
-		// 缓存最大存活时间（默认：6h）
+		// 缓存最大存活时间（默认：30min）
 		CacheMaxLifetime time.Duration
 	}
 
@@ -147,7 +156,7 @@ func NewCacheResolver(resolver Resolver, opts *CacheResolverConfig) (Resolver, e
 	}
 	cacheMaxLifetime := opts.CacheMaxLifetime
 	if cacheMaxLifetime == time.Duration(0) {
-		cacheMaxLifetime = 6 * time.Hour
+		cacheMaxLifetime = 30 * time.Minute
 	}
 	if resolver == nil {
 		resolver = staticDefaultResolver

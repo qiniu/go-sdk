@@ -4,6 +4,7 @@
 package clientv2
 
 import (
+	"context"
 	"math"
 	"net"
 	"net/http"
@@ -225,6 +226,61 @@ func TestSimpleNotRetryInterceptor(t *testing.T) {
 	}
 	if callbackedCount != 4 {
 		t.Fatalf("unexpected callbackedCount: %d", callbackedCount)
+	}
+}
+
+func TestSimpleRetryInterceptorWithNoopResolver(t *testing.T) {
+	doCount := 0
+	resolveCount := 0
+	rInterceptor := NewSimpleRetryInterceptor(SimpleRetryConfig{
+		RetryMax: 0,
+		Resolver: resolver.NewResolver(func(ctx context.Context, host string) ([]net.IP, error) {
+			return nil, nil
+		}),
+		BeforeResolve: func(req *http.Request) {
+			resolveCount += 1
+		},
+		AfterResolve: func(req *http.Request, ips []net.IP) {
+			resolveCount += 1
+			if len(ips) != 0 {
+				t.Fatalf("expected empty ips, got %v", ips)
+			}
+		},
+		ResolveError: func(req *http.Request, err error) {
+			t.Fatal("unexpected resolve error", err)
+		},
+		Chooser: chooser.NewDirectChooser(),
+	})
+
+	interceptor := NewSimpleInterceptor(func(req *http.Request, handler Handler) (*http.Response, error) {
+		doCount += 1
+		resp, err := handler(req)
+		return resp, err
+	})
+
+	c := NewClient(&testClient{statusCode: 200}, rInterceptor, interceptor)
+
+	resp, err := Do(c, RequestParams{
+		Context: nil,
+		Method:  "",
+		Url:     "https://aaa.com",
+		Header:  nil,
+		GetBody: nil,
+	})
+	if err != nil {
+		t.Fatal("unexpected error", err)
+	}
+
+	if doCount != 1 {
+		t.Fatalf("expected 1 request, got %d", doCount)
+	}
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+	// 首次 resolve 调 BeforeResolve + AfterResolve，
+	// ensureChoose 发现无可用 IP 后再次 bypassCache resolve 调 BeforeResolve + AfterResolve
+	if resolveCount != 4 {
+		t.Fatalf("expected 4 resolve callbacks, got %d", resolveCount)
 	}
 }
 
