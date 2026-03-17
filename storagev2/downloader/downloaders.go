@@ -202,10 +202,12 @@ func (downloader concurrentDownloader) Download(ctx context.Context, urlsIter UR
 				}
 			})
 			if n > 0 {
+				downloadingProgressMutex.Lock()
 				downloadingProgress.partDownloaded(p.Offset(), n)
 				if onDownloadingProgress := options.OnDownloadingProgress; onDownloadingProgress != nil {
 					onDownloadingProgress(&DownloadingProgress{Downloaded: downloadingProgress.totalDownloaded(), TotalSize: needToDownload})
 				}
+				downloadingProgressMutex.Unlock()
 			}
 			return err
 		})

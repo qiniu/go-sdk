@@ -36,6 +36,15 @@ type (
 	}
 )
 
+// NewEmptyResolver 空的 DNS Resolver，相当于关闭 SDK 的 DNS 解析功能
+func NewEmptyResolver() Resolver {
+	return customizedResolver{
+		resolveFn: func(ctx context.Context, s string) ([]net.IP, error) {
+			return nil, nil
+		},
+	}
+}
+
 // NewResolver 创建自定义的域名解析器
 func NewResolver(fn func(context.Context, string) ([]net.IP, error)) Resolver {
 	return customizedResolver{resolveFn: fn}
@@ -74,6 +83,7 @@ type (
 		cache             *cache.Cache
 		cacheLifetime     time.Duration
 		cacheRefreshAfter time.Duration
+		cacheMaxLifetime  time.Duration
 	}
 
 	// CacheResolverConfig 缓存域名解析器选项
@@ -92,6 +102,9 @@ type (
 
 		// 缓存刷新时间（默认：80s）
 		CacheRefreshAfter time.Duration
+
+		// CacheMaxLifetime 限制 FeedbackGood 可推迟缓存刷新的最长期限，从首次解析时起算（默认：30min）
+		CacheMaxLifetime time.Duration
 	}
 
 	resolverCacheValueIP struct {
@@ -104,6 +117,7 @@ type (
 		IPs          []resolverCacheValueIP `json:"ips"`
 		RefreshAfter time.Time              `json:"refresh_after"`
 		ExpiredAt    time.Time              `json:"expired_at"`
+		CreatedAt    time.Time              `json:"created_at"`
 	}
 )
 
@@ -140,6 +154,10 @@ func NewCacheResolver(resolver Resolver, opts *CacheResolverConfig) (Resolver, e
 	if cacheRefreshAfter == time.Duration(0) {
 		cacheRefreshAfter = 80 * time.Second
 	}
+	cacheMaxLifetime := opts.CacheMaxLifetime
+	if cacheMaxLifetime == time.Duration(0) {
+		cacheMaxLifetime = 30 * time.Minute
+	}
 	if resolver == nil {
 		resolver = staticDefaultResolver
 	}
@@ -153,6 +171,7 @@ func NewCacheResolver(resolver Resolver, opts *CacheResolverConfig) (Resolver, e
 		resolver:          resolver,
 		cacheLifetime:     cacheLifetime,
 		cacheRefreshAfter: cacheRefreshAfter,
+		cacheMaxLifetime:  cacheMaxLifetime,
 	}, nil
 }
 
@@ -200,6 +219,7 @@ func (resolver *cacheResolver) resolve(ctx context.Context, host string) (*resol
 			IPs:          cacheValueIPs,
 			RefreshAfter: now.Add(resolver.cacheRefreshAfter),
 			ExpiredAt:    now.Add(resolver.cacheLifetime),
+			CreatedAt:    now,
 		}, nil
 	}
 }
@@ -281,7 +301,12 @@ func (resolver cacheResolver) FeedbackGood(ctx context.Context, host string, ips
 			}
 		}
 		if anyIPLiveLonger {
-			rcv.RefreshAfter = now.Add(resolver.cacheRefreshAfter)
+			refreshAfter := now.Add(resolver.cacheRefreshAfter)
+			maxRefreshDeadline := rcv.CreatedAt.Add(resolver.cacheMaxLifetime)
+			if refreshAfter.After(maxRefreshDeadline) {
+				refreshAfter = maxRefreshDeadline
+			}
+			rcv.RefreshAfter = refreshAfter
 			rcv.ExpiredAt = now.Add(resolver.cacheLifetime)
 		}
 	}
