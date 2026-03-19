@@ -271,7 +271,7 @@ type NewSandbox struct {
 	Metadata *SandboxMetadata      `json:"metadata,omitempty"`
 	Network  *SandboxNetworkConfig `json:"network,omitempty"`
 
-	// RequestTransforms 应用于匹配出站请求的转换规则序列。
+	// RequestTransforms A sequence of transformations to apply to matching outgoing HTTPS requests from the sandbox. Only applies to HTTPS traffic on port 443.
 	RequestTransforms *[]RequestTransform `json:"request_transforms,omitempty"`
 
 	// Secure Secure all system communication with sandbox
@@ -284,27 +284,27 @@ type NewSandbox struct {
 	Timeout *int32 `json:"timeout,omitempty"`
 }
 
-// RequestTransform 出站请求的转换规则
+// RequestTransform Transformation rule for outgoing requests
 type RequestTransform struct {
-	// Conditions 转换应用需要满足的条件
+	// Conditions Conditions that must be met for the transform to apply
 	Conditions *RequestTransformConditions `json:"conditions,omitempty"`
 
-	// Replacements 对匹配请求应用的替换
+	// Replacements Replacements to apply for matching requests
 	Replacements *RequestTransformReplacements `json:"replacements,omitempty"`
 }
 
-// RequestTransformConditions 转换应用需要满足的条件
+// RequestTransformConditions Conditions that must be met for the transform to apply
 type RequestTransformConditions struct {
-	// Hosts 需要精确匹配的主机名列表（不支持通配符）
+	// Hosts List of exact HTTPS hostnames to match (wildcards are not supported). The transform will only apply to HTTPS requests to these hostnames on port 443.
 	Hosts *[]string `json:"hosts,omitempty"`
 }
 
-// RequestTransformReplacements 对匹配请求应用的替换
+// RequestTransformReplacements Replacements to apply for matching requests
 type RequestTransformReplacements struct {
-	// Headers 需要设置或替换的 HTTP 头
+	// Headers HTTP headers to set or replace on matching HTTPS requests
 	Headers *map[string]string `json:"headers,omitempty"`
 
-	// Queries 需要替换的 URL 查询参数（仅在原请求中存在时有效）
+	// Queries URL query parameters to replace on matching HTTPS requests (only if already present)
 	Queries *map[string]string `json:"queries,omitempty"`
 }
 
