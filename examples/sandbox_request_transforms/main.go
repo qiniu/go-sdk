@@ -45,7 +45,7 @@ func main() {
 
 	// 准备创建参数
 	params := sandbox.CreateParams{
-		TemplateID: "base-apikey",
+		TemplateID: "base",
 		RequestTransforms: &[]sandbox.RequestTransform{
 			{
 				Conditions: &sandbox.RequestTransformConditions{
