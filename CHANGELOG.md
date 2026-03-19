@@ -1,4 +1,9 @@
 # Changelog
+## 7.26.6
+
+* 新增
+  * sandbox: 添加密钥安全功能，创建沙箱可以指定请求变换（RequestTransforms），实现对出站请求的 header 和 query 参数进行安全替换
+
 ## 7.26.5
 * 新增
   * DNS Resolver 解析 IP 增加 CacheMaxLifetime
@@ -39,7 +44,7 @@
 
 * 修复
   * storage Region 添加 Bucket 域名
-  
+
 ## 7.25.4
 
 * 修复

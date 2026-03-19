@@ -271,6 +271,9 @@ type NewSandbox struct {
 	Metadata *SandboxMetadata      `json:"metadata,omitempty"`
 	Network  *SandboxNetworkConfig `json:"network,omitempty"`
 
+	// RequestTransforms A sequence of transformations to apply to matching outgoing HTTPS requests from the sandbox. Only applies to HTTPS traffic on port 443.
+	RequestTransforms *[]RequestTransform `json:"request_transforms,omitempty"`
+
 	// Secure Secure all system communication with sandbox
 	Secure *bool `json:"secure,omitempty"`
 
@@ -279,6 +282,30 @@ type NewSandbox struct {
 
 	// Timeout Time to live for the sandbox in seconds.
 	Timeout *int32 `json:"timeout,omitempty"`
+}
+
+// RequestTransform Transformation rule for outgoing requests
+type RequestTransform struct {
+	// Conditions Conditions that must be met for the transform to apply
+	Conditions *RequestTransformConditions `json:"conditions,omitempty"`
+
+	// Replacements Replacements to apply for matching requests
+	Replacements *RequestTransformReplacements `json:"replacements,omitempty"`
+}
+
+// RequestTransformConditions Conditions that must be met for the transform to apply
+type RequestTransformConditions struct {
+	// Hosts List of exact HTTPS hostnames to match (wildcards are not supported). The transform will only apply to HTTPS requests to these hostnames on port 443.
+	Hosts *[]string `json:"hosts,omitempty"`
+}
+
+// RequestTransformReplacements Replacements to apply for matching requests
+type RequestTransformReplacements struct {
+	// Headers HTTP headers to set or replace on matching HTTPS requests
+	Headers *map[string]string `json:"headers,omitempty"`
+
+	// Queries URL query parameters to replace on matching HTTPS requests (only if already present)
+	Queries *map[string]string `json:"queries,omitempty"`
 }
 
 // ResumedSandbox defines model for ResumedSandbox.

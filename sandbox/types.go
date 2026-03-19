@@ -28,6 +28,30 @@ type NetworkConfig struct {
 	MaskRequestHost *string
 }
 
+// RequestTransformConditions 请求变换的匹配条件。
+type RequestTransformConditions struct {
+	// Hosts 需要精确匹配的目标域名列表（不支持通配符）。
+	Hosts *[]string
+}
+
+// RequestTransformReplacements 请求变换的替换动作。
+type RequestTransformReplacements struct {
+	// Headers 需要替换或注入的 HTTP Headers。
+	Headers *map[string]string
+
+	// Queries 需要替换的 URL Query 参数（仅在原请求中存在时有效）。
+	Queries *map[string]string
+}
+
+// RequestTransform 定义对运行在沙箱内部的出站请求进行拦截与自动替换的协议参数。
+type RequestTransform struct {
+	// Conditions 匹配条件。
+	Conditions *RequestTransformConditions
+
+	// Replacements 替换与操作。
+	Replacements *RequestTransformReplacements
+}
+
 // SandboxState 沙箱状态。
 type SandboxState string
 
@@ -62,6 +86,9 @@ type CreateParams struct {
 
 	// Network 网络配置，可选。
 	Network *NetworkConfig
+
+	// RequestTransforms 针对网络传出外部请求的变换拦截规则，可选。
+	RequestTransforms *[]RequestTransform
 }
 
 // ConnectParams 连接沙箱的请求参数。
@@ -359,6 +386,31 @@ func (p *CreateParams) toAPI() apis.CreateSandboxJSONRequestBody {
 			DenyOut:            p.Network.DenyOut,
 			MaskRequestHost:    p.Network.MaskRequestHost,
 		}
+	}
+	if p.RequestTransforms != nil {
+		rtList := make([]apis.RequestTransform, len(*p.RequestTransforms))
+		for i, rt := range *p.RequestTransforms {
+			var conditions *apis.RequestTransformConditions
+			var replacements *apis.RequestTransformReplacements
+
+			if rt.Conditions != nil {
+				conditions = &apis.RequestTransformConditions{
+					Hosts: rt.Conditions.Hosts,
+				}
+			}
+			if rt.Replacements != nil {
+				replacements = &apis.RequestTransformReplacements{
+					Headers: rt.Replacements.Headers,
+					Queries: rt.Replacements.Queries,
+				}
+			}
+
+			rtList[i] = apis.RequestTransform{
+				Conditions:   conditions,
+				Replacements: replacements,
+			}
+		}
+		body.RequestTransforms = &rtList
 	}
 	return body
 }
