@@ -271,6 +271,9 @@ type NewSandbox struct {
 	Metadata *SandboxMetadata      `json:"metadata,omitempty"`
 	Network  *SandboxNetworkConfig `json:"network,omitempty"`
 
+	// RequestTransforms 应用于匹配出站请求的转换规则序列。
+	RequestTransforms *[]RequestTransform `json:"request_transforms,omitempty"`
+
 	// Secure Secure all system communication with sandbox
 	Secure *bool `json:"secure,omitempty"`
 
@@ -279,6 +282,30 @@ type NewSandbox struct {
 
 	// Timeout Time to live for the sandbox in seconds.
 	Timeout *int32 `json:"timeout,omitempty"`
+}
+
+// RequestTransform 出站请求的转换规则
+type RequestTransform struct {
+	// Conditions 转换应用需要满足的条件
+	Conditions *RequestTransformConditions `json:"conditions,omitempty"`
+
+	// Replacements 对匹配请求应用的替换
+	Replacements *RequestTransformReplacements `json:"replacements,omitempty"`
+}
+
+// RequestTransformConditions 转换应用需要满足的条件
+type RequestTransformConditions struct {
+	// Hosts 需要精确匹配的主机名列表（不支持通配符）
+	Hosts *[]string `json:"hosts,omitempty"`
+}
+
+// RequestTransformReplacements 对匹配请求应用的替换
+type RequestTransformReplacements struct {
+	// Headers 需要设置或替换的 HTTP 头
+	Headers *map[string]string `json:"headers,omitempty"`
+
+	// Queries 需要替换的 URL 查询参数（仅在原请求中存在时有效）
+	Queries *map[string]string `json:"queries,omitempty"`
 }
 
 // ResumedSandbox defines model for ResumedSandbox.
