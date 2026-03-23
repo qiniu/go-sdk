@@ -58,6 +58,12 @@ func main() {
 			},
 		},
 	}
+	// 或者通过 RequestTransformIds 引用 TransformRule
+	// requestTransformIds := []string{"<transform-rule-id>"}
+	// params := sandbox.CreateParams{
+	// 	TemplateID:          "base",
+	// 	RequestTransformIds: &requestTransformIds,
+	// }
 
 	// 创建并等待沙箱就绪
 	sb, info, err := client.CreateAndWait(ctx, params)
