@@ -271,7 +271,10 @@ type NewSandbox struct {
 	Metadata *SandboxMetadata      `json:"metadata,omitempty"`
 	Network  *SandboxNetworkConfig `json:"network,omitempty"`
 
-	// RequestTransforms A sequence of transformations to apply to matching outgoing HTTPS requests from the sandbox. Only applies to HTTPS traffic on port 443.
+	// RequestTransformIds IDs of pre-defined transform rules to apply to matching outgoing HTTPS requests. Mutually exclusive with request_transforms.
+	RequestTransformIds *[]string `json:"request_transform_ids,omitempty"`
+
+	// RequestTransforms A sequence of transformations to apply to matching outgoing HTTPS requests from the sandbox. Only applies to HTTPS traffic on port 443. Mutually exclusive with request_transform_ids.
 	RequestTransforms *[]RequestTransform `json:"request_transforms,omitempty"`
 
 	// Secure Secure all system communication with sandbox
@@ -282,6 +285,18 @@ type NewSandbox struct {
 
 	// Timeout Time to live for the sandbox in seconds.
 	Timeout *int32 `json:"timeout,omitempty"`
+}
+
+// NewTransformRule defines model for NewTransformRule.
+type NewTransformRule struct {
+	// Conditions Conditions that must be met for the transform to apply
+	Conditions *RequestTransformConditions `json:"conditions,omitempty"`
+
+	// Name Human-readable name of the transform rule. Must be unique per user.
+	Name string `json:"name"`
+
+	// Replacements Replacements to apply for matching requests
+	Replacements *RequestTransformReplacements `json:"replacements,omitempty"`
 }
 
 // RequestTransform Transformation rule for outgoing requests
@@ -805,6 +820,39 @@ type TemplateWithBuilds struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+// TransformRule defines model for TransformRule.
+type TransformRule struct {
+	// Conditions Conditions that must be met for the transform to apply
+	Conditions *RequestTransformConditions `json:"conditions,omitempty"`
+
+	// CreatedAt Timestamp when the transform rule was created
+	CreatedAt time.Time `json:"createdAt"`
+
+	// Name Human-readable name of the transform rule. Must be unique per user.
+	Name string `json:"name"`
+
+	// Replacements Replacements to apply for matching requests
+	Replacements *RequestTransformReplacements `json:"replacements,omitempty"`
+
+	// RuleID Unique identifier of the transform rule
+	RuleID string `json:"ruleID"`
+
+	// UpdatedAt Timestamp when the transform rule was last updated
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// UpdateTransformRule defines model for UpdateTransformRule.
+type UpdateTransformRule struct {
+	// Conditions Conditions that must be met for the transform to apply
+	Conditions *RequestTransformConditions `json:"conditions,omitempty"`
+
+	// Name Human-readable name of the transform rule. Must be unique per user.
+	Name *string `json:"name,omitempty"`
+
+	// Replacements Replacements to apply for matching requests
+	Replacements *RequestTransformReplacements `json:"replacements,omitempty"`
+}
+
 // BuildID defines model for buildID.
 type BuildID = string
 
@@ -819,6 +867,9 @@ type SandboxID = string
 
 // TemplateID defines model for templateID.
 type TemplateID = string
+
+// TransformRuleID defines model for transformRuleID.
+type TransformRuleID = string
 
 // N400 defines model for 400.
 type N400 = Error
@@ -960,6 +1011,12 @@ type UpdateTemplateJSONRequestBody = TemplateUpdateRequest
 
 // RebuildTemplateJSONRequestBody defines body for RebuildTemplate for application/json ContentType.
 type RebuildTemplateJSONRequestBody = TemplateBuildRequest
+
+// PostTransformRulesJSONRequestBody defines body for PostTransformRules for application/json ContentType.
+type PostTransformRulesJSONRequestBody = NewTransformRule
+
+// PutTransformRulesRuleIDJSONRequestBody defines body for PutTransformRulesRuleID for application/json ContentType.
+type PutTransformRulesRuleIDJSONRequestBody = UpdateTransformRule
 
 // CreateTemplateV2JSONRequestBody defines body for CreateTemplateV2 for application/json ContentType.
 type CreateTemplateV2JSONRequestBody = TemplateBuildRequestV2
@@ -1259,6 +1316,25 @@ type ClientInterface interface {
 
 	// GetTemplateFiles request
 	GetTemplateFiles(ctx context.Context, templateID TemplateID, hash string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetTransformRules request
+	GetTransformRules(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostTransformRulesWithBody request with any body
+	PostTransformRulesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostTransformRules(ctx context.Context, body PostTransformRulesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteTransformRulesRuleID request
+	DeleteTransformRulesRuleID(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetTransformRulesRuleID request
+	GetTransformRulesRuleID(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutTransformRulesRuleIDWithBody request with any body
+	PutTransformRulesRuleIDWithBody(ctx context.Context, ruleID TransformRuleID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutTransformRulesRuleID(ctx context.Context, ruleID TransformRuleID, body PutTransformRulesRuleIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListSandboxesV2 request
 	ListSandboxesV2(ctx context.Context, params *ListSandboxesV2Params, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1701,6 +1777,90 @@ func (c *Client) GetTemplateBuildStatus(ctx context.Context, templateID Template
 
 func (c *Client) GetTemplateFiles(ctx context.Context, templateID TemplateID, hash string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetTemplateFilesRequest(c.Server, templateID, hash)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetTransformRules(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTransformRulesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostTransformRulesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostTransformRulesRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostTransformRules(ctx context.Context, body PostTransformRulesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostTransformRulesRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteTransformRulesRuleID(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteTransformRulesRuleIDRequest(c.Server, ruleID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetTransformRulesRuleID(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTransformRulesRuleIDRequest(c.Server, ruleID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutTransformRulesRuleIDWithBody(ctx context.Context, ruleID TransformRuleID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutTransformRulesRuleIDRequestWithBody(c.Server, ruleID, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutTransformRulesRuleID(ctx context.Context, ruleID TransformRuleID, body PutTransformRulesRuleIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutTransformRulesRuleIDRequest(c.Server, ruleID, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3097,6 +3257,188 @@ func NewGetTemplateFilesRequest(server string, templateID TemplateID, hash strin
 	return req, nil
 }
 
+// NewGetTransformRulesRequest generates requests for GetTransformRules
+func NewGetTransformRulesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/transform-rules")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostTransformRulesRequest calls the generic PostTransformRules builder with application/json body
+func NewPostTransformRulesRequest(server string, body PostTransformRulesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostTransformRulesRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostTransformRulesRequestWithBody generates requests for PostTransformRules with any type of body
+func NewPostTransformRulesRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/transform-rules")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteTransformRulesRuleIDRequest generates requests for DeleteTransformRulesRuleID
+func NewDeleteTransformRulesRuleIDRequest(server string, ruleID TransformRuleID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ruleID", runtime.ParamLocationPath, ruleID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/transform-rules/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetTransformRulesRuleIDRequest generates requests for GetTransformRulesRuleID
+func NewGetTransformRulesRuleIDRequest(server string, ruleID TransformRuleID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ruleID", runtime.ParamLocationPath, ruleID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/transform-rules/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutTransformRulesRuleIDRequest calls the generic PutTransformRulesRuleID builder with application/json body
+func NewPutTransformRulesRuleIDRequest(server string, ruleID TransformRuleID, body PutTransformRulesRuleIDJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutTransformRulesRuleIDRequestWithBody(server, ruleID, "application/json", bodyReader)
+}
+
+// NewPutTransformRulesRuleIDRequestWithBody generates requests for PutTransformRulesRuleID with any type of body
+func NewPutTransformRulesRuleIDRequestWithBody(server string, ruleID TransformRuleID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ruleID", runtime.ParamLocationPath, ruleID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/transform-rules/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListSandboxesV2Request generates requests for ListSandboxesV2
 func NewListSandboxesV2Request(server string, params *ListSandboxesV2Params) (*http.Request, error) {
 	var err error
@@ -3468,6 +3810,25 @@ type ClientWithResponsesInterface interface {
 
 	// GetTemplateFilesWithResponse request
 	GetTemplateFilesWithResponse(ctx context.Context, templateID TemplateID, hash string, reqEditors ...RequestEditorFn) (*GetTemplateFilesResponse, error)
+
+	// GetTransformRulesWithResponse request
+	GetTransformRulesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetTransformRulesResponse, error)
+
+	// PostTransformRulesWithBodyWithResponse request with any body
+	PostTransformRulesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostTransformRulesResponse, error)
+
+	PostTransformRulesWithResponse(ctx context.Context, body PostTransformRulesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostTransformRulesResponse, error)
+
+	// DeleteTransformRulesRuleIDWithResponse request
+	DeleteTransformRulesRuleIDWithResponse(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*DeleteTransformRulesRuleIDResponse, error)
+
+	// GetTransformRulesRuleIDWithResponse request
+	GetTransformRulesRuleIDWithResponse(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*GetTransformRulesRuleIDResponse, error)
+
+	// PutTransformRulesRuleIDWithBodyWithResponse request with any body
+	PutTransformRulesRuleIDWithBodyWithResponse(ctx context.Context, ruleID TransformRuleID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutTransformRulesRuleIDResponse, error)
+
+	PutTransformRulesRuleIDWithResponse(ctx context.Context, ruleID TransformRuleID, body PutTransformRulesRuleIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutTransformRulesRuleIDResponse, error)
 
 	// ListSandboxesV2WithResponse request
 	ListSandboxesV2WithResponse(ctx context.Context, params *ListSandboxesV2Params, reqEditors ...RequestEditorFn) (*ListSandboxesV2Response, error)
@@ -4132,6 +4493,132 @@ func (r GetTemplateFilesResponse) StatusCode() int {
 	return 0
 }
 
+type GetTransformRulesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TransformRule
+	JSON400      *N400
+	JSON401      *N401
+	JSON500      *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTransformRulesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTransformRulesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostTransformRulesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *TransformRule
+	JSON400      *N400
+	JSON401      *N401
+	JSON409      *N409
+	JSON500      *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r PostTransformRulesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostTransformRulesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteTransformRulesRuleIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *N401
+	JSON404      *N404
+	JSON500      *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteTransformRulesRuleIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteTransformRulesRuleIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetTransformRulesRuleIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TransformRule
+	JSON401      *N401
+	JSON404      *N404
+	JSON500      *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTransformRulesRuleIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTransformRulesRuleIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutTransformRulesRuleIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TransformRule
+	JSON400      *N400
+	JSON404      *N404
+	JSON409      *N409
+	JSON500      *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r PutTransformRulesRuleIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutTransformRulesRuleIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListSandboxesV2Response struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -4542,6 +5029,67 @@ func (c *ClientWithResponses) GetTemplateFilesWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseGetTemplateFilesResponse(rsp)
+}
+
+// GetTransformRulesWithResponse request returning *GetTransformRulesResponse
+func (c *ClientWithResponses) GetTransformRulesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetTransformRulesResponse, error) {
+	rsp, err := c.GetTransformRules(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTransformRulesResponse(rsp)
+}
+
+// PostTransformRulesWithBodyWithResponse request with arbitrary body returning *PostTransformRulesResponse
+func (c *ClientWithResponses) PostTransformRulesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostTransformRulesResponse, error) {
+	rsp, err := c.PostTransformRulesWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostTransformRulesResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostTransformRulesWithResponse(ctx context.Context, body PostTransformRulesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostTransformRulesResponse, error) {
+	rsp, err := c.PostTransformRules(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostTransformRulesResponse(rsp)
+}
+
+// DeleteTransformRulesRuleIDWithResponse request returning *DeleteTransformRulesRuleIDResponse
+func (c *ClientWithResponses) DeleteTransformRulesRuleIDWithResponse(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*DeleteTransformRulesRuleIDResponse, error) {
+	rsp, err := c.DeleteTransformRulesRuleID(ctx, ruleID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteTransformRulesRuleIDResponse(rsp)
+}
+
+// GetTransformRulesRuleIDWithResponse request returning *GetTransformRulesRuleIDResponse
+func (c *ClientWithResponses) GetTransformRulesRuleIDWithResponse(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*GetTransformRulesRuleIDResponse, error) {
+	rsp, err := c.GetTransformRulesRuleID(ctx, ruleID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTransformRulesRuleIDResponse(rsp)
+}
+
+// PutTransformRulesRuleIDWithBodyWithResponse request with arbitrary body returning *PutTransformRulesRuleIDResponse
+func (c *ClientWithResponses) PutTransformRulesRuleIDWithBodyWithResponse(ctx context.Context, ruleID TransformRuleID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutTransformRulesRuleIDResponse, error) {
+	rsp, err := c.PutTransformRulesRuleIDWithBody(ctx, ruleID, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutTransformRulesRuleIDResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutTransformRulesRuleIDWithResponse(ctx context.Context, ruleID TransformRuleID, body PutTransformRulesRuleIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutTransformRulesRuleIDResponse, error) {
+	rsp, err := c.PutTransformRulesRuleID(ctx, ruleID, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutTransformRulesRuleIDResponse(rsp)
 }
 
 // ListSandboxesV2WithResponse request returning *ListSandboxesV2Response
@@ -5771,6 +6319,248 @@ func ParseGetTemplateFilesResponse(rsp *http.Response) (*GetTemplateFilesRespons
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetTransformRulesResponse parses an HTTP response from a GetTransformRulesWithResponse call
+func ParseGetTransformRulesResponse(rsp *http.Response) (*GetTransformRulesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTransformRulesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TransformRule
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest N400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostTransformRulesResponse parses an HTTP response from a PostTransformRulesWithResponse call
+func ParsePostTransformRulesResponse(rsp *http.Response) (*PostTransformRulesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostTransformRulesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest TransformRule
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest N400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest N409
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteTransformRulesRuleIDResponse parses an HTTP response from a DeleteTransformRulesRuleIDWithResponse call
+func ParseDeleteTransformRulesRuleIDResponse(rsp *http.Response) (*DeleteTransformRulesRuleIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteTransformRulesRuleIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest N404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetTransformRulesRuleIDResponse parses an HTTP response from a GetTransformRulesRuleIDWithResponse call
+func ParseGetTransformRulesRuleIDResponse(rsp *http.Response) (*GetTransformRulesRuleIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTransformRulesRuleIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TransformRule
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest N404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutTransformRulesRuleIDResponse parses an HTTP response from a PutTransformRulesRuleIDWithResponse call
+func ParsePutTransformRulesRuleIDResponse(rsp *http.Response) (*PutTransformRulesRuleIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutTransformRulesRuleIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TransformRule
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest N400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest N404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest N409
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest N500

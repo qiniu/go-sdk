@@ -89,6 +89,10 @@ type CreateParams struct {
 
 	// RequestTransforms 针对网络传出外部请求的变换拦截规则，可选。
 	RequestTransforms *[]RequestTransform
+
+	// RequestTransformIds 指定 TransformRule id 列表，可选。
+	// 与 RequestTransforms 不能同时设置。
+	RequestTransformIds *[]string
 }
 
 // ConnectParams 连接沙箱的请求参数。
@@ -370,6 +374,7 @@ func (p *CreateParams) toAPI() apis.CreateSandboxJSONRequestBody {
 		AutoPause:           p.AutoPause,
 		AllowInternetAccess: p.AllowInternetAccess,
 		Secure:              p.Secure,
+		RequestTransformIds: p.RequestTransformIds,
 	}
 	if p.EnvVars != nil {
 		ev := apis.EnvVars(*p.EnvVars)

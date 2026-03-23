@@ -2,7 +2,7 @@
 ## 7.26.6
 
 * 新增
-  * sandbox: 添加密钥安全功能，创建沙箱可以指定请求变换（RequestTransforms），实现对出站请求的 header 和 query 参数进行安全替换
+  * sandbox: 添加密钥安全功能，创建沙箱可以指定请求变换（RequestTransforms/RequestTransformIds），实现对出站请求的 header 和 query 参数进行安全替换
 
 ## 7.26.5
 * 新增

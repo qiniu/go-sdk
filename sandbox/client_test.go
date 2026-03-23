@@ -223,6 +223,36 @@ func (m *mockAPI) DeleteTemplateTagsWithBodyWithResponse(ctx context.Context, co
 	panic("not implemented")
 }
 
+// --- 请求转换规则操作 ---
+
+func (m *mockAPI) GetTransformRulesWithResponse(ctx context.Context, editors ...apis.RequestEditorFn) (*apis.GetTransformRulesResponse, error) {
+	panic("not implemented")
+}
+
+func (m *mockAPI) PostTransformRulesWithResponse(ctx context.Context, body apis.PostTransformRulesJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.PostTransformRulesResponse, error) {
+	panic("not implemented")
+}
+
+func (m *mockAPI) PostTransformRulesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, editors ...apis.RequestEditorFn) (*apis.PostTransformRulesResponse, error) {
+	panic("not implemented")
+}
+
+func (m *mockAPI) DeleteTransformRulesRuleIDWithResponse(ctx context.Context, ruleID apis.TransformRuleID, editors ...apis.RequestEditorFn) (*apis.DeleteTransformRulesRuleIDResponse, error) {
+	panic("not implemented")
+}
+
+func (m *mockAPI) GetTransformRulesRuleIDWithResponse(ctx context.Context, ruleID apis.TransformRuleID, editors ...apis.RequestEditorFn) (*apis.GetTransformRulesRuleIDResponse, error) {
+	panic("not implemented")
+}
+
+func (m *mockAPI) PutTransformRulesRuleIDWithResponse(ctx context.Context, ruleID apis.TransformRuleID, body apis.PutTransformRulesRuleIDJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.PutTransformRulesRuleIDResponse, error) {
+	panic("not implemented")
+}
+
+func (m *mockAPI) PutTransformRulesRuleIDWithBodyWithResponse(ctx context.Context, ruleID apis.TransformRuleID, contentType string, body io.Reader, editors ...apis.RequestEditorFn) (*apis.PutTransformRulesRuleIDResponse, error) {
+	panic("not implemented")
+}
+
 // ============================================================
 // 测试用例
 // ============================================================
