@@ -1,4 +1,9 @@
 # Changelog
+## 7.26.7
+
+* 新增
+  * sandbox: 将 transform rules 重命名为 injection rules，统一 CRUD API、请求/响应类型和示例命名，更准确表达注入规则语义
+
 ## 7.26.6
 
 * 新增
