@@ -102,8 +102,8 @@ func (s *Sandbox) processClient() processconnect.ProcessClient {
 
 // Create 根据指定模板创建一个新的沙箱。
 func (c *Client) Create(ctx context.Context, params CreateParams) (*Sandbox, error) {
-	if params.RequestTransformIds != nil && params.RequestTransforms != nil {
-		return nil, errors.New("create sandbox: RequestTransforms and RequestTransformIds are mutually exclusive")
+	if params.RequestInjectionIds != nil && params.RequestInjections != nil {
+		return nil, errors.New("create sandbox: RequestInjections and RequestInjectionIds are mutually exclusive")
 	}
 	resp, err := c.api.CreateSandboxWithResponse(ctx, params.toAPI())
 	if err != nil {

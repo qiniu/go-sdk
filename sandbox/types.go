@@ -28,28 +28,53 @@ type NetworkConfig struct {
 	MaskRequestHost *string
 }
 
-// RequestTransformConditions 请求变换的匹配条件。
-type RequestTransformConditions struct {
-	// Hosts 需要精确匹配的目标域名列表（不支持通配符）。
+// RequestInjectionConditions 请求注入的匹配条件。
+type RequestInjectionConditions struct {
+	// Hosts 需要精确匹配的目标 HTTPS 域名列表（不支持通配符）。
+	// 注入仅作用于这些域名的 443 端口 HTTPS 请求。
+	// 当为空且设置了 API 时，自动使用协议默认域名。
 	Hosts *[]string
 }
 
-// RequestTransformReplacements 请求变换的替换动作。
-type RequestTransformReplacements struct {
-	// Headers 需要替换或注入的 HTTP Headers。
+// APIKeyInjectionType 预定义的 API 协议标识。
+type APIKeyInjectionType = apis.APIKeyInjectionType
+
+// APIKeyInjectionType 常量。
+const (
+	APIKeyInjectionTypeOpenAI    APIKeyInjectionType = "openai"
+	APIKeyInjectionTypeAnthropic APIKeyInjectionType = "anthropic"
+	APIKeyInjectionTypeGemini    APIKeyInjectionType = "gemini"
+)
+
+// APIKeyInjection 简化的 API 密钥注入配置，用于已知 API 协议。
+type APIKeyInjection struct {
+	// Type 预定义的 API 协议标识（openai、anthropic、gemini）。
+	Type APIKeyInjectionType
+
+	// Value API 密钥或令牌，可选。
+	Value *string
+}
+
+// RequestInjections 请求注入的动作配置。
+// 支持两种互斥模式：API 密钥模式（api）和手动模式（headers/queries）。
+type RequestInjections struct {
+	// API 简化的 API 密钥注入，用于已知 API 协议。与 Headers/Queries 互斥。
+	API *APIKeyInjection
+
+	// Headers 需要注入或覆盖的 HTTP Headers。与 API 互斥。
 	Headers *map[string]string
 
-	// Queries 需要替换的 URL Query 参数（仅在原请求中存在时有效）。
+	// Queries 需要替换的 URL Query 参数（仅在原请求中存在时有效）。与 API 互斥。
 	Queries *map[string]string
 }
 
-// RequestTransform 定义对运行在沙箱内部的出站请求进行拦截与自动替换的协议参数。
-type RequestTransform struct {
+// RequestInjection 定义对运行在沙箱内部的出站 HTTPS 请求进行拦截与自动注入的规则。
+type RequestInjection struct {
 	// Conditions 匹配条件。
-	Conditions *RequestTransformConditions
+	Conditions *RequestInjectionConditions
 
-	// Replacements 替换与操作。
-	Replacements *RequestTransformReplacements
+	// Injections 注入动作。
+	Injections *RequestInjections
 }
 
 // SandboxState 沙箱状态。
@@ -87,12 +112,13 @@ type CreateParams struct {
 	// Network 网络配置，可选。
 	Network *NetworkConfig
 
-	// RequestTransforms 针对网络传出外部请求的变换拦截规则，可选。
-	RequestTransforms *[]RequestTransform
+	// RequestInjections 针对出站 HTTPS 请求的注入规则列表，可选。
+	// 与 RequestInjectionIds 不能同时设置。
+	RequestInjections *[]RequestInjection
 
-	// RequestTransformIds 指定 TransformRule id 列表，可选。
-	// 与 RequestTransforms 不能同时设置。
-	RequestTransformIds *[]string
+	// RequestInjectionIds 指定预定义 InjectionRule id 列表，可选。
+	// 与 RequestInjections 不能同时设置。
+	RequestInjectionIds *[]string
 }
 
 // ConnectParams 连接沙箱的请求参数。
@@ -374,7 +400,7 @@ func (p *CreateParams) toAPI() apis.CreateSandboxJSONRequestBody {
 		AutoPause:           p.AutoPause,
 		AllowInternetAccess: p.AllowInternetAccess,
 		Secure:              p.Secure,
-		RequestTransformIds: p.RequestTransformIds,
+		RequestInjectionIds: p.RequestInjectionIds,
 	}
 	if p.EnvVars != nil {
 		ev := apis.EnvVars(*p.EnvVars)
@@ -392,30 +418,36 @@ func (p *CreateParams) toAPI() apis.CreateSandboxJSONRequestBody {
 			MaskRequestHost:    p.Network.MaskRequestHost,
 		}
 	}
-	if p.RequestTransforms != nil {
-		rtList := make([]apis.RequestTransform, len(*p.RequestTransforms))
-		for i, rt := range *p.RequestTransforms {
-			var conditions *apis.RequestTransformConditions
-			var replacements *apis.RequestTransformReplacements
+	if p.RequestInjections != nil {
+		riList := make([]apis.RequestInjection, len(*p.RequestInjections))
+		for i, ri := range *p.RequestInjections {
+			var conditions *apis.RequestInjectionConditions
+			var injections *apis.RequestInjections
 
-			if rt.Conditions != nil {
-				conditions = &apis.RequestTransformConditions{
-					Hosts: rt.Conditions.Hosts,
+			if ri.Conditions != nil {
+				conditions = &apis.RequestInjectionConditions{
+					Hosts: ri.Conditions.Hosts,
 				}
 			}
-			if rt.Replacements != nil {
-				replacements = &apis.RequestTransformReplacements{
-					Headers: rt.Replacements.Headers,
-					Queries: rt.Replacements.Queries,
+			if ri.Injections != nil {
+				injections = &apis.RequestInjections{
+					Headers: ri.Injections.Headers,
+					Queries: ri.Injections.Queries,
+				}
+				if ri.Injections.API != nil {
+					injections.API = &apis.APIKeyInjection{
+						Type:  ri.Injections.API.Type,
+						Value: ri.Injections.API.Value,
+					}
 				}
 			}
 
-			rtList[i] = apis.RequestTransform{
-				Conditions:   conditions,
-				Replacements: replacements,
+			riList[i] = apis.RequestInjection{
+				Conditions: conditions,
+				Injections: injections,
 			}
 		}
-		body.RequestTransforms = &rtList
+		body.RequestInjections = &riList
 	}
 	return body
 }

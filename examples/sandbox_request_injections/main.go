@@ -29,9 +29,9 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	log.Println("Creating sandbox with request transforms...")
+	log.Println("Creating sandbox with request injections...")
 
-	// 设置针对特定域名的请求替换规则
+	// 设置针对特定域名的请求注入规则
 	// 这个规则告诉底层网络架构，当请求向 "httpbin.org" 发起时，
 	// 如果它是 HTTPS，拦截掉该请求并将 header 中的 "Authorization"
 	// 重写为 "Bearer real_xxx"
@@ -46,23 +46,43 @@ func main() {
 	// 准备创建参数
 	params := sandbox.CreateParams{
 		TemplateID: "base",
-		RequestTransforms: &[]sandbox.RequestTransform{
+		RequestInjections: &[]sandbox.RequestInjection{
 			{
-				Conditions: &sandbox.RequestTransformConditions{
+				Conditions: &sandbox.RequestInjectionConditions{
 					Hosts: &hosts,
 				},
-				Replacements: &sandbox.RequestTransformReplacements{
+				Injections: &sandbox.RequestInjections{
 					Headers: &headers,
 					Queries: &queries,
 				},
 			},
 		},
 	}
-	// 或者通过 RequestTransformIds 引用 TransformRule
-	// requestTransformIds := []string{"<transform-rule-id>"}
+
+	// 使用 API 字段简化已知 API 协议的密钥注入（与 Headers/Queries 互斥）
+	// apiKey := "sk-real-openai-key"
+	// params := sandbox.CreateParams{
+	// 	TemplateID: "base",
+	// 	RequestInjections: &[]sandbox.RequestInjection{
+	// 		{
+	// 			Conditions: &sandbox.RequestInjectionConditions{
+	// 				Hosts: &[]string{"api.openai.com"}, // 可选，默认根据 API.Type 自动匹配
+	// 			},
+	// 			Injections: &sandbox.RequestInjections{
+	// 				API: &sandbox.APIKeyInjection{
+	// 					Type:  sandbox.APIKeyInjectionTypeOpenAI, // 也支持 APIKeyInjectionTypeAnthropic、APIKeyInjectionTypeGemini
+	// 					Value: &apiKey,
+	// 				},
+	// 			},
+	// 		},
+	// 	},
+	// }
+
+	// 通过 RequestInjectionIds 引用 InjectionRule
+	// requestInjectionIds := []string{"<injection-rule-id>"}
 	// params := sandbox.CreateParams{
 	// 	TemplateID:          "base",
-	// 	RequestTransformIds: &requestTransformIds,
+	// 	RequestInjectionIds: &requestInjectionIds,
 	// }
 
 	// 创建并等待沙箱就绪
@@ -101,14 +121,14 @@ func main() {
 	// 我们在规则中配置了 api-key 的替换。
 	// 下面的请求包含 api-key=old-key，应当被替换为 real-api-key-value
 	queryCmd := `curl -sSL -X GET "https://httpbin.org/get?api-key=old-key&other=foo"`
-	log.Printf("\nExecuting query transform test:\n$ %s\n", queryCmd)
+	log.Printf("\nExecuting query injection test:\n$ %s\n", queryCmd)
 	result, err = sb.Commands().Run(ctx, queryCmd)
 	if err != nil {
 		log.Fatalf("Failed to run query test command: %v", err)
 	}
 	log.Printf("Query Test Stdout: \n%s\n", result.Stdout)
 
-	// 测试“仅替换，不新增”逻辑
+	// 测试"仅替换，不新增"逻辑
 	// 下面的请求不包含 api-key，因此不应当被注入新的参数
 	noQueryCmd := `curl -sSL -X GET "https://httpbin.org/get?other=bar"`
 	log.Printf("\nExecuting no-query (no-injection) test:\n$ %s\n", noQueryCmd)
