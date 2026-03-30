@@ -29,6 +29,13 @@ const (
 	Aws AWSRegistryType = "aws"
 )
 
+// Defines values for APIKeyInjectionType.
+const (
+	Anthropic APIKeyInjectionType = "anthropic"
+	Gemini    APIKeyInjectionType = "gemini"
+	Openai    APIKeyInjectionType = "openai"
+)
+
 // Defines values for GCPRegistryType.
 const (
 	Gcp GCPRegistryType = "gcp"
@@ -90,6 +97,28 @@ type AWSRegistry struct {
 
 // AWSRegistryType Type of registry authentication
 type AWSRegistryType string
+
+// APIKeyInjection Simplified API key injection for well-known API protocols. When set, the system
+// automatically configures the correct authentication method (header or query parameter)
+// based on the protocol type. Mutually exclusive with headers and queries.
+type APIKeyInjection struct {
+	// Type Pre-defined API protocol identifier.
+	// Supported protocols:
+	// - openai: OpenAI-compatible APIs (Authorization: Bearer <key>, default host: api.openai.com)
+	// - anthropic: Anthropic API (x-api-key header, default host: api.anthropic.com)
+	// - gemini: Google Gemini API (x-goog-api-key header, default host: generativelanguage.googleapis.com)
+	Type APIKeyInjectionType `json:"type"`
+
+	// Value API key or token for the specified protocol
+	Value *string `json:"value,omitempty"`
+}
+
+// APIKeyInjectionType Pre-defined API protocol identifier.
+// Supported protocols:
+// - openai: OpenAI-compatible APIs (Authorization: Bearer <key>, default host: api.openai.com)
+// - anthropic: Anthropic API (x-api-key header, default host: api.anthropic.com)
+// - gemini: Google Gemini API (x-goog-api-key header, default host: generativelanguage.googleapis.com)
+type APIKeyInjectionType string
 
 // AssignTemplateTagsRequest defines model for AssignTemplateTagsRequest.
 type AssignTemplateTagsRequest struct {
@@ -204,6 +233,29 @@ type GeneralRegistry struct {
 // GeneralRegistryType Type of registry authentication
 type GeneralRegistryType string
 
+// InjectionRule defines model for InjectionRule.
+type InjectionRule struct {
+	// Conditions Conditions that must be met for the injection to apply
+	Conditions *RequestInjectionConditions `json:"conditions,omitempty"`
+
+	// CreatedAt Timestamp when the injection rule was created
+	CreatedAt time.Time `json:"createdAt"`
+
+	// Injections Injections to apply for matching requests. Supports two mutually exclusive modes:
+	// - API key mode: use api to inject credentials for well-known API protocols
+	// - Manual mode: use headers and/or queries for custom injection
+	Injections *RequestInjections `json:"injections,omitempty"`
+
+	// Name Human-readable name of the injection rule. Must be unique per user.
+	Name string `json:"name"`
+
+	// RuleID Unique identifier of the injection rule
+	RuleID string `json:"ruleID"`
+
+	// UpdatedAt Timestamp when the injection rule was last updated
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 // ListedSandbox defines model for ListedSandbox.
 type ListedSandbox struct {
 	// Alias Alias of the template
@@ -257,6 +309,20 @@ type Mcp map[string]interface{}
 // MemoryMB Memory for the sandbox in MiB
 type MemoryMB = int32
 
+// NewInjectionRule defines model for NewInjectionRule.
+type NewInjectionRule struct {
+	// Conditions Conditions that must be met for the injection to apply
+	Conditions *RequestInjectionConditions `json:"conditions,omitempty"`
+
+	// Injections Injections to apply for matching requests. Supports two mutually exclusive modes:
+	// - API key mode: use api to inject credentials for well-known API protocols
+	// - Manual mode: use headers and/or queries for custom injection
+	Injections *RequestInjections `json:"injections,omitempty"`
+
+	// Name Human-readable name of the injection rule. Must be unique per user.
+	Name string `json:"name"`
+}
+
 // NewSandbox defines model for NewSandbox.
 type NewSandbox struct {
 	// AllowInternetAccess Allow sandbox to access the internet. When set to false, it behaves the same as specifying denyOut to 0.0.0.0/0 in the network config.
@@ -271,11 +337,11 @@ type NewSandbox struct {
 	Metadata *SandboxMetadata      `json:"metadata,omitempty"`
 	Network  *SandboxNetworkConfig `json:"network,omitempty"`
 
-	// RequestTransformIds IDs of pre-defined transform rules to apply to matching outgoing HTTPS requests. Mutually exclusive with request_transforms.
-	RequestTransformIds *[]string `json:"request_transform_ids,omitempty"`
+	// RequestInjectionIds IDs of pre-defined injection rules to apply to matching outgoing HTTPS requests. Mutually exclusive with request_injections.
+	RequestInjectionIds *[]string `json:"request_injection_ids,omitempty"`
 
-	// RequestTransforms A sequence of transformations to apply to matching outgoing HTTPS requests from the sandbox. Only applies to HTTPS traffic on port 443. Mutually exclusive with request_transform_ids.
-	RequestTransforms *[]RequestTransform `json:"request_transforms,omitempty"`
+	// RequestInjections A sequence of injection rules to apply to matching outgoing HTTPS requests from the sandbox. Only applies to HTTPS traffic on port 443. Mutually exclusive with request_injection_ids.
+	RequestInjections *[]RequestInjection `json:"request_injections,omitempty"`
 
 	// Secure Secure all system communication with sandbox
 	Secure *bool `json:"secure,omitempty"`
@@ -287,39 +353,39 @@ type NewSandbox struct {
 	Timeout *int32 `json:"timeout,omitempty"`
 }
 
-// NewTransformRule defines model for NewTransformRule.
-type NewTransformRule struct {
-	// Conditions Conditions that must be met for the transform to apply
-	Conditions *RequestTransformConditions `json:"conditions,omitempty"`
+// RequestInjection Injection rule for outgoing HTTPS requests
+type RequestInjection struct {
+	// Conditions Conditions that must be met for the injection to apply
+	Conditions *RequestInjectionConditions `json:"conditions,omitempty"`
 
-	// Name Human-readable name of the transform rule. Must be unique per user.
-	Name string `json:"name"`
-
-	// Replacements Replacements to apply for matching requests
-	Replacements *RequestTransformReplacements `json:"replacements,omitempty"`
+	// Injections Injections to apply for matching requests. Supports two mutually exclusive modes:
+	// - API key mode: use api to inject credentials for well-known API protocols
+	// - Manual mode: use headers and/or queries for custom injection
+	Injections *RequestInjections `json:"injections,omitempty"`
 }
 
-// RequestTransform Transformation rule for outgoing requests
-type RequestTransform struct {
-	// Conditions Conditions that must be met for the transform to apply
-	Conditions *RequestTransformConditions `json:"conditions,omitempty"`
-
-	// Replacements Replacements to apply for matching requests
-	Replacements *RequestTransformReplacements `json:"replacements,omitempty"`
-}
-
-// RequestTransformConditions Conditions that must be met for the transform to apply
-type RequestTransformConditions struct {
-	// Hosts List of exact HTTPS hostnames to match (wildcards are not supported). The transform will only apply to HTTPS requests to these hostnames on port 443.
+// RequestInjectionConditions Conditions that must be met for the injection to apply
+type RequestInjectionConditions struct {
+	// Hosts List of exact HTTPS hostnames to match (wildcards are not supported).
+	// The injection will only apply to HTTPS requests to these hostnames on port 443.
+	// When empty and api is set, the protocol's default hosts are used automatically.
+	// When non-empty, the provided hosts override (not merge with) the protocol defaults.
 	Hosts *[]string `json:"hosts,omitempty"`
 }
 
-// RequestTransformReplacements Replacements to apply for matching requests
-type RequestTransformReplacements struct {
-	// Headers HTTP headers to set or replace on matching HTTPS requests
+// RequestInjections Injections to apply for matching requests. Supports two mutually exclusive modes:
+// - API key mode: use api to inject credentials for well-known API protocols
+// - Manual mode: use headers and/or queries for custom injection
+type RequestInjections struct {
+	// API Simplified API key injection for well-known API protocols. When set, the system
+	// automatically configures the correct authentication method (header or query parameter)
+	// based on the protocol type. Mutually exclusive with headers and queries.
+	API *APIKeyInjection `json:"api,omitempty"`
+
+	// Headers HTTP headers to inject or overwrite on matching HTTPS requests. Mutually exclusive with api.
 	Headers *map[string]string `json:"headers,omitempty"`
 
-	// Queries URL query parameters to replace on matching HTTPS requests (only if already present)
+	// Queries URL query parameters to replace on matching HTTPS requests (only if already present). Mutually exclusive with api.
 	Queries *map[string]string `json:"queries,omitempty"`
 }
 
@@ -820,41 +886,25 @@ type TemplateWithBuilds struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// TransformRule defines model for TransformRule.
-type TransformRule struct {
-	// Conditions Conditions that must be met for the transform to apply
-	Conditions *RequestTransformConditions `json:"conditions,omitempty"`
+// UpdateInjectionRule defines model for UpdateInjectionRule.
+type UpdateInjectionRule struct {
+	// Conditions Conditions that must be met for the injection to apply
+	Conditions *RequestInjectionConditions `json:"conditions,omitempty"`
 
-	// CreatedAt Timestamp when the transform rule was created
-	CreatedAt time.Time `json:"createdAt"`
+	// Injections Injections to apply for matching requests. Supports two mutually exclusive modes:
+	// - API key mode: use api to inject credentials for well-known API protocols
+	// - Manual mode: use headers and/or queries for custom injection
+	Injections *RequestInjections `json:"injections,omitempty"`
 
-	// Name Human-readable name of the transform rule. Must be unique per user.
-	Name string `json:"name"`
-
-	// Replacements Replacements to apply for matching requests
-	Replacements *RequestTransformReplacements `json:"replacements,omitempty"`
-
-	// RuleID Unique identifier of the transform rule
-	RuleID string `json:"ruleID"`
-
-	// UpdatedAt Timestamp when the transform rule was last updated
-	UpdatedAt time.Time `json:"updatedAt"`
-}
-
-// UpdateTransformRule defines model for UpdateTransformRule.
-type UpdateTransformRule struct {
-	// Conditions Conditions that must be met for the transform to apply
-	Conditions *RequestTransformConditions `json:"conditions,omitempty"`
-
-	// Name Human-readable name of the transform rule. Must be unique per user.
+	// Name Human-readable name of the injection rule. Must be unique per user.
 	Name *string `json:"name,omitempty"`
-
-	// Replacements Replacements to apply for matching requests
-	Replacements *RequestTransformReplacements `json:"replacements,omitempty"`
 }
 
 // BuildID defines model for buildID.
 type BuildID = string
+
+// InjectionRuleID defines model for injectionRuleID.
+type InjectionRuleID = string
 
 // PaginationLimit defines model for paginationLimit.
 type PaginationLimit = int32
@@ -867,9 +917,6 @@ type SandboxID = string
 
 // TemplateID defines model for templateID.
 type TemplateID = string
-
-// TransformRuleID defines model for transformRuleID.
-type TransformRuleID = string
 
 // N400 defines model for 400.
 type N400 = Error
@@ -982,6 +1029,12 @@ type ListSandboxesV2Params struct {
 	Limit *PaginationLimit `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// PostInjectionRulesJSONRequestBody defines body for PostInjectionRules for application/json ContentType.
+type PostInjectionRulesJSONRequestBody = NewInjectionRule
+
+// PutInjectionRulesRuleIDJSONRequestBody defines body for PutInjectionRulesRuleID for application/json ContentType.
+type PutInjectionRulesRuleIDJSONRequestBody = UpdateInjectionRule
+
 // CreateSandboxJSONRequestBody defines body for CreateSandbox for application/json ContentType.
 type CreateSandboxJSONRequestBody = NewSandbox
 
@@ -1011,12 +1064,6 @@ type UpdateTemplateJSONRequestBody = TemplateUpdateRequest
 
 // RebuildTemplateJSONRequestBody defines body for RebuildTemplate for application/json ContentType.
 type RebuildTemplateJSONRequestBody = TemplateBuildRequest
-
-// PostTransformRulesJSONRequestBody defines body for PostTransformRules for application/json ContentType.
-type PostTransformRulesJSONRequestBody = NewTransformRule
-
-// PutTransformRulesRuleIDJSONRequestBody defines body for PutTransformRulesRuleID for application/json ContentType.
-type PutTransformRulesRuleIDJSONRequestBody = UpdateTransformRule
 
 // CreateTemplateV2JSONRequestBody defines body for CreateTemplateV2 for application/json ContentType.
 type CreateTemplateV2JSONRequestBody = TemplateBuildRequestV2
@@ -1222,6 +1269,25 @@ type ClientInterface interface {
 	// ListDefaultTemplates request
 	ListDefaultTemplates(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetInjectionRules request
+	GetInjectionRules(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostInjectionRulesWithBody request with any body
+	PostInjectionRulesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostInjectionRules(ctx context.Context, body PostInjectionRulesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteInjectionRulesRuleID request
+	DeleteInjectionRulesRuleID(ctx context.Context, ruleID InjectionRuleID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetInjectionRulesRuleID request
+	GetInjectionRulesRuleID(ctx context.Context, ruleID InjectionRuleID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutInjectionRulesRuleIDWithBody request with any body
+	PutInjectionRulesRuleIDWithBody(ctx context.Context, ruleID InjectionRuleID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutInjectionRulesRuleID(ctx context.Context, ruleID InjectionRuleID, body PutInjectionRulesRuleIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListSandboxes request
 	ListSandboxes(ctx context.Context, params *ListSandboxesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -1317,25 +1383,6 @@ type ClientInterface interface {
 	// GetTemplateFiles request
 	GetTemplateFiles(ctx context.Context, templateID TemplateID, hash string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetTransformRules request
-	GetTransformRules(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// PostTransformRulesWithBody request with any body
-	PostTransformRulesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	PostTransformRules(ctx context.Context, body PostTransformRulesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// DeleteTransformRulesRuleID request
-	DeleteTransformRulesRuleID(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// GetTransformRulesRuleID request
-	GetTransformRulesRuleID(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// PutTransformRulesRuleIDWithBody request with any body
-	PutTransformRulesRuleIDWithBody(ctx context.Context, ruleID TransformRuleID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	PutTransformRulesRuleID(ctx context.Context, ruleID TransformRuleID, body PutTransformRulesRuleIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// ListSandboxesV2 request
 	ListSandboxesV2(ctx context.Context, params *ListSandboxesV2Params, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -1357,6 +1404,90 @@ type ClientInterface interface {
 
 func (c *Client) ListDefaultTemplates(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListDefaultTemplatesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetInjectionRules(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetInjectionRulesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostInjectionRulesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostInjectionRulesRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostInjectionRules(ctx context.Context, body PostInjectionRulesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostInjectionRulesRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteInjectionRulesRuleID(ctx context.Context, ruleID InjectionRuleID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteInjectionRulesRuleIDRequest(c.Server, ruleID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetInjectionRulesRuleID(ctx context.Context, ruleID InjectionRuleID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetInjectionRulesRuleIDRequest(c.Server, ruleID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutInjectionRulesRuleIDWithBody(ctx context.Context, ruleID InjectionRuleID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutInjectionRulesRuleIDRequestWithBody(c.Server, ruleID, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutInjectionRulesRuleID(ctx context.Context, ruleID InjectionRuleID, body PutInjectionRulesRuleIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutInjectionRulesRuleIDRequest(c.Server, ruleID, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1787,90 +1918,6 @@ func (c *Client) GetTemplateFiles(ctx context.Context, templateID TemplateID, ha
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetTransformRules(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetTransformRulesRequest(c.Server)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) PostTransformRulesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostTransformRulesRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) PostTransformRules(ctx context.Context, body PostTransformRulesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostTransformRulesRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) DeleteTransformRulesRuleID(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeleteTransformRulesRuleIDRequest(c.Server, ruleID)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) GetTransformRulesRuleID(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetTransformRulesRuleIDRequest(c.Server, ruleID)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) PutTransformRulesRuleIDWithBody(ctx context.Context, ruleID TransformRuleID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPutTransformRulesRuleIDRequestWithBody(c.Server, ruleID, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) PutTransformRulesRuleID(ctx context.Context, ruleID TransformRuleID, body PutTransformRulesRuleIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPutTransformRulesRuleIDRequest(c.Server, ruleID, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
 func (c *Client) ListSandboxesV2(ctx context.Context, params *ListSandboxesV2Params, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListSandboxesV2Request(c.Server, params)
 	if err != nil {
@@ -1978,6 +2025,188 @@ func NewListDefaultTemplatesRequest(server string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewGetInjectionRulesRequest generates requests for GetInjectionRules
+func NewGetInjectionRulesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/injection-rules")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostInjectionRulesRequest calls the generic PostInjectionRules builder with application/json body
+func NewPostInjectionRulesRequest(server string, body PostInjectionRulesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostInjectionRulesRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostInjectionRulesRequestWithBody generates requests for PostInjectionRules with any type of body
+func NewPostInjectionRulesRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/injection-rules")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteInjectionRulesRuleIDRequest generates requests for DeleteInjectionRulesRuleID
+func NewDeleteInjectionRulesRuleIDRequest(server string, ruleID InjectionRuleID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ruleID", runtime.ParamLocationPath, ruleID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/injection-rules/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetInjectionRulesRuleIDRequest generates requests for GetInjectionRulesRuleID
+func NewGetInjectionRulesRuleIDRequest(server string, ruleID InjectionRuleID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ruleID", runtime.ParamLocationPath, ruleID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/injection-rules/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutInjectionRulesRuleIDRequest calls the generic PutInjectionRulesRuleID builder with application/json body
+func NewPutInjectionRulesRuleIDRequest(server string, ruleID InjectionRuleID, body PutInjectionRulesRuleIDJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutInjectionRulesRuleIDRequestWithBody(server, ruleID, "application/json", bodyReader)
+}
+
+// NewPutInjectionRulesRuleIDRequestWithBody generates requests for PutInjectionRulesRuleID with any type of body
+func NewPutInjectionRulesRuleIDRequestWithBody(server string, ruleID InjectionRuleID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ruleID", runtime.ParamLocationPath, ruleID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/injection-rules/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -3257,188 +3486,6 @@ func NewGetTemplateFilesRequest(server string, templateID TemplateID, hash strin
 	return req, nil
 }
 
-// NewGetTransformRulesRequest generates requests for GetTransformRules
-func NewGetTransformRulesRequest(server string) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/transform-rules")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewPostTransformRulesRequest calls the generic PostTransformRules builder with application/json body
-func NewPostTransformRulesRequest(server string, body PostTransformRulesJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewPostTransformRulesRequestWithBody(server, "application/json", bodyReader)
-}
-
-// NewPostTransformRulesRequestWithBody generates requests for PostTransformRules with any type of body
-func NewPostTransformRulesRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/transform-rules")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
-}
-
-// NewDeleteTransformRulesRuleIDRequest generates requests for DeleteTransformRulesRuleID
-func NewDeleteTransformRulesRuleIDRequest(server string, ruleID TransformRuleID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ruleID", runtime.ParamLocationPath, ruleID)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/transform-rules/%s", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewGetTransformRulesRuleIDRequest generates requests for GetTransformRulesRuleID
-func NewGetTransformRulesRuleIDRequest(server string, ruleID TransformRuleID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ruleID", runtime.ParamLocationPath, ruleID)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/transform-rules/%s", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewPutTransformRulesRuleIDRequest calls the generic PutTransformRulesRuleID builder with application/json body
-func NewPutTransformRulesRuleIDRequest(server string, ruleID TransformRuleID, body PutTransformRulesRuleIDJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewPutTransformRulesRuleIDRequestWithBody(server, ruleID, "application/json", bodyReader)
-}
-
-// NewPutTransformRulesRuleIDRequestWithBody generates requests for PutTransformRulesRuleID with any type of body
-func NewPutTransformRulesRuleIDRequestWithBody(server string, ruleID TransformRuleID, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "ruleID", runtime.ParamLocationPath, ruleID)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/transform-rules/%s", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("PUT", queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
-}
-
 // NewListSandboxesV2Request generates requests for ListSandboxesV2
 func NewListSandboxesV2Request(server string, params *ListSandboxesV2Params) (*http.Request, error) {
 	var err error
@@ -3716,6 +3763,25 @@ type ClientWithResponsesInterface interface {
 	// ListDefaultTemplatesWithResponse request
 	ListDefaultTemplatesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDefaultTemplatesResponse, error)
 
+	// GetInjectionRulesWithResponse request
+	GetInjectionRulesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetInjectionRulesResponse, error)
+
+	// PostInjectionRulesWithBodyWithResponse request with any body
+	PostInjectionRulesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostInjectionRulesResponse, error)
+
+	PostInjectionRulesWithResponse(ctx context.Context, body PostInjectionRulesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostInjectionRulesResponse, error)
+
+	// DeleteInjectionRulesRuleIDWithResponse request
+	DeleteInjectionRulesRuleIDWithResponse(ctx context.Context, ruleID InjectionRuleID, reqEditors ...RequestEditorFn) (*DeleteInjectionRulesRuleIDResponse, error)
+
+	// GetInjectionRulesRuleIDWithResponse request
+	GetInjectionRulesRuleIDWithResponse(ctx context.Context, ruleID InjectionRuleID, reqEditors ...RequestEditorFn) (*GetInjectionRulesRuleIDResponse, error)
+
+	// PutInjectionRulesRuleIDWithBodyWithResponse request with any body
+	PutInjectionRulesRuleIDWithBodyWithResponse(ctx context.Context, ruleID InjectionRuleID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutInjectionRulesRuleIDResponse, error)
+
+	PutInjectionRulesRuleIDWithResponse(ctx context.Context, ruleID InjectionRuleID, body PutInjectionRulesRuleIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutInjectionRulesRuleIDResponse, error)
+
 	// ListSandboxesWithResponse request
 	ListSandboxesWithResponse(ctx context.Context, params *ListSandboxesParams, reqEditors ...RequestEditorFn) (*ListSandboxesResponse, error)
 
@@ -3811,25 +3877,6 @@ type ClientWithResponsesInterface interface {
 	// GetTemplateFilesWithResponse request
 	GetTemplateFilesWithResponse(ctx context.Context, templateID TemplateID, hash string, reqEditors ...RequestEditorFn) (*GetTemplateFilesResponse, error)
 
-	// GetTransformRulesWithResponse request
-	GetTransformRulesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetTransformRulesResponse, error)
-
-	// PostTransformRulesWithBodyWithResponse request with any body
-	PostTransformRulesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostTransformRulesResponse, error)
-
-	PostTransformRulesWithResponse(ctx context.Context, body PostTransformRulesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostTransformRulesResponse, error)
-
-	// DeleteTransformRulesRuleIDWithResponse request
-	DeleteTransformRulesRuleIDWithResponse(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*DeleteTransformRulesRuleIDResponse, error)
-
-	// GetTransformRulesRuleIDWithResponse request
-	GetTransformRulesRuleIDWithResponse(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*GetTransformRulesRuleIDResponse, error)
-
-	// PutTransformRulesRuleIDWithBodyWithResponse request with any body
-	PutTransformRulesRuleIDWithBodyWithResponse(ctx context.Context, ruleID TransformRuleID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutTransformRulesRuleIDResponse, error)
-
-	PutTransformRulesRuleIDWithResponse(ctx context.Context, ruleID TransformRuleID, body PutTransformRulesRuleIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutTransformRulesRuleIDResponse, error)
-
 	// ListSandboxesV2WithResponse request
 	ListSandboxesV2WithResponse(ctx context.Context, params *ListSandboxesV2Params, reqEditors ...RequestEditorFn) (*ListSandboxesV2Response, error)
 
@@ -3867,6 +3914,132 @@ func (r ListDefaultTemplatesResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ListDefaultTemplatesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetInjectionRulesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]InjectionRule
+	JSON400      *N400
+	JSON401      *N401
+	JSON500      *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r GetInjectionRulesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetInjectionRulesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostInjectionRulesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *InjectionRule
+	JSON400      *N400
+	JSON401      *N401
+	JSON409      *N409
+	JSON500      *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r PostInjectionRulesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostInjectionRulesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteInjectionRulesRuleIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *N401
+	JSON404      *N404
+	JSON500      *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteInjectionRulesRuleIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteInjectionRulesRuleIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetInjectionRulesRuleIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *InjectionRule
+	JSON401      *N401
+	JSON404      *N404
+	JSON500      *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r GetInjectionRulesRuleIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetInjectionRulesRuleIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutInjectionRulesRuleIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *InjectionRule
+	JSON400      *N400
+	JSON404      *N404
+	JSON409      *N409
+	JSON500      *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r PutInjectionRulesRuleIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutInjectionRulesRuleIDResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -4493,132 +4666,6 @@ func (r GetTemplateFilesResponse) StatusCode() int {
 	return 0
 }
 
-type GetTransformRulesResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *[]TransformRule
-	JSON400      *N400
-	JSON401      *N401
-	JSON500      *N500
-}
-
-// Status returns HTTPResponse.Status
-func (r GetTransformRulesResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r GetTransformRulesResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type PostTransformRulesResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON201      *TransformRule
-	JSON400      *N400
-	JSON401      *N401
-	JSON409      *N409
-	JSON500      *N500
-}
-
-// Status returns HTTPResponse.Status
-func (r PostTransformRulesResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r PostTransformRulesResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type DeleteTransformRulesRuleIDResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON401      *N401
-	JSON404      *N404
-	JSON500      *N500
-}
-
-// Status returns HTTPResponse.Status
-func (r DeleteTransformRulesRuleIDResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r DeleteTransformRulesRuleIDResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type GetTransformRulesRuleIDResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *TransformRule
-	JSON401      *N401
-	JSON404      *N404
-	JSON500      *N500
-}
-
-// Status returns HTTPResponse.Status
-func (r GetTransformRulesRuleIDResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r GetTransformRulesRuleIDResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type PutTransformRulesRuleIDResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *TransformRule
-	JSON400      *N400
-	JSON404      *N404
-	JSON409      *N409
-	JSON500      *N500
-}
-
-// Status returns HTTPResponse.Status
-func (r PutTransformRulesRuleIDResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r PutTransformRulesRuleIDResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
 type ListSandboxesV2Response struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -4724,6 +4771,67 @@ func (c *ClientWithResponses) ListDefaultTemplatesWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParseListDefaultTemplatesResponse(rsp)
+}
+
+// GetInjectionRulesWithResponse request returning *GetInjectionRulesResponse
+func (c *ClientWithResponses) GetInjectionRulesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetInjectionRulesResponse, error) {
+	rsp, err := c.GetInjectionRules(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetInjectionRulesResponse(rsp)
+}
+
+// PostInjectionRulesWithBodyWithResponse request with arbitrary body returning *PostInjectionRulesResponse
+func (c *ClientWithResponses) PostInjectionRulesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostInjectionRulesResponse, error) {
+	rsp, err := c.PostInjectionRulesWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostInjectionRulesResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostInjectionRulesWithResponse(ctx context.Context, body PostInjectionRulesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostInjectionRulesResponse, error) {
+	rsp, err := c.PostInjectionRules(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostInjectionRulesResponse(rsp)
+}
+
+// DeleteInjectionRulesRuleIDWithResponse request returning *DeleteInjectionRulesRuleIDResponse
+func (c *ClientWithResponses) DeleteInjectionRulesRuleIDWithResponse(ctx context.Context, ruleID InjectionRuleID, reqEditors ...RequestEditorFn) (*DeleteInjectionRulesRuleIDResponse, error) {
+	rsp, err := c.DeleteInjectionRulesRuleID(ctx, ruleID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteInjectionRulesRuleIDResponse(rsp)
+}
+
+// GetInjectionRulesRuleIDWithResponse request returning *GetInjectionRulesRuleIDResponse
+func (c *ClientWithResponses) GetInjectionRulesRuleIDWithResponse(ctx context.Context, ruleID InjectionRuleID, reqEditors ...RequestEditorFn) (*GetInjectionRulesRuleIDResponse, error) {
+	rsp, err := c.GetInjectionRulesRuleID(ctx, ruleID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetInjectionRulesRuleIDResponse(rsp)
+}
+
+// PutInjectionRulesRuleIDWithBodyWithResponse request with arbitrary body returning *PutInjectionRulesRuleIDResponse
+func (c *ClientWithResponses) PutInjectionRulesRuleIDWithBodyWithResponse(ctx context.Context, ruleID InjectionRuleID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutInjectionRulesRuleIDResponse, error) {
+	rsp, err := c.PutInjectionRulesRuleIDWithBody(ctx, ruleID, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutInjectionRulesRuleIDResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutInjectionRulesRuleIDWithResponse(ctx context.Context, ruleID InjectionRuleID, body PutInjectionRulesRuleIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutInjectionRulesRuleIDResponse, error) {
+	rsp, err := c.PutInjectionRulesRuleID(ctx, ruleID, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutInjectionRulesRuleIDResponse(rsp)
 }
 
 // ListSandboxesWithResponse request returning *ListSandboxesResponse
@@ -5031,67 +5139,6 @@ func (c *ClientWithResponses) GetTemplateFilesWithResponse(ctx context.Context, 
 	return ParseGetTemplateFilesResponse(rsp)
 }
 
-// GetTransformRulesWithResponse request returning *GetTransformRulesResponse
-func (c *ClientWithResponses) GetTransformRulesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetTransformRulesResponse, error) {
-	rsp, err := c.GetTransformRules(ctx, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseGetTransformRulesResponse(rsp)
-}
-
-// PostTransformRulesWithBodyWithResponse request with arbitrary body returning *PostTransformRulesResponse
-func (c *ClientWithResponses) PostTransformRulesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostTransformRulesResponse, error) {
-	rsp, err := c.PostTransformRulesWithBody(ctx, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParsePostTransformRulesResponse(rsp)
-}
-
-func (c *ClientWithResponses) PostTransformRulesWithResponse(ctx context.Context, body PostTransformRulesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostTransformRulesResponse, error) {
-	rsp, err := c.PostTransformRules(ctx, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParsePostTransformRulesResponse(rsp)
-}
-
-// DeleteTransformRulesRuleIDWithResponse request returning *DeleteTransformRulesRuleIDResponse
-func (c *ClientWithResponses) DeleteTransformRulesRuleIDWithResponse(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*DeleteTransformRulesRuleIDResponse, error) {
-	rsp, err := c.DeleteTransformRulesRuleID(ctx, ruleID, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseDeleteTransformRulesRuleIDResponse(rsp)
-}
-
-// GetTransformRulesRuleIDWithResponse request returning *GetTransformRulesRuleIDResponse
-func (c *ClientWithResponses) GetTransformRulesRuleIDWithResponse(ctx context.Context, ruleID TransformRuleID, reqEditors ...RequestEditorFn) (*GetTransformRulesRuleIDResponse, error) {
-	rsp, err := c.GetTransformRulesRuleID(ctx, ruleID, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseGetTransformRulesRuleIDResponse(rsp)
-}
-
-// PutTransformRulesRuleIDWithBodyWithResponse request with arbitrary body returning *PutTransformRulesRuleIDResponse
-func (c *ClientWithResponses) PutTransformRulesRuleIDWithBodyWithResponse(ctx context.Context, ruleID TransformRuleID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutTransformRulesRuleIDResponse, error) {
-	rsp, err := c.PutTransformRulesRuleIDWithBody(ctx, ruleID, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParsePutTransformRulesRuleIDResponse(rsp)
-}
-
-func (c *ClientWithResponses) PutTransformRulesRuleIDWithResponse(ctx context.Context, ruleID TransformRuleID, body PutTransformRulesRuleIDJSONRequestBody, reqEditors ...RequestEditorFn) (*PutTransformRulesRuleIDResponse, error) {
-	rsp, err := c.PutTransformRulesRuleID(ctx, ruleID, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParsePutTransformRulesRuleIDResponse(rsp)
-}
-
 // ListSandboxesV2WithResponse request returning *ListSandboxesV2Response
 func (c *ClientWithResponses) ListSandboxesV2WithResponse(ctx context.Context, params *ListSandboxesV2Params, reqEditors ...RequestEditorFn) (*ListSandboxesV2Response, error) {
 	rsp, err := c.ListSandboxesV2(ctx, params, reqEditors...)
@@ -5179,6 +5226,248 @@ func ParseListDefaultTemplatesResponse(rsp *http.Response) (*ListDefaultTemplate
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetInjectionRulesResponse parses an HTTP response from a GetInjectionRulesWithResponse call
+func ParseGetInjectionRulesResponse(rsp *http.Response) (*GetInjectionRulesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetInjectionRulesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []InjectionRule
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest N400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostInjectionRulesResponse parses an HTTP response from a PostInjectionRulesWithResponse call
+func ParsePostInjectionRulesResponse(rsp *http.Response) (*PostInjectionRulesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostInjectionRulesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest InjectionRule
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest N400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest N409
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteInjectionRulesRuleIDResponse parses an HTTP response from a DeleteInjectionRulesRuleIDWithResponse call
+func ParseDeleteInjectionRulesRuleIDResponse(rsp *http.Response) (*DeleteInjectionRulesRuleIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteInjectionRulesRuleIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest N404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetInjectionRulesRuleIDResponse parses an HTTP response from a GetInjectionRulesRuleIDWithResponse call
+func ParseGetInjectionRulesRuleIDResponse(rsp *http.Response) (*GetInjectionRulesRuleIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetInjectionRulesRuleIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InjectionRule
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest N404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutInjectionRulesRuleIDResponse parses an HTTP response from a PutInjectionRulesRuleIDWithResponse call
+func ParsePutInjectionRulesRuleIDResponse(rsp *http.Response) (*PutInjectionRulesRuleIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutInjectionRulesRuleIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InjectionRule
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest N400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest N404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest N409
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest N500
@@ -6319,248 +6608,6 @@ func ParseGetTemplateFilesResponse(rsp *http.Response) (*GetTemplateFilesRespons
 			return nil, err
 		}
 		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest N500
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseGetTransformRulesResponse parses an HTTP response from a GetTransformRulesWithResponse call
-func ParseGetTransformRulesResponse(rsp *http.Response) (*GetTransformRulesResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &GetTransformRulesResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []TransformRule
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest N400
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest N401
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest N500
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParsePostTransformRulesResponse parses an HTTP response from a PostTransformRulesWithResponse call
-func ParsePostTransformRulesResponse(rsp *http.Response) (*PostTransformRulesResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &PostTransformRulesResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest TransformRule
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON201 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest N400
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest N401
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
-		var dest N409
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON409 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest N500
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseDeleteTransformRulesRuleIDResponse parses an HTTP response from a DeleteTransformRulesRuleIDWithResponse call
-func ParseDeleteTransformRulesRuleIDResponse(rsp *http.Response) (*DeleteTransformRulesRuleIDResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &DeleteTransformRulesRuleIDResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest N401
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest N404
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest N500
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseGetTransformRulesRuleIDResponse parses an HTTP response from a GetTransformRulesRuleIDWithResponse call
-func ParseGetTransformRulesRuleIDResponse(rsp *http.Response) (*GetTransformRulesRuleIDResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &GetTransformRulesRuleIDResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest TransformRule
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest N401
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest N404
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest N500
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParsePutTransformRulesRuleIDResponse parses an HTTP response from a PutTransformRulesRuleIDWithResponse call
-func ParsePutTransformRulesRuleIDResponse(rsp *http.Response) (*PutTransformRulesRuleIDResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &PutTransformRulesRuleIDResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest TransformRule
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest N400
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest N404
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
-		var dest N409
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON409 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest N500
