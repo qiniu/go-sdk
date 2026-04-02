@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/qiniu/go-sdk/v7/auth"
+	"github.com/qiniu/go-sdk/v7/internal/env"
 	"github.com/qiniu/go-sdk/v7/sandbox"
 )
 
@@ -16,10 +18,19 @@ func main() {
 		log.Fatal("请设置 QINIU_API_KEY 环境变量")
 	}
 
+	accessKey, secretKey := env.CredentialsFromEnvironment()
+	if accessKey == "" || secretKey == "" {
+		log.Fatal("请设置 QINIU_ACCESS_KEY 和 QINIU_SECRET_KEY 环境变量")
+	}
+
 	apiURL := os.Getenv("QINIU_SANDBOX_API_URL")
 
 	c, err := sandbox.NewClient(&sandbox.Config{
-		APIKey:   apiKey,
+		APIKey: apiKey,
+		Credentials: &auth.Credentials{
+			AccessKey: accessKey,
+			SecretKey: []byte(secretKey),
+		},
 		Endpoint: apiURL,
 	})
 	if err != nil {
@@ -29,23 +40,18 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	// 1. 创建注入规则
+	// 1. 创建注入规则（HTTP 自定义注入）
 	fmt.Println("=== 创建注入规则 ===")
-	hosts := []string{"httpbin.org"}
 	headers := map[string]string{
 		"Authorization": "Bearer real_token",
 	}
-	queries := map[string]string{
-		"api-key": "real-api-key-value",
-	}
 	rule, err := c.CreateInjectionRule(ctx, sandbox.CreateInjectionRuleParams{
 		Name: "example-rule",
-		Conditions: &sandbox.RequestInjectionConditions{
-			Hosts: &hosts,
-		},
-		Injections: &sandbox.RequestInjections{
-			Headers: &headers,
-			Queries: &queries,
+		Injection: sandbox.InjectionSpec{
+			HTTP: &sandbox.HTTPInjection{
+				BaseURL: "https://httpbin.org",
+				Headers: &headers,
+			},
 		},
 	})
 	if err != nil {
@@ -72,15 +78,10 @@ func main() {
 		log.Fatalf("获取注入规则失败: %v", err)
 	}
 	fmt.Printf("规则: ID=%s, 名称=%s\n", detail.RuleID, detail.Name)
-	if detail.Conditions != nil && detail.Conditions.Hosts != nil {
-		fmt.Printf("  匹配域名: %v\n", *detail.Conditions.Hosts)
-	}
-	if detail.Injections != nil {
-		if detail.Injections.Headers != nil {
-			fmt.Printf("  注入 Headers: %v\n", *detail.Injections.Headers)
-		}
-		if detail.Injections.Queries != nil {
-			fmt.Printf("  注入 Queries: %v\n", *detail.Injections.Queries)
+	if detail.Injection.HTTP != nil {
+		fmt.Printf("  HTTP BaseURL: %s\n", detail.Injection.HTTP.BaseURL)
+		if detail.Injection.HTTP.Headers != nil {
+			fmt.Printf("  注入 Headers: %v\n", *detail.Injection.HTTP.Headers)
 		}
 	}
 
@@ -93,8 +94,11 @@ func main() {
 	}
 	updated, err := c.UpdateInjectionRule(ctx, ruleID, sandbox.UpdateInjectionRuleParams{
 		Name: &newName,
-		Injections: &sandbox.RequestInjections{
-			Headers: &newHeaders,
+		Injection: &sandbox.InjectionSpec{
+			HTTP: &sandbox.HTTPInjection{
+				BaseURL: "https://httpbin.org",
+				Headers: &newHeaders,
+			},
 		},
 	})
 	if err != nil {
@@ -114,12 +118,13 @@ func main() {
 			r.RuleID, r.Name, r.CreatedAt.Format(time.RFC3339))
 	}
 
-	// 5. 使用注入规则创建沙箱
+	// 5. 使用注入规则创建沙箱（通过 ID 引用）
 	fmt.Println("\n=== 使用注入规则创建沙箱 ===")
-	injectionIDs := []string{ruleID}
 	sb, info, err := c.CreateAndWait(ctx, sandbox.CreateParams{
-		TemplateID:          "base",
-		RequestInjectionIds: &injectionIDs,
+		TemplateID: "base",
+		Injections: &[]sandbox.SandboxInjectionSpec{
+			{ByID: &ruleID},
+		},
 	})
 	if err != nil {
 		log.Fatalf("创建沙箱失败: %v", err)

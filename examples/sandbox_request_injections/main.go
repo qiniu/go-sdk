@@ -35,54 +35,44 @@ func main() {
 	// 这个规则告诉底层网络架构，当请求向 "httpbin.org" 发起时，
 	// 如果它是 HTTPS，拦截掉该请求并将 header 中的 "Authorization"
 	// 重写为 "Bearer real_xxx"
-	hosts := []string{"httpbin.org"}
 	headers := map[string]string{
 		"Authorization": "Bearer real_xxx",
 	}
-	queries := map[string]string{
-		"api-key": "real-api-key-value",
-	}
 
-	// 准备创建参数
+	// 准备创建参数（HTTP 自定义注入）
 	params := sandbox.CreateParams{
 		TemplateID: "base",
-		RequestInjections: &[]sandbox.RequestInjection{
+		Injections: &[]sandbox.SandboxInjectionSpec{
 			{
-				Conditions: &sandbox.RequestInjectionConditions{
-					Hosts: &hosts,
-				},
-				Injections: &sandbox.RequestInjections{
+				HTTP: &sandbox.HTTPInjection{
+					BaseURL: "https://httpbin.org",
 					Headers: &headers,
-					Queries: &queries,
 				},
 			},
 		},
 	}
 
-	// 使用 API 字段简化已知 API 协议的密钥注入（与 Headers/Queries 互斥）
-	// apiKey := "sk-real-openai-key"
+	// 也可以使用已知 API 协议的快捷注入（OpenAI、Anthropic、Gemini）
+	// openaiKey := "sk-real-openai-key"
 	// params := sandbox.CreateParams{
 	// 	TemplateID: "base",
-	// 	RequestInjections: &[]sandbox.RequestInjection{
+	// 	Injections: &[]sandbox.SandboxInjectionSpec{
 	// 		{
-	// 			Conditions: &sandbox.RequestInjectionConditions{
-	// 				Hosts: &[]string{"api.openai.com"}, // 可选，默认根据 API.Type 自动匹配
-	// 			},
-	// 			Injections: &sandbox.RequestInjections{
-	// 				API: &sandbox.APIKeyInjection{
-	// 					Type:  sandbox.APIKeyInjectionTypeOpenAI, // 也支持 APIKeyInjectionTypeAnthropic、APIKeyInjectionTypeGemini
-	// 					Value: &apiKey,
-	// 				},
+	// 			OpenAI: &sandbox.OpenAIInjection{
+	// 				APIKey: &openaiKey,
+	// 				// BaseURL 可选，默认 api.openai.com
 	// 			},
 	// 		},
 	// 	},
 	// }
 
-	// 通过 RequestInjectionIds 引用 InjectionRule
-	// requestInjectionIds := []string{"<injection-rule-id>"}
+	// 也可以通过注入规则 ID 引用已保存的注入规则
+	// injectionRuleID := "<injection-rule-id>"
 	// params := sandbox.CreateParams{
-	// 	TemplateID:          "base",
-	// 	RequestInjectionIds: &requestInjectionIds,
+	// 	TemplateID: "base",
+	// 	Injections: &[]sandbox.SandboxInjectionSpec{
+	// 		{ByID: &injectionRuleID},
+	// 	},
 	// }
 
 	// 创建并等待沙箱就绪
@@ -116,25 +106,4 @@ func main() {
 	if result.Stderr != "" {
 		log.Printf("Stderr: \n%s\n", result.Stderr)
 	}
-
-	// 测试 Query 参数替换
-	// 我们在规则中配置了 api-key 的替换。
-	// 下面的请求包含 api-key=old-key，应当被替换为 real-api-key-value
-	queryCmd := `curl -sSL -X GET "https://httpbin.org/get?api-key=old-key&other=foo"`
-	log.Printf("\nExecuting query injection test:\n$ %s\n", queryCmd)
-	result, err = sb.Commands().Run(ctx, queryCmd)
-	if err != nil {
-		log.Fatalf("Failed to run query test command: %v", err)
-	}
-	log.Printf("Query Test Stdout: \n%s\n", result.Stdout)
-
-	// 测试"仅替换，不新增"逻辑
-	// 下面的请求不包含 api-key，因此不应当被注入新的参数
-	noQueryCmd := `curl -sSL -X GET "https://httpbin.org/get?other=bar"`
-	log.Printf("\nExecuting no-query (no-injection) test:\n$ %s\n", noQueryCmd)
-	result, err = sb.Commands().Run(ctx, noQueryCmd)
-	if err != nil {
-		log.Fatalf("Failed to run no-query test command: %v", err)
-	}
-	log.Printf("No-Query Test Stdout: \n%s\n", result.Stdout)
 }

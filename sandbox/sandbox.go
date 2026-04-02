@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -102,10 +101,11 @@ func (s *Sandbox) processClient() processconnect.ProcessClient {
 
 // Create 根据指定模板创建一个新的沙箱。
 func (c *Client) Create(ctx context.Context, params CreateParams) (*Sandbox, error) {
-	if params.RequestInjectionIds != nil && params.RequestInjections != nil {
-		return nil, errors.New("create sandbox: RequestInjections and RequestInjectionIds are mutually exclusive")
+	apiParams, err := params.toAPI()
+	if err != nil {
+		return nil, err
 	}
-	resp, err := c.api.CreateSandboxWithResponse(ctx, params.toAPI())
+	resp, err := c.api.CreateSandboxWithResponse(ctx, apiParams)
 	if err != nil {
 		return nil, err
 	}
