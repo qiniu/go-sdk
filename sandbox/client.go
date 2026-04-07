@@ -1,9 +1,12 @@
 package sandbox
 
 import (
+	"cmp"
 	"context"
+	"fmt"
 	"net/http"
 
+	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/sandbox/internal/apis"
 )
 
@@ -14,6 +17,10 @@ const DefaultEndpoint = "https://cn-yangzhou-1-sandbox.qiniuapi.com"
 type Config struct {
 	// APIKey 是用于身份认证的 API 密钥（必填）。
 	APIKey string
+
+	// Credentials 是用于身份认证的七牛凭证对象（可选）。
+	// InjectionRule 相关接口会使用 Credentials 进行认证。
+	Credentials *auth.Credentials
 
 	// Endpoint 是沙箱 API 服务地址（可选，默认值：DefaultEndpoint）。
 	Endpoint string
@@ -66,7 +73,27 @@ func reqidEditor() apis.RequestEditorFn {
 // apiKeyEditor 返回一个 RequestEditorFn，用于注入 X-API-Key 请求头。
 func apiKeyEditor(apiKey string) apis.RequestEditorFn {
 	return func(ctx context.Context, req *http.Request) error {
+		if req.Header.Get("Authorization") != "" {
+			// 如果已经有 Authorization 头了，就不再添加 X-API-Key 头。
+			// 支持 Credentials 和 API Key 两种认证方式共存，优先使用 Credentials 认证。
+			return nil
+		}
 		req.Header.Set("X-API-Key", apiKey)
 		return nil
 	}
+}
+
+func (c *Client) GetCredentialsOption() (apis.RequestEditorFn, error) {
+	cred := cmp.Or(c.config.Credentials, auth.Default())
+	if cred == nil {
+		return nil, fmt.Errorf("credentials not provided in client config")
+	}
+	return func(ctx context.Context, req *http.Request) error {
+		token, err := cred.SignRequestV2(req)
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Authorization", fmt.Sprintf("Qiniu %s", token))
+		return nil
+	}, nil
 }

@@ -28,55 +28,6 @@ type NetworkConfig struct {
 	MaskRequestHost *string
 }
 
-// RequestInjectionConditions 请求注入的匹配条件。
-type RequestInjectionConditions struct {
-	// Hosts 需要精确匹配的目标 HTTPS 域名列表（不支持通配符）。
-	// 注入仅作用于这些域名的 443 端口 HTTPS 请求。
-	// 当为空且设置了 API 时，自动使用协议默认域名。
-	Hosts *[]string
-}
-
-// APIKeyInjectionType 预定义的 API 协议标识。
-type APIKeyInjectionType = apis.APIKeyInjectionType
-
-// APIKeyInjectionType 常量。
-const (
-	APIKeyInjectionTypeOpenAI    APIKeyInjectionType = "openai"
-	APIKeyInjectionTypeAnthropic APIKeyInjectionType = "anthropic"
-	APIKeyInjectionTypeGemini    APIKeyInjectionType = "gemini"
-)
-
-// APIKeyInjection 简化的 API 密钥注入配置，用于已知 API 协议。
-type APIKeyInjection struct {
-	// Type 预定义的 API 协议标识（openai、anthropic、gemini）。
-	Type APIKeyInjectionType
-
-	// Value API 密钥或令牌，可选。
-	Value *string
-}
-
-// RequestInjections 请求注入的动作配置。
-// 支持两种互斥模式：API 密钥模式（api）和手动模式（headers/queries）。
-type RequestInjections struct {
-	// API 简化的 API 密钥注入，用于已知 API 协议。与 Headers/Queries 互斥。
-	API *APIKeyInjection
-
-	// Headers 需要注入或覆盖的 HTTP Headers。与 API 互斥。
-	Headers *map[string]string
-
-	// Queries 需要替换的 URL Query 参数（仅在原请求中存在时有效）。与 API 互斥。
-	Queries *map[string]string
-}
-
-// RequestInjection 定义对运行在沙箱内部的出站 HTTPS 请求进行拦截与自动注入的规则。
-type RequestInjection struct {
-	// Conditions 匹配条件。
-	Conditions *RequestInjectionConditions
-
-	// Injections 注入动作。
-	Injections *RequestInjections
-}
-
 // SandboxState 沙箱状态。
 type SandboxState string
 
@@ -112,13 +63,9 @@ type CreateParams struct {
 	// Network 网络配置，可选。
 	Network *NetworkConfig
 
-	// RequestInjections 针对出站 HTTPS 请求的注入规则列表，可选。
-	// 与 RequestInjectionIds 不能同时设置。
-	RequestInjections *[]RequestInjection
-
-	// RequestInjectionIds 指定预定义 InjectionRule id 列表，可选。
-	// 与 RequestInjections 不能同时设置。
-	RequestInjectionIds *[]string
+	// Injections 针对出站 HTTPS 请求的注入规则列表，可选。
+	// 每项可引用已保存的注入规则 ID，或直接指定注入配置。
+	Injections *[]SandboxInjectionSpec
 }
 
 // ConnectParams 连接沙箱的请求参数。
@@ -393,14 +340,13 @@ func sandboxesWithMetricsFromAPI(a *apis.SandboxesWithMetrics) *SandboxesWithMet
 // 转换函数 — SDK → apis
 // ---------------------------------------------------------------------------
 
-func (p *CreateParams) toAPI() apis.CreateSandboxJSONRequestBody {
+func (p *CreateParams) toAPI() (apis.CreateSandboxJSONRequestBody, error) {
 	body := apis.CreateSandboxJSONRequestBody{
 		TemplateID:          p.TemplateID,
 		Timeout:             p.Timeout,
 		AutoPause:           p.AutoPause,
 		AllowInternetAccess: p.AllowInternetAccess,
 		Secure:              p.Secure,
-		RequestInjectionIds: p.RequestInjectionIds,
 	}
 	if p.EnvVars != nil {
 		ev := apis.EnvVars(*p.EnvVars)
@@ -418,38 +364,18 @@ func (p *CreateParams) toAPI() apis.CreateSandboxJSONRequestBody {
 			MaskRequestHost:    p.Network.MaskRequestHost,
 		}
 	}
-	if p.RequestInjections != nil {
-		riList := make([]apis.RequestInjection, len(*p.RequestInjections))
-		for i, ri := range *p.RequestInjections {
-			var conditions *apis.RequestInjectionConditions
-			var injections *apis.RequestInjections
-
-			if ri.Conditions != nil {
-				conditions = &apis.RequestInjectionConditions{
-					Hosts: ri.Conditions.Hosts,
-				}
+	if p.Injections != nil {
+		siList := make([]apis.SandboxInjection, len(*p.Injections))
+		for i, spec := range *p.Injections {
+			si, err := sandboxInjectionSpecToAPI(spec)
+			if err != nil {
+				return body, err
 			}
-			if ri.Injections != nil {
-				injections = &apis.RequestInjections{
-					Headers: ri.Injections.Headers,
-					Queries: ri.Injections.Queries,
-				}
-				if ri.Injections.API != nil {
-					injections.API = &apis.APIKeyInjection{
-						Type:  ri.Injections.API.Type,
-						Value: ri.Injections.API.Value,
-					}
-				}
-			}
-
-			riList[i] = apis.RequestInjection{
-				Conditions: conditions,
-				Injections: injections,
-			}
+			siList[i] = si
 		}
-		body.RequestInjections = &riList
+		body.Injections = &siList
 	}
-	return body
+	return body, nil
 }
 
 func (p *ConnectParams) toAPI() apis.ConnectSandboxJSONRequestBody {

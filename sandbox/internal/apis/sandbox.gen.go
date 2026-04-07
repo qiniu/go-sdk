@@ -20,8 +20,9 @@ import (
 )
 
 const (
-	AccessTokenAuthScopes = "AccessTokenAuth.Scopes"
-	ApiKeyAuthScopes      = "ApiKeyAuth.Scopes"
+	AccessTokenAuthScopes    = "AccessTokenAuth.Scopes"
+	ApiKeyAuthScopes         = "ApiKeyAuth.Scopes"
+	QiniuAccessKeyAuthScopes = "QiniuAccessKeyAuth.Scopes"
 )
 
 // Defines values for AWSRegistryType.
@@ -29,11 +30,9 @@ const (
 	Aws AWSRegistryType = "aws"
 )
 
-// Defines values for APIKeyInjectionType.
+// Defines values for AnthropicInjectionType.
 const (
-	Anthropic APIKeyInjectionType = "anthropic"
-	Gemini    APIKeyInjectionType = "gemini"
-	Openai    APIKeyInjectionType = "openai"
+	Anthropic AnthropicInjectionType = "anthropic"
 )
 
 // Defines values for GCPRegistryType.
@@ -41,9 +40,24 @@ const (
 	Gcp GCPRegistryType = "gcp"
 )
 
+// Defines values for GeminiInjectionType.
+const (
+	Gemini GeminiInjectionType = "gemini"
+)
+
 // Defines values for GeneralRegistryType.
 const (
 	Registry GeneralRegistryType = "registry"
+)
+
+// Defines values for HTTPInjectionType.
+const (
+	HTTP HTTPInjectionType = "http"
+)
+
+// Defines values for InjectionByIDType.
+const (
+	ID InjectionByIDType = "id"
 )
 
 // Defines values for LogLevel.
@@ -64,6 +78,11 @@ const (
 const (
 	LogsSourcePersistent LogsSource = "persistent"
 	LogsSourceTemporary  LogsSource = "temporary"
+)
+
+// Defines values for OpenaiInjectionType.
+const (
+	Openai OpenaiInjectionType = "openai"
 )
 
 // Defines values for SandboxState.
@@ -98,27 +117,21 @@ type AWSRegistry struct {
 // AWSRegistryType Type of registry authentication
 type AWSRegistryType string
 
-// APIKeyInjection Simplified API key injection for well-known API protocols. When set, the system
-// automatically configures the correct authentication method (header or query parameter)
-// based on the protocol type. Mutually exclusive with headers and queries.
-type APIKeyInjection struct {
-	// Type Pre-defined API protocol identifier.
-	// Supported protocols:
-	// - openai: OpenAI-compatible APIs (Authorization: Bearer <key>, default host: api.openai.com)
-	// - anthropic: Anthropic API (x-api-key header, default host: api.anthropic.com)
-	// - gemini: Google Gemini API (x-goog-api-key header, default host: generativelanguage.googleapis.com)
-	Type APIKeyInjectionType `json:"type"`
+// AnthropicInjection Anthropic API injection. Automatically configures x-api-key header.
+// Default host: api.anthropic.com
+type AnthropicInjection struct {
+	// APIKey API key for Anthropic API
+	APIKey *string `json:"api_key,omitempty"`
 
-	// Value API key or token for the specified protocol
-	Value *string `json:"value,omitempty"`
+	// BaseURL Optional base URL. If not specified, uses api.anthropic.com
+	BaseURL *string `json:"base_url,omitempty"`
+
+	// Type Injection type identifier
+	Type AnthropicInjectionType `json:"type"`
 }
 
-// APIKeyInjectionType Pre-defined API protocol identifier.
-// Supported protocols:
-// - openai: OpenAI-compatible APIs (Authorization: Bearer <key>, default host: api.openai.com)
-// - anthropic: Anthropic API (x-api-key header, default host: api.anthropic.com)
-// - gemini: Google Gemini API (x-goog-api-key header, default host: generativelanguage.googleapis.com)
-type APIKeyInjectionType string
+// AnthropicInjectionType Injection type identifier
+type AnthropicInjectionType string
 
 // AssignTemplateTagsRequest defines model for AssignTemplateTagsRequest.
 type AssignTemplateTagsRequest struct {
@@ -218,6 +231,22 @@ type GCPRegistry struct {
 // GCPRegistryType Type of registry authentication
 type GCPRegistryType string
 
+// GeminiInjection Google Gemini API injection. Automatically configures x-goog-api-key header.
+// Default host: generativelanguage.googleapis.com
+type GeminiInjection struct {
+	// APIKey API key for Google Gemini API
+	APIKey *string `json:"api_key,omitempty"`
+
+	// BaseURL Optional base URL. If not specified, uses generativelanguage.googleapis.com
+	BaseURL *string `json:"base_url,omitempty"`
+
+	// Type Injection type identifier
+	Type GeminiInjectionType `json:"type"`
+}
+
+// GeminiInjectionType Injection type identifier
+type GeminiInjectionType string
+
 // GeneralRegistry defines model for GeneralRegistry.
 type GeneralRegistry struct {
 	// Password Password to use for the registry
@@ -233,18 +262,44 @@ type GeneralRegistry struct {
 // GeneralRegistryType Type of registry authentication
 type GeneralRegistryType string
 
-// InjectionRule defines model for InjectionRule.
-type InjectionRule struct {
-	// Conditions Conditions that must be met for the injection to apply
-	Conditions *RequestInjectionConditions `json:"conditions,omitempty"`
+// HTTPInjection Custom HTTP injection with base URL and headers
+type HTTPInjection struct {
+	// BaseURL Base URL for matching HTTPS requests. The domain part is used for host matching.
+	// Default scheme is https if not specified.
+	BaseURL string `json:"base_url"`
 
+	// Headers HTTP headers to inject or overwrite on matching HTTPS requests.
+	Headers *map[string]string `json:"headers,omitempty"`
+
+	// Type Injection type identifier
+	Type HTTPInjectionType `json:"type"`
+}
+
+// HTTPInjectionType Injection type identifier
+type HTTPInjectionType string
+
+// Injection defines model for Injection.
+type Injection struct {
+	union json.RawMessage
+}
+
+// InjectionByID Reference an existing injection rule by ID
+type InjectionByID struct {
+	// ID ID of the pre-defined injection rule
+	ID string `json:"id"`
+
+	// Type Injection type identifier
+	Type InjectionByIDType `json:"type"`
+}
+
+// InjectionByIDType Injection type identifier
+type InjectionByIDType string
+
+// InjectionRule A saved injection rule that can be referenced by sandbox instances
+type InjectionRule struct {
 	// CreatedAt Timestamp when the injection rule was created
 	CreatedAt time.Time `json:"createdAt"`
-
-	// Injections Injections to apply for matching requests. Supports two mutually exclusive modes:
-	// - API key mode: use api to inject credentials for well-known API protocols
-	// - Manual mode: use headers and/or queries for custom injection
-	Injections *RequestInjections `json:"injections,omitempty"`
+	Injection Injection `json:"injection"`
 
 	// Name Human-readable name of the injection rule. Must be unique per user.
 	Name string `json:"name"`
@@ -277,6 +332,9 @@ type ListedSandbox struct {
 	// EnvdVersion Version of the envd running in the sandbox
 	EnvdVersion EnvdVersion `json:"envdVersion"`
 
+	// ExecutionID Execution ID of the sandbox
+	ExecutionID *string `json:"executionId,omitempty"`
+
 	// MemoryMB Memory for the sandbox in MiB
 	MemoryMB MemoryMB         `json:"memoryMB"`
 	Metadata *SandboxMetadata `json:"metadata,omitempty"`
@@ -292,6 +350,9 @@ type ListedSandbox struct {
 
 	// TemplateID Identifier of the template from which is the sandbox created
 	TemplateID string `json:"templateID"`
+
+	// UID 七牛用户 uid
+	UID *string `json:"uid,omitempty"`
 }
 
 // LogLevel State of the sandbox
@@ -309,15 +370,9 @@ type Mcp map[string]interface{}
 // MemoryMB Memory for the sandbox in MiB
 type MemoryMB = int32
 
-// NewInjectionRule defines model for NewInjectionRule.
+// NewInjectionRule Request body for creating a new injection rule
 type NewInjectionRule struct {
-	// Conditions Conditions that must be met for the injection to apply
-	Conditions *RequestInjectionConditions `json:"conditions,omitempty"`
-
-	// Injections Injections to apply for matching requests. Supports two mutually exclusive modes:
-	// - API key mode: use api to inject credentials for well-known API protocols
-	// - Manual mode: use headers and/or queries for custom injection
-	Injections *RequestInjections `json:"injections,omitempty"`
+	Injection Injection `json:"injection"`
 
 	// Name Human-readable name of the injection rule. Must be unique per user.
 	Name string `json:"name"`
@@ -332,16 +387,14 @@ type NewSandbox struct {
 	AutoPause *bool    `json:"autoPause,omitempty"`
 	EnvVars   *EnvVars `json:"envVars,omitempty"`
 
+	// Injections Injection rules to apply to outgoing HTTPS requests from the sandbox.
+	// Each item is a discriminated union with a "type" field.
+	Injections *[]SandboxInjection `json:"injections,omitempty"`
+
 	// Mcp MCP configuration for the sandbox
 	Mcp      *Mcp                  `json:"mcp"`
 	Metadata *SandboxMetadata      `json:"metadata,omitempty"`
 	Network  *SandboxNetworkConfig `json:"network,omitempty"`
-
-	// RequestInjectionIds IDs of pre-defined injection rules to apply to matching outgoing HTTPS requests. Mutually exclusive with request_injections.
-	RequestInjectionIds *[]string `json:"request_injection_ids,omitempty"`
-
-	// RequestInjections A sequence of injection rules to apply to matching outgoing HTTPS requests from the sandbox. Only applies to HTTPS traffic on port 443. Mutually exclusive with request_injection_ids.
-	RequestInjections *[]RequestInjection `json:"request_injections,omitempty"`
 
 	// Secure Secure all system communication with sandbox
 	Secure *bool `json:"secure,omitempty"`
@@ -353,41 +406,21 @@ type NewSandbox struct {
 	Timeout *int32 `json:"timeout,omitempty"`
 }
 
-// RequestInjection Injection rule for outgoing HTTPS requests
-type RequestInjection struct {
-	// Conditions Conditions that must be met for the injection to apply
-	Conditions *RequestInjectionConditions `json:"conditions,omitempty"`
+// OpenaiInjection OpenAI-compatible API injection. Automatically configures Authorization Bearer header.
+// Default host: api.openai.com
+type OpenaiInjection struct {
+	// APIKey API key for OpenAI-compatible APIs
+	APIKey *string `json:"api_key,omitempty"`
 
-	// Injections Injections to apply for matching requests. Supports two mutually exclusive modes:
-	// - API key mode: use api to inject credentials for well-known API protocols
-	// - Manual mode: use headers and/or queries for custom injection
-	Injections *RequestInjections `json:"injections,omitempty"`
+	// BaseURL Optional base URL. If not specified, uses api.openai.com
+	BaseURL *string `json:"base_url,omitempty"`
+
+	// Type Injection type identifier
+	Type OpenaiInjectionType `json:"type"`
 }
 
-// RequestInjectionConditions Conditions that must be met for the injection to apply
-type RequestInjectionConditions struct {
-	// Hosts List of exact HTTPS hostnames to match (wildcards are not supported).
-	// The injection will only apply to HTTPS requests to these hostnames on port 443.
-	// When empty and api is set, the protocol's default hosts are used automatically.
-	// When non-empty, the provided hosts override (not merge with) the protocol defaults.
-	Hosts *[]string `json:"hosts,omitempty"`
-}
-
-// RequestInjections Injections to apply for matching requests. Supports two mutually exclusive modes:
-// - API key mode: use api to inject credentials for well-known API protocols
-// - Manual mode: use headers and/or queries for custom injection
-type RequestInjections struct {
-	// API Simplified API key injection for well-known API protocols. When set, the system
-	// automatically configures the correct authentication method (header or query parameter)
-	// based on the protocol type. Mutually exclusive with headers and queries.
-	API *APIKeyInjection `json:"api,omitempty"`
-
-	// Headers HTTP headers to inject or overwrite on matching HTTPS requests. Mutually exclusive with api.
-	Headers *map[string]string `json:"headers,omitempty"`
-
-	// Queries URL query parameters to replace on matching HTTPS requests (only if already present). Mutually exclusive with api.
-	Queries *map[string]string `json:"queries,omitempty"`
-}
+// OpenaiInjectionType Injection type identifier
+type OpenaiInjectionType string
 
 // ResumedSandbox defines model for ResumedSandbox.
 type ResumedSandbox struct {
@@ -469,6 +502,11 @@ type SandboxDetail struct {
 
 	// TemplateID Identifier of the template from which is the sandbox created
 	TemplateID string `json:"templateID"`
+}
+
+// SandboxInjection defines model for SandboxInjection.
+type SandboxInjection struct {
+	union json.RawMessage
 }
 
 // SandboxLog Log entry with timestamp and line
@@ -886,15 +924,9 @@ type TemplateWithBuilds struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// UpdateInjectionRule defines model for UpdateInjectionRule.
+// UpdateInjectionRule Request body for updating an existing injection rule
 type UpdateInjectionRule struct {
-	// Conditions Conditions that must be met for the injection to apply
-	Conditions *RequestInjectionConditions `json:"conditions,omitempty"`
-
-	// Injections Injections to apply for matching requests. Supports two mutually exclusive modes:
-	// - API key mode: use api to inject credentials for well-known API protocols
-	// - Manual mode: use headers and/or queries for custom injection
-	Injections *RequestInjections `json:"injections,omitempty"`
+	Injection *Injection `json:"injection,omitempty"`
 
 	// Name Human-readable name of the injection rule. Must be unique per user.
 	Name *string `json:"name,omitempty"`
@@ -1189,6 +1221,334 @@ func (t FromImageRegistry) MarshalJSON() ([]byte, error) {
 }
 
 func (t *FromImageRegistry) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsHTTPInjection returns the union data inside the Injection as a HTTPInjection
+func (t Injection) AsHTTPInjection() (HTTPInjection, error) {
+	var body HTTPInjection
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromHTTPInjection overwrites any union data inside the Injection as the provided HTTPInjection
+func (t *Injection) FromHTTPInjection(v HTTPInjection) error {
+	v.Type = "http"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeHTTPInjection performs a merge with any union data inside the Injection, using the provided HTTPInjection
+func (t *Injection) MergeHTTPInjection(v HTTPInjection) error {
+	v.Type = "http"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsOpenaiInjection returns the union data inside the Injection as a OpenaiInjection
+func (t Injection) AsOpenaiInjection() (OpenaiInjection, error) {
+	var body OpenaiInjection
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromOpenaiInjection overwrites any union data inside the Injection as the provided OpenaiInjection
+func (t *Injection) FromOpenaiInjection(v OpenaiInjection) error {
+	v.Type = "openai"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeOpenaiInjection performs a merge with any union data inside the Injection, using the provided OpenaiInjection
+func (t *Injection) MergeOpenaiInjection(v OpenaiInjection) error {
+	v.Type = "openai"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnthropicInjection returns the union data inside the Injection as a AnthropicInjection
+func (t Injection) AsAnthropicInjection() (AnthropicInjection, error) {
+	var body AnthropicInjection
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnthropicInjection overwrites any union data inside the Injection as the provided AnthropicInjection
+func (t *Injection) FromAnthropicInjection(v AnthropicInjection) error {
+	v.Type = "anthropic"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnthropicInjection performs a merge with any union data inside the Injection, using the provided AnthropicInjection
+func (t *Injection) MergeAnthropicInjection(v AnthropicInjection) error {
+	v.Type = "anthropic"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGeminiInjection returns the union data inside the Injection as a GeminiInjection
+func (t Injection) AsGeminiInjection() (GeminiInjection, error) {
+	var body GeminiInjection
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGeminiInjection overwrites any union data inside the Injection as the provided GeminiInjection
+func (t *Injection) FromGeminiInjection(v GeminiInjection) error {
+	v.Type = "gemini"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGeminiInjection performs a merge with any union data inside the Injection, using the provided GeminiInjection
+func (t *Injection) MergeGeminiInjection(v GeminiInjection) error {
+	v.Type = "gemini"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t Injection) Discriminator() (string, error) {
+	var discriminator struct {
+		Discriminator string `json:"type"`
+	}
+	err := json.Unmarshal(t.union, &discriminator)
+	return discriminator.Discriminator, err
+}
+
+func (t Injection) ValueByDiscriminator() (interface{}, error) {
+	discriminator, err := t.Discriminator()
+	if err != nil {
+		return nil, err
+	}
+	switch discriminator {
+	case "anthropic":
+		return t.AsAnthropicInjection()
+	case "gemini":
+		return t.AsGeminiInjection()
+	case "http":
+		return t.AsHTTPInjection()
+	case "openai":
+		return t.AsOpenaiInjection()
+	default:
+		return nil, errors.New("unknown discriminator value: " + discriminator)
+	}
+}
+
+func (t Injection) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *Injection) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsInjectionByID returns the union data inside the SandboxInjection as a InjectionByID
+func (t SandboxInjection) AsInjectionByID() (InjectionByID, error) {
+	var body InjectionByID
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromInjectionByID overwrites any union data inside the SandboxInjection as the provided InjectionByID
+func (t *SandboxInjection) FromInjectionByID(v InjectionByID) error {
+	v.Type = "id"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeInjectionByID performs a merge with any union data inside the SandboxInjection, using the provided InjectionByID
+func (t *SandboxInjection) MergeInjectionByID(v InjectionByID) error {
+	v.Type = "id"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsHTTPInjection returns the union data inside the SandboxInjection as a HTTPInjection
+func (t SandboxInjection) AsHTTPInjection() (HTTPInjection, error) {
+	var body HTTPInjection
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromHTTPInjection overwrites any union data inside the SandboxInjection as the provided HTTPInjection
+func (t *SandboxInjection) FromHTTPInjection(v HTTPInjection) error {
+	v.Type = "http"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeHTTPInjection performs a merge with any union data inside the SandboxInjection, using the provided HTTPInjection
+func (t *SandboxInjection) MergeHTTPInjection(v HTTPInjection) error {
+	v.Type = "http"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsOpenaiInjection returns the union data inside the SandboxInjection as a OpenaiInjection
+func (t SandboxInjection) AsOpenaiInjection() (OpenaiInjection, error) {
+	var body OpenaiInjection
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromOpenaiInjection overwrites any union data inside the SandboxInjection as the provided OpenaiInjection
+func (t *SandboxInjection) FromOpenaiInjection(v OpenaiInjection) error {
+	v.Type = "openai"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeOpenaiInjection performs a merge with any union data inside the SandboxInjection, using the provided OpenaiInjection
+func (t *SandboxInjection) MergeOpenaiInjection(v OpenaiInjection) error {
+	v.Type = "openai"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnthropicInjection returns the union data inside the SandboxInjection as a AnthropicInjection
+func (t SandboxInjection) AsAnthropicInjection() (AnthropicInjection, error) {
+	var body AnthropicInjection
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnthropicInjection overwrites any union data inside the SandboxInjection as the provided AnthropicInjection
+func (t *SandboxInjection) FromAnthropicInjection(v AnthropicInjection) error {
+	v.Type = "anthropic"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnthropicInjection performs a merge with any union data inside the SandboxInjection, using the provided AnthropicInjection
+func (t *SandboxInjection) MergeAnthropicInjection(v AnthropicInjection) error {
+	v.Type = "anthropic"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsGeminiInjection returns the union data inside the SandboxInjection as a GeminiInjection
+func (t SandboxInjection) AsGeminiInjection() (GeminiInjection, error) {
+	var body GeminiInjection
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromGeminiInjection overwrites any union data inside the SandboxInjection as the provided GeminiInjection
+func (t *SandboxInjection) FromGeminiInjection(v GeminiInjection) error {
+	v.Type = "gemini"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeGeminiInjection performs a merge with any union data inside the SandboxInjection, using the provided GeminiInjection
+func (t *SandboxInjection) MergeGeminiInjection(v GeminiInjection) error {
+	v.Type = "gemini"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t SandboxInjection) Discriminator() (string, error) {
+	var discriminator struct {
+		Discriminator string `json:"type"`
+	}
+	err := json.Unmarshal(t.union, &discriminator)
+	return discriminator.Discriminator, err
+}
+
+func (t SandboxInjection) ValueByDiscriminator() (interface{}, error) {
+	discriminator, err := t.Discriminator()
+	if err != nil {
+		return nil, err
+	}
+	switch discriminator {
+	case "anthropic":
+		return t.AsAnthropicInjection()
+	case "gemini":
+		return t.AsGeminiInjection()
+	case "http":
+		return t.AsHTTPInjection()
+	case "id":
+		return t.AsInjectionByID()
+	case "openai":
+		return t.AsOpenaiInjection()
+	default:
+		return nil, errors.New("unknown discriminator value: " + discriminator)
+	}
+}
+
+func (t SandboxInjection) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *SandboxInjection) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }
