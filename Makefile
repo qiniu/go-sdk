@@ -10,6 +10,10 @@ integrationtest:
 staticcheck:
 	staticcheck `go list ./... | egrep -v 'examples|sms'`
 
+sync-api-specs:
+	git submodule update --init --recursive api-specs
+	git submodule update --remote api-specs
+
 generate:
 	go generate ./storagev2/
 	go generate ./iam/
