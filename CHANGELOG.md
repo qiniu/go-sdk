@@ -1,4 +1,11 @@
 # Changelog
+## 7.26.8
+
+* 新增
+  * sandbox: 调整 injection APIs，引入 InjectionSpec 和 SandboxInjectionSpec，支持 OpenAI、Anthropic、Gemini 与自定义 HTTP 注入
+* 完善
+  * Makefile: 添加 sync-api-specs 目标，并统一 sandbox 代码生成使用仓库内 api-specs submodule 路径
+
 ## 7.26.7
 
 * 新增
