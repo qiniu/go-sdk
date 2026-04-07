@@ -151,6 +151,26 @@ func (p *UpdateInjectionRuleParams) toAPI() (apis.PutInjectionRulesRuleIDJSONReq
 // ---------------------------------------------------------------------------
 
 func injectionSpecToAPI(spec InjectionSpec) (apis.Injection, error) {
+	count := 0
+	if spec.OpenAI != nil {
+		count++
+	}
+	if spec.Anthropic != nil {
+		count++
+	}
+	if spec.Gemini != nil {
+		count++
+	}
+	if spec.HTTP != nil {
+		count++
+	}
+	if count == 0 {
+		return apis.Injection{}, fmt.Errorf("InjectionSpec: exactly one injection type must be set (OpenAI, Anthropic, Gemini, or HTTP), got none")
+	}
+	if count > 1 {
+		return apis.Injection{}, fmt.Errorf("InjectionSpec: exactly one injection type must be set, but got %d", count)
+	}
+
 	var inj apis.Injection
 	var err error
 	switch {
