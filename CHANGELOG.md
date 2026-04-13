@@ -1,4 +1,9 @@
 # Changelog
+## 7.26.9
+
+* 新增
+  * sandbox: 添加七牛 AI API 注入类型（QiniuInjection），支持七牛网关的 OpenAI/Anthropic 协议兼容注入
+
 ## 7.26.8
 
 * 新增
