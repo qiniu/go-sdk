@@ -41,6 +41,17 @@ type GeminiInjection struct {
 	BaseURL *string
 }
 
+// QiniuInjection 七牛 AI API 注入配置。七牛网关同时兼容 OpenAI 和 Anthropic 协议，
+// api_key 会注入到请求实际携带的认证头（Authorization 或 x-api-key）。
+// 默认 host: api.qnaigc.com
+type QiniuInjection struct {
+	// APIKey API 密钥。
+	APIKey *string
+
+	// BaseURL 可选 base URL，未指定时使用 api.qnaigc.com。
+	BaseURL *string
+}
+
 // HTTPInjection 自定义 HTTP 注入配置。
 type HTTPInjection struct {
 	// BaseURL 匹配 HTTPS 请求的 base URL。域名部分用于 host 匹配。
@@ -62,6 +73,9 @@ type InjectionSpec struct {
 	// Gemini Google Gemini API 注入。
 	Gemini *GeminiInjection
 
+	// Qiniu 七牛 AI API 注入。
+	Qiniu *QiniuInjection
+
 	// HTTP 自定义 HTTP 注入。
 	HTTP *HTTPInjection
 }
@@ -80,6 +94,9 @@ type SandboxInjectionSpec struct {
 
 	// Gemini Google Gemini API 注入。
 	Gemini *GeminiInjection
+
+	// Qiniu 七牛 AI API 注入。
+	Qiniu *QiniuInjection
 
 	// HTTP 自定义 HTTP 注入。
 	HTTP *HTTPInjection
@@ -164,8 +181,11 @@ func injectionSpecToAPI(spec InjectionSpec) (apis.Injection, error) {
 	if spec.HTTP != nil {
 		count++
 	}
+	if spec.Qiniu != nil {
+		count++
+	}
 	if count == 0 {
-		return apis.Injection{}, fmt.Errorf("InjectionSpec: exactly one injection type must be set (OpenAI, Anthropic, Gemini, or HTTP), got none")
+		return apis.Injection{}, fmt.Errorf("InjectionSpec: exactly one injection type must be set (OpenAI, Anthropic, Gemini, Qiniu, or HTTP), got none")
 	}
 	if count > 1 {
 		return apis.Injection{}, fmt.Errorf("InjectionSpec: exactly one injection type must be set, but got %d", count)
@@ -191,6 +211,12 @@ func injectionSpecToAPI(spec InjectionSpec) (apis.Injection, error) {
 			APIKey:  spec.Gemini.APIKey,
 			BaseURL: spec.Gemini.BaseURL,
 			Type:    apis.Gemini,
+		})
+	case spec.Qiniu != nil:
+		err = inj.FromQiniuInjection(apis.QiniuInjection{
+			APIKey:  spec.Qiniu.APIKey,
+			BaseURL: spec.Qiniu.BaseURL,
+			Type:    apis.Qiniu,
 		})
 	case spec.HTTP != nil:
 		err = inj.FromHTTPInjection(apis.HTTPInjection{
@@ -228,6 +254,12 @@ func sandboxInjectionSpecToAPI(spec SandboxInjectionSpec) (apis.SandboxInjection
 			APIKey:  spec.Gemini.APIKey,
 			BaseURL: spec.Gemini.BaseURL,
 			Type:    apis.Gemini,
+		})
+	case spec.Qiniu != nil:
+		err = si.FromQiniuInjection(apis.QiniuInjection{
+			APIKey:  spec.Qiniu.APIKey,
+			BaseURL: spec.Qiniu.BaseURL,
+			Type:    apis.Qiniu,
 		})
 	case spec.HTTP != nil:
 		err = si.FromHTTPInjection(apis.HTTPInjection{
@@ -267,6 +299,12 @@ func injectionSpecFromAPI(inj apis.Injection) (InjectionSpec, error) {
 			return InjectionSpec{}, err
 		}
 		return InjectionSpec{Gemini: &GeminiInjection{APIKey: v.APIKey, BaseURL: v.BaseURL}}, nil
+	case string(apis.Qiniu):
+		v, err := inj.AsQiniuInjection()
+		if err != nil {
+			return InjectionSpec{}, err
+		}
+		return InjectionSpec{Qiniu: &QiniuInjection{APIKey: v.APIKey, BaseURL: v.BaseURL}}, nil
 	case string(apis.HTTP):
 		v, err := inj.AsHTTPInjection()
 		if err != nil {
