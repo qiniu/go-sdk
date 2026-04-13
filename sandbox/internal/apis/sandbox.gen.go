@@ -85,6 +85,11 @@ const (
 	Openai OpenaiInjectionType = "openai"
 )
 
+// Defines values for QiniuInjectionType.
+const (
+	Qiniu QiniuInjectionType = "qiniu"
+)
+
 // Defines values for SandboxState.
 const (
 	Paused  SandboxState = "paused"
@@ -421,6 +426,24 @@ type OpenaiInjection struct {
 
 // OpenaiInjectionType Injection type identifier
 type OpenaiInjectionType string
+
+// QiniuInjection Qiniu AI API injection. Qiniu's gateway is compatible with both OpenAI and Anthropic
+// protocols on the same host, so the api_key is injected into whichever auth header the
+// outgoing request actually carries (Authorization or x-api-key).
+// Default host: api.qnaigc.com
+type QiniuInjection struct {
+	// APIKey API key for Qiniu AI API
+	APIKey *string `json:"api_key,omitempty"`
+
+	// BaseURL Optional base URL. If not specified, uses api.qnaigc.com
+	BaseURL *string `json:"base_url,omitempty"`
+
+	// Type Injection type identifier
+	Type QiniuInjectionType `json:"type"`
+}
+
+// QiniuInjectionType Injection type identifier
+type QiniuInjectionType string
 
 // ResumedSandbox defines model for ResumedSandbox.
 type ResumedSandbox struct {
@@ -1337,6 +1360,34 @@ func (t *Injection) MergeGeminiInjection(v GeminiInjection) error {
 	return err
 }
 
+// AsQiniuInjection returns the union data inside the Injection as a QiniuInjection
+func (t Injection) AsQiniuInjection() (QiniuInjection, error) {
+	var body QiniuInjection
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromQiniuInjection overwrites any union data inside the Injection as the provided QiniuInjection
+func (t *Injection) FromQiniuInjection(v QiniuInjection) error {
+	v.Type = "qiniu"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeQiniuInjection performs a merge with any union data inside the Injection, using the provided QiniuInjection
+func (t *Injection) MergeQiniuInjection(v QiniuInjection) error {
+	v.Type = "qiniu"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 func (t Injection) Discriminator() (string, error) {
 	var discriminator struct {
 		Discriminator string `json:"type"`
@@ -1359,6 +1410,8 @@ func (t Injection) ValueByDiscriminator() (interface{}, error) {
 		return t.AsHTTPInjection()
 	case "openai":
 		return t.AsOpenaiInjection()
+	case "qiniu":
+		return t.AsQiniuInjection()
 	default:
 		return nil, errors.New("unknown discriminator value: " + discriminator)
 	}
@@ -1514,6 +1567,34 @@ func (t *SandboxInjection) MergeGeminiInjection(v GeminiInjection) error {
 	return err
 }
 
+// AsQiniuInjection returns the union data inside the SandboxInjection as a QiniuInjection
+func (t SandboxInjection) AsQiniuInjection() (QiniuInjection, error) {
+	var body QiniuInjection
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromQiniuInjection overwrites any union data inside the SandboxInjection as the provided QiniuInjection
+func (t *SandboxInjection) FromQiniuInjection(v QiniuInjection) error {
+	v.Type = "qiniu"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeQiniuInjection performs a merge with any union data inside the SandboxInjection, using the provided QiniuInjection
+func (t *SandboxInjection) MergeQiniuInjection(v QiniuInjection) error {
+	v.Type = "qiniu"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 func (t SandboxInjection) Discriminator() (string, error) {
 	var discriminator struct {
 		Discriminator string `json:"type"`
@@ -1538,6 +1619,8 @@ func (t SandboxInjection) ValueByDiscriminator() (interface{}, error) {
 		return t.AsInjectionByID()
 	case "openai":
 		return t.AsOpenaiInjection()
+	case "qiniu":
+		return t.AsQiniuInjection()
 	default:
 		return nil, errors.New("unknown discriminator value: " + discriminator)
 	}
