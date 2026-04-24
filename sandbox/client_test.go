@@ -1255,6 +1255,71 @@ func TestRebuildTemplateError(t *testing.T) {
 	}
 }
 
+func TestRebuildTemplateTransportError(t *testing.T) {
+	mock := &mockAPI{
+		rebuildTemplateFn: func(ctx context.Context, templateID apis.TemplateID, body apis.RebuildTemplateJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.RebuildTemplateResponse, error) {
+			return nil, fmt.Errorf("network down")
+		},
+	}
+	c := newTestClient(mock)
+	_, err := c.RebuildTemplate(context.Background(), "tmpl-x", RebuildTemplateParams{Dockerfile: "FROM alpine\n"})
+	if err == nil || err.Error() != "network down" {
+		t.Fatalf("expected transport error 'network down', got %v", err)
+	}
+}
+
+func TestRebuildTemplateParamsToAPIForwardsAllFields(t *testing.T) {
+	alias := "my-alias"
+	cpu := int32(4)
+	mem := int32(2048)
+	start := "./start.sh"
+	ready := "./ready.sh"
+	team := "team-1"
+	p := RebuildTemplateParams{
+		Dockerfile: "FROM alpine\n",
+		Alias:      &alias,
+		CPUCount:   &cpu,
+		MemoryMB:   &mem,
+		StartCmd:   &start,
+		ReadyCmd:   &ready,
+		TeamID:     &team,
+	}
+	body := p.toAPI()
+	if body.Dockerfile != "FROM alpine\n" {
+		t.Errorf("Dockerfile not forwarded: %q", body.Dockerfile)
+	}
+	if body.Alias == nil || *body.Alias != alias {
+		t.Errorf("Alias not forwarded: %v", body.Alias)
+	}
+	if body.CPUCount == nil || *body.CPUCount != cpu {
+		t.Errorf("CPUCount not forwarded: %v", body.CPUCount)
+	}
+	if body.MemoryMB == nil || *body.MemoryMB != mem {
+		t.Errorf("MemoryMB not forwarded: %v", body.MemoryMB)
+	}
+	if body.StartCmd == nil || *body.StartCmd != start {
+		t.Errorf("StartCmd not forwarded: %v", body.StartCmd)
+	}
+	if body.ReadyCmd == nil || *body.ReadyCmd != ready {
+		t.Errorf("ReadyCmd not forwarded: %v", body.ReadyCmd)
+	}
+	if body.TeamID == nil || *body.TeamID != team {
+		t.Errorf("TeamID not forwarded: %v", body.TeamID)
+	}
+}
+
+func TestTemplateCreateResponseFromLegacyAPINil(t *testing.T) {
+	if got := templateCreateResponseFromLegacyAPI(nil); got != nil {
+		t.Errorf("expected nil, got %+v", got)
+	}
+}
+
+func TestTemplateCreateResponseFromAPINil(t *testing.T) {
+	if got := templateCreateResponseFromAPI(nil); got != nil {
+		t.Errorf("expected nil, got %+v", got)
+	}
+}
+
 // --- Template: GetTemplate ---
 
 func TestGetTemplate(t *testing.T) {
