@@ -132,6 +132,44 @@ func (p *UpdateTemplateParams) toAPI() apis.UpdateTemplateJSONRequestBody {
 	}
 }
 
+// RebuildTemplateParams 重新构建已有模板的请求参数。
+// 对应 POST /templates/{templateID}：在已存在的模板上创建一个新的 waiting build，
+// 返回新的 buildID，后续可通过 StartTemplateBuild 驱动该 build。
+type RebuildTemplateParams struct {
+	// Dockerfile 必填，模板使用的 Dockerfile 内容。
+	Dockerfile string
+
+	// Alias 模板别名。
+	Alias *string
+
+	// CPUCount 沙箱 CPU 核数。
+	CPUCount *int32
+
+	// MemoryMB 沙箱内存大小（MiB）。
+	MemoryMB *int32
+
+	// StartCmd 构建完成后执行的启动命令。
+	StartCmd *string
+
+	// ReadyCmd 就绪检查命令。
+	ReadyCmd *string
+
+	// TeamID 团队 ID（已废弃）。
+	TeamID *string
+}
+
+func (p *RebuildTemplateParams) toAPI() apis.RebuildTemplateJSONRequestBody {
+	return apis.RebuildTemplateJSONRequestBody{
+		Alias:      p.Alias,
+		CPUCount:   p.CPUCount,
+		Dockerfile: p.Dockerfile,
+		MemoryMB:   p.MemoryMB,
+		ReadyCmd:   p.ReadyCmd,
+		StartCmd:   p.StartCmd,
+		TeamID:     p.TeamID,
+	}
+}
+
 // StartTemplateBuildParams 启动模板构建的请求参数。
 type StartTemplateBuildParams struct {
 	// Force 是否强制完整构建（忽略缓存）。

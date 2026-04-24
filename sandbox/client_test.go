@@ -31,6 +31,7 @@ type mockAPI struct {
 	refreshSandboxFn         func(ctx context.Context, sandboxID apis.SandboxID, body apis.RefreshSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.RefreshSandboxResponse, error)
 	listTemplatesFn          func(ctx context.Context, params *apis.ListTemplatesParams, editors ...apis.RequestEditorFn) (*apis.ListTemplatesResponse, error)
 	createTemplateV3Fn       func(ctx context.Context, body apis.CreateTemplateV3JSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateTemplateV3Response, error)
+	rebuildTemplateFn        func(ctx context.Context, templateID apis.TemplateID, body apis.RebuildTemplateJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.RebuildTemplateResponse, error)
 	getTemplateFn            func(ctx context.Context, templateID apis.TemplateID, params *apis.GetTemplateParams, editors ...apis.RequestEditorFn) (*apis.GetTemplateResponse, error)
 	deleteTemplateFn         func(ctx context.Context, templateID apis.TemplateID, editors ...apis.RequestEditorFn) (*apis.DeleteTemplateResponse, error)
 	getTemplateBuildStatusFn func(ctx context.Context, templateID apis.TemplateID, buildID apis.BuildID, params *apis.GetTemplateBuildStatusParams, editors ...apis.RequestEditorFn) (*apis.GetTemplateBuildStatusResponse, error)
@@ -156,6 +157,9 @@ func (m *mockAPI) UpdateTemplateWithBodyWithResponse(ctx context.Context, templa
 }
 
 func (m *mockAPI) RebuildTemplateWithResponse(ctx context.Context, templateID apis.TemplateID, body apis.RebuildTemplateJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.RebuildTemplateResponse, error) {
+	if m.rebuildTemplateFn != nil {
+		return m.rebuildTemplateFn(ctx, templateID, body, editors...)
+	}
 	panic("not implemented")
 }
 
@@ -1185,6 +1189,67 @@ func TestCreateTemplateError(t *testing.T) {
 	}
 	c := newTestClient(mock)
 	_, err := c.CreateTemplate(context.Background(), CreateTemplateParams{})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+// --- Template: RebuildTemplate ---
+
+func TestRebuildTemplate(t *testing.T) {
+	var gotTemplateID apis.TemplateID
+	var gotBody apis.RebuildTemplateJSONRequestBody
+	mock := &mockAPI{
+		rebuildTemplateFn: func(ctx context.Context, templateID apis.TemplateID, body apis.RebuildTemplateJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.RebuildTemplateResponse, error) {
+			gotTemplateID = templateID
+			gotBody = body
+			return &apis.RebuildTemplateResponse{
+				JSON202: &apis.TemplateLegacy{
+					TemplateID: string(templateID),
+					BuildID:    "build-2",
+					Aliases:    []string{"my-template"},
+				},
+				HTTPResponse: httpResponse(202),
+			}, nil
+		},
+	}
+	c := newTestClient(mock)
+	startCmd := "start.sh"
+	resp, err := c.RebuildTemplate(context.Background(), "tmpl-existing", RebuildTemplateParams{
+		Dockerfile: "FROM alpine\n",
+		StartCmd:   &startCmd,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotTemplateID != "tmpl-existing" {
+		t.Errorf("expected templateID 'tmpl-existing', got %q", gotTemplateID)
+	}
+	if gotBody.Dockerfile != "FROM alpine\n" {
+		t.Errorf("expected dockerfile content forwarded, got %q", gotBody.Dockerfile)
+	}
+	if gotBody.StartCmd == nil || *gotBody.StartCmd != "start.sh" {
+		t.Errorf("expected startCmd forwarded, got %v", gotBody.StartCmd)
+	}
+	if resp.TemplateID != "tmpl-existing" {
+		t.Errorf("expected templateID 'tmpl-existing', got %q", resp.TemplateID)
+	}
+	if resp.BuildID != "build-2" {
+		t.Errorf("expected BuildID 'build-2', got %q", resp.BuildID)
+	}
+}
+
+func TestRebuildTemplateError(t *testing.T) {
+	mock := &mockAPI{
+		rebuildTemplateFn: func(ctx context.Context, templateID apis.TemplateID, body apis.RebuildTemplateJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.RebuildTemplateResponse, error) {
+			return &apis.RebuildTemplateResponse{
+				HTTPResponse: httpResponse(400),
+				Body:         []byte(`{"message":"bad request"}`),
+			}, nil
+		},
+	}
+	c := newTestClient(mock)
+	_, err := c.RebuildTemplate(context.Background(), "tmpl-x", RebuildTemplateParams{Dockerfile: "FROM alpine\n"})
 	if err == nil {
 		t.Fatal("expected error")
 	}

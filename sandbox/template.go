@@ -107,6 +107,26 @@ func (c *Client) StartTemplateBuild(ctx context.Context, templateID, buildID str
 	return nil
 }
 
+// RebuildTemplate 在已有模板上创建一个新的 waiting build（对应 POST /templates/{templateID}）。
+// 返回新 build 的标识（含 BuildID），调用方需随后调用 StartTemplateBuild 触发该 build。
+// 典型流程：RebuildTemplate → StartTemplateBuild → WaitForBuild。
+func (c *Client) RebuildTemplate(ctx context.Context, templateID string, body RebuildTemplateParams) (*TemplateCreateResponse, error) {
+	resp, err := c.api.RebuildTemplateWithResponse(ctx, templateID, body.toAPI())
+	if err != nil {
+		return nil, err
+	}
+	if resp.JSON202 == nil {
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
+	}
+	legacy := resp.JSON202
+	return &TemplateCreateResponse{
+		TemplateID: legacy.TemplateID,
+		BuildID:    legacy.BuildID,
+		Aliases:    legacy.Aliases,
+		Public:     legacy.Public,
+	}, nil
+}
+
 // GetTemplateFiles 返回模板构建文件的上传链接。
 func (c *Client) GetTemplateFiles(ctx context.Context, templateID, hash string) (*TemplateBuildFileUpload, error) {
 	resp, err := c.api.GetTemplateFilesWithResponse(ctx, templateID, hash)
