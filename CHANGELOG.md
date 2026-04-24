@@ -1,4 +1,11 @@
 # Changelog
+## 7.26.10
+
+* 新增
+  * sandbox: 添加 RebuildTemplate API，支持重建沙箱模板
+* 修复
+  * sandbox: apiKeyEditor 同时注入 X-API-Key 与 Authorization: Bearer，兼容更多上游鉴权方式
+
 ## 7.26.9
 
 * 新增
