@@ -115,11 +115,15 @@
 //
 //   - [Client.ListTemplates] / [Client.GetTemplate]: 列出和查询模板
 //   - [Client.CreateTemplate]: 创建模板（返回 templateID 和 buildID）
+//   - [Client.RebuildTemplate]: 在已有模板上创建新的 waiting build（返回新 buildID）
 //   - [Client.UpdateTemplate] / [Client.DeleteTemplate]: 更新和删除模板
 //   - [Client.StartTemplateBuild] / [Client.WaitForBuild]: 启动构建并等待完成
 //   - [Client.GetTemplateBuildStatus] / [Client.GetTemplateBuildLogs]: 查询构建状态和日志
 //   - [Client.AssignTemplateTags] / [Client.DeleteTemplateTags]: 管理模板标签
 //   - [Client.GetTemplateByAlias]: 通过别名查找模板
+//
+// 已有模板的重新构建遵循 [Client.RebuildTemplate] → [Client.StartTemplateBuild] →
+// [Client.WaitForBuild] 三步流程：先申请一个新的 waiting build，再触发该 build，最后等待完成。
 //
 // # 网络访问
 //

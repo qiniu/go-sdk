@@ -118,13 +118,7 @@ func (c *Client) RebuildTemplate(ctx context.Context, templateID string, body Re
 	if resp.JSON202 == nil {
 		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
-	legacy := resp.JSON202
-	return &TemplateCreateResponse{
-		TemplateID: legacy.TemplateID,
-		BuildID:    legacy.BuildID,
-		Aliases:    legacy.Aliases,
-		Public:     legacy.Public,
-	}, nil
+	return templateCreateResponseFromLegacyAPI(resp.JSON202), nil
 }
 
 // GetTemplateFiles 返回模板构建文件的上传链接。

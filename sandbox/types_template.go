@@ -551,6 +551,18 @@ func templateCreateResponseFromAPI(a *apis.TemplateRequestResponseV3) *TemplateC
 	}
 }
 
+func templateCreateResponseFromLegacyAPI(a *apis.TemplateLegacy) *TemplateCreateResponse {
+	if a == nil {
+		return nil
+	}
+	return &TemplateCreateResponse{
+		TemplateID: a.TemplateID,
+		BuildID:    a.BuildID,
+		Aliases:    a.Aliases,
+		Public:     a.Public,
+	}
+}
+
 func templateBuildFileUploadFromAPI(a *apis.TemplateBuildFileUpload) *TemplateBuildFileUpload {
 	if a == nil {
 		return nil
