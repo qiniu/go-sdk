@@ -313,6 +313,24 @@ func TestAPIKeyEditor(t *testing.T) {
 	if got := req.Header.Get("X-API-Key"); got != "test-key" {
 		t.Errorf("expected X-API-Key 'test-key', got %q", got)
 	}
+	if got := req.Header.Get("Authorization"); got != "Bearer test-key" {
+		t.Errorf("expected Authorization 'Bearer test-key', got %q", got)
+	}
+}
+
+func TestAPIKeyEditorSkipsWhenAuthorizationPresent(t *testing.T) {
+	editor := apiKeyEditor("test-key")
+	req, _ := http.NewRequest("GET", "https://example.com", nil)
+	req.Header.Set("Authorization", "QBox ak:sign")
+	if err := editor(context.Background(), req); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := req.Header.Get("Authorization"); got != "QBox ak:sign" {
+		t.Errorf("expected Authorization preserved, got %q", got)
+	}
+	if got := req.Header.Get("X-API-Key"); got != "" {
+		t.Errorf("expected X-API-Key not set when Authorization present, got %q", got)
+	}
 }
 
 func TestReqidEditor(t *testing.T) {

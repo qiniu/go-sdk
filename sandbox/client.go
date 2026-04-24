@@ -70,15 +70,26 @@ func reqidEditor() apis.RequestEditorFn {
 	}
 }
 
-// apiKeyEditor 返回一个 RequestEditorFn，用于注入 X-API-Key 请求头。
+// apiKeyEditor 返回一个 RequestEditorFn，用于注入 API Key 认证头。
+// 同时设置 X-API-Key 和 Authorization: Bearer，兼容不同端点对认证头的要求：
+//   - 多数端点接受 X-API-Key
+//   - 部分端点（如 POST /templates/{templateID} rebuild）要求 Authorization
+//
+// 与 E2B js-sdk (packages/js-sdk/src/api/index.ts) 的双 header 行为保持一致。
+//
+// 与 Credentials 共存：apiKeyEditor 作为 client-level editor 先于 per-request
+// editor 执行；GetCredentialsOption 返回的 editor 会 Set 覆盖 Authorization
+// 为 "Qiniu <sig>"，因此 Credentials 的优先级依旧生效，Bearer 只在未叠加
+// Credentials editor 时才会命中。
 func apiKeyEditor(apiKey string) apis.RequestEditorFn {
 	return func(ctx context.Context, req *http.Request) error {
 		if req.Header.Get("Authorization") != "" {
-			// 如果已经有 Authorization 头了，就不再添加 X-API-Key 头。
-			// 支持 Credentials 和 API Key 两种认证方式共存，优先使用 Credentials 认证。
+			// 调用方已在请求前手动预设 Authorization（非常规路径），尊重其选择，
+			// 同时不再追加 X-API-Key 以避免双认证头干扰。
 			return nil
 		}
 		req.Header.Set("X-API-Key", apiKey)
+		req.Header.Set("Authorization", "Bearer "+apiKey)
 		return nil
 	}
 }
