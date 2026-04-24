@@ -80,12 +80,13 @@ func reqidEditor() apis.RequestEditorFn {
 // 与 Credentials 共存：apiKeyEditor 作为 client-level editor 先于 per-request
 // editor 执行；GetCredentialsOption 返回的 editor 会 Set 覆盖 Authorization
 // 为 "Qiniu <sig>"，因此 Credentials 的优先级依旧生效，Bearer 只在未叠加
-// Credentials editor 时才会命中。
+// Credentials editor 时才会命中。此时 X-API-Key 仍会保留在请求中，服务端
+// 接受并忽略，与改动前 APIKey-only 路径行为一致。
 func apiKeyEditor(apiKey string) apis.RequestEditorFn {
 	return func(ctx context.Context, req *http.Request) error {
 		if req.Header.Get("Authorization") != "" {
-			// 调用方已在请求前手动预设 Authorization（非常规路径），尊重其选择，
-			// 同时不再追加 X-API-Key 以避免双认证头干扰。
+			// 调用方已在进入 client-level editor 链之前手动预设 Authorization
+			// （非常规路径），尊重其选择并跳过注入，避免覆盖调用方的认证选择。
 			return nil
 		}
 		req.Header.Set("X-API-Key", apiKey)
