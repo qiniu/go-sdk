@@ -333,6 +333,38 @@ func TestAPIKeyEditorSkipsWhenAuthorizationPresent(t *testing.T) {
 	}
 }
 
+// TestAPIKeyEditorCredentialsTakesPrecedence 验证在真实调用顺序下
+// （client-level apiKeyEditor 先，per-request Credentials editor 后），
+// Credentials 的 Authorization 会覆盖 apiKeyEditor 写入的 Bearer，保持优先级。
+func TestAPIKeyEditorCredentialsTakesPrecedence(t *testing.T) {
+	apiKey := apiKeyEditor("test-key")
+	req, _ := http.NewRequest("GET", "https://example.com", nil)
+
+	// 1) client-level apiKeyEditor 先执行
+	if err := apiKey(context.Background(), req); err != nil {
+		t.Fatalf("apiKey editor error: %v", err)
+	}
+	if got := req.Header.Get("Authorization"); got != "Bearer test-key" {
+		t.Fatalf("expected Bearer after apiKey editor, got %q", got)
+	}
+
+	// 2) per-request Credentials editor 后执行（模拟 GetCredentialsOption 返回的 editor）
+	credentials := func(ctx context.Context, r *http.Request) error {
+		r.Header.Set("Authorization", "Qiniu ak:sig")
+		return nil
+	}
+	if err := credentials(context.Background(), req); err != nil {
+		t.Fatalf("credentials editor error: %v", err)
+	}
+
+	if got := req.Header.Get("Authorization"); got != "Qiniu ak:sig" {
+		t.Errorf("expected Credentials to override Bearer, got %q", got)
+	}
+	if got := req.Header.Get("X-API-Key"); got != "test-key" {
+		t.Errorf("expected X-API-Key retained for backward compat, got %q", got)
+	}
+}
+
 func TestReqidEditor(t *testing.T) {
 	editor := reqidEditor()
 
