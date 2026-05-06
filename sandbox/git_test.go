@@ -276,13 +276,13 @@ func TestParseGitStatus_QuotedPaths(t *testing.T) {
 
 func TestUnquoteCPath(t *testing.T) {
 	cases := map[string]string{
-		`plain.txt`:           `plain.txt`,
-		`"with space.txt"`:    `with space.txt`,
-		`"a\"b"`:              `a"b`,
-		`"a\\b"`:              `a\b`,
-		`"tab\there"`:         "tab\there",
-		`"newline\nhere"`:     "newline\nhere",
-		`"unicode\303\251"`:   "unicode\xc3\xa9", // é (UTF-8)
+		`plain.txt`:         `plain.txt`,
+		`"with space.txt"`:  `with space.txt`,
+		`"a\"b"`:            `a"b`,
+		`"a\\b"`:            `a\b`,
+		`"tab\there"`:       "tab\there",
+		`"newline\nhere"`:   "newline\nhere",
+		`"unicode\303\251"`: "unicode\xc3\xa9", // é (UTF-8)
 	}
 	for in, want := range cases {
 		assert.Equal(t, want, unquoteCPath(in), "input=%q", in)
