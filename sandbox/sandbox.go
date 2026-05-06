@@ -55,6 +55,9 @@ type Sandbox struct {
 
 	ptyOnce sync.Once
 	pty     *Pty
+
+	gitOnce sync.Once
+	git     *Git
 }
 
 // newSandbox 从 API 响应创建 Sandbox 实例。
@@ -362,6 +365,15 @@ func (s *Sandbox) Pty() *Pty {
 		s.pty = newPty(s, s.processClient())
 	})
 	return s.pty
+}
+
+// Git 返回 git 操作接口。
+// 沙箱内需预装 git 二进制；当前仅支持 HTTPS + username/password (token) 认证。
+func (s *Sandbox) Git() *Git {
+	s.gitOnce.Do(func() {
+		s.git = newGit(s.Commands())
+	})
+	return s.git
 }
 
 // GetHost 返回访问沙箱指定端口的外部域名。
