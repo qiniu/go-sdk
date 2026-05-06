@@ -216,6 +216,9 @@ func isStaged(x, status string) bool {
 }
 
 // parseGitBranches 解析 `git branch --format=%(refname:short)\t%(HEAD)` 的输出。
+//
+// detached HEAD 时 git 会把 "(HEAD detached at <sha>)" / "(HEAD detached from <ref>)"
+// 作为一项输出并标记为当前 HEAD；这里跳过该伪分支以保持 CurrentBranch 在 HEAD 分离时为空。
 func parseGitBranches(out string) *GitBranches {
 	result := &GitBranches{}
 	for _, line := range strings.Split(out, "\n") {
@@ -228,8 +231,12 @@ func parseGitBranches(out string) *GitBranches {
 		if name == "" {
 			continue
 		}
+		isCurrent := len(parts) == 2 && strings.TrimSpace(parts[1]) == "*"
+		if strings.HasPrefix(name, "(HEAD detached") || name == "(no branch)" {
+			continue
+		}
 		result.Branches = append(result.Branches, name)
-		if len(parts) == 2 && strings.TrimSpace(parts[1]) == "*" {
+		if isCurrent {
 			result.CurrentBranch = name
 		}
 	}

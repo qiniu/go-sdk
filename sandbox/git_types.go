@@ -88,9 +88,20 @@ func (s *GitStatus) StagedCount() int {
 	return n
 }
 
-// UnstagedCount 返回未暂存的文件数。
+// UnstagedCount 返回存在未暂存改动的文件数。
+// 同一文件既有 staged 又有 unstaged 改动（如 "MM file"）时也会被计入。
 func (s *GitStatus) UnstagedCount() int {
-	return len(s.FileStatus) - s.StagedCount()
+	n := 0
+	for i := range s.FileStatus {
+		f := &s.FileStatus[i]
+		if f.Status == "untracked" || f.Status == "ignored" {
+			continue
+		}
+		if f.WorkingTreeStatus != "" && f.WorkingTreeStatus != " " {
+			n++
+		}
+	}
+	return n
 }
 
 // UntrackedCount 返回未跟踪的文件数。

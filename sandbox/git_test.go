@@ -61,13 +61,22 @@ func TestBuildCommitArgs(t *testing.T) {
 }
 
 func TestBuildResetArgs(t *testing.T) {
-	args, err := buildResetArgs(GitResetModeHard, "HEAD~1", []string{"a.go"})
+	args, err := buildResetArgs(GitResetModeHard, "HEAD~1", nil)
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"reset", "--hard", "HEAD~1", "--", "a.go"}, args)
+	assert.Equal(t, []string{"reset", "--hard", "HEAD~1"}, args)
+
+	args, err = buildResetArgs("", "", []string{"a.go"})
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"reset", "--", "a.go"}, args)
+
+	// mode 与 paths 同时给出会被拒绝（git reset 的两种用法互斥）
+	_, err = buildResetArgs(GitResetModeHard, "HEAD~1", []string{"a.go"})
+	assert.Error(t, err)
+	var ie *InvalidArgumentError
+	assert.True(t, errors.As(err, &ie))
 
 	_, err = buildResetArgs(GitResetMode("invalid"), "", nil)
 	assert.Error(t, err)
-	var ie *InvalidArgumentError
 	assert.True(t, errors.As(err, &ie))
 }
 
@@ -233,6 +242,23 @@ func TestParseGitBranches(t *testing.T) {
 	b := parseGitBranches(out)
 	assert.Equal(t, []string{"main", "feature", "release"}, b.Branches)
 	assert.Equal(t, "main", b.CurrentBranch)
+}
+
+func TestParseGitBranches_DetachedHEAD(t *testing.T) {
+	// detached HEAD 时 git 会输出 "(HEAD detached at <sha>)" 并标记为当前；
+	// 该伪分支不应进入 Branches，CurrentBranch 也应保持为空。
+	out := "(HEAD detached at 1234abc)\t*\nmain\t \nfeature\t \n"
+	b := parseGitBranches(out)
+	assert.Equal(t, []string{"main", "feature"}, b.Branches)
+	assert.Empty(t, b.CurrentBranch)
+}
+
+func TestUnstagedCount_MMCountedOnce(t *testing.T) {
+	// "MM file" 表示同一文件既有 staged 又有 unstaged 改动，应同时计入两边。
+	s := parseGitStatus("## main\nMM file.go\n M dirty.go\n?? new.go\n")
+	assert.Equal(t, 1, s.StagedCount())
+	assert.Equal(t, 2, s.UnstagedCount())
+	assert.Equal(t, 1, s.UntrackedCount())
 }
 
 func TestIsAuthFailure(t *testing.T) {

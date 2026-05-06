@@ -403,12 +403,17 @@ func resolveConfigScope(scope GitConfigScope, repoPath string) (string, string, 
 
 // hasUpstream 检查当前分支是否配置了 upstream。
 func (g *Git) hasUpstream(ctx context.Context, path string, opts *GitOptions) (bool, error) {
-	cmd := buildGitCommand(buildHasUpstreamArgs(), path) + " >/dev/null 2>&1 && echo yes || echo no"
-	result, err := g.runShell(ctx, "rev-parse", cmd, opts)
-	if err != nil {
-		return false, err
+	_, err := g.runGit(ctx, "rev-parse", buildHasUpstreamArgs(), path, opts)
+	if err == nil {
+		return true, nil
 	}
-	return strings.TrimSpace(result.Stdout) == "yes", nil
+	// 未配置 upstream 时 rev-parse 退出码为 128，stderr 含 "no upstream" 等说明；
+	// 其他失败（仓库路径错误、git 自身问题）应原样向上抛出。
+	var ce *gitCommandError
+	if errors.As(err, &ce) && ce.Result != nil && isMissingUpstream(err) {
+		return false, nil
+	}
+	return false, err
 }
 
 // resolveRemoteName 在凭证注入流程中确定要使用的 remote 名，并一并返回其 URL。

@@ -156,11 +156,15 @@ var allowedResetModes = map[GitResetMode]struct{}{
 }
 
 // buildResetArgs 构造 git reset 命令的参数列表。
+// git reset 的两种用法互斥：带 mode 时重置 HEAD/索引/工作区，带 paths 时仅取消暂存路径。
 func buildResetArgs(mode GitResetMode, target string, paths []string) ([]string, error) {
 	if mode != "" {
 		if _, ok := allowedResetModes[mode]; !ok {
 			return nil, &InvalidArgumentError{Msg: "Reset mode must be one of soft, mixed, hard, merge, keep."}
 		}
+	}
+	if mode != "" && len(paths) > 0 {
+		return nil, &InvalidArgumentError{Msg: "Reset mode and paths cannot be used together."}
 	}
 	args := []string{"reset"}
 	if mode != "" {
