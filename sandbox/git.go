@@ -7,6 +7,7 @@ package sandbox
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"strings"
@@ -55,7 +56,8 @@ func (g *Git) Clone(ctx context.Context, repoURL string, opts *CloneOptions) (*C
 	}
 
 	if plan.shouldStrip {
-		if _, serr := g.runGit(ctx, "remote", buildRemoteSetURLArgs("origin", plan.sanitizedURL), plan.repoPath, &opts.GitOptions); serr != nil {
+		// 即使 ctx 已取消也要清理凭证，避免带凭证的 URL 残留在 .git/config。
+		if _, serr := g.runGit(context.Background(), "remote", buildRemoteSetURLArgs("origin", plan.sanitizedURL), plan.repoPath, &opts.GitOptions); serr != nil {
 			return result, serr
 		}
 	}
@@ -179,6 +181,9 @@ func (g *Git) Push(ctx context.Context, path string, opts *PushOptions) (*Comman
 	if opts.Password != "" && opts.Username == "" {
 		return nil, &InvalidArgumentError{Msg: "Username is required when using a password or token for git push."}
 	}
+	if opts.Branch != "" && opts.Remote == "" {
+		return nil, &InvalidArgumentError{Msg: "Remote is required when specifying a branch for git push."}
+	}
 	setUpstream := true
 	if opts.SetUpstream != nil {
 		setUpstream = *opts.SetUpstream
@@ -195,6 +200,9 @@ func (g *Git) Pull(ctx context.Context, path string, opts *PullOptions) (*Comman
 	}
 	if opts.Password != "" && opts.Username == "" {
 		return nil, &InvalidArgumentError{Msg: "Username is required when using a password or token for git pull."}
+	}
+	if opts.Branch != "" && opts.Remote == "" {
+		return nil, &InvalidArgumentError{Msg: "Remote is required when specifying a branch for git pull."}
 	}
 
 	if opts.Remote == "" && opts.Branch == "" {
@@ -270,9 +278,13 @@ func (g *Git) RemoteGet(ctx context.Context, path, name string, opts *GitOptions
 	if name == "" {
 		return "", &InvalidArgumentError{Msg: "Remote name is required."}
 	}
-	cmd := buildGitCommand(buildRemoteGetURLArgs(name), path) + " || true"
-	result, err := g.runShell(ctx, "remote", cmd, opts)
+	result, err := g.runGit(ctx, "remote", buildRemoteGetURLArgs(name), path, opts)
 	if err != nil {
+		// `git remote get-url <name>` 在 remote 不存在时退出码为 2；其他退出码视为真正的错误。
+		var ce *gitCommandError
+		if errors.As(err, &ce) && ce.Result != nil && ce.Result.ExitCode == 2 {
+			return "", nil
+		}
 		return "", err
 	}
 	return strings.TrimSpace(result.Stdout), nil
@@ -306,9 +318,15 @@ func (g *Git) GetConfig(ctx context.Context, key string, opts *ConfigOptions) (s
 	if err != nil {
 		return "", err
 	}
-	cmd := buildGitCommand([]string{"config", scope, "--get", key}, repoPath) + " || true"
+	cmd := buildGitCommand([]string{"config", scope, "--get", key}, repoPath)
 	result, err := g.runShell(ctx, "config", cmd, &opts.GitOptions)
 	if err != nil {
+		// `git config --get` 未找到值时退出码为 1，stdout/stderr 为空；其他退出码视为真正的错误。
+		var ce *gitCommandError
+		if errors.As(err, &ce) && ce.Result != nil && ce.Result.ExitCode == 1 &&
+			strings.TrimSpace(ce.Result.Stdout) == "" && strings.TrimSpace(ce.Result.Stderr) == "" {
+			return "", nil
+		}
 		return "", err
 	}
 	return strings.TrimSpace(result.Stdout), nil
@@ -478,7 +496,6 @@ func (g *Git) runShell(ctx context.Context, sub, cmd string, opts *GitOptions) (
 // buildCommandOptions 将 GitOptions 转换为 CommandOption 列表。
 func buildCommandOptions(opts *GitOptions) []CommandOption {
 	mergedEnvs := make(map[string]string, len(defaultGitEnv)+1)
-	maps.Copy(mergedEnvs, defaultGitEnv)
 	cmdOpts := []CommandOption{}
 	if opts != nil {
 		maps.Copy(mergedEnvs, opts.Envs)
@@ -492,6 +509,8 @@ func buildCommandOptions(opts *GitOptions) []CommandOption {
 			cmdOpts = append(cmdOpts, WithTimeout(opts.Timeout))
 		}
 	}
+	// 默认环境必须最后写入，避免被调用方覆盖（例如禁用 GIT_TERMINAL_PROMPT）。
+	maps.Copy(mergedEnvs, defaultGitEnv)
 	cmdOpts = append(cmdOpts, WithEnvs(mergedEnvs))
 	return cmdOpts
 }
