@@ -253,6 +253,42 @@ func TestParseGitBranches_DetachedHEAD(t *testing.T) {
 	assert.Empty(t, b.CurrentBranch)
 }
 
+func TestParseGitStatus_QuotedPaths(t *testing.T) {
+	// porcelain v1 在文件名含空格、引号、非 ASCII 时会输出 C-style 引号路径。
+	out := strings.Join([]string{
+		`?? "with space.txt"`,
+		` M "quote\"name.txt"`,
+		`R  "old name.txt" -> "new name.txt"`,
+		`A  "tab\there.txt"`,
+		"",
+	}, "\n")
+	s := parseGitStatus(out)
+	byName := map[string]GitFileStatus{}
+	for _, f := range s.FileStatus {
+		byName[f.Name] = f
+	}
+	assert.Contains(t, byName, "with space.txt")
+	assert.Contains(t, byName, `quote"name.txt`)
+	assert.Contains(t, byName, "new name.txt")
+	assert.Equal(t, "old name.txt", byName["new name.txt"].RenamedFrom)
+	assert.Contains(t, byName, "tab\there.txt")
+}
+
+func TestUnquoteCPath(t *testing.T) {
+	cases := map[string]string{
+		`plain.txt`:           `plain.txt`,
+		`"with space.txt"`:    `with space.txt`,
+		`"a\"b"`:              `a"b`,
+		`"a\\b"`:              `a\b`,
+		`"tab\there"`:         "tab\there",
+		`"newline\nhere"`:     "newline\nhere",
+		`"unicode\303\251"`:   "unicode\xc3\xa9", // é (UTF-8)
+	}
+	for in, want := range cases {
+		assert.Equal(t, want, unquoteCPath(in), "input=%q", in)
+	}
+}
+
 func TestUnstagedCount_MMCountedOnce(t *testing.T) {
 	// "MM file" 表示同一文件既有 staged 又有 unstaged 改动，应同时计入两边。
 	s := parseGitStatus("## main\nMM file.go\n M dirty.go\n?? new.go\n")

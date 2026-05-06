@@ -90,12 +90,36 @@ func (g *Git) Status(ctx context.Context, path string, opts *GitOptions) (*GitSt
 }
 
 // Branches 返回仓库的分支列表。
+//
+// unborn 仓库（git init 后尚未提交）下 `git branch` 无任何输出，但 HEAD 已经
+// 指向初始分支；此时退化到 `git symbolic-ref --short HEAD` 取出 CurrentBranch，
+// 与 GitBranches.CurrentBranch "仅在 detached HEAD 时为空" 的契约保持一致。
 func (g *Git) Branches(ctx context.Context, path string, opts *GitOptions) (*GitBranches, error) {
 	result, err := g.runGit(ctx, "branch", buildBranchesArgs(), path, opts)
 	if err != nil {
 		return nil, err
 	}
-	return parseGitBranches(result.Stdout), nil
+	branches := parseGitBranches(result.Stdout)
+	if branches.CurrentBranch == "" && len(branches.Branches) == 0 {
+		if name, ok := g.unbornCurrentBranch(ctx, path, opts); ok {
+			branches.CurrentBranch = name
+		}
+	}
+	return branches, nil
+}
+
+// unbornCurrentBranch 尝试通过 symbolic-ref 读取 unborn 仓库的当前分支名。
+// 仓库为 detached HEAD 或非 git 目录时 symbolic-ref 失败，返回 ok=false。
+func (g *Git) unbornCurrentBranch(ctx context.Context, path string, opts *GitOptions) (string, bool) {
+	result, err := g.runGit(ctx, "symbolic-ref", []string{"symbolic-ref", "--short", "HEAD"}, path, opts)
+	if err != nil {
+		return "", false
+	}
+	name := strings.TrimSpace(result.Stdout)
+	if name == "" {
+		return "", false
+	}
+	return name, true
 }
 
 // CreateBranch 创建并切换到新分支。
