@@ -140,6 +140,10 @@ func TestWithCredentials(t *testing.T) {
 	_, err = withCredentials("git@github.com:o/r.git", "alice", "tk")
 	assert.Error(t, err)
 
+	// http -> 错（避免凭证暴露在明文链路）
+	_, err = withCredentials("http://github.com/o/r.git", "alice", "tk")
+	assert.Error(t, err)
+
 	// 都为空 -> 原样返回
 	got, err = withCredentials("https://github.com/o/r.git", "", "")
 	assert.NoError(t, err)
@@ -304,6 +308,10 @@ func TestIsAuthFailure(t *testing.T) {
 
 	err = &gitCommandError{Cmd: "pull", Result: &CommandResult{Stderr: "There is no tracking information for the current branch"}}
 	assert.True(t, isMissingUpstream(err))
+	assert.False(t, isAuthFailure(err))
+
+	// 工作树/锁文件等通用的 "Permission denied" 不应被误判为认证失败
+	err = &gitCommandError{Cmd: "clone", Result: &CommandResult{ExitCode: 128, Stderr: "fatal: could not create work tree dir 'foo': Permission denied"}}
 	assert.False(t, isAuthFailure(err))
 
 	assert.False(t, isAuthFailure(errors.New("other")))

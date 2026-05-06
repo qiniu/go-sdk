@@ -35,7 +35,10 @@ type InvalidArgumentError struct {
 func (e *InvalidArgumentError) Error() string { return e.Msg }
 
 // withCredentials 将 HTTPS 凭证嵌入 git 仓库 URL 中。
-// 仅 http/https 协议有效；当 username 与 password 均为空时直接返回原 URL。
+// 仅 https 协议有效；当 username 与 password 均为空时直接返回原 URL。
+//
+// 故意不允许 http：把 token / 密码塞进明文 URL 会让凭证暴露在非 TLS 链路上，
+// 与对外"仅支持 HTTPS + username/password"的承诺一致。
 func withCredentials(rawURL, username, password string) (string, error) {
 	if username == "" && password == "" {
 		return rawURL, nil
@@ -48,8 +51,8 @@ func withCredentials(rawURL, username, password string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("parse git url: %w", err)
 	}
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return "", &InvalidArgumentError{Msg: "Only http(s) Git URLs support username/password credentials."}
+	if u.Scheme != "https" {
+		return "", &InvalidArgumentError{Msg: "Only https Git URLs support username/password credentials."}
 	}
 
 	u.User = url.UserPassword(username, password)
@@ -74,14 +77,20 @@ func stripCredentials(rawURL string) string {
 }
 
 // authFailureSnippets 是常见的 git 认证失败关键字（小写匹配）。
+//
+// 这里只放与"凭证"语义强相关的关键字，避免把通用的 "permission denied"
+// （工作树目录无写权限、.git/config 权限异常、锁文件权限问题等）误判为
+// 认证失败而把调用方导向错误的排障方向。
 var authFailureSnippets = []string{
 	"authentication failed",
 	"terminal prompts disabled",
 	"could not read username",
+	"could not read password",
 	"invalid username or password",
-	"access denied",
-	"permission denied",
-	"not authorized",
+	"bad credentials",
+	"requested url returned error: 401",
+	"requested url returned error: 403",
+	"http basic: access denied",
 }
 
 // upstreamFailureSnippets 是常见的 git 缺失 upstream 关键字（小写匹配）。

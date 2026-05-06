@@ -389,6 +389,9 @@ func (g *Git) DangerouslyAuthenticate(ctx context.Context, opts *AuthenticateOpt
 	if protocol == "" {
 		protocol = "https"
 	}
+	if protocol != "https" {
+		return nil, &InvalidArgumentError{Msg: "Only https protocol is supported for git authentication."}
+	}
 
 	if _, err := g.runGit(ctx, "config", []string{"config", "--global", "credential.helper", "store"}, "", &opts.GitOptions); err != nil {
 		return nil, err

@@ -168,5 +168,6 @@ type AuthenticateOptions struct {
 	// Host 是要认证的主机，缺省为 "github.com"。
 	Host string
 	// Protocol 是要认证的协议，缺省为 "https"。
+	// 出于安全考虑只允许 "https"，传入其他值会返回 InvalidArgumentError。
 	Protocol string
 }
