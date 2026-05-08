@@ -393,6 +393,52 @@ func TestIntegrationGitPullMissingUpstream(t *testing.T) {
 	assert.True(t, errors.As(err, &ue), "缺 upstream 时 Pull 应返回 GitUpstreamError，实际: %T %v", err, err)
 }
 
+// TestIntegrationGitPushPullBranchWithoutRemote 覆盖在多 remote / 无 remote 仓库上
+// 仅指定 Branch 不指定 Remote 时，SDK 应返回 InvalidArgumentError 而不是把分支名当 remote 名传给 git。
+func TestIntegrationGitPushPullBranchWithoutRemote(t *testing.T) {
+	e := newGitTestEnv(t)
+
+	// 1) 无 remote 仓库
+	noRemote := "/tmp/it-no-remote"
+	e.initRepo(noRemote, "main")
+	e.writeAndCommit(noRemote, "a", "a\n", "init")
+
+	_, err := e.git.Push(e.ctx, noRemote, &PushOptions{Branch: "main"})
+	var ie1 *InvalidArgumentError
+	assert.True(t, errors.As(err, &ie1), "无 remote 时 Push(Branch:main) 应返回 InvalidArgumentError，实际: %T %v", err, err)
+
+	_, err = e.git.Pull(e.ctx, noRemote, &PullOptions{Branch: "main"})
+	var ie2 *InvalidArgumentError
+	assert.True(t, errors.As(err, &ie2), "无 remote 时 Pull(Branch:main) 应返回 InvalidArgumentError，实际: %T %v", err, err)
+
+	// 2) 多 remote 仓库
+	multi := "/tmp/it-multi-remote"
+	e.initRepo(multi, "main")
+	e.writeAndCommit(multi, "a", "a\n", "init")
+	bare1 := "/tmp/it-multi-bare1.git"
+	bare2 := "/tmp/it-multi-bare2.git"
+	_, err = e.git.Init(e.ctx, bare1, &InitOptions{Bare: true, InitialBranch: "main"})
+	require.NoError(t, err)
+	_, err = e.git.Init(e.ctx, bare2, &InitOptions{Bare: true, InitialBranch: "main"})
+	require.NoError(t, err)
+	_, err = e.git.RemoteAdd(e.ctx, multi, "origin", bare1, nil)
+	require.NoError(t, err)
+	_, err = e.git.RemoteAdd(e.ctx, multi, "backup", bare2, nil)
+	require.NoError(t, err)
+
+	_, err = e.git.Push(e.ctx, multi, &PushOptions{Branch: "main"})
+	var ie3 *InvalidArgumentError
+	assert.True(t, errors.As(err, &ie3), "多 remote 时 Push(Branch:main) 应返回 InvalidArgumentError，实际: %T %v", err, err)
+
+	_, err = e.git.Pull(e.ctx, multi, &PullOptions{Branch: "main"})
+	var ie4 *InvalidArgumentError
+	assert.True(t, errors.As(err, &ie4), "多 remote 时 Pull(Branch:main) 应返回 InvalidArgumentError，实际: %T %v", err, err)
+
+	// 显式给 Remote 时仍可正常工作
+	_, err = e.git.Push(e.ctx, multi, &PushOptions{Remote: "origin", Branch: "main"})
+	require.NoError(t, err, "多 remote 仓库下显式 Remote 应能正常 Push")
+}
+
 // TestIntegrationGitDangerouslyAuthenticate 验证凭证确实被 git credential helper 持久化。
 func TestIntegrationGitDangerouslyAuthenticate(t *testing.T) {
 	e := newGitTestEnv(t)

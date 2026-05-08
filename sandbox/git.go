@@ -219,22 +219,28 @@ func (g *Git) Push(ctx context.Context, path string, opts *PushOptions) (*Comman
 	}
 
 	// branch 补全延迟到 target 已经解析出来时再做：
-	// 1) target 为空（多 remote / 无 remote）时不要把当前分支名当成 remote 名拼到命令上，
-	//    应保留原始 `git push` 形态让 git 自己报错或走默认语义；
-	// 2) `git push --set-upstream <remote>` 不带分支名会被 git 拒绝，因此当 target 已确定
-	//    且 setUpstream=true、Branch 未指定时，再用 rev-parse 取当前分支名补上。
+	// 1) target 为空（多 remote / 无 remote）但调用方显式给了 Branch 时，直接返回错误：
+	//    `git push <branch>` 在原生 git 里会被解析成 `git push <repository>`，把分支名当 remote 名，
+	//    与 PushOptions.Branch 的对外语义不一致。要求调用方显式补 Remote。
+	// 2) target 为空且 Branch 也未指定时保持原始 `git push` 形态，让 git 走默认语义。
+	// 3) target 已确定且 setUpstream=true、Branch 未指定时，用 rev-parse 取当前分支名补上，
+	//    避免 `git push --set-upstream <remote>` 不带分支名被 git 拒绝。
 	buildArgs := func(target string) ([]string, error) {
 		branch := opts.Branch
-		if target != "" && setUpstream && branch == "" {
+		if target == "" {
+			if branch != "" {
+				return nil, &InvalidArgumentError{Msg: "Remote is required when Branch is specified and the repository does not have a single remote to auto-select."}
+			}
+			return buildPushArgs("", "", false), nil
+		}
+		if setUpstream && branch == "" {
 			name, err := g.currentBranch(ctx, path, &opts.GitOptions)
 			if err != nil {
 				return nil, err
 			}
 			branch = name
 		}
-		// target 为空时关闭 --set-upstream，避免生成 `git push --set-upstream` 这种非法形态。
-		effectiveSetUpstream := setUpstream && target != ""
-		return buildPushArgs(target, branch, effectiveSetUpstream), nil
+		return buildPushArgs(target, branch, setUpstream), nil
 	}
 	return g.runWithOptionalCredentials(ctx, "push", path, opts.Remote, opts.Username, opts.Password, &opts.GitOptions, buildArgs)
 }
@@ -263,7 +269,14 @@ func (g *Git) Pull(ctx context.Context, path string, opts *PullOptions) (*Comman
 		}
 	}
 	return g.runWithOptionalCredentials(ctx, "pull", path, opts.Remote, opts.Username, opts.Password, &opts.GitOptions,
-		func(target string) ([]string, error) { return buildPullArgs(target, opts.Branch), nil })
+		func(target string) ([]string, error) {
+			// target 为空但显式给了 Branch 时直接返回错误：
+			// `git pull <branch>` 在 git 里会被解析成 `git pull <repository>`，与对外语义不一致。
+			if target == "" && opts.Branch != "" {
+				return nil, &InvalidArgumentError{Msg: "Remote is required when Branch is specified and the repository does not have a single remote to auto-select."}
+			}
+			return buildPullArgs(target, opts.Branch), nil
+		})
 }
 
 // currentBranch 通过 git rev-parse 取出当前 HEAD 指向的分支名。
@@ -494,7 +507,9 @@ func (g *Git) DangerouslyAuthenticate(ctx context.Context, opts *AuthenticateOpt
 		"",
 		"",
 	}, "\n")
-	cmd := fmt.Sprintf("printf %%s %s | %s", shellEscape(credentialInput), buildGitCommand([]string{"credential", "approve"}, ""))
+	// 把格式串显式包成 '%s'，让 review 工具更容易判定 credentialInput 的 % 等字符
+	// 不会被 printf 解析；shellEscape 已用单引号包裹，原本也不会触发任何二次解析。
+	cmd := fmt.Sprintf("printf '%%s' %s | %s", shellEscape(credentialInput), buildGitCommand([]string{"credential", "approve"}, ""))
 	return g.runShell(ctx, "credential", cmd, &opts.GitOptions)
 }
 
@@ -574,7 +589,7 @@ func (g *Git) resolveRemoteName(ctx context.Context, path, remote string, opts *
 
 // withRemoteCredentials 临时把 username/password 注入指定 remote 的 URL，
 // 在 fn 执行完成后无论成功或失败都恢复原 URL。originalURL 由调用方传入以避免重复 RPC。
-func (g *Git) withRemoteCredentials(ctx context.Context, path, remote, originalURL, username, password string, opts *GitOptions, fn func() error) error {
+func (g *Git) withRemoteCredentials(ctx context.Context, path, remote, originalURL, username, password string, opts *GitOptions, fn func() error) (err error) {
 	authedURL, err := withCredentials(originalURL, username, password)
 	if err != nil {
 		return err
@@ -583,17 +598,16 @@ func (g *Git) withRemoteCredentials(ctx context.Context, path, remote, originalU
 		return fn()
 	}
 
-	if _, err := g.runGit(ctx, "remote", buildRemoteSetURLArgs(remote, authedURL), path, opts); err != nil {
+	if _, err = g.runGit(ctx, "remote", buildRemoteSetURLArgs(remote, authedURL), path, opts); err != nil {
 		return err
 	}
-	opErr := fn()
-	// 即使 ctx 已取消也要恢复原 URL，避免凭证遗留在 .git/config。
-	_, restoreErr := g.runGit(context.Background(), "remote", buildRemoteSetURLArgs(remote, originalURL), path, opts)
-	// 恢复 URL 是安全相关步骤，主操作错误不应吞掉它；用 errors.Join 同时保留两者。
-	if opErr != nil {
-		return errors.Join(opErr, restoreErr)
-	}
-	return restoreErr
+	defer func() {
+		// 即使 ctx 已取消也要恢复原 URL，避免凭证遗留在 .git/config。
+		// 恢复 URL 是安全相关步骤，主操作错误不应吞掉它；用 errors.Join 同时保留两者。
+		_, restoreErr := g.runGit(context.Background(), "remote", buildRemoteSetURLArgs(remote, originalURL), path, opts)
+		err = errors.Join(err, restoreErr)
+	}()
+	return fn()
 }
 
 // runGit 拼装并执行一条 git 命令。
