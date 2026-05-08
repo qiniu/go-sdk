@@ -11,12 +11,18 @@ import (
 	"fmt"
 	"maps"
 	"strings"
+	"time"
 )
 
 // defaultGitEnv 是所有 git 命令默认注入的环境变量，用于禁止交互式提示。
 var defaultGitEnv = map[string]string{
 	"GIT_TERMINAL_PROMPT": "0",
 }
+
+// credentialCleanupTimeout 是凭证清理（strip / 恢复 origin URL）使用的兜底超时。
+// 这些步骤刻意脱离主 ctx，确保主 ctx 取消后也能执行；但需要一个有限时间，
+// 避免沙箱响应慢或网络异常时调用方协程被永久卡住。
+const credentialCleanupTimeout = 10 * time.Second
 
 // Git 提供沙箱内的 git 操作接口。
 //
@@ -57,7 +63,11 @@ func (g *Git) Clone(ctx context.Context, repoURL string, opts *CloneOptions) (*C
 
 	if plan.shouldStrip {
 		// 即使 ctx 已取消也要清理凭证，避免带凭证的 URL 残留在 .git/config。
-		if _, serr := g.runGit(context.Background(), "remote", buildRemoteSetURLArgs("origin", plan.sanitizedURL), plan.repoPath, &opts.GitOptions); serr != nil {
+		// 用独立的带超时 ctx，防止沙箱异常时无限阻塞。
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), credentialCleanupTimeout)
+		_, serr := g.runGit(cleanupCtx, "remote", buildRemoteSetURLArgs("origin", plan.sanitizedURL), plan.repoPath, &opts.GitOptions)
+		cancel()
+		if serr != nil {
 			return result, fmt.Errorf("clone succeeded but failed to strip credentials: %w", serr)
 		}
 	}
@@ -608,8 +618,11 @@ func (g *Git) withRemoteCredentials(ctx context.Context, path, remote, originalU
 	}
 	defer func() {
 		// 即使 ctx 已取消也要恢复原 URL，避免凭证遗留在 .git/config。
+		// 用独立的带超时 ctx，防止沙箱异常时 defer 永久阻塞。
 		// 恢复 URL 是安全相关步骤，主操作错误不应吞掉它；用 errors.Join 同时保留两者。
-		_, restoreErr := g.runGit(context.Background(), "remote", buildRemoteSetURLArgs(remote, originalURL), path, opts)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), credentialCleanupTimeout)
+		defer cancel()
+		_, restoreErr := g.runGit(cleanupCtx, "remote", buildRemoteSetURLArgs(remote, originalURL), path, opts)
 		err = errors.Join(err, restoreErr)
 	}()
 	return fn()
