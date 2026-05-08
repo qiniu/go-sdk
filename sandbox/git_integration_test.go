@@ -439,6 +439,25 @@ func TestIntegrationGitPushPullBranchWithoutRemote(t *testing.T) {
 	require.NoError(t, err, "多 remote 仓库下显式 Remote 应能正常 Push")
 }
 
+// TestIntegrationGitPushPullSurfacesRepoErrors 验证当 path 不是 git 仓库时，
+// Push/Pull 直接返回真实仓库错误，而不是被 autoSelectRemote 吞成 InvalidArgumentError。
+func TestIntegrationGitPushPullSurfacesRepoErrors(t *testing.T) {
+	e := newGitTestEnv(t)
+	notRepo := "/tmp/it-not-a-repo"
+	_, err := e.sb.Files().MakeDir(e.ctx, notRepo)
+	require.NoError(t, err)
+
+	_, err = e.git.Push(e.ctx, notRepo, &PushOptions{Branch: "main"})
+	require.Error(t, err)
+	var ie1 *InvalidArgumentError
+	assert.False(t, errors.As(err, &ie1), "非仓库目录的 Push 错误不应被掩盖成 InvalidArgumentError，实际: %T %v", err, err)
+
+	_, err = e.git.Pull(e.ctx, notRepo, &PullOptions{Branch: "main"})
+	require.Error(t, err)
+	var ie2 *InvalidArgumentError
+	assert.False(t, errors.As(err, &ie2), "非仓库目录的 Pull 错误不应被掩盖成 InvalidArgumentError，实际: %T %v", err, err)
+}
+
 // TestIntegrationGitDangerouslyAuthenticate 验证凭证确实被 git credential helper 持久化。
 func TestIntegrationGitDangerouslyAuthenticate(t *testing.T) {
 	e := newGitTestEnv(t)

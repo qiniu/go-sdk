@@ -231,6 +231,11 @@ type clonePlan struct {
 
 // buildClonePlan 构造 clone 命令的参数与凭证剥离元信息。
 func buildClonePlan(rawURL, path, branch string, depth int, username, password string, dangerouslyStore bool) (*clonePlan, error) {
+	// 调用方直接把凭证嵌入 URL 时也强制要求 https，与 withCredentials 注入路径保持一致的安全边界，
+	// 避免 `http://user:pass@host/...` 这类绕过明文走 HTTP。
+	if err := requireHTTPSIfHasCredentials(rawURL); err != nil {
+		return nil, err
+	}
 	cloneURL := rawURL
 	if username != "" && password != "" {
 		var err error

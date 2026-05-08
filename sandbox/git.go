@@ -311,9 +311,13 @@ func (g *Git) runWithOptionalCredentials(
 	if !withCreds {
 		target := remote
 		if target == "" {
-			if name, ok := g.autoSelectRemote(ctx, path, opts); ok {
-				target = name
+			name, err := g.autoSelectRemote(ctx, path, opts)
+			if err != nil {
+				// `git remote` 自身失败（路径非仓库等）时直接返回原始错误，
+				// 避免被后续 buildArgs 转成误导性的 InvalidArgumentError。
+				return nil, err
 			}
+			target = name
 		}
 		args, err := buildArgs(target)
 		if err != nil {
@@ -347,12 +351,14 @@ func (g *Git) runWithOptionalCredentials(
 	return result, nil
 }
 
-// autoSelectRemote 在仓库恰好有一个 remote 时返回其名字；其他情形（无 remote、多 remote、
-// RPC 错误）返回 ok=false，由调用方决定是否兜底到 git 默认行为。
-func (g *Git) autoSelectRemote(ctx context.Context, path string, opts *GitOptions) (string, bool) {
+// autoSelectRemote 在仓库恰好有一个 remote 时返回 (name, nil)；
+// 仓库为 0 / 多 remote 时返回 ("", nil)，由调用方决定是否兜底到 git 默认行为；
+// `git remote` 自身执行失败（路径不是仓库 / 仓库不可访问 / git 异常）时返回 ("", err)，
+// 避免把真实仓库错误掩盖成"需要显式传 Remote"。
+func (g *Git) autoSelectRemote(ctx context.Context, path string, opts *GitOptions) (string, error) {
 	result, err := g.runGit(ctx, "remote", []string{"remote"}, path, opts)
 	if err != nil {
-		return "", false
+		return "", err
 	}
 	var remotes []string
 	for _, line := range strings.Split(result.Stdout, "\n") {
@@ -361,9 +367,9 @@ func (g *Git) autoSelectRemote(ctx context.Context, path string, opts *GitOption
 		}
 	}
 	if len(remotes) == 1 {
-		return remotes[0], true
+		return remotes[0], nil
 	}
-	return "", false
+	return "", nil
 }
 
 // RemoteAdd 为仓库添加（或在 opts.Overwrite=true 时覆盖）一个 remote。
@@ -631,7 +637,11 @@ func (g *Git) runShell(ctx context.Context, sub, cmd string, opts *GitOptions) (
 
 // buildCommandOptions 将 GitOptions 转换为 CommandOption 列表。
 func buildCommandOptions(opts *GitOptions) []CommandOption {
-	mergedEnvs := make(map[string]string, len(defaultGitEnv)+1)
+	capacity := len(defaultGitEnv)
+	if opts != nil {
+		capacity += len(opts.Envs)
+	}
+	mergedEnvs := make(map[string]string, capacity)
 	cmdOpts := []CommandOption{}
 	if opts != nil {
 		maps.Copy(mergedEnvs, opts.Envs)

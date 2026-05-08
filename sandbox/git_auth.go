@@ -76,6 +76,19 @@ func stripCredentials(rawURL string) string {
 	return u.String()
 }
 
+// requireHTTPSIfHasCredentials 校验 URL 在内嵌凭证时必须使用 https。
+// 解析失败或未内嵌凭证时返回 nil，把校验机会留给后续命令本身。
+func requireHTTPSIfHasCredentials(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.User == nil {
+		return nil
+	}
+	if u.Scheme != "https" {
+		return &InvalidArgumentError{Msg: "Only https Git URLs support inline username/password credentials."}
+	}
+	return nil
+}
+
 // authFailureSnippets 是常见的 git 认证失败关键字（小写匹配）。
 //
 // 这里只放与"凭证"语义强相关的关键字，避免把通用的 "permission denied"

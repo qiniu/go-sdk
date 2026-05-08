@@ -127,6 +127,22 @@ func TestBuildClonePlan_StoresCredentials(t *testing.T) {
 	assert.False(t, plan.shouldStrip)
 }
 
+// TestBuildClonePlan_RejectsInlineHTTPCredentials 验证调用方直接把凭证嵌入 URL 时也强制 https，
+// 与 withCredentials 注入路径保持一致的安全边界。
+func TestBuildClonePlan_RejectsInlineHTTPCredentials(t *testing.T) {
+	_, err := buildClonePlan("http://alice:tk@example.com/r.git", "/tmp/r", "", 0, "", "", false)
+	var ie *InvalidArgumentError
+	assert.True(t, errors.As(err, &ie), "http+inline 凭证应被拒，实际: %T %v", err, err)
+
+	// https + inline 凭证应允许通过，由后续 strip 处理
+	_, err = buildClonePlan("https://alice:tk@example.com/r.git", "/tmp/r", "", 0, "", "", false)
+	assert.NoError(t, err)
+
+	// 无凭证时不应触发校验，例如 SCP / file 路径
+	_, err = buildClonePlan("git@github.com:o/r.git", "/tmp/r", "", 0, "", "", false)
+	assert.NoError(t, err)
+}
+
 func TestWithCredentials(t *testing.T) {
 	got, err := withCredentials("https://github.com/o/r.git", "alice", "tk:1")
 	assert.NoError(t, err)
