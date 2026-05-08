@@ -11,19 +11,29 @@ import (
 type GitAuthError struct {
 	// Msg 是错误消息。
 	Msg string
+	// Err 是底层原始错误（可能是 errors.Join 聚合后的多个错误），用于 errors.Is/As 解包。
+	Err error
 }
 
 // Error 实现 error 接口。
 func (e *GitAuthError) Error() string { return e.Msg }
 
+// Unwrap 返回底层原始错误，方便调用方使用 errors.Is/As 进一步排查。
+func (e *GitAuthError) Unwrap() error { return e.Err }
+
 // GitUpstreamError 表示 git 操作因缺少 upstream 跟踪分支而中断。
 type GitUpstreamError struct {
 	// Msg 是错误消息。
 	Msg string
+	// Err 是底层原始错误（可能是 errors.Join 聚合后的多个错误），用于 errors.Is/As 解包。
+	Err error
 }
 
 // Error 实现 error 接口。
 func (e *GitUpstreamError) Error() string { return e.Msg }
+
+// Unwrap 返回底层原始错误，方便调用方使用 errors.Is/As 进一步排查。
+func (e *GitUpstreamError) Unwrap() error { return e.Err }
 
 // InvalidArgumentError 表示传入的参数非法。
 type InvalidArgumentError struct {

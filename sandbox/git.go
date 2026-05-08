@@ -65,7 +65,7 @@ func (g *Git) Clone(ctx context.Context, repoURL string, opts *CloneOptions) (*C
 	result, err := g.runGit(ctx, "clone", plan.args, "", &opts.GitOptions)
 	if err != nil {
 		if isAuthFailure(err) {
-			return nil, &GitAuthError{Msg: buildAuthErrorMessage("clone", opts.Username != "" && opts.Password == "")}
+			return nil, &GitAuthError{Msg: buildAuthErrorMessage("clone", opts.Username != "" && opts.Password == ""), Err: err}
 		}
 		return nil, err
 	}
@@ -74,8 +74,8 @@ func (g *Git) Clone(ctx context.Context, repoURL string, opts *CloneOptions) (*C
 		// 即使 ctx 已取消也要清理凭证，避免带凭证的 URL 残留在 .git/config。
 		// 用独立的带超时 ctx，防止沙箱异常时无限阻塞。
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), credentialCleanupTimeout)
+		defer cancel()
 		_, serr := g.runGit(cleanupCtx, "remote", buildRemoteSetURLArgs("origin", plan.sanitizedURL), plan.repoPath, &opts.GitOptions)
-		cancel()
 		if serr != nil {
 			return result, fmt.Errorf("clone succeeded but failed to strip credentials: %w", serr)
 		}
@@ -679,10 +679,10 @@ func mapPushPullError(err error, action, username, password string) error {
 		return nil
 	}
 	if isAuthFailure(err) {
-		return &GitAuthError{Msg: buildAuthErrorMessage(action, username != "" && password == "")}
+		return &GitAuthError{Msg: buildAuthErrorMessage(action, username != "" && password == ""), Err: err}
 	}
 	if isMissingUpstream(err) {
-		return &GitUpstreamError{Msg: buildUpstreamErrorMessage(action)}
+		return &GitUpstreamError{Msg: buildUpstreamErrorMessage(action), Err: err}
 	}
 	return err
 }
