@@ -202,8 +202,10 @@ func (g *Git) Restore(ctx context.Context, path string, opts *RestoreOptions) (*
 // 当未显式指定 Remote 时，SDK 会尝试自动选中仓库唯一的 remote（与"自动选择单一 remote"
 // 契约一致）；多 remote / 无 remote 时回退到 git 原生行为或返回带凭证场景下的明确错误。
 //
-// 当 SetUpstream=true 且未显式给 Branch 时，SDK 会通过 git rev-parse 取出当前分支名再
-// 拼到 push 命令上，避免 `git push --set-upstream <remote>` 不带分支名直接被 git 拒绝。
+// 当 SetUpstream=true 且未显式给 Branch 时，仅在 SDK 已确定 target remote 的前提下，
+// 才会通过 git rev-parse 取出当前分支名再拼到 push 命令上（避免 `git push --set-upstream <remote>`
+// 不带分支名被 git 拒绝）。target 未确定（多 remote / 无 remote）时保持原始 `git push` 形态，
+// 让 git 自行报错或走默认语义，避免把分支名误当成 remote 名。
 func (g *Git) Push(ctx context.Context, path string, opts *PushOptions) (*CommandResult, error) {
 	if opts == nil {
 		opts = &PushOptions{}
@@ -216,19 +218,25 @@ func (g *Git) Push(ctx context.Context, path string, opts *PushOptions) (*Comman
 		setUpstream = *opts.SetUpstream
 	}
 
-	branch := opts.Branch
-	// `git push --set-upstream <remote>` 不带分支名会被 git 拒绝；当调用方依赖 SDK 默认
-	// "首次 push 自动 set upstream" 的契约时，这里替它补上当前分支名。
-	if setUpstream && branch == "" {
-		name, err := g.currentBranch(ctx, path, &opts.GitOptions)
-		if err != nil {
-			return nil, err
+	// branch 补全延迟到 target 已经解析出来时再做：
+	// 1) target 为空（多 remote / 无 remote）时不要把当前分支名当成 remote 名拼到命令上，
+	//    应保留原始 `git push` 形态让 git 自己报错或走默认语义；
+	// 2) `git push --set-upstream <remote>` 不带分支名会被 git 拒绝，因此当 target 已确定
+	//    且 setUpstream=true、Branch 未指定时，再用 rev-parse 取当前分支名补上。
+	buildArgs := func(target string) ([]string, error) {
+		branch := opts.Branch
+		if target != "" && setUpstream && branch == "" {
+			name, err := g.currentBranch(ctx, path, &opts.GitOptions)
+			if err != nil {
+				return nil, err
+			}
+			branch = name
 		}
-		branch = name
+		// target 为空时关闭 --set-upstream，避免生成 `git push --set-upstream` 这种非法形态。
+		effectiveSetUpstream := setUpstream && target != ""
+		return buildPushArgs(target, branch, effectiveSetUpstream), nil
 	}
-
-	return g.runWithOptionalCredentials(ctx, "push", path, opts.Remote, opts.Username, opts.Password, &opts.GitOptions,
-		func(target string) []string { return buildPushArgs(target, branch, setUpstream) })
+	return g.runWithOptionalCredentials(ctx, "push", path, opts.Remote, opts.Username, opts.Password, &opts.GitOptions, buildArgs)
 }
 
 // Pull 从远程拉取变更。
@@ -255,7 +263,7 @@ func (g *Git) Pull(ctx context.Context, path string, opts *PullOptions) (*Comman
 		}
 	}
 	return g.runWithOptionalCredentials(ctx, "pull", path, opts.Remote, opts.Username, opts.Password, &opts.GitOptions,
-		func(target string) []string { return buildPullArgs(target, opts.Branch) })
+		func(target string) ([]string, error) { return buildPullArgs(target, opts.Branch), nil })
 }
 
 // currentBranch 通过 git rev-parse 取出当前 HEAD 指向的分支名。
@@ -281,7 +289,7 @@ func (g *Git) runWithOptionalCredentials(
 	ctx context.Context,
 	sub, path, remote, username, password string,
 	opts *GitOptions,
-	buildArgs func(target string) []string,
+	buildArgs func(target string) ([]string, error),
 ) (*CommandResult, error) {
 	withCreds := username != "" && password != ""
 
@@ -294,7 +302,11 @@ func (g *Git) runWithOptionalCredentials(
 				target = name
 			}
 		}
-		result, err := g.runGit(ctx, sub, buildArgs(target), path, opts)
+		args, err := buildArgs(target)
+		if err != nil {
+			return nil, err
+		}
+		result, err := g.runGit(ctx, sub, args, path, opts)
 		if err != nil {
 			return nil, mapPushPullError(err, sub, username, password)
 		}
@@ -306,9 +318,13 @@ func (g *Git) runWithOptionalCredentials(
 	if err != nil {
 		return nil, err
 	}
+	args, err := buildArgs(remoteName)
+	if err != nil {
+		return nil, err
+	}
 	var result *CommandResult
 	err = g.withRemoteCredentials(ctx, path, remoteName, originalURL, username, password, opts, func() error {
-		r, runErr := g.runGit(ctx, sub, buildArgs(remoteName), path, opts)
+		r, runErr := g.runGit(ctx, sub, args, path, opts)
 		result = r
 		return runErr
 	})
