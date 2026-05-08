@@ -232,17 +232,17 @@ func unquoteCPath(s string) string {
 			out = append(out, '\v')
 			i++
 		default:
-			// 三位八进制：\NNN
+			// 三位八进制：\NNN（git 用它表示非 ASCII 字节，例如 UTF-8 的多字节序列）。
+			// 三位 octal 最大值为 0o777=511，超过 byte 范围时 strconv.ParseUint 会报错；
+			// 此时按"非法转义"处理：保留字面 `\` 并从下一个字符继续解析，避免整段字符串作废。
 			if i+3 < len(body) && isOctal(body[i+1]) && isOctal(body[i+2]) && isOctal(body[i+3]) {
-				v, err := strconv.ParseUint(string(body[i+1:i+4]), 8, 8)
-				if err != nil {
-					return s
+				if v, perr := strconv.ParseUint(string(body[i+1:i+4]), 8, 8); perr == nil {
+					out = append(out, byte(v))
+					i += 3
+					continue
 				}
-				out = append(out, byte(v))
-				i += 3
-				continue
 			}
-			return s
+			out = append(out, '\\')
 		}
 	}
 	return string(out)

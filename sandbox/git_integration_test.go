@@ -349,10 +349,9 @@ func TestIntegrationGitRemoteAndPushPull(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, bare, url)
 
-	// Push 不给 Remote 但给 Branch → InvalidArgumentError
+	// Push 不给 Remote 但给 Branch：单 remote 仓库下应自动选中 origin 推送成功
 	_, err = e.git.Push(e.ctx, repo, &PushOptions{Branch: "main"})
-	var ie *InvalidArgumentError
-	assert.True(t, errors.As(err, &ie))
+	require.NoError(t, err, "Push 应能在单 remote 仓库下自动选中 origin")
 
 	// Push 显式 SetUpstream=false（不写 upstream）
 	noUpstream := false
@@ -377,9 +376,9 @@ func TestIntegrationGitRemoteAndPushPull(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, exists)
 
-	// Pull Branch 不给 Remote → InvalidArgumentError
+	// Pull 不给 Remote 但给 Branch：单 remote 仓库下应自动选中 origin 拉取成功
 	_, err = e.git.Pull(e.ctx, consumer, &PullOptions{Branch: "main"})
-	assert.True(t, errors.As(err, &ie))
+	require.NoError(t, err, "Pull 应能在单 remote 仓库下自动选中 origin")
 }
 
 // TestIntegrationGitPullMissingUpstream 覆盖 Pull 在没有 upstream 的本地分支上抛出 GitUpstreamError。

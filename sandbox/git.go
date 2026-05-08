@@ -198,6 +198,12 @@ func (g *Git) Restore(ctx context.Context, path string, opts *RestoreOptions) (*
 
 // Push 将提交推送到远程。
 // 当 opts.Username/Password 提供时，SDK 会临时把凭证写入目标 remote URL，命令完成后立即恢复原 URL。
+//
+// 当未显式指定 Remote 时，SDK 会尝试自动选中仓库唯一的 remote（与"自动选择单一 remote"
+// 契约一致）；多 remote / 无 remote 时回退到 git 原生行为或返回带凭证场景下的明确错误。
+//
+// 当 SetUpstream=true 且未显式给 Branch 时，SDK 会通过 git rev-parse 取出当前分支名再
+// 拼到 push 命令上，避免 `git push --set-upstream <remote>` 不带分支名直接被 git 拒绝。
 func (g *Git) Push(ctx context.Context, path string, opts *PushOptions) (*CommandResult, error) {
 	if opts == nil {
 		opts = &PushOptions{}
@@ -205,28 +211,38 @@ func (g *Git) Push(ctx context.Context, path string, opts *PushOptions) (*Comman
 	if opts.Password != "" && opts.Username == "" {
 		return nil, &InvalidArgumentError{Msg: "Username is required when using a password or token for git push."}
 	}
-	if opts.Branch != "" && opts.Remote == "" {
-		return nil, &InvalidArgumentError{Msg: "Remote is required when specifying a branch for git push."}
-	}
 	setUpstream := true
 	if opts.SetUpstream != nil {
 		setUpstream = *opts.SetUpstream
 	}
+
+	branch := opts.Branch
+	// `git push --set-upstream <remote>` 不带分支名会被 git 拒绝；当调用方依赖 SDK 默认
+	// "首次 push 自动 set upstream" 的契约时，这里替它补上当前分支名。
+	if setUpstream && branch == "" {
+		name, err := g.currentBranch(ctx, path, &opts.GitOptions)
+		if err != nil {
+			return nil, err
+		}
+		branch = name
+	}
+
 	return g.runWithOptionalCredentials(ctx, "push", path, opts.Remote, opts.Username, opts.Password, &opts.GitOptions,
-		func(target string) []string { return buildPushArgs(target, opts.Branch, setUpstream) })
+		func(target string) []string { return buildPushArgs(target, branch, setUpstream) })
 }
 
 // Pull 从远程拉取变更。
 // 当 opts.Username/Password 提供时，SDK 会临时把凭证写入目标 remote URL，命令完成后立即恢复原 URL。
+//
+// 当未显式指定 Remote 时，SDK 会尝试自动选中仓库唯一的 remote（与"自动选择单一 remote"
+// 契约一致）。当 Remote 与 Branch 都未指定时，SDK 会先检查当前分支是否配置了 upstream，
+// 未配置则直接返回 GitUpstreamError 而不是把模糊错误抛给调用方。
 func (g *Git) Pull(ctx context.Context, path string, opts *PullOptions) (*CommandResult, error) {
 	if opts == nil {
 		opts = &PullOptions{}
 	}
 	if opts.Password != "" && opts.Username == "" {
 		return nil, &InvalidArgumentError{Msg: "Username is required when using a password or token for git pull."}
-	}
-	if opts.Branch != "" && opts.Remote == "" {
-		return nil, &InvalidArgumentError{Msg: "Remote is required when specifying a branch for git pull."}
 	}
 
 	if opts.Remote == "" && opts.Branch == "" {
@@ -240,6 +256,20 @@ func (g *Git) Pull(ctx context.Context, path string, opts *PullOptions) (*Comman
 	}
 	return g.runWithOptionalCredentials(ctx, "pull", path, opts.Remote, opts.Username, opts.Password, &opts.GitOptions,
 		func(target string) []string { return buildPullArgs(target, opts.Branch) })
+}
+
+// currentBranch 通过 git rev-parse 取出当前 HEAD 指向的分支名。
+// detached HEAD 时 rev-parse 返回 "HEAD"，会作为错误向上抛出，避免错误地把字面 "HEAD" 拼到 push 命令上。
+func (g *Git) currentBranch(ctx context.Context, path string, opts *GitOptions) (string, error) {
+	result, err := g.runGit(ctx, "rev-parse", []string{"rev-parse", "--abbrev-ref", "HEAD"}, path, opts)
+	if err != nil {
+		return "", err
+	}
+	name := strings.TrimSpace(result.Stdout)
+	if name == "" || name == "HEAD" {
+		return "", &InvalidArgumentError{Msg: "Cannot push with SetUpstream=true on a detached HEAD; specify Branch explicitly or set SetUpstream=false."}
+	}
+	return name, nil
 }
 
 // runWithOptionalCredentials 执行 push/pull 等需要可选凭证注入的远程同步命令。
