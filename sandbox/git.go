@@ -450,8 +450,7 @@ func (g *Git) GetConfig(ctx context.Context, key string, opts *ConfigOptions) (s
 	if err != nil {
 		return "", err
 	}
-	cmd := buildGitCommand([]string{"config", scope, "--get", key}, repoPath)
-	result, err := g.runShell(ctx, "config", cmd, &opts.GitOptions)
+	result, err := g.runGit(ctx, "config", []string{"config", scope, "--get", key}, repoPath, &opts.GitOptions)
 	if err != nil {
 		// `git config --get` 未找到值时退出码为 1，stdout/stderr 为空；其他退出码视为真正的错误。
 		var ce *gitCommandError

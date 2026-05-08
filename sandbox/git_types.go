@@ -97,7 +97,7 @@ func (s *GitStatus) UnstagedCount() int {
 		if f.Status == "untracked" || f.Status == "ignored" {
 			continue
 		}
-		if f.WorkingTreeStatus != "" && f.WorkingTreeStatus != " " {
+		if f.WorkingTreeStatus != " " {
 			n++
 		}
 	}
