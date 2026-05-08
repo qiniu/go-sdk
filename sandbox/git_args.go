@@ -176,14 +176,8 @@ func buildResetArgs(mode GitResetMode, target string, paths []string) ([]string,
 }
 
 // buildRestoreArgs 构造 git restore 命令的参数列表。
-//
-// staged / worktree 的默认值规则（与"git restore 未指定标志时仅恢复工作区"对齐）：
-//   - 两者均为 nil → 默认 --worktree
-//   - 仅指定 staged=&true → 仅 --staged（不再隐式带 --worktree）
-//   - 仅指定 worktree=&true → 仅 --worktree（不再隐式带 --staged）
-//   - 仅指定 staged=&false 或 worktree=&false → 视作"用户没要求开这个，但也没开另一个"，
-//     退化到默认 --worktree，避免对调用方抛"必须有一个为 true"的语义错误
-//   - 显式两者都为 false → 返回参数错误（没有可执行的恢复目标）
+// 与原生 git 对齐：未显式指定标志时默认仅恢复工作区；任一标志显式 false、另一标志未指定时
+// 也退化到默认 worktree，避免对调用方抛"必须有一个为 true"的语义错。显式两者都为 false 才报错。
 func buildRestoreArgs(paths []string, staged, worktree *bool, source string) ([]string, error) {
 	if len(paths) == 0 {
 		return nil, &InvalidArgumentError{Msg: "At least one path is required."}
@@ -191,12 +185,7 @@ func buildRestoreArgs(paths []string, staged, worktree *bool, source string) ([]
 
 	stagedOn := staged != nil && *staged
 	worktreeOn := worktree != nil && *worktree
-	switch {
-	case staged == nil && worktree == nil:
-		// 两者都没指定，按 git 默认仅恢复工作区。
-		worktreeOn = true
-	case !stagedOn && !worktreeOn && (staged == nil || worktree == nil):
-		// 一边显式 false、另一边未指定时，退化到默认 worktree。
+	if !stagedOn && !worktreeOn && (staged == nil || worktree == nil) {
 		worktreeOn = true
 	}
 

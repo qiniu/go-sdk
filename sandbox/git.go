@@ -37,6 +37,15 @@ func newGit(c *Commands) *Git {
 	return &Git{commands: c}
 }
 
+// validateCredentialPair 校验 username 与 password 必须同时提供或同时为空。
+// verb 用于拼装错误消息（"clone" / "push" / "pull"）。
+func validateCredentialPair(verb, username, password string) error {
+	if (username == "") == (password == "") {
+		return nil
+	}
+	return &InvalidArgumentError{Msg: fmt.Sprintf("Username and password must be provided together for git %s, or not at all.", verb)}
+}
+
 // Clone 克隆远程仓库到沙箱中。
 // 当 opts.Username/Password 提供且 opts.DangerouslyStoreCredentials 为 false 时，
 // SDK 会在 clone 完成后通过 git remote set-url 移除 origin URL 中的凭证。
@@ -44,8 +53,8 @@ func (g *Git) Clone(ctx context.Context, repoURL string, opts *CloneOptions) (*C
 	if opts == nil {
 		opts = &CloneOptions{}
 	}
-	if (opts.Username == "") != (opts.Password == "") {
-		return nil, &InvalidArgumentError{Msg: "Username and password must be provided together for git clone, or not at all."}
+	if err := validateCredentialPair("clone", opts.Username, opts.Password); err != nil {
+		return nil, err
 	}
 
 	plan, err := buildClonePlan(repoURL, opts.Path, opts.Branch, opts.Depth, opts.Username, opts.Password, opts.DangerouslyStoreCredentials)
@@ -220,21 +229,14 @@ func (g *Git) Push(ctx context.Context, path string, opts *PushOptions) (*Comman
 	if opts == nil {
 		opts = &PushOptions{}
 	}
-	if (opts.Username == "") != (opts.Password == "") {
-		return nil, &InvalidArgumentError{Msg: "Username and password must be provided together for git push, or not at all."}
+	if err := validateCredentialPair("push", opts.Username, opts.Password); err != nil {
+		return nil, err
 	}
 	setUpstream := true
 	if opts.SetUpstream != nil {
 		setUpstream = *opts.SetUpstream
 	}
 
-	// branch 补全延迟到 target 已经解析出来时再做：
-	// 1) target 为空（多 remote / 无 remote）但调用方显式给了 Branch 时，直接返回错误：
-	//    `git push <branch>` 在原生 git 里会被解析成 `git push <repository>`，把分支名当 remote 名，
-	//    与 PushOptions.Branch 的对外语义不一致。要求调用方显式补 Remote。
-	// 2) target 为空且 Branch 也未指定时保持原始 `git push` 形态，让 git 走默认语义。
-	// 3) target 已确定且 setUpstream=true、Branch 未指定时，用 rev-parse 取当前分支名补上，
-	//    避免 `git push --set-upstream <remote>` 不带分支名被 git 拒绝。
 	buildArgs := func(target string) ([]string, error) {
 		branch := opts.Branch
 		if target == "" {
@@ -265,8 +267,8 @@ func (g *Git) Pull(ctx context.Context, path string, opts *PullOptions) (*Comman
 	if opts == nil {
 		opts = &PullOptions{}
 	}
-	if (opts.Username == "") != (opts.Password == "") {
-		return nil, &InvalidArgumentError{Msg: "Username and password must be provided together for git pull, or not at all."}
+	if err := validateCredentialPair("pull", opts.Username, opts.Password); err != nil {
+		return nil, err
 	}
 
 	if opts.Remote == "" && opts.Branch == "" {
@@ -366,9 +368,21 @@ func (g *Git) runWithOptionalCredentials(
 // `git remote` 自身执行失败（路径不是仓库 / 仓库不可访问 / git 异常）时返回 ("", err)，
 // 避免把真实仓库错误掩盖成"需要显式传 Remote"。
 func (g *Git) autoSelectRemote(ctx context.Context, path string, opts *GitOptions) (string, error) {
-	result, err := g.runGit(ctx, "remote", []string{"remote"}, path, opts)
+	remotes, err := g.listRemotes(ctx, path, opts)
 	if err != nil {
 		return "", err
+	}
+	if len(remotes) == 1 {
+		return remotes[0], nil
+	}
+	return "", nil
+}
+
+// listRemotes 返回仓库当前配置的全部 remote 名（已去除空行与首尾空白）。
+func (g *Git) listRemotes(ctx context.Context, path string, opts *GitOptions) ([]string, error) {
+	result, err := g.runGit(ctx, "remote", []string{"remote"}, path, opts)
+	if err != nil {
+		return nil, err
 	}
 	var remotes []string
 	for _, line := range strings.Split(result.Stdout, "\n") {
@@ -376,10 +390,7 @@ func (g *Git) autoSelectRemote(ctx context.Context, path string, opts *GitOption
 			remotes = append(remotes, s)
 		}
 	}
-	if len(remotes) == 1 {
-		return remotes[0], nil
-	}
-	return "", nil
+	return remotes, nil
 }
 
 // RemoteAdd 为仓库添加（或在 opts.Overwrite=true 时覆盖）一个 remote。
@@ -402,7 +413,7 @@ func (g *Git) RemoteAdd(ctx context.Context, path, name, repoURL string, opts *R
 		addPhase = buildGitCommand(addArgs, path)
 	}
 
-	// 不需要 fetch 时直接执行 add 阶段（addPhase 已经覆盖了 add 与 add-or-overwrite 两种形态）。
+	// 不需要 fetch 时直接执行 add 阶段。
 	if !opts.Fetch {
 		return g.runShell(ctx, "remote", addPhase, &opts.GitOptions)
 	}
@@ -519,8 +530,6 @@ func (g *Git) DangerouslyAuthenticate(ctx context.Context, opts *AuthenticateOpt
 		"",
 		"",
 	}, "\n")
-	// 把格式串显式包成 '%s'，让 review 工具更容易判定 credentialInput 的 % 等字符
-	// 不会被 printf 解析；shellEscape 已用单引号包裹，原本也不会触发任何二次解析。
 	cmd := fmt.Sprintf("printf '%%s' %s | %s", shellEscape(credentialInput), buildGitCommand([]string{"credential", "approve"}, ""))
 	return g.runShell(ctx, "credential", cmd, &opts.GitOptions)
 }
@@ -569,15 +578,9 @@ func (g *Git) hasUpstream(ctx context.Context, path string, opts *GitOptions) (b
 func (g *Git) resolveRemoteName(ctx context.Context, path, remote string, opts *GitOptions) (string, string, error) {
 	name := remote
 	if name == "" {
-		result, err := g.runGit(ctx, "remote", []string{"remote"}, path, opts)
+		remotes, err := g.listRemotes(ctx, path, opts)
 		if err != nil {
 			return "", "", err
-		}
-		var remotes []string
-		for _, line := range strings.Split(result.Stdout, "\n") {
-			if s := strings.TrimSpace(line); s != "" {
-				remotes = append(remotes, s)
-			}
 		}
 		switch len(remotes) {
 		case 0:
