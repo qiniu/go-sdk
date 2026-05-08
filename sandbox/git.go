@@ -44,8 +44,8 @@ func (g *Git) Clone(ctx context.Context, repoURL string, opts *CloneOptions) (*C
 	if opts == nil {
 		opts = &CloneOptions{}
 	}
-	if opts.Password != "" && opts.Username == "" {
-		return nil, &InvalidArgumentError{Msg: "Username is required when using a password or token for git clone."}
+	if (opts.Username == "") != (opts.Password == "") {
+		return nil, &InvalidArgumentError{Msg: "Username and password must be provided together for git clone, or not at all."}
 	}
 
 	plan, err := buildClonePlan(repoURL, opts.Path, opts.Branch, opts.Depth, opts.Username, opts.Password, opts.DangerouslyStoreCredentials)
@@ -220,8 +220,8 @@ func (g *Git) Push(ctx context.Context, path string, opts *PushOptions) (*Comman
 	if opts == nil {
 		opts = &PushOptions{}
 	}
-	if opts.Password != "" && opts.Username == "" {
-		return nil, &InvalidArgumentError{Msg: "Username is required when using a password or token for git push."}
+	if (opts.Username == "") != (opts.Password == "") {
+		return nil, &InvalidArgumentError{Msg: "Username and password must be provided together for git push, or not at all."}
 	}
 	setUpstream := true
 	if opts.SetUpstream != nil {
@@ -265,8 +265,8 @@ func (g *Git) Pull(ctx context.Context, path string, opts *PullOptions) (*Comman
 	if opts == nil {
 		opts = &PullOptions{}
 	}
-	if opts.Password != "" && opts.Username == "" {
-		return nil, &InvalidArgumentError{Msg: "Username is required when using a password or token for git pull."}
+	if (opts.Username == "") != (opts.Password == "") {
+		return nil, &InvalidArgumentError{Msg: "Username and password must be provided together for git pull, or not at all."}
 	}
 
 	if opts.Remote == "" && opts.Branch == "" {
@@ -402,11 +402,8 @@ func (g *Git) RemoteAdd(ctx context.Context, path, name, repoURL string, opts *R
 		addPhase = buildGitCommand(addArgs, path)
 	}
 
-	// 不需要 fetch 时直接执行 add 阶段。
+	// 不需要 fetch 时直接执行 add 阶段（addPhase 已经覆盖了 add 与 add-or-overwrite 两种形态）。
 	if !opts.Fetch {
-		if !opts.Overwrite {
-			return g.runGit(ctx, "remote", addArgs, path, &opts.GitOptions)
-		}
 		return g.runShell(ctx, "remote", addPhase, &opts.GitOptions)
 	}
 

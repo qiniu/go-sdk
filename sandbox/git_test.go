@@ -97,6 +97,21 @@ func TestBuildRestoreArgs(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"restore", "--worktree", "--staged", "--source", "HEAD", "--", "a.go"}, args)
 
+	// staged=false、worktree=nil → 退化到默认 worktree，而不是抛"必须有一个为 true"的错
+	fa := false
+	args, err = buildRestoreArgs([]string{"a.go"}, &fa, nil, "")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"restore", "--worktree", "--", "a.go"}, args)
+
+	// staged=nil、worktree=false → 同上退化到默认 worktree
+	args, err = buildRestoreArgs([]string{"a.go"}, nil, &fa, "")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"restore", "--worktree", "--", "a.go"}, args)
+
+	// 显式两者都为 false → 真正没有恢复目标，应报错
+	_, err = buildRestoreArgs([]string{"a.go"}, &fa, &fa, "")
+	assert.Error(t, err)
+
 	_, err = buildRestoreArgs(nil, nil, nil, "")
 	assert.Error(t, err)
 }
