@@ -5,6 +5,7 @@ package sandbox
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -578,6 +579,124 @@ func TestIntegrationGitOptionsEnvsCwdTimeout(t *testing.T) {
 	// 极短超时下任何 git 命令都应直接失败/超时，而不是挂住。
 	_, err = e.git.Status(e.ctx, envRepo, &GitOptions{Timeout: 1 * time.Nanosecond})
 	assert.Error(t, err, "Timeout=1ns 应导致命令失败")
+}
+
+// TestIntegrationGitPushPullWithCredentials 端到端验证带凭证的 Clone → Commit → Push → Pull
+// 完整走通真实远端：
+//  1. Clone 仓库到沙箱（带凭证、默认剥离）
+//  2. 创建一个唯一分支（it-push-<timestamp>-<pid>）
+//  3. 写文件 + commit + Push（SetUpstream=true）到远端
+//  4. Re-clone 一份新仓库 + Pull 该分支，验证文件可见
+//  5. t.Cleanup 通过 push --delete 清理远端分支
+//
+// 仅当 QINIU_GIT_REPO_URL/USERNAME/PASSWORD 都配置了写权限时才执行。
+// 请确保使用专用的"测试仓库"，不要指向业务仓库。
+func TestIntegrationGitPushPullWithCredentials(t *testing.T) {
+	repoURL, username, password := getGitCredsFromEnv(t)
+	e := newGitTestEnv(t)
+
+	branch := fmt.Sprintf("it-push-%d-%d", time.Now().UnixNano(), os.Getpid())
+	work := "/tmp/it-rpush-work"
+	verify := "/tmp/it-rpush-verify"
+	marker := fmt.Sprintf("sandbox integration test %s\n", branch)
+	markerFile := branch + ".txt"
+
+	// 1) Clone 工作仓库（带凭证；默认剥离）
+	_, err := e.git.Clone(e.ctx, repoURL, &CloneOptions{
+		Path: work, Depth: 1, Username: username, Password: password,
+	})
+	require.NoError(t, err)
+
+	originURL, err := e.git.RemoteGet(e.ctx, work, "origin", nil)
+	require.NoError(t, err)
+	assert.NotContains(t, originURL, username+":", "clone 后 origin URL 不应残留凭证")
+
+	// 2) 配置 author，避免依赖远端默认配置
+	_, err = e.git.ConfigureUser(e.ctx, "Sandbox Integration", "sandbox-it@example.com",
+		&ConfigOptions{Scope: GitConfigScopeLocal, Path: work})
+	require.NoError(t, err)
+
+	// 3) 在唯一分支上 commit + push
+	_, err = e.git.CreateBranch(e.ctx, work, branch, nil)
+	require.NoError(t, err)
+	_, err = e.sb.Files().Write(e.ctx, work+"/"+markerFile, []byte(marker))
+	require.NoError(t, err)
+	_, err = e.git.Add(e.ctx, work, nil)
+	require.NoError(t, err)
+	_, err = e.git.Commit(e.ctx, work, "test: sandbox integration "+branch, nil)
+	require.NoError(t, err)
+
+	// 4) cleanup：无论后面成功失败都尝试删除远端分支
+	t.Cleanup(func() {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		// 用 shell 直接 push --delete，避免再走一遍 SDK 的凭证注入路径
+		authedURL, werr := withCredentials(repoURL, username, password)
+		if werr != nil {
+			t.Logf("cleanup withCredentials 失败: %v", werr)
+			return
+		}
+		cmd := fmt.Sprintf("git -C %s push %s --delete %s",
+			shellEscape(work), shellEscape(authedURL), shellEscape(branch))
+		res, err := e.sb.Commands().Run(cleanupCtx, cmd,
+			WithEnvs(map[string]string{"GIT_TERMINAL_PROMPT": "0"}))
+		if err != nil || (res != nil && res.ExitCode != 0) {
+			t.Logf("cleanup 删除远端分支 %s 失败（可能仓库已无该分支）: err=%v exit=%v stderr=%q",
+				branch, err, res.ExitCode, res.Stderr)
+		} else {
+			t.Logf("已删除远端临时分支 %s", branch)
+		}
+	})
+
+	_, err = e.git.Push(e.ctx, work, &PushOptions{
+		Remote: "origin", Branch: branch,
+		Username: username, Password: password,
+	})
+	require.NoError(t, err, "Push 失败 —— 请确认 token 具备目标仓库的 push 权限")
+
+	// Push 之后 origin URL 仍不应包含凭证
+	originURL, err = e.git.RemoteGet(e.ctx, work, "origin", nil)
+	require.NoError(t, err)
+	assert.NotContains(t, originURL, username+":", "Push 完成后 origin URL 不应残留凭证")
+	assert.NotContains(t, originURL, password)
+
+	// 5) 用一个全新的仓库 Clone + Pull，验证 push 上去的提交真的可被远端读到
+	_, err = e.git.Clone(e.ctx, repoURL, &CloneOptions{
+		Path: verify, Branch: branch, Depth: 1,
+		Username: username, Password: password,
+	})
+	require.NoError(t, err, "Clone --branch %s 失败 —— Push 可能没真正生效", branch)
+
+	exists, err := e.sb.Files().Exists(e.ctx, verify+"/"+markerFile)
+	require.NoError(t, err)
+	assert.True(t, exists, "新 clone 出来的仓库应能看到 push 上去的 %s", markerFile)
+	got, err := e.sb.Files().ReadText(e.ctx, verify+"/"+markerFile)
+	require.NoError(t, err)
+	assert.Equal(t, marker, got)
+
+	// 6) 在 work 上再追加一次提交并 push，然后在 verify 仓库 Pull，验证 Pull 拉到新提交
+	follow := "follow-up\n"
+	followFile := branch + "-2.txt"
+	_, err = e.sb.Files().Write(e.ctx, work+"/"+followFile, []byte(follow))
+	require.NoError(t, err)
+	_, err = e.git.Add(e.ctx, work, nil)
+	require.NoError(t, err)
+	_, err = e.git.Commit(e.ctx, work, "test: follow-up "+branch, nil)
+	require.NoError(t, err)
+	_, err = e.git.Push(e.ctx, work, &PushOptions{
+		Remote: "origin", Branch: branch,
+		Username: username, Password: password,
+	})
+	require.NoError(t, err)
+
+	_, err = e.git.Pull(e.ctx, verify, &PullOptions{
+		Remote: "origin", Branch: branch,
+		Username: username, Password: password,
+	})
+	require.NoError(t, err)
+	exists, err = e.sb.Files().Exists(e.ctx, verify+"/"+followFile)
+	require.NoError(t, err)
+	assert.True(t, exists, "Pull 之后应能看到 follow-up 文件 %s", followFile)
 }
 
 // stagedNames 返回 status 中处于 staged 状态的文件名集合。
