@@ -52,6 +52,14 @@ type QiniuInjection struct {
 	BaseURL *string
 }
 
+// GithubInjection GitHub 凭证注入。平台用此凭证克隆并校验仓库，且在沙箱运行期间为
+// 匹配 github.com / api.github.com 的 HTTPS 请求自动注入认证；token 不会以明文形式
+// 暴露到沙箱内。
+type GithubInjection struct {
+	// Token GitHub token，对所有请求的仓库具备访问权限。
+	Token *string
+}
+
 // HTTPInjection 自定义 HTTP 注入配置。
 type HTTPInjection struct {
 	// BaseURL 匹配 HTTPS 请求的 base URL。域名部分用于 host 匹配。
@@ -76,6 +84,9 @@ type InjectionSpec struct {
 	// Qiniu 七牛 AI API 注入。
 	Qiniu *QiniuInjection
 
+	// Github GitHub 凭证注入。
+	Github *GithubInjection
+
 	// HTTP 自定义 HTTP 注入。
 	HTTP *HTTPInjection
 }
@@ -97,6 +108,9 @@ type SandboxInjectionSpec struct {
 
 	// Qiniu 七牛 AI API 注入。
 	Qiniu *QiniuInjection
+
+	// Github GitHub 凭证注入。
+	Github *GithubInjection
 
 	// HTTP 自定义 HTTP 注入。
 	HTTP *HTTPInjection
@@ -184,8 +198,11 @@ func injectionSpecToAPI(spec InjectionSpec) (apis.Injection, error) {
 	if spec.Qiniu != nil {
 		count++
 	}
+	if spec.Github != nil {
+		count++
+	}
 	if count == 0 {
-		return apis.Injection{}, fmt.Errorf("InjectionSpec: exactly one injection type must be set (OpenAI, Anthropic, Gemini, Qiniu, or HTTP), got none")
+		return apis.Injection{}, fmt.Errorf("InjectionSpec: exactly one injection type must be set (OpenAI, Anthropic, Gemini, Qiniu, GitHub, or HTTP), got none")
 	}
 	if count > 1 {
 		return apis.Injection{}, fmt.Errorf("InjectionSpec: exactly one injection type must be set, but got %d", count)
@@ -217,6 +234,11 @@ func injectionSpecToAPI(spec InjectionSpec) (apis.Injection, error) {
 			APIKey:  spec.Qiniu.APIKey,
 			BaseURL: spec.Qiniu.BaseURL,
 			Type:    apis.Qiniu,
+		})
+	case spec.Github != nil:
+		err = inj.FromGithubInjection(apis.GithubInjection{
+			Token: spec.Github.Token,
+			Type:  apis.Github,
 		})
 	case spec.HTTP != nil:
 		err = inj.FromHTTPInjection(apis.HTTPInjection{
@@ -260,6 +282,11 @@ func sandboxInjectionSpecToAPI(spec SandboxInjectionSpec) (apis.SandboxInjection
 			APIKey:  spec.Qiniu.APIKey,
 			BaseURL: spec.Qiniu.BaseURL,
 			Type:    apis.Qiniu,
+		})
+	case spec.Github != nil:
+		err = si.FromGithubInjection(apis.GithubInjection{
+			Token: spec.Github.Token,
+			Type:  apis.Github,
 		})
 	case spec.HTTP != nil:
 		err = si.FromHTTPInjection(apis.HTTPInjection{
@@ -305,6 +332,12 @@ func injectionSpecFromAPI(inj apis.Injection) (InjectionSpec, error) {
 			return InjectionSpec{}, err
 		}
 		return InjectionSpec{Qiniu: &QiniuInjection{APIKey: v.APIKey, BaseURL: v.BaseURL}}, nil
+	case string(apis.Github):
+		v, err := inj.AsGithubInjection()
+		if err != nil {
+			return InjectionSpec{}, err
+		}
+		return InjectionSpec{Github: &GithubInjection{Token: v.Token}}, nil
 	case string(apis.HTTP):
 		v, err := inj.AsHTTPInjection()
 		if err != nil {
