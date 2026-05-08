@@ -234,7 +234,10 @@ func unquoteCPath(s string) string {
 		default:
 			// 三位八进制：\NNN
 			if i+3 < len(body) && isOctal(body[i+1]) && isOctal(body[i+2]) && isOctal(body[i+3]) {
-				v := (int(body[i+1]-'0') << 6) | (int(body[i+2]-'0') << 3) | int(body[i+3]-'0')
+				v, err := strconv.ParseUint(string(body[i+1:i+4]), 8, 8)
+				if err != nil {
+					return s
+				}
 				out = append(out, byte(v))
 				i += 3
 				continue

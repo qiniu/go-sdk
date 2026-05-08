@@ -58,7 +58,7 @@ func (g *Git) Clone(ctx context.Context, repoURL string, opts *CloneOptions) (*C
 	if plan.shouldStrip {
 		// 即使 ctx 已取消也要清理凭证，避免带凭证的 URL 残留在 .git/config。
 		if _, serr := g.runGit(context.Background(), "remote", buildRemoteSetURLArgs("origin", plan.sanitizedURL), plan.repoPath, &opts.GitOptions); serr != nil {
-			return result, serr
+			return result, fmt.Errorf("clone succeeded but failed to strip credentials: %w", serr)
 		}
 	}
 	return result, nil
@@ -244,20 +244,34 @@ func (g *Git) Pull(ctx context.Context, path string, opts *PullOptions) (*Comman
 
 // runWithOptionalCredentials 执行 push/pull 等需要可选凭证注入的远程同步命令。
 // buildArgs 接收已解析的 target remote 名（可为空），返回最终参数列表。
+//
+// remote 解析提到凭证分支之外，确保"带凭证"与"不带凭证"两种调用对单 remote 仓库
+// 有一致的语义：当调用方未显式指定 remote 时，仓库恰好只有一个 remote 会被自动选中。
 func (g *Git) runWithOptionalCredentials(
 	ctx context.Context,
 	sub, path, remote, username, password string,
 	opts *GitOptions,
 	buildArgs func(target string) []string,
 ) (*CommandResult, error) {
-	if username == "" || password == "" {
-		result, err := g.runGit(ctx, sub, buildArgs(remote), path, opts)
+	withCreds := username != "" && password != ""
+
+	// 不带凭证时，对显式 remote 直接使用；未指定 remote 时尝试自动选中唯一 remote，
+	// 若仓库无 remote 或多 remote 则交回 git 自身的默认行为（保持向后兼容，让 git 报错）。
+	if !withCreds {
+		target := remote
+		if target == "" {
+			if name, ok := g.autoSelectRemote(ctx, path, opts); ok {
+				target = name
+			}
+		}
+		result, err := g.runGit(ctx, sub, buildArgs(target), path, opts)
 		if err != nil {
 			return nil, mapPushPullError(err, sub, username, password)
 		}
 		return result, nil
 	}
 
+	// 带凭证时必须解析出确切的 remote 名（含 URL），用于注入/恢复凭证。
 	remoteName, originalURL, err := g.resolveRemoteName(ctx, path, remote, opts)
 	if err != nil {
 		return nil, err
@@ -274,27 +288,56 @@ func (g *Git) runWithOptionalCredentials(
 	return result, nil
 }
 
+// autoSelectRemote 在仓库恰好有一个 remote 时返回其名字；其他情形（无 remote、多 remote、
+// RPC 错误）返回 ok=false，由调用方决定是否兜底到 git 默认行为。
+func (g *Git) autoSelectRemote(ctx context.Context, path string, opts *GitOptions) (string, bool) {
+	result, err := g.runGit(ctx, "remote", []string{"remote"}, path, opts)
+	if err != nil {
+		return "", false
+	}
+	var remotes []string
+	for _, line := range strings.Split(result.Stdout, "\n") {
+		if s := strings.TrimSpace(line); s != "" {
+			remotes = append(remotes, s)
+		}
+	}
+	if len(remotes) == 1 {
+		return remotes[0], true
+	}
+	return "", false
+}
+
 // RemoteAdd 为仓库添加（或在 opts.Overwrite=true 时覆盖）一个 remote。
 func (g *Git) RemoteAdd(ctx context.Context, path, name, repoURL string, opts *RemoteAddOptions) (*CommandResult, error) {
 	if opts == nil {
 		opts = &RemoteAddOptions{}
 	}
-	addArgs, err := buildRemoteAddArgs(name, repoURL, opts.Fetch)
+	addArgs, err := buildRemoteAddArgs(name, repoURL)
 	if err != nil {
 		return nil, err
 	}
-	if !opts.Overwrite {
-		return g.runGit(ctx, "remote", addArgs, path, &opts.GitOptions)
+
+	// 构造 add-or-overwrite 阶段：不带 fetch，避免 add 失败后 set-url fallback 与 add -f 的语义混淆。
+	var addPhase string
+	if opts.Overwrite {
+		addCmd := buildGitCommand(addArgs, path)
+		setURLCmd := buildGitCommand(buildRemoteSetURLArgs(name, repoURL), path)
+		addPhase = addCmd + " || " + setURLCmd
+	} else {
+		addPhase = buildGitCommand(addArgs, path)
 	}
 
-	addCmd := buildGitCommand(addArgs, path)
-	setURLCmd := buildGitCommand(buildRemoteSetURLArgs(name, repoURL), path)
-	cmd := addCmd + " || " + setURLCmd
-	if opts.Fetch {
-		fetchCmd := buildGitCommand([]string{"fetch", name}, path)
-		cmd = "(" + cmd + ") && " + fetchCmd
+	// 不需要 fetch 时直接执行 add 阶段。
+	if !opts.Fetch {
+		if !opts.Overwrite {
+			return g.runGit(ctx, "remote", addArgs, path, &opts.GitOptions)
+		}
+		return g.runShell(ctx, "remote", addPhase, &opts.GitOptions)
 	}
-	return g.runShell(ctx, "remote", cmd, &opts.GitOptions)
+
+	// 需要 fetch 时统一拼一次：add 阶段成功后仅 fetch 一次，避免重复网络请求。
+	fetchCmd := buildGitCommand([]string{"fetch", name}, path)
+	return g.runShell(ctx, "remote", "("+addPhase+") && "+fetchCmd, &opts.GitOptions)
 }
 
 // RemoteGet 获取指定 remote 的 URL，未配置时返回空字符串。
@@ -500,8 +543,9 @@ func (g *Git) withRemoteCredentials(ctx context.Context, path, remote, originalU
 	opErr := fn()
 	// 即使 ctx 已取消也要恢复原 URL，避免凭证遗留在 .git/config。
 	_, restoreErr := g.runGit(context.Background(), "remote", buildRemoteSetURLArgs(remote, originalURL), path, opts)
+	// 恢复 URL 是安全相关步骤，主操作错误不应吞掉它；用 errors.Join 同时保留两者。
 	if opErr != nil {
-		return opErr
+		return errors.Join(opErr, restoreErr)
 	}
 	return restoreErr
 }

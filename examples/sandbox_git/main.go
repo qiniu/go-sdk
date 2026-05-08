@@ -189,14 +189,20 @@ func main() {
 	if _, err := git.Add(ctx, repoPath, nil); err != nil {
 		log.Fatalf("Add 失败: %v", err)
 	}
-	st, _ = git.Status(ctx, repoPath, nil)
+	st, err = git.Status(ctx, repoPath, nil)
+	if err != nil {
+		log.Fatalf("Status 失败: %v", err)
+	}
 	fmt.Printf("Add 后 staged=%d，unstaged=%d\n", st.StagedCount(), st.UnstagedCount())
 	if _, err := git.Reset(ctx, repoPath, &sandbox.ResetOptions{
 		Paths: []string{"dirty.txt"},
 	}); err != nil {
 		log.Fatalf("Reset(paths) 失败: %v", err)
 	}
-	st, _ = git.Status(ctx, repoPath, nil)
+	st, err = git.Status(ctx, repoPath, nil)
+	if err != nil {
+		log.Fatalf("Status 失败: %v", err)
+	}
 	fmt.Printf("Reset(paths) 后 staged=%d，unstaged=%d\n", st.StagedCount(), st.UnstagedCount())
 
 	// 7b. Reset --hard：丢弃工作区改动并把 HEAD 重置到指定提交
@@ -229,7 +235,10 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Restore(--staged) 失败: %v", err)
 	}
-	st, _ = git.Status(ctx, repoPath, nil)
+	st, err = git.Status(ctx, repoPath, nil)
+	if err != nil {
+		log.Fatalf("Status 失败: %v", err)
+	}
 	fmt.Printf("Restore --staged 后 staged=%d，unstaged=%d\n", st.StagedCount(), st.UnstagedCount())
 
 	// 7d. Restore --worktree --source=HEAD：把工作区改动恢复到 HEAD 版本
@@ -239,7 +248,10 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Restore(--source HEAD) 失败: %v", err)
 	}
-	readme, _ = sb.Files().ReadText(ctx, repoPath+"/README.md")
+	readme, err = sb.Files().ReadText(ctx, repoPath+"/README.md")
+	if err != nil {
+		log.Fatalf("读取 README 失败: %v", err)
+	}
 	fmt.Printf("Restore --source HEAD 后 README.md = %q\n", readme)
 
 	// 8. Remote 管理（含 Overwrite）

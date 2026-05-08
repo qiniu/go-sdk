@@ -55,16 +55,11 @@ func buildPullArgs(target, branch string) []string {
 }
 
 // buildRemoteAddArgs 构造 git remote add 命令的参数列表。
-func buildRemoteAddArgs(name, url string, fetch bool) ([]string, error) {
+func buildRemoteAddArgs(name, url string) ([]string, error) {
 	if name == "" || url == "" {
 		return nil, &InvalidArgumentError{Msg: "Both remote name and URL are required to add a git remote."}
 	}
-	args := []string{"remote", "add"}
-	if fetch {
-		args = append(args, "-f")
-	}
-	args = append(args, name, url)
-	return args, nil
+	return []string{"remote", "add", name, url}, nil
 }
 
 // buildRemoteSetURLArgs 构造 git remote set-url 命令的参数列表。
