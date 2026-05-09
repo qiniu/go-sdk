@@ -251,6 +251,35 @@ func injectionSpecToAPI(spec InjectionSpec) (apis.Injection, error) {
 }
 
 func sandboxInjectionSpecToAPI(spec SandboxInjectionSpec) (apis.SandboxInjection, error) {
+	count := 0
+	if spec.ByID != nil {
+		count++
+	}
+	if spec.OpenAI != nil {
+		count++
+	}
+	if spec.Anthropic != nil {
+		count++
+	}
+	if spec.Gemini != nil {
+		count++
+	}
+	if spec.Qiniu != nil {
+		count++
+	}
+	if spec.Github != nil {
+		count++
+	}
+	if spec.HTTP != nil {
+		count++
+	}
+	if count == 0 {
+		return apis.SandboxInjection{}, fmt.Errorf("SandboxInjectionSpec: exactly one injection type must be set (ByID, OpenAI, Anthropic, Gemini, Qiniu, GitHub, or HTTP), got none")
+	}
+	if count > 1 {
+		return apis.SandboxInjection{}, fmt.Errorf("SandboxInjectionSpec: exactly one injection type must be set, but got %d", count)
+	}
+
 	var si apis.SandboxInjection
 	var err error
 	switch {
