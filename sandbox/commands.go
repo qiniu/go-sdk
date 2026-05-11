@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
@@ -22,12 +23,15 @@ type CommandResult struct {
 
 // CommandHandle 后台命令句柄。
 type CommandHandle struct {
-	pid uint32
+	// pid 进程 ID。Start 路径下由后台事件流 goroutine 写入，
+	// 因此使用 atomic 保证与 PID()/Kill() 的并发读取之间无数据竞态。
+	pid atomic.Uint32
 
 	commands *Commands
 	cancel   context.CancelFunc
 	done     chan struct{}
 	pidCh    chan struct{}
+	pidOnce  sync.Once
 	result   *CommandResult
 
 	mu        sync.Mutex
@@ -36,9 +40,20 @@ type CommandHandle struct {
 	onPtyData func(data []byte)
 }
 
+// markPIDReady 标记进程 PID 就绪：首次调用写入 pid 并关闭 pidCh，
+// 后续调用为 no-op。Start 路径在收到 Start 事件时调用；
+// Connect 路径在构造 handle 后立即以已知 PID 调用，
+// 避免共享事件流处理器后续再收到 Start 事件时重复 close(pidCh) 引发 panic。
+func (h *CommandHandle) markPIDReady(pid uint32) {
+	h.pidOnce.Do(func() {
+		h.pid.Store(pid)
+		close(h.pidCh)
+	})
+}
+
 // PID 返回进程 ID。
 func (h *CommandHandle) PID() uint32 {
-	return h.pid
+	return h.pid.Load()
 }
 
 // Wait 等待命令完成并返回结果。
@@ -52,7 +67,7 @@ func (h *CommandHandle) Wait() (*CommandResult, error) {
 
 // Kill 终止命令。
 func (h *CommandHandle) Kill(ctx context.Context) error {
-	return h.commands.Kill(ctx, h.pid)
+	return h.commands.Kill(ctx, h.pid.Load())
 }
 
 // WaitPID 等待进程 PID 被分配。
@@ -60,7 +75,7 @@ func (h *CommandHandle) Kill(ctx context.Context) error {
 func (h *CommandHandle) WaitPID(ctx context.Context) (uint32, error) {
 	select {
 	case <-h.pidCh:
-		return h.pid, nil
+		return h.pid.Load(), nil
 	case <-ctx.Done():
 		return 0, ctx.Err()
 	}
@@ -250,8 +265,7 @@ func processEventStream[T eventMessage](stream streamReceiver[T], handle *Comman
 		}
 		switch ev := event.Event.(type) {
 		case *process.ProcessEvent_Start:
-			handle.pid = ev.Start.Pid
-			close(handle.pidCh)
+			handle.markPIDReady(ev.Start.Pid)
 		case *process.ProcessEvent_Data:
 			if data := ev.Data.GetStdout(); len(data) > 0 {
 				stdout = append(stdout, data...)
@@ -321,16 +335,15 @@ func (c *Commands) Connect(ctx context.Context, pid uint32) (*CommandHandle, err
 		return nil, fmt.Errorf("connect to process: %w", err)
 	}
 
-	pidCh := make(chan struct{})
-	close(pidCh) // PID 已知，无需等待
-
 	handle := &CommandHandle{
-		pid:      pid,
 		commands: c,
 		cancel:   connectCancel,
 		done:     make(chan struct{}),
-		pidCh:    pidCh,
+		pidCh:    make(chan struct{}),
 	}
+	// PID 已知，立即标记就绪；后续若服务端在流里再发 Start 事件，
+	// markPIDReady 内部的 sync.Once 会保证不会重复 close(pidCh)。
+	handle.markPIDReady(pid)
 
 	go processEventStream(stream, handle)
 
