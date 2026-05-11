@@ -28,12 +28,24 @@ type CommandHandle struct {
 	cancel   context.CancelFunc
 	done     chan struct{}
 	pidCh    chan struct{}
+	pidOnce  sync.Once
 	result   *CommandResult
 
 	mu        sync.Mutex
 	onStdout  func(data []byte)
 	onStderr  func(data []byte)
 	onPtyData func(data []byte)
+}
+
+// markPIDReady 标记进程 PID 就绪：首次调用写入 pid 并关闭 pidCh，
+// 后续调用为 no-op。Start 路径在收到 Start 事件时调用；
+// Connect 路径在构造 handle 后立即以已知 PID 调用，
+// 避免共享事件流处理器后续再收到 Start 事件时重复 close(pidCh) 引发 panic。
+func (h *CommandHandle) markPIDReady(pid uint32) {
+	h.pidOnce.Do(func() {
+		h.pid = pid
+		close(h.pidCh)
+	})
 }
 
 // PID 返回进程 ID。
@@ -250,8 +262,7 @@ func processEventStream[T eventMessage](stream streamReceiver[T], handle *Comman
 		}
 		switch ev := event.Event.(type) {
 		case *process.ProcessEvent_Start:
-			handle.pid = ev.Start.Pid
-			close(handle.pidCh)
+			handle.markPIDReady(ev.Start.Pid)
 		case *process.ProcessEvent_Data:
 			if data := ev.Data.GetStdout(); len(data) > 0 {
 				stdout = append(stdout, data...)
@@ -321,16 +332,15 @@ func (c *Commands) Connect(ctx context.Context, pid uint32) (*CommandHandle, err
 		return nil, fmt.Errorf("connect to process: %w", err)
 	}
 
-	pidCh := make(chan struct{})
-	close(pidCh) // PID 已知，无需等待
-
 	handle := &CommandHandle{
-		pid:      pid,
 		commands: c,
 		cancel:   connectCancel,
 		done:     make(chan struct{}),
-		pidCh:    pidCh,
+		pidCh:    make(chan struct{}),
 	}
+	// PID 已知，立即标记就绪；后续若服务端在流里再发 Start 事件，
+	// markPIDReady 内部的 sync.Once 会保证不会重复 close(pidCh)。
+	handle.markPIDReady(pid)
 
 	go processEventStream(stream, handle)
 

@@ -86,6 +86,7 @@ type testProcessHandler struct {
 	processconnect.UnimplementedProcessHandler
 
 	startFn      func(context.Context, *connect.Request[process.StartRequest], *connect.ServerStream[process.StartResponse]) error
+	connectFn    func(context.Context, *connect.Request[process.ConnectRequest], *connect.ServerStream[process.ConnectResponse]) error
 	listFn       func(context.Context, *connect.Request[process.ListRequest]) (*connect.Response[process.ListResponse], error)
 	sendInputFn  func(context.Context, *connect.Request[process.SendInputRequest]) (*connect.Response[process.SendInputResponse], error)
 	sendSignalFn func(context.Context, *connect.Request[process.SendSignalRequest]) (*connect.Response[process.SendSignalResponse], error)
@@ -98,6 +99,13 @@ func (h *testProcessHandler) Start(ctx context.Context, req *connect.Request[pro
 		return h.startFn(ctx, req, stream)
 	}
 	return h.UnimplementedProcessHandler.Start(ctx, req, stream)
+}
+
+func (h *testProcessHandler) Connect(ctx context.Context, req *connect.Request[process.ConnectRequest], stream *connect.ServerStream[process.ConnectResponse]) error {
+	if h.connectFn != nil {
+		return h.connectFn(ctx, req, stream)
+	}
+	return h.UnimplementedProcessHandler.Connect(ctx, req, stream)
 }
 
 func (h *testProcessHandler) List(ctx context.Context, req *connect.Request[process.ListRequest]) (*connect.Response[process.ListResponse], error) {
@@ -1038,6 +1046,64 @@ func TestCommandsRunWithError(t *testing.T) {
 	}
 	if result.Error != "command failed" {
 		t.Errorf("Error = %q, want %q", result.Error, "command failed")
+	}
+}
+
+// TestCommandsConnectWithStartEvent 回归测试 issue #215：
+// Commands.Connect 路径下若服务端流仍下发 Start 事件，
+// 共享的 processEventStream 不应再次 close 已关闭的 pidCh 而 panic。
+func TestCommandsConnectWithStartEvent(t *testing.T) {
+	const targetPID uint32 = 4242
+	handler := &testProcessHandler{
+		connectFn: func(_ context.Context, req *connect.Request[process.ConnectRequest], stream *connect.ServerStream[process.ConnectResponse]) error {
+			// 校验请求里携带的是按 PID 选择
+			if got := req.Msg.GetProcess().GetPid(); got != targetPID {
+				t.Errorf("Connect pid selector = %d, want %d", got, targetPID)
+			}
+			// 服务端先发 Start 事件，再发 End — 触发 panic 的最小复现
+			if err := stream.Send(&process.ConnectResponse{
+				Event: &process.ProcessEvent{
+					Event: &process.ProcessEvent_Start{
+						Start: &process.ProcessEvent_StartEvent{Pid: targetPID},
+					},
+				},
+			}); err != nil {
+				return err
+			}
+			return stream.Send(&process.ConnectResponse{
+				Event: &process.ProcessEvent{
+					Event: &process.ProcessEvent_End{
+						End: &process.ProcessEvent_EndEvent{ExitCode: 0, Status: "exited"},
+					},
+				},
+			})
+		},
+	}
+	cmd, ts := newTestCommands(handler)
+	defer ts.Close()
+
+	handle, err := cmd.Connect(context.Background(), targetPID)
+	if err != nil {
+		t.Fatalf("Connect error: %v", err)
+	}
+
+	pid, err := handle.WaitPID(context.Background())
+	if err != nil {
+		t.Fatalf("WaitPID error: %v", err)
+	}
+	if pid != targetPID {
+		t.Errorf("WaitPID = %d, want %d", pid, targetPID)
+	}
+
+	result, err := handle.Wait()
+	if err != nil {
+		t.Fatalf("Wait error: %v", err)
+	}
+	if result.ExitCode != 0 {
+		t.Errorf("ExitCode = %d, want 0", result.ExitCode)
+	}
+	if handle.PID() != targetPID {
+		t.Errorf("PID() = %d, want %d", handle.PID(), targetPID)
 	}
 }
 
