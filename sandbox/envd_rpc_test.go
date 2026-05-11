@@ -1052,58 +1052,85 @@ func TestCommandsRunWithError(t *testing.T) {
 // TestCommandsConnectWithStartEvent 回归测试 issue #215：
 // Commands.Connect 路径下若服务端流仍下发 Start 事件，
 // 共享的 processEventStream 不应再次 close 已关闭的 pidCh 而 panic。
+//
+// 同时锁定 PID 优先级语义：Connect 由调用方传入 PID，
+// 即便服务端 Start 事件携带不同 PID，也应以调用方传入的为准
+// （由 markPIDReady 内部的 sync.Once 保证首次写入获胜）。
 func TestCommandsConnectWithStartEvent(t *testing.T) {
-	const targetPID uint32 = 4242
-	handler := &testProcessHandler{
-		connectFn: func(_ context.Context, req *connect.Request[process.ConnectRequest], stream *connect.ServerStream[process.ConnectResponse]) error {
-			// 校验请求里携带的是按 PID 选择
-			if got := req.Msg.GetProcess().GetPid(); got != targetPID {
-				t.Errorf("Connect pid selector = %d, want %d", got, targetPID)
-			}
-			// 服务端先发 Start 事件，再发 End — 触发 panic 的最小复现
-			if err := stream.Send(&process.ConnectResponse{
-				Event: &process.ProcessEvent{
-					Event: &process.ProcessEvent_Start{
-						Start: &process.ProcessEvent_StartEvent{Pid: targetPID},
-					},
-				},
-			}); err != nil {
-				return err
-			}
-			return stream.Send(&process.ConnectResponse{
-				Event: &process.ProcessEvent{
-					Event: &process.ProcessEvent_End{
-						End: &process.ProcessEvent_EndEvent{ExitCode: 0, Status: "exited"},
-					},
-				},
-			})
+	tests := []struct {
+		name           string
+		callerPID      uint32
+		serverStartPID uint32
+	}{
+		{
+			name:           "matching pid",
+			callerPID:      4242,
+			serverStartPID: 4242,
+		},
+		{
+			// 守护 PR 描述里声明的契约：调用方传入的 PID 获胜，
+			// 避免未来重构在 markPIDReady 中改成"后写入覆盖前者"而无测试报警。
+			name:           "server start pid mismatches caller pid",
+			callerPID:      4242,
+			serverStartPID: 9999,
 		},
 	}
-	cmd, ts := newTestCommands(handler)
-	defer ts.Close()
 
-	handle, err := cmd.Connect(context.Background(), targetPID)
-	if err != nil {
-		t.Fatalf("Connect error: %v", err)
-	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			handler := &testProcessHandler{
+				connectFn: func(_ context.Context, req *connect.Request[process.ConnectRequest], stream *connect.ServerStream[process.ConnectResponse]) error {
+					// 校验请求里携带的是按 PID 选择
+					if got := req.Msg.GetProcess().GetPid(); got != tc.callerPID {
+						t.Errorf("Connect pid selector = %d, want %d", got, tc.callerPID)
+					}
+					// 服务端先发 Start 事件，再发 End — 触发 panic 的最小复现
+					if err := stream.Send(&process.ConnectResponse{
+						Event: &process.ProcessEvent{
+							Event: &process.ProcessEvent_Start{
+								Start: &process.ProcessEvent_StartEvent{Pid: tc.serverStartPID},
+							},
+						},
+					}); err != nil {
+						return err
+					}
+					return stream.Send(&process.ConnectResponse{
+						Event: &process.ProcessEvent{
+							Event: &process.ProcessEvent_End{
+								End: &process.ProcessEvent_EndEvent{ExitCode: 0, Status: "exited"},
+							},
+						},
+					})
+				},
+			}
+			cmd, ts := newTestCommands(handler)
+			defer ts.Close()
 
-	pid, err := handle.WaitPID(context.Background())
-	if err != nil {
-		t.Fatalf("WaitPID error: %v", err)
-	}
-	if pid != targetPID {
-		t.Errorf("WaitPID = %d, want %d", pid, targetPID)
-	}
+			handle, err := cmd.Connect(context.Background(), tc.callerPID)
+			if err != nil {
+				t.Fatalf("Connect error: %v", err)
+			}
 
-	result, err := handle.Wait()
-	if err != nil {
-		t.Fatalf("Wait error: %v", err)
-	}
-	if result.ExitCode != 0 {
-		t.Errorf("ExitCode = %d, want 0", result.ExitCode)
-	}
-	if handle.PID() != targetPID {
-		t.Errorf("PID() = %d, want %d", handle.PID(), targetPID)
+			pid, err := handle.WaitPID(context.Background())
+			if err != nil {
+				t.Fatalf("WaitPID error: %v", err)
+			}
+			if pid != tc.callerPID {
+				t.Errorf("WaitPID = %d, want caller pid %d", pid, tc.callerPID)
+			}
+
+			result, err := handle.Wait()
+			if err != nil {
+				t.Fatalf("Wait error: %v", err)
+			}
+			if result.ExitCode != 0 {
+				t.Errorf("ExitCode = %d, want 0", result.ExitCode)
+			}
+			if handle.PID() != tc.callerPID {
+				t.Errorf("PID() = %d, want caller pid %d", handle.PID(), tc.callerPID)
+			}
+		})
 	}
 }
 
