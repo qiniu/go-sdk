@@ -66,6 +66,10 @@ type CreateParams struct {
 	// Injections 针对出站 HTTPS 请求的注入规则列表，可选。
 	// 每项可引用已保存的注入规则 ID，或直接指定注入配置。
 	Injections *[]SandboxInjectionSpec
+
+	// Resources 沙箱启动前需挂载的资源列表，可选。
+	// 平台会在沙箱启动前完成资源物化（如 GitHub 仓库克隆）。
+	Resources *[]SandboxResourceSpec
 }
 
 // ConnectParams 连接沙箱的请求参数。
@@ -374,6 +378,17 @@ func (p *CreateParams) toAPI() (apis.CreateSandboxJSONRequestBody, error) {
 			siList[i] = si
 		}
 		body.Injections = &siList
+	}
+	if p.Resources != nil {
+		list := make([]apis.SandboxResource, len(*p.Resources))
+		for i, spec := range *p.Resources {
+			r, err := sandboxResourceSpecToAPI(spec)
+			if err != nil {
+				return body, err
+			}
+			list[i] = r
+		}
+		body.Resources = &list
 	}
 	return body, nil
 }

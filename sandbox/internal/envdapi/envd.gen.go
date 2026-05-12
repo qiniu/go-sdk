@@ -78,6 +78,36 @@ type Metrics struct {
 	TS *int64 `json:"ts,omitempty"`
 }
 
+// Mount defines model for Mount.
+type Mount struct {
+	// Options Extra arguments passed verbatim to mount(8) before the source and target (e.g. `["-t", "ext4", "-o", "ro,nosuid"]`, or `["--bind"]` for bind mounts).
+	Options *[]string `json:"options,omitempty"`
+
+	// SourcePath Mount source (block device, NFS target, or another path)
+	SourcePath string `json:"sourcePath"`
+
+	// TargetPath Absolute path inside the sandbox where the source is mounted
+	TargetPath string `json:"targetPath"`
+}
+
+// PostInitAction defines model for PostInitAction.
+type PostInitAction struct {
+	// Argv Command argv to execute directly without a shell
+	Argv []string `json:"argv"`
+
+	// Cwd Optional working directory for the command
+	Cwd *string `json:"cwd,omitempty"`
+
+	// EnvVars Environment variables to set
+	EnvVars *EnvVars `json:"envVars,omitempty"`
+
+	// TimeoutMs Optional timeout in milliseconds for this command
+	TimeoutMs *int64 `json:"timeoutMs,omitempty"`
+
+	// User Optional target user to run the command as
+	User *string `json:"user,omitempty"`
+}
+
 // FilePath defines model for FilePath.
 type FilePath = string
 
@@ -148,6 +178,9 @@ type PostInitJSONBody struct {
 	// AccessToken Access token for secure access to envd service
 	AccessToken *string `json:"accessToken,omitempty"`
 
+	// CaCertPEM CA certificate in PEM format for MITM APIKEY protection to be injected into the sandbox system trust store
+	CaCertPEM *string `json:"caCertPEM,omitempty"`
+
 	// DefaultUser The default user to use for operations
 	DefaultUser *string `json:"defaultUser,omitempty"`
 
@@ -159,6 +192,10 @@ type PostInitJSONBody struct {
 
 	// HyperloopIP IP address of the hyperloop server to connect to
 	HyperloopIP *string `json:"hyperloopIP,omitempty"`
+
+	// Mounts Mounts to set up inside the sandbox before post-init actions run
+	Mounts          *[]Mount          `json:"mounts,omitempty"`
+	PostInitActions *[]PostInitAction `json:"postInitActions,omitempty"`
 
 	// Timestamp The current timestamp in RFC3339 format
 	Timestamp *time.Time `json:"timestamp,omitempty"`
