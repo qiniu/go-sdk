@@ -54,6 +54,15 @@ func sandboxResourceSpecToAPI(spec SandboxResourceSpec) (apis.SandboxResource, e
 		if spec.GitRepository.Type == "" {
 			return r, fmt.Errorf("GitRepositoryResource.Type must be set (e.g. GitRepositoryTypeGithub)")
 		}
+		if spec.GitRepository.URL == "" {
+			return r, fmt.Errorf("GitRepositoryResource.URL must be set")
+		}
+		if spec.GitRepository.MountPath == "" {
+			return r, fmt.Errorf("GitRepositoryResource.MountPath must be set")
+		}
+		if spec.GitRepository.AuthorizationToken == nil || *spec.GitRepository.AuthorizationToken == "" {
+			return r, fmt.Errorf("GitRepositoryResource.AuthorizationToken must be set")
+		}
 		if err := r.FromGitRepositoryResource(apis.GitRepositoryResource{
 			URL:                spec.GitRepository.URL,
 			MountPath:          spec.GitRepository.MountPath,
