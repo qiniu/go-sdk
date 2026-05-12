@@ -1,4 +1,12 @@
 # Changelog
+## 7.26.11
+
+* 新增
+  * sandbox: 添加 Git 操作 API 支持
+  * sandbox: 添加 GitHub 凭证注入与 Git 仓库资源挂载配置支持
+* 修复
+  * sandbox: 修复 Commands.Connect 因重复关闭 pidCh 导致 panic
+
 ## 7.26.10
 
 * 新增
