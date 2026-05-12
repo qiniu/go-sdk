@@ -32,7 +32,7 @@ type GitRepositoryResource struct {
 	// MountPath 仓库内容在沙箱内的绝对挂载路径。
 	MountPath string
 
-	// AuthorizationToken 用于克隆该仓库的访问 token，可选。
+	// AuthorizationToken 用于克隆该仓库的访问 token。
 	// 同一沙箱内多个仓库资源当前必须共用同一 token。
 	AuthorizationToken *string
 }
