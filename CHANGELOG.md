@@ -1,4 +1,9 @@
 # Changelog
+## 7.26.12
+
+* 修复
+  * sandbox: 修正 GitRepositoryResource 的必填字段说明，并在 SDK 侧校验 URL、MountPath 和 AuthorizationToken 非空
+
 ## 7.26.11
 
 * 新增
