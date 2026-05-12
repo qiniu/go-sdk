@@ -32,7 +32,7 @@ type GitRepositoryResource struct {
 	// MountPath 仓库内容在沙箱内的绝对挂载路径。
 	MountPath string
 
-	// AuthorizationToken 用于克隆该仓库的访问 token，可选。
+	// AuthorizationToken 用于克隆该仓库的访问 token。
 	// 同一沙箱内多个仓库资源当前必须共用同一 token。
 	AuthorizationToken *string
 }
@@ -53,6 +53,15 @@ func sandboxResourceSpecToAPI(spec SandboxResourceSpec) (apis.SandboxResource, e
 	case spec.GitRepository != nil:
 		if spec.GitRepository.Type == "" {
 			return r, fmt.Errorf("GitRepositoryResource.Type must be set (e.g. GitRepositoryTypeGithub)")
+		}
+		if spec.GitRepository.URL == "" {
+			return r, fmt.Errorf("GitRepositoryResource.URL must be set")
+		}
+		if spec.GitRepository.MountPath == "" {
+			return r, fmt.Errorf("GitRepositoryResource.MountPath must be set")
+		}
+		if spec.GitRepository.AuthorizationToken == nil || *spec.GitRepository.AuthorizationToken == "" {
+			return r, fmt.Errorf("GitRepositoryResource.AuthorizationToken must be set")
 		}
 		if err := r.FromGitRepositoryResource(apis.GitRepositoryResource{
 			URL:                spec.GitRepository.URL,
