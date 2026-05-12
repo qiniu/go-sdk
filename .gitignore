@@ -37,6 +37,10 @@ go.work
 # Log files
 *.log
 
+# Local environment files
+.env
+.env.*
+
 # AI tool local settings
 .claude/settings.local.json
 .cursor/settings.local.json
