@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	_ "embed"
@@ -157,7 +158,10 @@ type userCount struct {
 // computeTopN 解析 jsonl 数据并返回按 count 降序、user_id 升序的前 n 名。
 func computeTopN(data []byte, n int) []userCount {
 	counts := make(map[int]int)
-	for _, line := range bytes.Split(bytes.TrimSpace(data), []byte("\n")) {
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	// 单条日志远小于默认 64KB，无需扩 buffer。
+	for scanner.Scan() {
+		line := scanner.Bytes()
 		if len(line) == 0 {
 			continue
 		}
@@ -237,8 +241,9 @@ func runTurn(ctx context.Context, sb *sandbox.Sandbox, prompt, resumeID string) 
 	p := &streamProcessor{}
 	handle, err := sb.Commands().Start(ctx, cmd,
 		sandbox.WithOnStdout(p.onStdout),
+		// stderr 数据按 chunk 透传，避免对未完成的行加前缀产生 [stderr] part1[stderr] part2 这类碎片。
 		sandbox.WithOnStderr(func(data []byte) {
-			fmt.Fprintf(os.Stderr, "[stderr] %s", data)
+			fmt.Fprint(os.Stderr, string(data))
 		}),
 	)
 	if err != nil {
@@ -263,6 +268,11 @@ func runTurn(ctx context.Context, sb *sandbox.Sandbox, prompt, resumeID string) 
 
 // streamProcessor 维护单次 claude 调用的 JSONL 解析状态：
 // stdout 是字节流，需按 '\n' 拆分为 JSONL 后再解析；同时捕获 session_id 供后续轮次使用。
+//
+// 并发模型：每次 runTurn 新建独立实例，与其他 turn 完全隔离；本实例的 onStdout
+// 仅由对应 Start 调用产生的事件流单 goroutine 顺序回调（参见 SDK 内
+// processEventStream）。因此 buf 无需加锁。若未来要在多个 Start 之间共享同一个
+// streamProcessor，则需自行同步。
 type streamProcessor struct {
 	buf       bytes.Buffer
 	sessionID string
