@@ -173,6 +173,9 @@ func computeTopN(data []byte, n int) []userCount {
 		}
 		counts[rec.UserID]++
 	}
+	if err := scanner.Err(); err != nil {
+		log.Printf("computeTopN: scanner 提前终止: %v", err)
+	}
 	out := make([]userCount, 0, len(counts))
 	for uid, c := range counts {
 		out = append(out, userCount{uid, c})
@@ -282,13 +285,14 @@ type streamProcessor struct {
 func (p *streamProcessor) onStdout(data []byte) {
 	p.buf.Write(data)
 	for {
-		idx := bytes.IndexByte(p.buf.Bytes(), '\n')
+		buf := p.buf.Bytes()
+		idx := bytes.IndexByte(buf, '\n')
 		if idx < 0 {
 			break
 		}
 		// onStdout 单 goroutine、handleLine 同步消费 line 后不保留引用，
-		// 直接切片 p.buf 无需额外复制。
-		line := p.buf.Bytes()[:idx]
+		// 直接切片 buf 无需额外复制。
+		line := buf[:idx]
 		p.handleLine(line)
 		p.buf.Next(idx + 1)
 	}
