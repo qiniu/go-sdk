@@ -344,7 +344,10 @@ func printAssistantMessage(msg map[string]any) {
 	contents, _ := msg["content"].([]any)
 	var text strings.Builder
 	for _, c := range contents {
-		item, _ := c.(map[string]any)
+		item, ok := c.(map[string]any)
+		if !ok {
+			continue
+		}
 		switch item["type"] {
 		case "text":
 			if s, ok := item["text"].(string); ok {
@@ -365,7 +368,10 @@ func printAssistantMessage(msg map[string]any) {
 func printUserMessage(msg map[string]any) {
 	contents, _ := msg["content"].([]any)
 	for _, c := range contents {
-		item, _ := c.(map[string]any)
+		item, ok := c.(map[string]any)
+		if !ok {
+			continue
+		}
 		if item["type"] != "tool_result" {
 			continue
 		}
