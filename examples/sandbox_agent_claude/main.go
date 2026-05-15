@@ -276,9 +276,11 @@ func (p *streamProcessor) onStdout(data []byte) {
 		if idx < 0 {
 			break
 		}
-		line := append([]byte(nil), p.buf.Bytes()[:idx]...)
-		p.buf.Next(idx + 1)
+		// onStdout 单 goroutine、handleLine 同步消费 line 后不保留引用，
+		// 直接切片 p.buf 无需额外复制。
+		line := p.buf.Bytes()[:idx]
 		p.handleLine(line)
+		p.buf.Next(idx + 1)
 	}
 }
 
