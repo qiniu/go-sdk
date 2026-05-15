@@ -3,8 +3,9 @@
 // 演示如何在七牛云沙箱中使用 claude 模板进行多轮上下文延续的 Agent 对话：
 // 首轮创建新 session，后续通过 --resume <session_id> 复用上下文。
 //
-// 模拟场景：与 AI 协作完成一次日志统计需求 —— 先讨论方案，再生成测试数据 +
-// 实现 Go 程序，最后迭代优化为流式处理。覆盖纯对话与工具调用两类场景。
+// 模拟场景：与 AI 协作完成一次日志统计需求 —— 本地预生成一份访问日志，通过
+// sandbox.Filesystem().Write 上传到沙箱后，与 Agent 多轮讨论并实现 top 10
+// 统计。覆盖文件上传、纯对话、工具调用、流式优化、独立验证多个场景。
 //
 // 环境变量：
 //   - QINIU_API_KEY:         七牛沙箱 API Key（必填）
@@ -16,15 +17,26 @@ package main
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/sandbox"
 )
+
+// accessLogJSONL 是预生成的 100 行访问日志，作为示例数据嵌入二进制。
+// 数据通过 testdata/access.jsonl 维护，user_id 分布固定（seed=42），便于校对结果。
+//
+//go:embed testdata/access.jsonl
+var accessLogJSONL []byte
+
+// sandboxDataPath 是数据文件在沙箱内的路径，与下面 prompt 中的描述保持一致。
+const sandboxDataPath = "/tmp/topn/data.jsonl"
 
 func main() {
 	apiKey := os.Getenv("QINIU_API_KEY")
@@ -77,19 +89,34 @@ func main() {
 		}
 	}()
 
-	// 2. 模拟一次"AI 协作开发"会话：问题分析 → 动手实现 → 流式优化。
-	//    后续轮次大量依赖前一轮的上下文（设计思路、代码、测试数据路径）。
+	// 2. 上传预生成的访问日志到沙箱，Write 会自动创建父目录。
+	info, err := sb.Files().Write(ctx, sandboxDataPath, accessLogJSONL)
+	if err != nil {
+		log.Printf("上传测试数据失败: %v", err)
+		return
+	}
+	fmt.Printf("已上传 %s (%d bytes)\n", sandboxDataPath, info.Size)
+
+	// 3. 本地预计算 top 10，作为 Agent 输出的对照。
+	expected := computeTopN(accessLogJSONL, 10)
+	fmt.Println("\n--- 期望 top 10（本地计算）---")
+	for _, uc := range expected {
+		fmt.Printf("  user_id=%d  count=%d\n", uc.userID, uc.count)
+	}
+
+	// 4. 模拟一次"AI 协作开发"会话：问题分析 → 动手实现 → 流式优化。
+	//    后续轮次大量依赖前一轮的上下文（设计思路、代码、对应文件路径）。
 	turns := []string{
 		// Turn 1: 讨论方案（纯对话）
-		"我有一批 jsonl 日志，每行是 JSON 对象，字段包含 user_id (int)、action (string)、" +
-			"timestamp (int64)。我需要按 user_id 统计每个用户的 action 总数并输出 top 10。" +
+		"我有一批 jsonl 访问日志已经放在沙箱里 /tmp/topn/data.jsonl（约 100 行），" +
+			"每行是 JSON 对象，字段包含 user_id (int)、action (string)、timestamp (int64)。" +
+			"我需要按 user_id 统计每个用户的 action 总数并输出 top 10。" +
 			"计划用 Python 实现（沙箱内 python3 可用）。先说一下你的实现思路，先不要写代码。",
 
-		// Turn 2: 动手实现（工具调用：写文件、生成数据、跑代码）
-		"按你刚才的思路来。请在 /tmp/topn 下：先用 gen.py 生成 1000 行测试 jsonl 数据" +
-			"（user_id 取 0-49 随机，action 从 ['login','view','click','purchase'] 随机），" +
-			"输出到 /tmp/topn/data.jsonl。然后写 main.py 读取该文件并输出 top 10。" +
-			"最后运行 main.py 贴出结果。",
+		// Turn 2: 动手实现（工具调用：写文件 + 跑代码）
+		"按你刚才的思路，请在 /tmp/topn 下写一个 main.py，读取同目录下的 data.jsonl，" +
+			"按 user_id 统计 action 总数并输出 top 10（count 降序，相同时 user_id 升序）。" +
+			"完成后运行 main.py 贴出结果。",
 
 		// Turn 3: 迭代优化（依赖前一轮代码）
 		"很好。现在请把 main.py 改成严格流式处理：不要 readlines() 或一次读全文件，" +
@@ -113,10 +140,65 @@ func main() {
 		}
 		fmt.Printf("\n(session_id: %s)\n", sessionID)
 
-		// Turn 2/3 结束后列出工作目录文件，观察 Agent 实际产物。
+		// Turn 2/3 结束后列出工作目录并独立运行 main.py，与期望 top 10 对照。
 		if i >= 1 {
 			listWorkdir(ctx, sb, "/tmp/topn")
+			verifyTopN(ctx, sb, "/tmp/topn/main.py")
 		}
+	}
+}
+
+// userCount 是一个 user 的 action 总数。
+type userCount struct {
+	userID int
+	count  int
+}
+
+// computeTopN 解析 jsonl 数据并返回按 count 降序、user_id 升序的前 n 名。
+func computeTopN(data []byte, n int) []userCount {
+	counts := make(map[int]int)
+	for _, line := range bytes.Split(bytes.TrimSpace(data), []byte("\n")) {
+		if len(line) == 0 {
+			continue
+		}
+		var rec struct {
+			UserID int `json:"user_id"`
+		}
+		if err := json.Unmarshal(line, &rec); err != nil {
+			continue
+		}
+		counts[rec.UserID]++
+	}
+	out := make([]userCount, 0, len(counts))
+	for uid, c := range counts {
+		out = append(out, userCount{uid, c})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].count != out[j].count {
+			return out[i].count > out[j].count
+		}
+		return out[i].userID < out[j].userID
+	})
+	if len(out) > n {
+		out = out[:n]
+	}
+	return out
+}
+
+// verifyTopN 在沙箱里独立运行 Agent 写的 main.py，便于与期望 top 10 对照。
+func verifyTopN(ctx context.Context, sb *sandbox.Sandbox, scriptPath string) {
+	fmt.Printf("\n--- 独立运行 %s ---\n", scriptPath)
+	res, err := sb.Commands().Run(ctx, "python3 "+shellQuote(scriptPath))
+	if err != nil {
+		fmt.Printf("运行脚本失败: %v\n", err)
+		return
+	}
+	if res.ExitCode != 0 {
+		fmt.Printf("脚本退出码 %d, stderr:\n%s\n", res.ExitCode, res.Stderr)
+		return
+	}
+	if res.Stdout != "" {
+		fmt.Print(res.Stdout)
 	}
 }
 
