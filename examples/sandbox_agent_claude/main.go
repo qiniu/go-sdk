@@ -83,17 +83,18 @@ func main() {
 		// Turn 1: 讨论方案（纯对话）
 		"我有一批 jsonl 日志，每行是 JSON 对象，字段包含 user_id (int)、action (string)、" +
 			"timestamp (int64)。我需要按 user_id 统计每个用户的 action 总数并输出 top 10。" +
-			"先说一下你的实现思路，先不要写代码。",
+			"计划用 Python 实现（沙箱内 python3 可用）。先说一下你的实现思路，先不要写代码。",
 
 		// Turn 2: 动手实现（工具调用：写文件、生成数据、跑代码）
-		"按你刚才的思路来。请在 /tmp/topn 下创建 Go 项目（go.mod module=topn），" +
-			"先用一个小脚本生成 1000 行测试 jsonl 数据（user_id 取 0-49 随机，action 从 " +
-			"['login','view','click','purchase'] 随机），输出到 /tmp/topn/data.jsonl。" +
-			"然后写主程序读取该文件输出 top 10。最后运行一次贴出结果。",
+		"按你刚才的思路来。请在 /tmp/topn 下：先用 gen.py 生成 1000 行测试 jsonl 数据" +
+			"（user_id 取 0-49 随机，action 从 ['login','view','click','purchase'] 随机），" +
+			"输出到 /tmp/topn/data.jsonl。然后写 main.py 读取该文件并输出 top 10。" +
+			"最后运行 main.py 贴出结果。",
 
 		// Turn 3: 迭代优化（依赖前一轮代码）
-		"很好。现在请把主程序改成流式处理：不要 ioutil.ReadAll，改用 bufio.Scanner " +
-			"逐行扫描，使内存占用与文件大小解耦。改完后再跑一次，确认输出的 top 10 与上一版一致。",
+		"很好。现在请把 main.py 改成严格流式处理：不要 readlines() 或一次读全文件，" +
+			"改成 with open(...) as f: for line in f 逐行扫描，使内存占用与文件大小解耦。" +
+			"改完后再跑一次，确认输出的 top 10 与上一版一致。",
 	}
 
 	var sessionID string
@@ -109,6 +110,27 @@ func main() {
 			sessionID = newSessionID
 		}
 		fmt.Printf("\n(session_id: %s)\n", sessionID)
+
+		// Turn 2/3 结束后列出工作目录文件，观察 Agent 实际产物。
+		if i >= 1 {
+			listWorkdir(ctx, sb, "/tmp/topn")
+		}
+	}
+}
+
+// listWorkdir 打印沙箱内指定目录下的文件列表。
+func listWorkdir(ctx context.Context, sb *sandbox.Sandbox, dir string) {
+	fmt.Printf("\n--- 沙箱目录 %s ---\n", dir)
+	res, err := sb.Commands().Run(ctx, "ls -la "+shellQuote(dir))
+	if err != nil {
+		fmt.Printf("列出文件失败: %v\n", err)
+		return
+	}
+	if res.Stdout != "" {
+		fmt.Print(res.Stdout)
+	}
+	if res.Stderr != "" {
+		fmt.Fprint(os.Stderr, res.Stderr)
 	}
 }
 
