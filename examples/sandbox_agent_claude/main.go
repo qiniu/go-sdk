@@ -104,7 +104,9 @@ func main() {
 
 		newSessionID, err := runTurn(ctx, sb, prompt, sessionID)
 		if err != nil {
-			log.Fatalf("Turn %d 执行失败: %v", i+1, err)
+			// 用 return 而非 log.Fatal，确保 defer 中的 sb.Kill 能执行，避免沙箱泄漏。
+			log.Printf("Turn %d 执行失败: %v", i+1, err)
+			return
 		}
 		if newSessionID != "" {
 			sessionID = newSessionID
@@ -145,7 +147,8 @@ func runTurn(ctx context.Context, sb *sandbox.Sandbox, prompt, resumeID string) 
 		"--dangerously-skip-permissions",
 	}
 	if resumeID != "" {
-		args = append(args, "--resume", resumeID)
+		// resumeID 也经 shell 拼接执行，统一 shellQuote 防御非预期字符。
+		args = append(args, "--resume", shellQuote(resumeID))
 	}
 	cmd := "claude " + strings.Join(args, " ")
 
@@ -227,12 +230,14 @@ func printEvent(evt map[string]any) {
 		fmt.Printf("[system/%s] session=%s model=%s\n", sub, session, model)
 
 	case "assistant":
-		msg, _ := evt["message"].(map[string]any)
-		printAssistantMessage(msg)
+		if msg, ok := evt["message"].(map[string]any); ok {
+			printAssistantMessage(msg)
+		}
 
 	case "user":
-		msg, _ := evt["message"].(map[string]any)
-		printUserMessage(msg)
+		if msg, ok := evt["message"].(map[string]any); ok {
+			printUserMessage(msg)
+		}
 
 	case "result":
 		sub, _ := evt["subtype"].(string)
