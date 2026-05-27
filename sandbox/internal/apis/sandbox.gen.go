@@ -70,6 +70,11 @@ const (
 	ID InjectionByIDType = "id"
 )
 
+// Defines values for KodoResourceType.
+const (
+	Kodo KodoResourceType = "kodo"
+)
+
 // Defines values for LogLevel.
 const (
 	LogLevelDebug LogLevel = "debug"
@@ -279,7 +284,7 @@ type GeneralRegistryType string
 
 // GitRepositoryResource GitHub repository resource mounted into the sandbox.
 // The platform materializes a cached snapshot of the repository for mounting.
-// The first snapshot is cloned from the repository default branch HEAD, and later sandboxes may reuse that cached snapshot without refreshing it to the latest HEAD.
+// The first snapshot is cloned from the repository default branch HEAD. Subsequent sandboxes reuse the cached snapshot, and the platform refreshes it to the latest default-branch HEAD on a best-effort schedule: a soft TTL triggers a background refresh (the triggering request keeps using the stale snapshot, but later requests that arrive while the refresh is in flight wait for it to complete), and a hard TTL forces the next request to block on a synchronous refresh.
 type GitRepositoryResource struct {
 	// AuthorizationToken GitHub token used to access this repository. All GitHub repository resources in a single sandbox must currently use the same token.
 	AuthorizationToken *string `json:"authorization_token,omitempty"`
@@ -290,7 +295,7 @@ type GitRepositoryResource struct {
 	// Type Resource type identifier
 	Type GitRepositoryResourceType `json:"type"`
 
-	// URL GitHub repository URL in HTTPS or SSH form, for example https://github.com/owner/repo.git or git@github.com:owner/repo.git
+	// URL GitHub repository URL in HTTPS form, or GitHub SSH-style form git@github.com:owner/repo.git. The platform normalizes the value to HTTPS.
 	URL string `json:"url"`
 }
 
@@ -358,6 +363,35 @@ type InjectionRule struct {
 	// UpdatedAt Timestamp when the injection rule was last updated
 	UpdatedAt time.Time `json:"updatedAt"`
 }
+
+// KodoResource Kodo bucket resource mounted into the sandbox via NFS.
+// The platform creates an NFS-backed proxy that maps the Kodo bucket to a local path inside the sandbox.
+// Credentials (access_key/secret_key) are never exposed inside the sandbox.
+type KodoResource struct {
+	// AccessKey Kodo access key ID
+	AccessKey *string `json:"access_key,omitempty"`
+
+	// Bucket Kodo bucket name
+	Bucket string `json:"bucket"`
+
+	// MountPath Absolute path where the bucket contents should appear inside the sandbox
+	MountPath string `json:"mount_path"`
+
+	// Prefix Optional subdirectory (key prefix) within the bucket. Only the contents under this prefix are exposed. If omitted, the whole bucket root is mounted.
+	Prefix *string `json:"prefix,omitempty"`
+
+	// ReadOnly Whether the mount is read-only. Automatically set to true when AK/SK lacks write permission. Can also be set explicitly.
+	ReadOnly *bool `json:"read_only,omitempty"`
+
+	// SecretKey Kodo secret access key
+	SecretKey *string `json:"secret_key,omitempty"`
+
+	// Type Resource type identifier
+	Type KodoResourceType `json:"type"`
+}
+
+// KodoResourceType Resource type identifier
+type KodoResourceType string
 
 // ListedSandbox defines model for ListedSandbox.
 type ListedSandbox struct {
@@ -756,6 +790,9 @@ type TemplateBuild struct {
 
 	// MemoryMB Memory for the sandbox in MiB
 	MemoryMB MemoryMB `json:"memoryMB"`
+
+	// ObjectStorageBytes Total bytes used in object storage for this build
+	ObjectStorageBytes *int64 `json:"objectStorageBytes,omitempty"`
 
 	// Status Status of the template build
 	Status TemplateBuildStatus `json:"status"`
@@ -1776,6 +1813,34 @@ func (t *SandboxResource) MergeGitRepositoryResource(v GitRepositoryResource) er
 	return err
 }
 
+// AsKodoResource returns the union data inside the SandboxResource as a KodoResource
+func (t SandboxResource) AsKodoResource() (KodoResource, error) {
+	var body KodoResource
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromKodoResource overwrites any union data inside the SandboxResource as the provided KodoResource
+func (t *SandboxResource) FromKodoResource(v KodoResource) error {
+	v.Type = "kodo"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeKodoResource performs a merge with any union data inside the SandboxResource, using the provided KodoResource
+func (t *SandboxResource) MergeKodoResource(v KodoResource) error {
+	v.Type = "kodo"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 func (t SandboxResource) Discriminator() (string, error) {
 	var discriminator struct {
 		Discriminator string `json:"type"`
@@ -1792,6 +1857,8 @@ func (t SandboxResource) ValueByDiscriminator() (interface{}, error) {
 	switch discriminator {
 	case "github_repository":
 		return t.AsGitRepositoryResource()
+	case "kodo":
+		return t.AsKodoResource()
 	default:
 		return nil, errors.New("unknown discriminator value: " + discriminator)
 	}

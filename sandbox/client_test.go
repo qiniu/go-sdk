@@ -413,6 +413,59 @@ func TestCreate(t *testing.T) {
 	}
 }
 
+func TestCreateWithKodoResource(t *testing.T) {
+	token := "create-token"
+	prefix := "datasets/"
+	readOnly := true
+	mock := &mockAPI{
+		createSandboxFn: func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+			if body.Resources == nil || len(*body.Resources) != 1 {
+				t.Fatalf("expected one resource, got %#v", body.Resources)
+			}
+			kodo, err := (*body.Resources)[0].AsKodoResource()
+			if err != nil {
+				t.Fatalf("expected KodoResource, got error: %v", err)
+			}
+			if kodo.Type != apis.Kodo {
+				t.Errorf("expected resource type %q, got %q", apis.Kodo, kodo.Type)
+			}
+			if kodo.Bucket != "test-bucket" {
+				t.Errorf("expected bucket test-bucket, got %q", kodo.Bucket)
+			}
+			if kodo.MountPath != "/mnt/kodo" {
+				t.Errorf("expected mount path /mnt/kodo, got %q", kodo.MountPath)
+			}
+			if kodo.Prefix == nil || *kodo.Prefix != prefix {
+				t.Errorf("expected prefix %q, got %v", prefix, kodo.Prefix)
+			}
+			if kodo.ReadOnly == nil || *kodo.ReadOnly != readOnly {
+				t.Errorf("expected read_only %v, got %v", readOnly, kodo.ReadOnly)
+			}
+			return &apis.CreateSandboxResponse{
+				JSON201:      &apis.Sandbox{SandboxID: "sb-123", TemplateID: "tmpl-1", EnvdAccessToken: &token},
+				HTTPResponse: httpResponse(201),
+			}, nil
+		},
+	}
+	c := newTestClient(mock)
+	_, err := c.Create(context.Background(), CreateParams{
+		TemplateID: "tmpl-1",
+		Resources: &[]SandboxResourceSpec{
+			{
+				Kodo: &KodoResource{
+					Bucket:    "test-bucket",
+					MountPath: "/mnt/kodo",
+					Prefix:    &prefix,
+					ReadOnly:  &readOnly,
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestCreateWithoutToken(t *testing.T) {
 	// Create API 不返回 token，应通过 GetSandbox 补充
 	token := "fallback-token"
