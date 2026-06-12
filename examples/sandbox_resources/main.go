@@ -123,7 +123,9 @@ func runGitResourceExample(ctx context.Context, client *sandbox.Client, cfg gitR
 	}
 	defer func() {
 		log.Println("Killing Git resource sandbox...")
-		_ = sb.Kill(ctx)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = sb.Kill(cleanupCtx)
 	}()
 
 	log.Printf("Git resource sandbox created successfully! ID: %s, State: %s\n", sb.ID(), info.State)
@@ -222,7 +224,9 @@ func runKodoResourceExample(ctx context.Context, client *sandbox.Client, cfg kod
 	}
 	defer func() {
 		log.Println("Killing Kodo resource sandbox...")
-		_ = sb.Kill(ctx)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = sb.Kill(cleanupCtx)
 	}()
 
 	log.Printf("Kodo resource sandbox created successfully! ID: %s, State: %s\n", sb.ID(), info.State)

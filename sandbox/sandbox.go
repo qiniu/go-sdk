@@ -114,9 +114,10 @@ func (c *Client) Create(ctx context.Context, params CreateParams) (*Sandbox, err
 		if err != nil {
 			return nil, err
 		}
-		if cred != nil {
-			editors = append(editors, cred)
+		if cred == nil {
+			return nil, fmt.Errorf("Kodo resource requires Qiniu AK/SK credentials, please configure them in sandbox.Config")
 		}
+		editors = append(editors, cred)
 	}
 	resp, err := c.api.CreateSandboxWithResponse(ctx, apiParams, editors...)
 	if err != nil {
