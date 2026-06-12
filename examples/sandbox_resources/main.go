@@ -272,10 +272,13 @@ func loadEnvFileIfExists(paths ...string) {
 				continue
 			}
 			key = strings.TrimSpace(key)
+			if key == "" {
+				continue
+			}
 			value = strings.TrimSpace(value)
 			value = strings.Trim(value, `"'`)
 			value = strings.TrimSpace(value)
-			if _, exists := os.LookupEnv(key); key != "" && !exists {
+			if _, exists := os.LookupEnv(key); !exists {
 				_ = os.Setenv(key, value)
 			}
 		}
