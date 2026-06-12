@@ -256,7 +256,7 @@ func TestFilesystemGetInfo(t *testing.T) {
 					Type:          filesystem.FileType_FILE_TYPE_FILE,
 					Path:          "/tmp/test.txt",
 					Size:          256,
-					Mode:          0644,
+					Mode:          0o644,
 					Permissions:   "rw-r--r--",
 					Owner:         "user",
 					Group:         "user",
@@ -1314,7 +1314,7 @@ func TestEntryInfoFromProtoFull(t *testing.T) {
 		Type:          filesystem.FileType_FILE_TYPE_FILE,
 		Path:          "/home/user/link.txt",
 		Size:          512,
-		Mode:          0777,
+		Mode:          0o777,
 		Permissions:   "rwxrwxrwx",
 		Owner:         "root",
 		Group:         "root",
@@ -1338,7 +1338,7 @@ func TestEntryInfoFromProtoFull(t *testing.T) {
 	if info.Size != 512 {
 		t.Errorf("Size = %d", info.Size)
 	}
-	if info.Mode != 0777 {
+	if info.Mode != 0o777 {
 		t.Errorf("Mode = %o", info.Mode)
 	}
 	if info.Permissions != "rwxrwxrwx" {
