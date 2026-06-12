@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -31,146 +32,222 @@ func main() {
 
 	apiURL := strings.TrimSpace(os.Getenv("QINIU_SANDBOX_API_URL"))
 
-	// 演示用的 GitHub 仓库与 token，可通过环境变量覆盖。
-	repoURL := os.Getenv("QINIU_SANDBOX_GIT_REPO_URL")
-	if repoURL == "" {
-		repoURL = "https://github.com/qiniu/go-sdk.git"
-	}
-	githubToken := os.Getenv("GITHUB_TOKEN")
-	gitMountPath := "/workspace/repo"
-	gitPushTest := envBool("QINIU_SANDBOX_GIT_PUSH_TEST", false)
-	gitTestFile := os.Getenv("QINIU_SANDBOX_GIT_TEST_FILE")
-	if gitTestFile == "" {
-		gitTestFile = "sandbox-resource-write-test.txt"
-	}
-	gitCommitName := envDefault("QINIU_SANDBOX_GIT_COMMIT_NAME", "Sandbox Resource Demo")
-	gitCommitEmail := envDefault("QINIU_SANDBOX_GIT_COMMIT_EMAIL", "sandbox-resource-demo@example.com")
-	gitCommitMessage := envDefault("QINIU_SANDBOX_GIT_COMMIT_MESSAGE", "test: update sandbox resource write file")
-	gitPushBranch := os.Getenv("QINIU_SANDBOX_GIT_PUSH_BRANCH")
-
-	// 演示用的 Kodo 存储桶资源。设置 QINIU_SANDBOX_KODO_BUCKET 后启用。
-	kodoBucket := os.Getenv("QINIU_SANDBOX_KODO_BUCKET")
-	kodoMountPath := os.Getenv("QINIU_SANDBOX_KODO_MOUNT_PATH")
-	if kodoMountPath == "" {
-		kodoMountPath = "/workspace/kodo"
-	}
-	kodoPrefix := os.Getenv("QINIU_SANDBOX_KODO_PREFIX")
-	kodoReadOnly := os.Getenv("QINIU_SANDBOX_KODO_READ_ONLY")
-	kodoAccessKey := os.Getenv("QINIU_ACCESS_KEY")
-	kodoSecretKey := os.Getenv("QINIU_SECRET_KEY")
-	kodoWriteTest := envBool("QINIU_SANDBOX_KODO_WRITE_TEST", true)
-	kodoTestFile := os.Getenv("QINIU_SANDBOX_KODO_TEST_FILE")
-	if kodoTestFile == "" {
-		kodoTestFile = "sandbox-resource-write-test.txt"
-	}
-
 	ctx := context.Background()
+	gitConfig := loadGitResourceConfig()
+	kodoConfig := loadKodoResourceConfig()
 
-	var credentials *auth.Credentials
-	if kodoBucket != "" {
-		if kodoAccessKey == "" || kodoSecretKey == "" {
-			log.Fatal("启用 Kodo 资源时请设置 QINIU_ACCESS_KEY 和 QINIU_SECRET_KEY 环境变量")
-		}
-		credentials = auth.New(kodoAccessKey, kodoSecretKey)
+	if !gitConfig.Enabled() && !kodoConfig.Enabled() {
+		log.Fatal("请设置 GITHUB_TOKEN 和 QINIU_SANDBOX_GIT_REPO_URL，或设置 QINIU_SANDBOX_KODO_BUCKET，以启用至少一种资源")
 	}
 
-	// 初始化客户端
-	client, err := sandbox.NewClient(&sandbox.Config{
-		APIKey:      apiKey,
-		Credentials: credentials,
-		Endpoint:    apiURL,
-	})
-	if err != nil {
-		log.Fatalf("Failed to create client: %v", err)
+	var failures []error
+	if gitConfig.Enabled() {
+		client, err := sandbox.NewClient(&sandbox.Config{
+			APIKey:   apiKey,
+			Endpoint: apiURL,
+		})
+		if err != nil {
+			failures = append(failures, fmt.Errorf("create Git resource client: %w", err))
+		} else if err := runGitResourceExample(ctx, client, gitConfig); err != nil {
+			failures = append(failures, fmt.Errorf("Git resource example: %w", err))
+			log.Printf("Git resource example failed: %v", err)
+		}
 	}
 
-	resources := make([]sandbox.SandboxResourceSpec, 0, 2)
-	pathsToList := make([]string, 0, 2)
-
-	if githubToken != "" {
-		// 通过 Resources 在沙箱启动前由平台拉取 GitHub 仓库快照并挂载到 /workspace/repo。
-		repoResource := sandbox.GitRepositoryResource{
-			Type:               sandbox.GitRepositoryTypeGithub,
-			URL:                repoURL,
-			MountPath:          gitMountPath,
-			AuthorizationToken: &githubToken,
+	if kodoConfig.Enabled() {
+		if kodoConfig.AccessKey == "" || kodoConfig.SecretKey == "" {
+			failures = append(failures, errors.New("启用 Kodo 资源时请设置 QINIU_ACCESS_KEY 和 QINIU_SECRET_KEY 环境变量"))
+		} else {
+			client, err := sandbox.NewClient(&sandbox.Config{
+				APIKey:      apiKey,
+				Credentials: auth.New(kodoConfig.AccessKey, kodoConfig.SecretKey),
+				Endpoint:    apiURL,
+			})
+			if err != nil {
+				failures = append(failures, fmt.Errorf("create Kodo resource client: %w", err))
+			} else if err := runKodoResourceExample(ctx, client, kodoConfig); err != nil {
+				failures = append(failures, fmt.Errorf("Kodo resource example: %w", err))
+				log.Printf("Kodo resource example failed: %v", err)
+			}
 		}
-		resources = append(resources, sandbox.SandboxResourceSpec{GitRepository: &repoResource})
-		pathsToList = append(pathsToList, repoResource.MountPath)
 	}
 
-	if kodoBucket != "" {
-		// 通过 Resources 在沙箱启动前将 Kodo 存储桶挂载到指定路径。
-		kodoResource := sandbox.KodoResource{
-			Bucket:    kodoBucket,
-			MountPath: kodoMountPath,
-		}
-		if kodoPrefix != "" {
-			kodoResource.Prefix = &kodoPrefix
-		}
-		if kodoReadOnly != "" {
-			readOnly := kodoReadOnly == "true"
-			kodoResource.ReadOnly = &readOnly
-		}
-		resources = append(resources, sandbox.SandboxResourceSpec{Kodo: &kodoResource})
-		pathsToList = append(pathsToList, kodoResource.MountPath)
+	if len(failures) > 0 {
+		log.Fatal(errors.Join(failures...))
 	}
+}
 
-	if len(resources) == 0 {
-		log.Fatal("请设置 GITHUB_TOKEN 或 QINIU_SANDBOX_KODO_BUCKET 以启用至少一种资源")
+type gitResourceConfig struct {
+	RepoURL       string
+	Token         string
+	MountPath     string
+	PushTest      bool
+	TestFile      string
+	CommitName    string
+	CommitEmail   string
+	CommitMessage string
+	PushBranch    string
+}
+
+func loadGitResourceConfig() gitResourceConfig {
+	return gitResourceConfig{
+		RepoURL:       os.Getenv("QINIU_SANDBOX_GIT_REPO_URL"),
+		Token:         os.Getenv("GITHUB_TOKEN"),
+		MountPath:     "/workspace/repo",
+		PushTest:      envBool("QINIU_SANDBOX_GIT_PUSH_TEST", false),
+		TestFile:      envDefault("QINIU_SANDBOX_GIT_TEST_FILE", "sandbox-resource-write-test.txt"),
+		CommitName:    envDefault("QINIU_SANDBOX_GIT_COMMIT_NAME", "Sandbox Resource Demo"),
+		CommitEmail:   envDefault("QINIU_SANDBOX_GIT_COMMIT_EMAIL", "sandbox-resource-demo@example.com"),
+		CommitMessage: envDefault("QINIU_SANDBOX_GIT_COMMIT_MESSAGE", "test: update sandbox resource write file"),
+		PushBranch:    os.Getenv("QINIU_SANDBOX_GIT_PUSH_BRANCH"),
 	}
+}
 
-	params := sandbox.CreateParams{
+func (c gitResourceConfig) Enabled() bool {
+	return c.Token != "" && c.RepoURL != ""
+}
+
+func runGitResourceExample(ctx context.Context, client *sandbox.Client, cfg gitResourceConfig) error {
+	resource := sandbox.GitRepositoryResource{
+		Type:               sandbox.GitRepositoryTypeGithub,
+		URL:                cfg.RepoURL,
+		MountPath:          cfg.MountPath,
+		AuthorizationToken: &cfg.Token,
+	}
+	resources := []sandbox.SandboxResourceSpec{{GitRepository: &resource}}
+
+	log.Println("Creating sandbox with Git repository resource...")
+	sb, info, err := client.CreateAndWait(ctx, sandbox.CreateParams{
 		TemplateID: "base",
 		Resources:  &resources,
-	}
-
-	log.Printf("Creating sandbox with %d resource(s)...", len(resources))
-
-	// 创建并等待沙箱就绪
-	sb, info, err := client.CreateAndWait(ctx, params)
+	})
 	if err != nil {
-		log.Fatalf("Failed to create sandbox: %v", err)
+		return err
 	}
 	defer func() {
-		log.Println("Killing sandbox...")
+		log.Println("Killing Git resource sandbox...")
 		_ = sb.Kill(ctx)
 	}()
 
-	log.Printf("Sandbox created successfully! ID: %s, State: %s\n", sb.ID(), info.State)
+	log.Printf("Git resource sandbox created successfully! ID: %s, State: %s\n", sb.ID(), info.State)
+	if err := runAndLog(ctx, sb, "ls -la "+shellQuote(cfg.MountPath)+" | head -20"); err != nil {
+		return err
+	}
 
-	// 列出已挂载的资源内容，验证资源已就位
-	for _, path := range pathsToList {
-		listCmd := "ls -la " + path + " | head -20"
-		runAndLog(ctx, sb, listCmd)
+	var pushURL string
+	if cfg.PushTest {
+		pushURL, err = githubTokenPushURL(cfg.RepoURL)
+		if err != nil {
+			return err
+		}
+		if err := runAndLog(ctx, sb, gitSyncBranchCommand(cfg.MountPath, cfg.PushBranch, pushURL), sandbox.WithTimeout(2*time.Minute), sandbox.WithEnvs(map[string]string{
+			"GITHUB_TOKEN":        cfg.Token,
+			"GIT_TERMINAL_PROMPT": "0",
+		})); err != nil {
+			return err
+		}
 	}
 
 	writeContent := "sandbox resource write test\n" +
 		"time: " + time.Now().UTC().Format(time.RFC3339Nano) + "\n" +
 		"sandbox: " + sb.ID() + "\n"
-
-	if githubToken != "" {
-		gitFilePath := path.Join(gitMountPath, gitTestFile)
-		writeCmd := writeFileCommand(gitFilePath, writeContent+"resource: git\n")
-		runAndLog(ctx, sb, writeCmd)
-		runAndLog(ctx, sb, "git -C "+shellQuote(gitMountPath)+" status --short "+shellQuote(gitTestFile))
+	gitFilePath := path.Join(cfg.MountPath, cfg.TestFile)
+	if err := runAndLog(ctx, sb, writeFileCommand(gitFilePath, writeContent+"resource: git\n")); err != nil {
+		return err
+	}
+	if err := runAndLog(ctx, sb, "git -C "+shellQuote(cfg.MountPath)+" status --short "+shellQuote(cfg.TestFile)); err != nil {
+		return err
 	}
 
-	if kodoBucket != "" && kodoWriteTest {
-		kodoFilePath := path.Join(kodoMountPath, kodoTestFile)
-		runAndLog(ctx, sb, writeFileCommand(kodoFilePath, writeContent+"resource: kodo\n"))
-	}
-
-	if githubToken != "" && gitPushTest {
-		pushURL, err := githubTokenPushURL(repoURL)
-		if err != nil {
-			log.Fatalf("Failed to build Git push URL: %v", err)
-		}
-		runAndLog(ctx, sb, gitCommitAndPushCommand(gitMountPath, gitTestFile, gitCommitName, gitCommitEmail, gitCommitMessage, gitPushBranch, pushURL), sandbox.WithTimeout(2*time.Minute), sandbox.WithEnvs(map[string]string{
-			"GITHUB_TOKEN":        githubToken,
+	if cfg.PushTest {
+		if err := runAndLog(ctx, sb, gitCommitAndPushCommand(cfg.MountPath, cfg.TestFile, cfg.CommitName, cfg.CommitEmail, cfg.CommitMessage, cfg.PushBranch), sandbox.WithTimeout(2*time.Minute), sandbox.WithEnvs(map[string]string{
+			"GITHUB_TOKEN":        cfg.Token,
 			"GIT_TERMINAL_PROMPT": "0",
-		}))
+		})); err != nil {
+			return err
+		}
 	}
+	return nil
+}
+
+type kodoResourceConfig struct {
+	Bucket    string
+	MountPath string
+	Prefix    string
+	ReadOnly  string
+	AccessKey string
+	SecretKey string
+	WriteTest bool
+	TestFile  string
+}
+
+func loadKodoResourceConfig() kodoResourceConfig {
+	return kodoResourceConfig{
+		Bucket:    os.Getenv("QINIU_SANDBOX_KODO_BUCKET"),
+		MountPath: envDefault("QINIU_SANDBOX_KODO_MOUNT_PATH", "/workspace/kodo"),
+		Prefix:    os.Getenv("QINIU_SANDBOX_KODO_PREFIX"),
+		ReadOnly:  os.Getenv("QINIU_SANDBOX_KODO_READ_ONLY"),
+		AccessKey: os.Getenv("QINIU_ACCESS_KEY"),
+		SecretKey: os.Getenv("QINIU_SECRET_KEY"),
+		WriteTest: envBool("QINIU_SANDBOX_KODO_WRITE_TEST", true),
+		TestFile:  envDefault("QINIU_SANDBOX_KODO_TEST_FILE", "sandbox-resource-write-test.txt"),
+	}
+}
+
+func (c kodoResourceConfig) Enabled() bool {
+	return c.Bucket != ""
+}
+
+func runKodoResourceExample(ctx context.Context, client *sandbox.Client, cfg kodoResourceConfig) error {
+	resource := sandbox.KodoResource{
+		Bucket:    cfg.Bucket,
+		MountPath: cfg.MountPath,
+	}
+	if cfg.Prefix != "" {
+		resource.Prefix = &cfg.Prefix
+	}
+	if cfg.ReadOnly != "" {
+		readOnly := strings.EqualFold(cfg.ReadOnly, "true")
+		resource.ReadOnly = &readOnly
+	}
+	resources := []sandbox.SandboxResourceSpec{{Kodo: &resource}}
+
+	log.Println("Creating sandbox with Kodo bucket resource...")
+	sb, info, err := client.CreateAndWait(ctx, sandbox.CreateParams{
+		TemplateID: "base",
+		Resources:  &resources,
+	})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		log.Println("Killing Kodo resource sandbox...")
+		_ = sb.Kill(ctx)
+	}()
+
+	log.Printf("Kodo resource sandbox created successfully! ID: %s, State: %s\n", sb.ID(), info.State)
+	if err := runAndLog(ctx, sb, "ls -la "+shellQuote(cfg.MountPath)+" | head -20"); err != nil {
+		return err
+	}
+
+	if cfg.WriteTest {
+		if cfg.ReadOnlyEnabled() {
+			log.Println("Skipping Kodo write test because QINIU_SANDBOX_KODO_READ_ONLY=true")
+			return nil
+		}
+		writeContent := "sandbox resource write test\n" +
+			"time: " + time.Now().UTC().Format(time.RFC3339Nano) + "\n" +
+			"sandbox: " + sb.ID() + "\n" +
+			"resource: kodo\n"
+		if err := runAndLog(ctx, sb, writeFileCommand(path.Join(cfg.MountPath, cfg.TestFile), writeContent)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c kodoResourceConfig) ReadOnlyEnabled() bool {
+	return strings.EqualFold(strings.TrimSpace(c.ReadOnly), "true")
 }
 
 func loadEnvFileIfExists(paths ...string) {
@@ -195,7 +272,7 @@ func loadEnvFileIfExists(paths ...string) {
 			value = strings.TrimSpace(value)
 			value = strings.Trim(value, `"'`)
 			value = strings.TrimSpace(value)
-			if key != "" {
+			if _, exists := os.LookupEnv(key); key != "" && !exists {
 				_ = os.Setenv(key, value)
 			}
 		}
@@ -227,12 +304,12 @@ func envBool(key string, fallback bool) bool {
 	}
 }
 
-func runAndLog(ctx context.Context, sb *sandbox.Sandbox, cmd string, opts ...sandbox.CommandOption) {
+func runAndLog(ctx context.Context, sb *sandbox.Sandbox, cmd string, opts ...sandbox.CommandOption) error {
 	log.Printf("Executing command in sandbox:\n$ %s\n", cmd)
 
 	result, err := sb.Commands().Run(ctx, cmd, opts...)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to run command: %v", err))
+		return fmt.Errorf("run command: %w", err)
 	}
 
 	log.Printf("ExitCode: %d\n", result.ExitCode)
@@ -243,8 +320,9 @@ func runAndLog(ctx context.Context, sb *sandbox.Sandbox, cmd string, opts ...san
 		log.Printf("Stderr:\n%s\n", result.Stderr)
 	}
 	if result.ExitCode != 0 {
-		panic(fmt.Sprintf("command failed with exit code %d", result.ExitCode))
+		return fmt.Errorf("command failed with exit code %d", result.ExitCode)
 	}
+	return nil
 }
 
 func githubTokenPushURL(repoURL string) (string, error) {
@@ -262,7 +340,23 @@ func githubTokenPushURL(repoURL string) (string, error) {
 	}
 }
 
-func gitCommitAndPushCommand(repoPath, filePath, name, email, message, branch, pushURL string) string {
+func gitSyncBranchCommand(repoPath, branch, pushURL string) string {
+	branchExpr := "branch=" + shellQuote(branch)
+	if branch == "" {
+		branchExpr = "branch=$(git -C " + shellQuote(repoPath) + " rev-parse --abbrev-ref HEAD)"
+	}
+	return strings.Join([]string{
+		"set -e",
+		branchExpr,
+		"test \"$branch\" != HEAD",
+		"git -C " + shellQuote(repoPath) + " remote set-url origin " + shellDoubleQuote(pushURL),
+		"git -C " + shellQuote(repoPath) + " fetch origin \"$branch\"",
+		"git -C " + shellQuote(repoPath) + " checkout \"$branch\"",
+		"git -C " + shellQuote(repoPath) + " reset --hard \"origin/$branch\"",
+	}, " && ")
+}
+
+func gitCommitAndPushCommand(repoPath, filePath, name, email, message, branch string) string {
 	branchExpr := "branch=" + shellQuote(branch)
 	if branch == "" {
 		branchExpr = "branch=$(git -C " + shellQuote(repoPath) + " rev-parse --abbrev-ref HEAD)"
@@ -273,7 +367,6 @@ func gitCommitAndPushCommand(repoPath, filePath, name, email, message, branch, p
 		"test \"$branch\" != HEAD",
 		"git -C " + shellQuote(repoPath) + " config user.name " + shellQuote(name),
 		"git -C " + shellQuote(repoPath) + " config user.email " + shellQuote(email),
-		"git -C " + shellQuote(repoPath) + " remote set-url origin " + shellDoubleQuote(pushURL),
 		"git -C " + shellQuote(repoPath) + " add " + shellQuote(filePath),
 		"git -C " + shellQuote(repoPath) + " commit -m " + shellQuote(message),
 		"for attempt in 1 2 3; do git -C " + shellQuote(repoPath) + " push origin HEAD:\"$branch\" && break; if [ \"$attempt\" = 3 ]; then exit 1; fi; sleep $((attempt * 2)); done",
