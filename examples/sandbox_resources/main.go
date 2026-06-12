@@ -387,7 +387,7 @@ func gitCommitAndPushCommand(repoPath, filePath, name, email, message, branch st
 		"git -C " + shellQuote(repoPath) + " config user.email " + shellQuote(email),
 		"git -C " + shellQuote(repoPath) + " add " + shellQuote(filePath),
 		"git -C " + shellQuote(repoPath) + " commit -m " + shellQuote(message),
-		"for attempt in 1 2 3; do git -C " + shellQuote(repoPath) + " push origin HEAD:\"$branch\" && break; if [ \"$attempt\" = 3 ]; then exit 1; fi; sleep $((attempt * 2)); done",
+		"for attempt in 1 2 3; do if git -C " + shellQuote(repoPath) + " push origin HEAD:\"$branch\"; then break; fi; if [ \"$attempt\" = 3 ]; then exit 1; fi; sleep $((attempt * 2)); done",
 	}, " && ")
 }
 
