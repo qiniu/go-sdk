@@ -120,7 +120,7 @@ func sandboxResourceSpecToAPI(spec SandboxResourceSpec) (apis.SandboxResource, e
 			return r, err
 		}
 	default:
-		panic("unreachable")
+		return r, fmt.Errorf("SandboxResourceSpec: unsupported resource type")
 	}
 	return r, nil
 }

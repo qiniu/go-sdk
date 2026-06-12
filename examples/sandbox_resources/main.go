@@ -16,12 +16,6 @@ import (
 )
 
 func main() {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Fatalf("%v", r)
-		}
-	}()
-
 	loadEnvFileIfExists("examples/sandbox_resources/.env", ".env")
 
 	// 确保设置了环境变量 QINIU_API_KEY
@@ -34,7 +28,10 @@ func main() {
 
 	ctx := context.Background()
 	gitConfig := loadGitResourceConfig()
-	kodoConfig := loadKodoResourceConfig()
+	kodoConfig, err := loadKodoResourceConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if !gitConfig.Enabled() && !kodoConfig.Enabled() {
 		log.Fatal("请设置 GITHUB_TOKEN 和 QINIU_SANDBOX_GIT_REPO_URL，或设置 QINIU_SANDBOX_KODO_BUCKET，以启用至少一种资源")
@@ -174,24 +171,28 @@ type kodoResourceConfig struct {
 	Bucket    string
 	MountPath string
 	Prefix    string
-	ReadOnly  string
+	ReadOnly  *bool
 	AccessKey string
 	SecretKey string
 	WriteTest bool
 	TestFile  string
 }
 
-func loadKodoResourceConfig() kodoResourceConfig {
+func loadKodoResourceConfig() (kodoResourceConfig, error) {
+	readOnly, err := optionalEnvBool("QINIU_SANDBOX_KODO_READ_ONLY")
+	if err != nil {
+		return kodoResourceConfig{}, err
+	}
 	return kodoResourceConfig{
 		Bucket:    os.Getenv("QINIU_SANDBOX_KODO_BUCKET"),
 		MountPath: envDefault("QINIU_SANDBOX_KODO_MOUNT_PATH", "/workspace/kodo"),
 		Prefix:    os.Getenv("QINIU_SANDBOX_KODO_PREFIX"),
-		ReadOnly:  os.Getenv("QINIU_SANDBOX_KODO_READ_ONLY"),
+		ReadOnly:  readOnly,
 		AccessKey: os.Getenv("QINIU_ACCESS_KEY"),
 		SecretKey: os.Getenv("QINIU_SECRET_KEY"),
 		WriteTest: envBool("QINIU_SANDBOX_KODO_WRITE_TEST", true),
 		TestFile:  envDefault("QINIU_SANDBOX_KODO_TEST_FILE", "sandbox-resource-write-test.txt"),
-	}
+	}, nil
 }
 
 func (c kodoResourceConfig) Enabled() bool {
@@ -206,9 +207,8 @@ func runKodoResourceExample(ctx context.Context, client *sandbox.Client, cfg kod
 	if cfg.Prefix != "" {
 		resource.Prefix = &cfg.Prefix
 	}
-	if cfg.ReadOnly != "" {
-		readOnly := strings.EqualFold(cfg.ReadOnly, "true")
-		resource.ReadOnly = &readOnly
+	if cfg.ReadOnly != nil {
+		resource.ReadOnly = cfg.ReadOnly
 	}
 	resources := []sandbox.SandboxResourceSpec{{Kodo: &resource}}
 
@@ -247,7 +247,7 @@ func runKodoResourceExample(ctx context.Context, client *sandbox.Client, cfg kod
 }
 
 func (c kodoResourceConfig) ReadOnlyEnabled() bool {
-	return strings.EqualFold(strings.TrimSpace(c.ReadOnly), "true")
+	return c.ReadOnly != nil && *c.ReadOnly
 }
 
 func loadEnvFileIfExists(paths ...string) {
@@ -256,7 +256,6 @@ func loadEnvFileIfExists(paths ...string) {
 		if err != nil {
 			continue
 		}
-		defer file.Close()
 
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
@@ -275,6 +274,9 @@ func loadEnvFileIfExists(paths ...string) {
 			if _, exists := os.LookupEnv(key); key != "" && !exists {
 				_ = os.Setenv(key, value)
 			}
+		}
+		if err := file.Close(); err != nil {
+			log.Fatalf("Failed to close .env file %s: %v", p, err)
 		}
 		if err := scanner.Err(); err != nil {
 			log.Fatalf("Failed to read .env file %s: %v", p, err)
@@ -301,6 +303,22 @@ func envBool(key string, fallback bool) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func optionalEnvBool(key string) (*bool, error) {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	switch value {
+	case "":
+		return nil, nil
+	case "1", "true", "yes", "on":
+		v := true
+		return &v, nil
+	case "0", "false", "no", "off":
+		v := false
+		return &v, nil
+	default:
+		return nil, fmt.Errorf("%s must be one of 1, true, yes, on, 0, false, no, or off", key)
 	}
 }
 
