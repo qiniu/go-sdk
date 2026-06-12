@@ -72,6 +72,18 @@ type CreateParams struct {
 	Resources *[]SandboxResourceSpec
 }
 
+func (p CreateParams) hasKodoResource() bool {
+	if p.Resources == nil {
+		return false
+	}
+	for _, resource := range *p.Resources {
+		if resource.Kodo != nil {
+			return true
+		}
+	}
+	return false
+}
+
 // ConnectParams 连接沙箱的请求参数。
 type ConnectParams struct {
 	// Timeout 超时时间（秒）。

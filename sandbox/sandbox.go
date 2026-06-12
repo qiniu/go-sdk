@@ -108,7 +108,15 @@ func (c *Client) Create(ctx context.Context, params CreateParams) (*Sandbox, err
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.api.CreateSandboxWithResponse(ctx, apiParams)
+	var editors []apis.RequestEditorFn
+	if params.hasKodoResource() {
+		cred, err := c.GetCredentialsOption()
+		if err != nil {
+			return nil, err
+		}
+		editors = append(editors, cred)
+	}
+	resp, err := c.api.CreateSandboxWithResponse(ctx, apiParams, editors...)
 	if err != nil {
 		return nil, err
 	}

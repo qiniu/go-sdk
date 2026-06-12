@@ -38,7 +38,7 @@ type GitRepositoryResource struct {
 }
 
 // KodoResource Kodo 存储桶资源，沙箱启动前由平台通过 NFS 代理挂载到指定路径。
-// access_key 和 secret_key 仅用于服务端挂载，凭证不会暴露给沙箱内进程。
+// 使用 Kodo 资源创建沙箱时，客户端必须可用 Qiniu AK/SK 凭证。
 type KodoResource struct {
 	// Bucket Kodo 存储桶名称（必填）。
 	Bucket string
@@ -51,12 +51,6 @@ type KodoResource struct {
 
 	// ReadOnly 是否以只读方式挂载；当 AK/SK 缺少写权限时服务端也会自动只读。
 	ReadOnly *bool
-
-	// AccessKey Kodo AccessKey，可选。
-	AccessKey *string
-
-	// SecretKey Kodo SecretKey，可选。
-	SecretKey *string
 }
 
 // SandboxResourceSpec 沙箱资源规约（discriminated union），各字段互斥，只能设置一个。
@@ -122,8 +116,6 @@ func sandboxResourceSpecToAPI(spec SandboxResourceSpec) (apis.SandboxResource, e
 			MountPath: spec.Kodo.MountPath,
 			Prefix:    spec.Kodo.Prefix,
 			ReadOnly:  spec.Kodo.ReadOnly,
-			AccessKey: spec.Kodo.AccessKey,
-			SecretKey: spec.Kodo.SecretKey,
 		}); err != nil {
 			return r, err
 		}

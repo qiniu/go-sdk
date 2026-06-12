@@ -367,10 +367,8 @@ type InjectionRule struct {
 // KodoResource Kodo bucket resource mounted into the sandbox via NFS.
 // The platform creates an NFS-backed proxy that maps the Kodo bucket to a local path inside the sandbox.
 // Credentials (access_key/secret_key) are never exposed inside the sandbox.
+// Note: Kodo resource is only supported when creating a sandbox with Qiniu AKSK authentication. API key authentication is not supported.
 type KodoResource struct {
-	// AccessKey Kodo access key ID
-	AccessKey *string `json:"access_key,omitempty"`
-
 	// Bucket Kodo bucket name
 	Bucket string `json:"bucket"`
 
@@ -382,9 +380,6 @@ type KodoResource struct {
 
 	// ReadOnly Whether the mount is read-only. Automatically set to true when AK/SK lacks write permission. Can also be set explicitly.
 	ReadOnly *bool `json:"read_only,omitempty"`
-
-	// SecretKey Kodo secret access key
-	SecretKey *string `json:"secret_key,omitempty"`
 
 	// Type Resource type identifier
 	Type KodoResourceType `json:"type"`

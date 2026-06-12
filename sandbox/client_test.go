@@ -7,10 +7,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/reqid"
 	"github.com/qiniu/go-sdk/v7/sandbox/internal/apis"
 )
@@ -419,6 +421,19 @@ func TestCreateWithKodoResource(t *testing.T) {
 	readOnly := true
 	mock := &mockAPI{
 		createSandboxFn: func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+			if len(editors) != 1 {
+				t.Fatalf("expected one credentials editor, got %d", len(editors))
+			}
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://sandbox.example.com/sandboxes", nil)
+			if err != nil {
+				t.Fatalf("unexpected request error: %v", err)
+			}
+			if err := editors[0](ctx, req); err != nil {
+				t.Fatalf("unexpected credentials editor error: %v", err)
+			}
+			if got := req.Header.Get("Authorization"); !strings.HasPrefix(got, "Qiniu ") {
+				t.Fatalf("expected Qiniu Authorization header, got %q", got)
+			}
 			if body.Resources == nil || len(*body.Resources) != 1 {
 				t.Fatalf("expected one resource, got %#v", body.Resources)
 			}
@@ -448,6 +463,7 @@ func TestCreateWithKodoResource(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
+	c.config.Credentials = auth.New("ak", "sk")
 	_, err := c.Create(context.Background(), CreateParams{
 		TemplateID: "tmpl-1",
 		Resources: &[]SandboxResourceSpec{

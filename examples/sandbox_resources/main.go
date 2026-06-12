@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/sandbox"
 )
 
@@ -65,10 +66,19 @@ func main() {
 
 	ctx := context.Background()
 
+	var credentials *auth.Credentials
+	if kodoBucket != "" {
+		if kodoAccessKey == "" || kodoSecretKey == "" {
+			log.Fatal("启用 Kodo 资源时请设置 QINIU_ACCESS_KEY 和 QINIU_SECRET_KEY 环境变量")
+		}
+		credentials = auth.New(kodoAccessKey, kodoSecretKey)
+	}
+
 	// 初始化客户端
 	client, err := sandbox.NewClient(&sandbox.Config{
-		APIKey:   apiKey,
-		Endpoint: apiURL,
+		APIKey:      apiKey,
+		Credentials: credentials,
+		Endpoint:    apiURL,
 	})
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
@@ -101,12 +111,6 @@ func main() {
 		if kodoReadOnly != "" {
 			readOnly := kodoReadOnly == "true"
 			kodoResource.ReadOnly = &readOnly
-		}
-		if kodoAccessKey != "" {
-			kodoResource.AccessKey = &kodoAccessKey
-		}
-		if kodoSecretKey != "" {
-			kodoResource.SecretKey = &kodoSecretKey
 		}
 		resources = append(resources, sandbox.SandboxResourceSpec{Kodo: &kodoResource})
 		pathsToList = append(pathsToList, kodoResource.MountPath)

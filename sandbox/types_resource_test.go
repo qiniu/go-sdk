@@ -8,8 +8,6 @@ import (
 )
 
 func TestSandboxResourceSpecToAPIKodoResource(t *testing.T) {
-	accessKey := "ak"
-	secretKey := "sk"
 	prefix := "datasets/"
 	readOnly := true
 
@@ -19,8 +17,6 @@ func TestSandboxResourceSpecToAPIKodoResource(t *testing.T) {
 			MountPath: "/mnt/kodo",
 			Prefix:    &prefix,
 			ReadOnly:  &readOnly,
-			AccessKey: &accessKey,
-			SecretKey: &secretKey,
 		},
 	})
 	if err != nil {
@@ -46,11 +42,11 @@ func TestSandboxResourceSpecToAPIKodoResource(t *testing.T) {
 	if got["read_only"] != true {
 		t.Errorf("expected read_only true, got %v", got["read_only"])
 	}
-	if got["access_key"] != "ak" {
-		t.Errorf("expected access_key ak, got %v", got["access_key"])
+	if _, ok := got["access_key"]; ok {
+		t.Errorf("expected access_key omitted, got %v", got["access_key"])
 	}
-	if got["secret_key"] != "sk" {
-		t.Errorf("expected secret_key sk, got %v", got["secret_key"])
+	if _, ok := got["secret_key"]; ok {
+		t.Errorf("expected secret_key omitted, got %v", got["secret_key"])
 	}
 }
 
