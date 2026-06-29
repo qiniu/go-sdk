@@ -45,12 +45,20 @@ func main() {
 	headers := map[string]string{
 		"Authorization": "Bearer real_token",
 	}
+	ifHeaders := map[string]string{
+		"X-Injection-Scope": "demo",
+	}
+	ifQueries := map[string]string{
+		"inject": "true",
+	}
 	rule, err := c.CreateInjectionRule(ctx, sandbox.CreateInjectionRuleParams{
 		Name: "example-rule",
 		Injection: sandbox.InjectionSpec{
 			HTTP: &sandbox.HTTPInjection{
-				BaseURL: "https://httpbin.org",
-				Headers: &headers,
+				BaseURL:   "https://httpbin.org",
+				Headers:   &headers,
+				IfHeaders: &ifHeaders,
+				IfQueries: &ifQueries,
 			},
 		},
 	})
@@ -83,6 +91,12 @@ func main() {
 		if detail.Injection.HTTP.Headers != nil {
 			fmt.Printf("  注入 Headers: %v\n", *detail.Injection.HTTP.Headers)
 		}
+		if detail.Injection.HTTP.IfHeaders != nil {
+			fmt.Printf("  Header 匹配条件: %v\n", *detail.Injection.HTTP.IfHeaders)
+		}
+		if detail.Injection.HTTP.IfQueries != nil {
+			fmt.Printf("  Query 匹配条件: %v\n", *detail.Injection.HTTP.IfQueries)
+		}
 	}
 
 	// 3. 更新注入规则
@@ -92,12 +106,20 @@ func main() {
 		"Authorization": "Bearer updated_token",
 		"X-Custom":      "custom-value",
 	}
+	newIfHeaders := map[string]string{
+		"X-Injection-Scope": "updated-demo",
+	}
+	newIfQueries := map[string]string{
+		"inject": "updated",
+	}
 	updated, err := c.UpdateInjectionRule(ctx, ruleID, sandbox.UpdateInjectionRuleParams{
 		Name: &newName,
 		Injection: &sandbox.InjectionSpec{
 			HTTP: &sandbox.HTTPInjection{
-				BaseURL: "https://httpbin.org",
-				Headers: &newHeaders,
+				BaseURL:   "https://httpbin.org",
+				Headers:   &newHeaders,
+				IfHeaders: &newIfHeaders,
+				IfQueries: &newIfQueries,
 			},
 		},
 	})
@@ -137,7 +159,7 @@ func main() {
 	fmt.Printf("沙箱已创建: ID=%s, 状态=%s\n", sb.ID(), info.State)
 
 	// 在沙箱内验证注入规则生效
-	cmd := `curl -sSL -X GET "https://httpbin.org/bearer" -H "accept: application/json" -H "Authorization: Bearer fake_token"`
+	cmd := `curl -sSL -X GET "https://httpbin.org/bearer?inject=updated" -H "accept: application/json" -H "Authorization: Bearer fake_token" -H "X-Injection-Scope: updated-demo"`
 	fmt.Printf("\n执行命令:\n$ %s\n", cmd)
 	result, err := sb.Commands().Run(ctx, cmd)
 	if err != nil {
