@@ -38,6 +38,12 @@ func main() {
 	headers := map[string]string{
 		"Authorization": "Bearer real_xxx",
 	}
+	ifHeaders := map[string]string{
+		"X-Injection-Scope": "demo",
+	}
+	ifQueries := map[string]string{
+		"inject": "true",
+	}
 
 	// 准备创建参数（HTTP 自定义注入）
 	params := sandbox.CreateParams{
@@ -45,8 +51,10 @@ func main() {
 		Injections: &[]sandbox.SandboxInjectionSpec{
 			{
 				HTTP: &sandbox.HTTPInjection{
-					BaseURL: "https://httpbin.org",
-					Headers: &headers,
+					BaseURL:   "https://httpbin.org",
+					Headers:   &headers,
+					IfHeaders: &ifHeaders,
+					IfQueries: &ifQueries,
 				},
 			},
 		},
@@ -88,8 +96,9 @@ func main() {
 	log.Printf("Sandbox created successfully! ID: %s, State: %s\n", sb.ID(), info.State)
 
 	// 在沙箱内执行使用假 APIKEY 的请求
-	// 沙箱内的程序完全感觉不到外部注入，实际上外层将其拦截并替换为了真实的 Key
-	fakeTokenCmd := `curl -sSL -X GET "https://httpbin.org/bearer" -H "accept: application/json" -H "Authorization: Bearer fake_xxx"`
+	// 沙箱内的程序完全感觉不到外部注入；只有请求同时满足 IfHeaders / IfQueries
+	// 匹配条件时，外层才会拦截并替换为真实的 Key。
+	fakeTokenCmd := `curl -sSL -X GET "https://httpbin.org/bearer?inject=true" -H "accept: application/json" -H "Authorization: Bearer fake_xxx" -H "X-Injection-Scope: demo"`
 	log.Printf("Executing command in sandbox:\n$ %s\n", fakeTokenCmd)
 
 	result, err := sb.Commands().Run(ctx, fakeTokenCmd)

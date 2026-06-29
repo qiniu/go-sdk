@@ -143,8 +143,14 @@ type AnthropicInjection struct {
 	// APIKey API key for Anthropic API
 	APIKey *string `json:"api_key,omitempty"`
 
-	// BaseURL Optional base URL. If not specified, uses api.anthropic.com
+	// BaseURL Optional base URL. If not specified, uses api.anthropic.com. The host is matched exactly. When a path is present, it matches the normalized request path exactly; a trailing `*` enables normalized string-prefix matching.
 	BaseURL *string `json:"base_url,omitempty"`
+
+	// IfHeaders Optional HTTP request headers that must already be present with exact values before this injection matches. Header names are matched case-insensitively; repeated headers compare only their first value. These conditions only scope request matching and are not an authorization boundary; sandbox processes can set request headers.
+	IfHeaders *map[string]string `json:"if_headers,omitempty"`
+
+	// IfQueries Optional query parameters that must already be present with exact values before this injection matches. Query parameter names are case-sensitive. These conditions only scope request matching and are not an authorization boundary; sandbox processes can set query parameters.
+	IfQueries *map[string]string `json:"if_queries,omitempty"`
 
 	// Type Injection type identifier
 	Type AnthropicInjectionType `json:"type"`
@@ -257,8 +263,14 @@ type GeminiInjection struct {
 	// APIKey API key for Google Gemini API
 	APIKey *string `json:"api_key,omitempty"`
 
-	// BaseURL Optional base URL. If not specified, uses generativelanguage.googleapis.com
+	// BaseURL Optional base URL. If not specified, uses generativelanguage.googleapis.com. The host is matched exactly. When a path is present, it matches the normalized request path exactly; a trailing `*` enables normalized string-prefix matching.
 	BaseURL *string `json:"base_url,omitempty"`
+
+	// IfHeaders Optional HTTP request headers that must already be present with exact values before this injection matches. Header names are matched case-insensitively; repeated headers compare only their first value. These conditions only scope request matching and are not an authorization boundary; sandbox processes can set request headers.
+	IfHeaders *map[string]string `json:"if_headers,omitempty"`
+
+	// IfQueries Optional query parameters that must already be present with exact values before this injection matches. Query parameter names are case-sensitive. These conditions only scope request matching and are not an authorization boundary; sandbox processes can set query parameters.
+	IfQueries *map[string]string `json:"if_queries,omitempty"`
 
 	// Type Injection type identifier
 	Type GeminiInjectionType `json:"type"`
@@ -305,6 +317,15 @@ type GitRepositoryResourceType string
 // GithubInjection GitHub credential used by the platform to validate and clone repositories before sandbox startup, and to authenticate matching HTTPS requests to github.com and api.github.com while the sandbox is running.
 // The token is not exposed inside the sandbox as plaintext.
 type GithubInjection struct {
+	// BaseURL Optional base URL. If not specified, the platform applies the token to github.com and api.github.com. When specified, the host must be github.com or api.github.com. When a path is present, it matches the normalized request path exactly; a trailing `*` enables normalized string-prefix matching.
+	BaseURL *string `json:"base_url,omitempty"`
+
+	// IfHeaders Optional HTTP request headers that must already be present with exact values before this injection matches. Header names are matched case-insensitively; repeated headers compare only their first value. These conditions only scope request matching and are not an authorization boundary; sandbox processes can set request headers.
+	IfHeaders *map[string]string `json:"if_headers,omitempty"`
+
+	// IfQueries Optional query parameters that must already be present with exact values before this injection matches. Query parameter names are case-sensitive. These conditions only scope request matching and are not an authorization boundary; sandbox processes can set query parameters.
+	IfQueries *map[string]string `json:"if_queries,omitempty"`
+
 	// Token GitHub token with access to all requested repositories
 	Token *string `json:"token,omitempty"`
 
@@ -317,12 +338,18 @@ type GithubInjectionType string
 
 // HTTPInjection Custom HTTP injection with base URL and headers
 type HTTPInjection struct {
-	// BaseURL Base URL for matching HTTPS requests. The domain part is used for host matching.
+	// BaseURL Base URL for matching HTTPS requests. The host is matched exactly. When a path is present, it matches the normalized request path exactly; a trailing `*` enables normalized string-prefix matching.
 	// Default scheme is https if not specified.
 	BaseURL string `json:"base_url"`
 
 	// Headers HTTP headers to inject or overwrite on matching HTTPS requests.
 	Headers *map[string]string `json:"headers,omitempty"`
+
+	// IfHeaders Optional HTTP request headers that must already be present with exact values before this injection matches. Header names are matched case-insensitively; repeated headers compare only their first value. These conditions only scope request matching and are not an authorization boundary; sandbox processes can set request headers.
+	IfHeaders *map[string]string `json:"if_headers,omitempty"`
+
+	// IfQueries Optional query parameters that must already be present with exact values before this injection matches. Query parameter names are case-sensitive. These conditions only scope request matching and are not an authorization boundary; sandbox processes can set query parameters.
+	IfQueries *map[string]string `json:"if_queries,omitempty"`
 
 	// Type Injection type identifier
 	Type HTTPInjectionType `json:"type"`
@@ -493,8 +520,14 @@ type OpenaiInjection struct {
 	// APIKey API key for OpenAI-compatible APIs
 	APIKey *string `json:"api_key,omitempty"`
 
-	// BaseURL Optional base URL. If not specified, uses api.openai.com
+	// BaseURL Optional base URL. If not specified, uses api.openai.com. The host is matched exactly. When a path is present, it matches the normalized request path exactly; a trailing `*` enables normalized string-prefix matching.
 	BaseURL *string `json:"base_url,omitempty"`
+
+	// IfHeaders Optional HTTP request headers that must already be present with exact values before this injection matches. Header names are matched case-insensitively; repeated headers compare only their first value. These conditions only scope request matching and are not an authorization boundary; sandbox processes can set request headers.
+	IfHeaders *map[string]string `json:"if_headers,omitempty"`
+
+	// IfQueries Optional query parameters that must already be present with exact values before this injection matches. Query parameter names are case-sensitive. These conditions only scope request matching and are not an authorization boundary; sandbox processes can set query parameters.
+	IfQueries *map[string]string `json:"if_queries,omitempty"`
 
 	// Type Injection type identifier
 	Type OpenaiInjectionType `json:"type"`
@@ -511,8 +544,14 @@ type QiniuInjection struct {
 	// APIKey API key for Qiniu AI API
 	APIKey *string `json:"api_key,omitempty"`
 
-	// BaseURL Optional base URL. If not specified, uses api.qnaigc.com
+	// BaseURL Optional base URL. If not specified, uses api.qnaigc.com. The host is matched exactly. When a path is present, it matches the normalized request path exactly; a trailing `*` enables normalized string-prefix matching.
 	BaseURL *string `json:"base_url,omitempty"`
+
+	// IfHeaders Optional HTTP request headers that must already be present with exact values before this injection matches. Header names are matched case-insensitively; repeated headers compare only their first value. These conditions only scope request matching and are not an authorization boundary; sandbox processes can set request headers.
+	IfHeaders *map[string]string `json:"if_headers,omitempty"`
+
+	// IfQueries Optional query parameters that must already be present with exact values before this injection matches. Query parameter names are case-sensitive. These conditions only scope request matching and are not an authorization boundary; sandbox processes can set query parameters.
+	IfQueries *map[string]string `json:"if_queries,omitempty"`
 
 	// Type Injection type identifier
 	Type QiniuInjectionType `json:"type"`
