@@ -1,4 +1,12 @@
 # Changelog
+## 7.26.14
+
+* 新增
+  * sandbox: 支持通过 Header 和 Query 条件限制请求注入规则的匹配范围
+  * sandbox: GitHub 凭证注入支持配置 base URL 匹配范围
+* 完善
+  * examples: 补充 sandbox 请求注入条件匹配示例
+
 ## 7.26.13
 
 * 新增
