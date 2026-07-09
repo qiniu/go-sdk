@@ -93,6 +93,7 @@ type BucketInfo struct {
 	Remark string
 
 	// 空间创建时间
+	// 当服务端未返回该字段时为零值，可通过 Ctime.IsZero() 判断
 	Ctime time.Time
 }
 
@@ -224,10 +225,18 @@ func (b *BucketInfo) TokenAntiLeechModeOn() bool {
 	return b.TokenAntiLeechMode == 1
 }
 
+// parseBucketCreatedAt 解析服务端返回的 CreatedAt 字符串；空字符串视为零值（无错误）
+func parseBucketCreatedAt(createdAt string) (time.Time, error) {
+	if createdAt == "" {
+		return time.Time{}, nil
+	}
+	return time.Parse(time.RFC3339, createdAt)
+}
+
 // GetBucketInfo 返回BucketInfo结构
 func (m *BucketManager) GetBucketInfo(bucketName string) (BucketInfo, error) {
 	toBucketInfo := func(bucketInfo *get_bucket_info.Response) (BucketInfo, error) {
-		ctime, err := time.Parse(time.RFC3339, bucketInfo.CreatedAt)
+		ctime, err := parseBucketCreatedAt(bucketInfo.CreatedAt)
 		if err != nil {
 			return BucketInfo{}, err
 		}
@@ -283,7 +292,7 @@ func (m *BucketManager) SetRemark(bucketName, remark string) error {
 // BucketInfosForRegion 获取指定区域的该用户的所有bucketInfo信息
 func (m *BucketManager) BucketInfosInRegion(region RegionID, statistics bool) (bucketInfos []BucketSummary, err error) {
 	toBucketInfo := func(bucketInfo *get_bucket_infos.BucketInfoV2) (BucketInfo, error) {
-		ctime, err := time.Parse(time.RFC3339, bucketInfo.CreatedAt)
+		ctime, err := parseBucketCreatedAt(bucketInfo.CreatedAt)
 		if err != nil {
 			return BucketInfo{}, err
 		}
