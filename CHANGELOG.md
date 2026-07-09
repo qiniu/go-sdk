@@ -1,4 +1,9 @@
 # Changelog
+## 7.26.15
+
+* 修复
+  * storage: 兼容 CreatedAt 为空的 Bucket 信息响应，避免 time.Parse 失败导致 GetBucketInfo/BucketInfosInRegion 返回错误
+
 ## 7.26.14
 
 * 新增
