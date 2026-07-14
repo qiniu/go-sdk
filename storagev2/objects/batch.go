@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gammazero/toposort"
 	clientv1 "github.com/qiniu/go-sdk/v7/client"
 	internal_context "github.com/qiniu/go-sdk/v7/internal/context"
+	"github.com/qiniu/go-sdk/v7/internal/pkg/toposort"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/batch_ops"
 	"github.com/qiniu/go-sdk/v7/storagev2/apis/stat_object"
