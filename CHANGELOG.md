@@ -1,4 +1,9 @@
 # Changelog
+## 7.26.16
+
+* 修复
+  * storagev2: 内置拓扑排序实现，避免 gammazero/toposort v0.1.1 与 v0.2.0 的模块版本冲突
+
 ## 7.26.15
 
 * 修复
