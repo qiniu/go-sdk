@@ -172,6 +172,57 @@ func (c *Client) List(ctx context.Context, params *ListParams) ([]ListedSandbox,
 	return listedSandboxesFromAPI(*resp.JSON200), nil
 }
 
+// GetInjections 返回沙箱当前的运行时请求注入规则。
+// 响应中的密钥、令牌和 Header 等敏感字段由服务端脱敏。
+// 返回值不能直接用于 UpdateInjections；更新时必须提供包含真实敏感值的新配置。
+func (s *Sandbox) GetInjections(ctx context.Context) ([]MaskedSandboxInjection, error) {
+	resp, err := s.client.api.GetSandboxInjectionsWithResponse(ctx, s.sandboxID)
+	if err != nil {
+		return nil, err
+	}
+	if resp.JSON200 == nil {
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
+	}
+	return maskedSandboxInjectionsFromAPI(resp.JSON200.Injections)
+}
+
+// UpdateInjections 替换沙箱的全部运行时请求注入规则。
+// 变更会立即应用于新的出站 HTTPS 连接。
+func (s *Sandbox) UpdateInjections(ctx context.Context, injections []SandboxInjectionSpec) error {
+	apiInjections := make([]apis.SandboxInjection, len(injections))
+	for i, injection := range injections {
+		apiInjection, err := sandboxInjectionSpecToAPI(injection)
+		if err != nil {
+			return err
+		}
+		apiInjections[i] = apiInjection
+	}
+	resp, err := s.client.api.UpdateSandboxInjectionsWithResponse(ctx, s.sandboxID, apis.UpdateSandboxInjectionsJSONRequestBody{
+		Injections: apiInjections,
+	})
+	if err != nil {
+		return err
+	}
+	if resp.HTTPResponse.StatusCode != http.StatusNoContent {
+		return newAPIError(resp.HTTPResponse, resp.Body)
+	}
+	return nil
+}
+
+// UpdateGitHubToken 更新沙箱使用的 GitHub 授权令牌。
+func (s *Sandbox) UpdateGitHubToken(ctx context.Context, authorizationToken string) error {
+	resp, err := s.client.api.UpdateSandboxGithubTokenWithResponse(ctx, s.sandboxID, apis.UpdateSandboxGithubTokenJSONRequestBody{
+		AuthorizationToken: authorizationToken,
+	})
+	if err != nil {
+		return err
+	}
+	if resp.HTTPResponse.StatusCode != http.StatusNoContent {
+		return newAPIError(resp.HTTPResponse, resp.Body)
+	}
+	return nil
+}
+
 // Kill 终止沙箱。
 func (s *Sandbox) Kill(ctx context.Context) error {
 	resp, err := s.client.api.DeleteSandboxWithResponse(ctx, s.sandboxID)

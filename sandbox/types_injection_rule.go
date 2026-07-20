@@ -160,6 +160,32 @@ type SandboxInjectionSpec struct {
 	HTTP *HTTPInjection
 }
 
+// MaskedSandboxInjection 沙箱当前的请求注入配置查询结果。
+// APIKey、Token 和 Headers 等敏感字段仅包含服务端返回的脱敏值。
+// 该类型与可写的 SandboxInjectionSpec 保持分离，不能直接用于更新配置。
+type MaskedSandboxInjection struct {
+	// ByID 引用的已保存注入规则 ID。
+	ByID *string
+
+	// OpenAI 已脱敏的 OpenAI 兼容 API 注入配置。
+	OpenAI *OpenAIInjection
+
+	// Anthropic 已脱敏的 Anthropic API 注入配置。
+	Anthropic *AnthropicInjection
+
+	// Gemini 已脱敏的 Google Gemini API 注入配置。
+	Gemini *GeminiInjection
+
+	// Qiniu 已脱敏的七牛 AI API 注入配置。
+	Qiniu *QiniuInjection
+
+	// Github 已脱敏的 GitHub 凭证注入配置。
+	Github *GithubInjection
+
+	// HTTP 已脱敏的自定义 HTTP 注入配置。
+	HTTP *HTTPInjection
+}
+
 // InjectionRule 预定义的请求注入规则。
 type InjectionRule struct {
 	// RuleID 规则唯一标识。
@@ -446,6 +472,74 @@ func injectionSpecFromAPI(inj apis.Injection) (InjectionSpec, error) {
 	default:
 		return InjectionSpec{}, fmt.Errorf("unknown injection type: %s", disc)
 	}
+}
+
+func maskedSandboxInjectionFromAPI(inj apis.SandboxInjection) (MaskedSandboxInjection, error) {
+	disc, err := inj.Discriminator()
+	if err != nil {
+		return MaskedSandboxInjection{}, err
+	}
+	switch disc {
+	case string(apis.ID):
+		v, err := inj.AsInjectionByID()
+		if err != nil {
+			return MaskedSandboxInjection{}, err
+		}
+		return MaskedSandboxInjection{ByID: &v.ID}, nil
+	case string(apis.Openai):
+		v, err := inj.AsOpenaiInjection()
+		if err != nil {
+			return MaskedSandboxInjection{}, err
+		}
+		return MaskedSandboxInjection{OpenAI: &OpenAIInjection{APIKey: v.APIKey, BaseURL: v.BaseURL, IfHeaders: v.IfHeaders, IfQueries: v.IfQueries}}, nil
+	case string(apis.Anthropic):
+		v, err := inj.AsAnthropicInjection()
+		if err != nil {
+			return MaskedSandboxInjection{}, err
+		}
+		return MaskedSandboxInjection{Anthropic: &AnthropicInjection{APIKey: v.APIKey, BaseURL: v.BaseURL, IfHeaders: v.IfHeaders, IfQueries: v.IfQueries}}, nil
+	case string(apis.Gemini):
+		v, err := inj.AsGeminiInjection()
+		if err != nil {
+			return MaskedSandboxInjection{}, err
+		}
+		return MaskedSandboxInjection{Gemini: &GeminiInjection{APIKey: v.APIKey, BaseURL: v.BaseURL, IfHeaders: v.IfHeaders, IfQueries: v.IfQueries}}, nil
+	case string(apis.Qiniu):
+		v, err := inj.AsQiniuInjection()
+		if err != nil {
+			return MaskedSandboxInjection{}, err
+		}
+		return MaskedSandboxInjection{Qiniu: &QiniuInjection{APIKey: v.APIKey, BaseURL: v.BaseURL, IfHeaders: v.IfHeaders, IfQueries: v.IfQueries}}, nil
+	case string(apis.Github):
+		v, err := inj.AsGithubInjection()
+		if err != nil {
+			return MaskedSandboxInjection{}, err
+		}
+		return MaskedSandboxInjection{Github: &GithubInjection{BaseURL: v.BaseURL, IfHeaders: v.IfHeaders, IfQueries: v.IfQueries, Token: v.Token}}, nil
+	case string(apis.HTTP):
+		v, err := inj.AsHTTPInjection()
+		if err != nil {
+			return MaskedSandboxInjection{}, err
+		}
+		return MaskedSandboxInjection{HTTP: &HTTPInjection{BaseURL: v.BaseURL, Headers: v.Headers, IfHeaders: v.IfHeaders, IfQueries: v.IfQueries}}, nil
+	default:
+		return MaskedSandboxInjection{}, fmt.Errorf("unknown sandbox injection type: %s", disc)
+	}
+}
+
+func maskedSandboxInjectionsFromAPI(injections []apis.SandboxInjection) ([]MaskedSandboxInjection, error) {
+	if injections == nil {
+		return nil, nil
+	}
+	result := make([]MaskedSandboxInjection, len(injections))
+	for i, injection := range injections {
+		spec, err := maskedSandboxInjectionFromAPI(injection)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = spec
+	}
+	return result, nil
 }
 
 func injectionRuleFromAPI(a apis.InjectionRule) (InjectionRule, error) {

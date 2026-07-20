@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -20,24 +22,27 @@ import (
 // mockAPI 实现 apis.ClientWithResponsesInterface 用于测试。
 // 每个方法字段可按测试设置；未设置的方法会 panic。
 type mockAPI struct {
-	createSandboxFn          func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error)
-	getSandboxFn             func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error)
-	deleteSandboxFn          func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.DeleteSandboxResponse, error)
-	listSandboxesFn          func(ctx context.Context, params *apis.ListSandboxesParams, editors ...apis.RequestEditorFn) (*apis.ListSandboxesResponse, error)
-	listSandboxesV2Fn        func(ctx context.Context, params *apis.ListSandboxesV2Params, editors ...apis.RequestEditorFn) (*apis.ListSandboxesV2Response, error)
-	connectSandboxFn         func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error)
-	updateSandboxTimeoutFn   func(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxTimeoutJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxTimeoutResponse, error)
-	pauseSandboxFn           func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.PauseSandboxResponse, error)
-	getSandboxMetricsFn      func(ctx context.Context, sandboxID apis.SandboxID, params *apis.GetSandboxMetricsParams, editors ...apis.RequestEditorFn) (*apis.GetSandboxMetricsResponse, error)
-	getSandboxLogsFn         func(ctx context.Context, sandboxID apis.SandboxID, params *apis.GetSandboxLogsParams, editors ...apis.RequestEditorFn) (*apis.GetSandboxLogsResponse, error)
-	refreshSandboxFn         func(ctx context.Context, sandboxID apis.SandboxID, body apis.RefreshSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.RefreshSandboxResponse, error)
-	listTemplatesFn          func(ctx context.Context, params *apis.ListTemplatesParams, editors ...apis.RequestEditorFn) (*apis.ListTemplatesResponse, error)
-	createTemplateV3Fn       func(ctx context.Context, body apis.CreateTemplateV3JSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateTemplateV3Response, error)
-	rebuildTemplateFn        func(ctx context.Context, templateID apis.TemplateID, body apis.RebuildTemplateJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.RebuildTemplateResponse, error)
-	getTemplateFn            func(ctx context.Context, templateID apis.TemplateID, params *apis.GetTemplateParams, editors ...apis.RequestEditorFn) (*apis.GetTemplateResponse, error)
-	deleteTemplateFn         func(ctx context.Context, templateID apis.TemplateID, editors ...apis.RequestEditorFn) (*apis.DeleteTemplateResponse, error)
-	getTemplateBuildStatusFn func(ctx context.Context, templateID apis.TemplateID, buildID apis.BuildID, params *apis.GetTemplateBuildStatusParams, editors ...apis.RequestEditorFn) (*apis.GetTemplateBuildStatusResponse, error)
-	getTemplateByAliasFn     func(ctx context.Context, alias string, editors ...apis.RequestEditorFn) (*apis.GetTemplateByAliasResponse, error)
+	createSandboxFn            func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error)
+	getSandboxFn               func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error)
+	deleteSandboxFn            func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.DeleteSandboxResponse, error)
+	listSandboxesFn            func(ctx context.Context, params *apis.ListSandboxesParams, editors ...apis.RequestEditorFn) (*apis.ListSandboxesResponse, error)
+	listSandboxesV2Fn          func(ctx context.Context, params *apis.ListSandboxesV2Params, editors ...apis.RequestEditorFn) (*apis.ListSandboxesV2Response, error)
+	connectSandboxFn           func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error)
+	getSandboxInjectionsFn     func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxInjectionsResponse, error)
+	updateSandboxInjectionsFn  func(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxInjectionsJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxInjectionsResponse, error)
+	updateSandboxGithubTokenFn func(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxGithubTokenJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxGithubTokenResponse, error)
+	updateSandboxTimeoutFn     func(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxTimeoutJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxTimeoutResponse, error)
+	pauseSandboxFn             func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.PauseSandboxResponse, error)
+	getSandboxMetricsFn        func(ctx context.Context, sandboxID apis.SandboxID, params *apis.GetSandboxMetricsParams, editors ...apis.RequestEditorFn) (*apis.GetSandboxMetricsResponse, error)
+	getSandboxLogsFn           func(ctx context.Context, sandboxID apis.SandboxID, params *apis.GetSandboxLogsParams, editors ...apis.RequestEditorFn) (*apis.GetSandboxLogsResponse, error)
+	refreshSandboxFn           func(ctx context.Context, sandboxID apis.SandboxID, body apis.RefreshSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.RefreshSandboxResponse, error)
+	listTemplatesFn            func(ctx context.Context, params *apis.ListTemplatesParams, editors ...apis.RequestEditorFn) (*apis.ListTemplatesResponse, error)
+	createTemplateV3Fn         func(ctx context.Context, body apis.CreateTemplateV3JSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateTemplateV3Response, error)
+	rebuildTemplateFn          func(ctx context.Context, templateID apis.TemplateID, body apis.RebuildTemplateJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.RebuildTemplateResponse, error)
+	getTemplateFn              func(ctx context.Context, templateID apis.TemplateID, params *apis.GetTemplateParams, editors ...apis.RequestEditorFn) (*apis.GetTemplateResponse, error)
+	deleteTemplateFn           func(ctx context.Context, templateID apis.TemplateID, editors ...apis.RequestEditorFn) (*apis.DeleteTemplateResponse, error)
+	getTemplateBuildStatusFn   func(ctx context.Context, templateID apis.TemplateID, buildID apis.BuildID, params *apis.GetTemplateBuildStatusParams, editors ...apis.RequestEditorFn) (*apis.GetTemplateBuildStatusResponse, error)
+	getTemplateByAliasFn       func(ctx context.Context, alias string, editors ...apis.RequestEditorFn) (*apis.GetTemplateByAliasResponse, error)
 }
 
 func httpResponse(statusCode int) *http.Response {
@@ -81,6 +86,26 @@ func (m *mockAPI) ConnectSandboxWithResponse(ctx context.Context, sandboxID apis
 }
 
 func (m *mockAPI) ConnectSandboxWithBodyWithResponse(ctx context.Context, sandboxID apis.SandboxID, contentType string, body io.Reader, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error) {
+	panic("not implemented")
+}
+
+func (m *mockAPI) GetSandboxInjectionsWithResponse(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxInjectionsResponse, error) {
+	return m.getSandboxInjectionsFn(ctx, sandboxID, editors...)
+}
+
+func (m *mockAPI) UpdateSandboxInjectionsWithResponse(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxInjectionsJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxInjectionsResponse, error) {
+	return m.updateSandboxInjectionsFn(ctx, sandboxID, body, editors...)
+}
+
+func (m *mockAPI) UpdateSandboxInjectionsWithBodyWithResponse(ctx context.Context, sandboxID apis.SandboxID, contentType string, body io.Reader, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxInjectionsResponse, error) {
+	panic("not implemented")
+}
+
+func (m *mockAPI) UpdateSandboxGithubTokenWithResponse(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxGithubTokenJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxGithubTokenResponse, error) {
+	return m.updateSandboxGithubTokenFn(ctx, sandboxID, body, editors...)
+}
+
+func (m *mockAPI) UpdateSandboxGithubTokenWithBodyWithResponse(ctx context.Context, sandboxID apis.SandboxID, contentType string, body io.Reader, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxGithubTokenResponse, error) {
 	panic("not implemented")
 }
 
@@ -697,6 +722,95 @@ func TestList(t *testing.T) {
 	}
 }
 
+func TestListFiltersByTemplates(t *testing.T) {
+	templates := []string{"tmpl-1", "qiniu/code-interpreter"}
+	mock := &mockAPI{
+		listSandboxesV2Fn: func(ctx context.Context, params *apis.ListSandboxesV2Params, editors ...apis.RequestEditorFn) (*apis.ListSandboxesV2Response, error) {
+			if params.Template == nil || !slices.Equal(*params.Template, templates) {
+				t.Fatalf("expected template filter %v, got %v", templates, params.Template)
+			}
+			list := []apis.ListedSandbox{}
+			return &apis.ListSandboxesV2Response{JSON200: &list, HTTPResponse: httpResponse(200)}, nil
+		},
+	}
+	c := newTestClient(mock)
+	_, err := c.List(context.Background(), &ListParams{Template: &templates})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestGetInjections(t *testing.T) {
+	var byID apis.SandboxInjection
+	if err := byID.FromInjectionByID(apis.InjectionByID{ID: "rule-1", Type: apis.ID}); err != nil {
+		t.Fatalf("create API injection: %v", err)
+	}
+	maskedHeader := map[string]string{"Authorization": "Bear****"}
+	var direct apis.SandboxInjection
+	if err := direct.FromHTTPInjection(apis.HTTPInjection{BaseURL: "api.example.com", Headers: &maskedHeader, Type: apis.HTTP}); err != nil {
+		t.Fatalf("create direct API injection: %v", err)
+	}
+	mock := &mockAPI{
+		getSandboxInjectionsFn: func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxInjectionsResponse, error) {
+			resp := &apis.GetSandboxInjectionsResponse{HTTPResponse: httpResponse(200)}
+			resp.JSON200 = &struct {
+				Injections []apis.SandboxInjection `json:"injections"`
+			}{Injections: []apis.SandboxInjection{byID, direct}}
+			return resp, nil
+		},
+	}
+	c := newTestClient(mock)
+	sb := newTestSandbox(c, "sb-123")
+	injections, err := sb.GetInjections(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var _ []MaskedSandboxInjection = injections
+	if len(injections) != 2 || injections[0].ByID == nil || *injections[0].ByID != "rule-1" {
+		t.Fatalf("unexpected injections: %+v", injections)
+	}
+	if injections[1].HTTP == nil || injections[1].HTTP.BaseURL != "api.example.com" || !maps.Equal(*injections[1].HTTP.Headers, maskedHeader) {
+		t.Fatalf("unexpected direct injection: %+v", injections[1])
+	}
+}
+
+func TestUpdateInjections(t *testing.T) {
+	ruleID := "rule-1"
+	mock := &mockAPI{
+		updateSandboxInjectionsFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxInjectionsJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxInjectionsResponse, error) {
+			if len(body.Injections) != 1 {
+				t.Fatalf("expected 1 injection, got %d", len(body.Injections))
+			}
+			byID, err := body.Injections[0].AsInjectionByID()
+			if err != nil || byID.ID != ruleID {
+				t.Fatalf("unexpected injection: %+v, err: %v", byID, err)
+			}
+			return &apis.UpdateSandboxInjectionsResponse{HTTPResponse: httpResponse(204)}, nil
+		},
+	}
+	c := newTestClient(mock)
+	sb := newTestSandbox(c, "sb-123")
+	if err := sb.UpdateInjections(context.Background(), []SandboxInjectionSpec{{ByID: &ruleID}}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestUpdateGitHubToken(t *testing.T) {
+	mock := &mockAPI{
+		updateSandboxGithubTokenFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxGithubTokenJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxGithubTokenResponse, error) {
+			if body.AuthorizationToken != "github-token" {
+				t.Fatalf("unexpected token: %q", body.AuthorizationToken)
+			}
+			return &apis.UpdateSandboxGithubTokenResponse{HTTPResponse: httpResponse(204)}, nil
+		},
+	}
+	c := newTestClient(mock)
+	sb := newTestSandbox(c, "sb-123")
+	if err := sb.UpdateGitHubToken(context.Background(), "github-token"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 // --- Sandbox.Kill ---
 
 func TestKill(t *testing.T) {
@@ -892,7 +1006,7 @@ func TestListTemplates(t *testing.T) {
 	mock := &mockAPI{
 		listTemplatesFn: func(ctx context.Context, params *apis.ListTemplatesParams, editors ...apis.RequestEditorFn) (*apis.ListTemplatesResponse, error) {
 			list := []apis.Template{
-				{TemplateID: "tmpl-1"},
+				{TemplateID: "tmpl-1", Names: []string{"qiniu/code-interpreter"}},
 				{TemplateID: "tmpl-2"},
 			}
 			return &apis.ListTemplatesResponse{
@@ -908,6 +1022,9 @@ func TestListTemplates(t *testing.T) {
 	}
 	if len(templates) != 2 {
 		t.Errorf("expected 2 templates, got %d", len(templates))
+	}
+	if !slices.Equal(templates[0].Names, []string{"qiniu/code-interpreter"}) {
+		t.Errorf("unexpected names: %v", templates[0].Names)
 	}
 }
 
@@ -1447,6 +1564,8 @@ func TestGetTemplate(t *testing.T) {
 			return &apis.GetTemplateResponse{
 				JSON200: &apis.TemplateWithBuilds{
 					TemplateID: templateID,
+					Names:      []string{"qiniu/code-interpreter"},
+					IsOwner:    true,
 					Builds:     []apis.TemplateBuild{{}},
 				},
 				HTTPResponse: httpResponse(200),
@@ -1463,6 +1582,12 @@ func TestGetTemplate(t *testing.T) {
 	}
 	if len(tmpl.Builds) != 1 {
 		t.Errorf("expected 1 build, got %d", len(tmpl.Builds))
+	}
+	if !slices.Equal(tmpl.Names, []string{"qiniu/code-interpreter"}) {
+		t.Errorf("unexpected names: %v", tmpl.Names)
+	}
+	if !tmpl.IsOwner {
+		t.Error("expected template to be owned by caller")
 	}
 }
 
