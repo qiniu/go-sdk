@@ -769,7 +769,7 @@ func TestGetInjections(t *testing.T) {
 	if len(injections) != 2 || injections[0].ByID == nil || *injections[0].ByID != "rule-1" {
 		t.Fatalf("unexpected injections: %+v", injections)
 	}
-	if injections[1].HTTP == nil || injections[1].HTTP.BaseURL != "api.example.com" || !maps.Equal(*injections[1].HTTP.Headers, maskedHeader) {
+	if injections[1].HTTP == nil || injections[1].HTTP.BaseURL != "api.example.com" || injections[1].HTTP.Headers == nil || !maps.Equal(*injections[1].HTTP.Headers, maskedHeader) {
 		t.Fatalf("unexpected direct injection: %+v", injections[1])
 	}
 }
