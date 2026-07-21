@@ -37,12 +37,16 @@ func main() {
 	}
 	fmt.Printf("共 %d 个模板:\n", len(templates))
 	for _, tmpl := range templates {
+		names := "-"
+		if len(tmpl.Names) > 0 {
+			names = fmt.Sprintf("%v", tmpl.Names)
+		}
 		aliases := "-"
 		if len(tmpl.Aliases) > 0 {
 			aliases = fmt.Sprintf("%v", tmpl.Aliases)
 		}
 		fmt.Printf("  - %s\n", tmpl.TemplateID)
-		fmt.Printf("    别名: %s, 公开: %v\n", aliases, tmpl.Public)
+		fmt.Printf("    名称: %s, 旧别名: %s, 公开: %v\n", names, aliases, tmpl.Public)
 		fmt.Printf("    CPU: %d 核, 内存: %d MB, 磁盘: %d MB, envd: %s\n",
 			tmpl.CPUCount, tmpl.MemoryMB, tmpl.DiskSizeMB, tmpl.EnvdVersion)
 		fmt.Printf("    构建状态: %s, 构建次数: %d, 使用次数: %d\n",
@@ -58,7 +62,8 @@ func main() {
 		if err != nil {
 			log.Fatalf("获取模板详情失败: %v", err)
 		}
-		fmt.Printf("模板: %s, 构建数: %d\n", detail.TemplateID, len(detail.Builds))
+		fmt.Printf("模板: %s, 名称: %v, 当前用户拥有: %v, 构建数: %d\n",
+			detail.TemplateID, detail.Names, detail.IsOwner, len(detail.Builds))
 		for i, build := range detail.Builds {
 			if i >= 3 {
 				fmt.Printf("  ... 省略 %d 条\n", len(detail.Builds)-3)
@@ -67,6 +72,13 @@ func main() {
 			fmt.Printf("  - %s (状态: %s, CPU: %d, 内存: %d MB)\n",
 				build.BuildID, build.Status, build.CPUCount, build.MemoryMB)
 		}
+	}
+
+	// 模板创建和构建会消耗云端资源，默认只运行上面的只读示例。
+	// 如需继续验证写操作，请显式设置 QINIU_SANDBOX_TEMPLATE_MUTATION_EXAMPLE=true。
+	if os.Getenv("QINIU_SANDBOX_TEMPLATE_MUTATION_EXAMPLE") != "true" {
+		fmt.Println("\n未启用模板写操作示例，跳过创建、构建和删除流程")
+		return
 	}
 
 	// 3. 创建模板
@@ -179,11 +191,7 @@ func main() {
 	if err != nil {
 		fmt.Printf("获取文件上传链接失败: %v\n", err)
 	} else {
-		url := "-"
-		if fileUpload.URL != nil {
-			url = *fileUpload.URL
-		}
-		fmt.Printf("文件是否已存在: %v, 上传地址: %s\n", fileUpload.Present, url)
+		fmt.Printf("文件是否已存在: %v, 已获得上传地址: %v\n", fileUpload.Present, fileUpload.URL != nil)
 	}
 
 	// 11. 启动模板构建（StartTemplateBuild）

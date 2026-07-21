@@ -4,10 +4,111 @@ package sandbox
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/qiniu/go-sdk/v7/sandbox/internal/apis"
 )
+
+func TestSandboxInjectionSpecToAPISupportsAllTypes(t *testing.T) {
+	value := "secret"
+	headers := map[string]string{"Authorization": "Bearer secret"}
+	tests := []struct {
+		name string
+		spec SandboxInjectionSpec
+		want string
+	}{
+		{name: "by ID", spec: SandboxInjectionSpec{ByID: &value}, want: string(apis.ID)},
+		{name: "OpenAI", spec: SandboxInjectionSpec{OpenAI: &OpenAIInjection{APIKey: &value}}, want: string(apis.Openai)},
+		{name: "Anthropic", spec: SandboxInjectionSpec{Anthropic: &AnthropicInjection{APIKey: &value}}, want: string(apis.Anthropic)},
+		{name: "Gemini", spec: SandboxInjectionSpec{Gemini: &GeminiInjection{APIKey: &value}}, want: string(apis.Gemini)},
+		{name: "Qiniu", spec: SandboxInjectionSpec{Qiniu: &QiniuInjection{APIKey: &value}}, want: string(apis.Qiniu)},
+		{name: "GitHub", spec: SandboxInjectionSpec{Github: &GithubInjection{Token: &value}}, want: string(apis.Github)},
+		{name: "HTTP", spec: SandboxInjectionSpec{HTTP: &HTTPInjection{BaseURL: "https://example.com", Headers: &headers}}, want: string(apis.HTTP)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := sandboxInjectionSpecToAPI(tt.spec)
+			if err != nil {
+				t.Fatalf("sandboxInjectionSpecToAPI() error = %v", err)
+			}
+			discriminator, err := got.Discriminator()
+			if err != nil {
+				t.Fatalf("Discriminator() error = %v", err)
+			}
+			if discriminator != tt.want {
+				t.Fatalf("Discriminator() = %q, want %q", discriminator, tt.want)
+			}
+		})
+	}
+}
+
+func TestSandboxInjectionSpecToAPIRequiresExactlyOneType(t *testing.T) {
+	value := "secret"
+	tests := []struct {
+		name string
+		spec SandboxInjectionSpec
+		want string
+	}{
+		{name: "none", spec: SandboxInjectionSpec{}, want: "got none"},
+		{name: "multiple", spec: SandboxInjectionSpec{ByID: &value, Github: &GithubInjection{Token: &value}}, want: "got 2"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := sandboxInjectionSpecToAPI(tt.spec)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("sandboxInjectionSpecToAPI() error = %v, want containing %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestMaskedSandboxInjectionFromAPISupportsAllTypes(t *testing.T) {
+	value := "masked"
+	headers := map[string]string{"Authorization": "Bear****"}
+	tests := []struct {
+		name  string
+		build func(*apis.SandboxInjection) error
+		check func(MaskedSandboxInjection) bool
+	}{
+		{name: "by ID", build: func(v *apis.SandboxInjection) error {
+			return v.FromInjectionByID(apis.InjectionByID{ID: value, Type: apis.ID})
+		}, check: func(v MaskedSandboxInjection) bool { return v.ByID != nil }},
+		{name: "OpenAI", build: func(v *apis.SandboxInjection) error {
+			return v.FromOpenaiInjection(apis.OpenaiInjection{APIKey: &value, Type: apis.Openai})
+		}, check: func(v MaskedSandboxInjection) bool { return v.OpenAI != nil }},
+		{name: "Anthropic", build: func(v *apis.SandboxInjection) error {
+			return v.FromAnthropicInjection(apis.AnthropicInjection{APIKey: &value, Type: apis.Anthropic})
+		}, check: func(v MaskedSandboxInjection) bool { return v.Anthropic != nil }},
+		{name: "Gemini", build: func(v *apis.SandboxInjection) error {
+			return v.FromGeminiInjection(apis.GeminiInjection{APIKey: &value, Type: apis.Gemini})
+		}, check: func(v MaskedSandboxInjection) bool { return v.Gemini != nil }},
+		{name: "Qiniu", build: func(v *apis.SandboxInjection) error {
+			return v.FromQiniuInjection(apis.QiniuInjection{APIKey: &value, Type: apis.Qiniu})
+		}, check: func(v MaskedSandboxInjection) bool { return v.Qiniu != nil }},
+		{name: "GitHub", build: func(v *apis.SandboxInjection) error {
+			return v.FromGithubInjection(apis.GithubInjection{Token: &value, Type: apis.Github})
+		}, check: func(v MaskedSandboxInjection) bool { return v.Github != nil }},
+		{name: "HTTP", build: func(v *apis.SandboxInjection) error {
+			return v.FromHTTPInjection(apis.HTTPInjection{BaseURL: "https://example.com", Headers: &headers, Type: apis.HTTP})
+		}, check: func(v MaskedSandboxInjection) bool { return v.HTTP != nil }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var apiInjection apis.SandboxInjection
+			if err := tt.build(&apiInjection); err != nil {
+				t.Fatalf("build API injection: %v", err)
+			}
+			got, err := maskedSandboxInjectionFromAPI(apiInjection)
+			if err != nil {
+				t.Fatalf("maskedSandboxInjectionFromAPI() error = %v", err)
+			}
+			if !tt.check(got) {
+				t.Fatalf("maskedSandboxInjectionFromAPI() returned wrong variant: %+v", got)
+			}
+		})
+	}
+}
 
 func TestInjectionSpecToAPIPreservesMatchConditions(t *testing.T) {
 	apiKey := "sk-test"

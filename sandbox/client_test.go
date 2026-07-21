@@ -776,22 +776,112 @@ func TestGetInjections(t *testing.T) {
 
 func TestUpdateInjections(t *testing.T) {
 	ruleID := "rule-1"
+	headers := map[string]string{"Authorization": "Bearer token"}
 	mock := &mockAPI{
 		updateSandboxInjectionsFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxInjectionsJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxInjectionsResponse, error) {
-			if len(body.Injections) != 1 {
-				t.Fatalf("expected 1 injection, got %d", len(body.Injections))
+			if sandboxID != "sb-123" {
+				t.Fatalf("unexpected sandbox ID: %s", sandboxID)
+			}
+			if len(body.Injections) != 2 {
+				t.Fatalf("expected 2 injections, got %d", len(body.Injections))
 			}
 			byID, err := body.Injections[0].AsInjectionByID()
 			if err != nil || byID.ID != ruleID {
 				t.Fatalf("unexpected injection: %+v, err: %v", byID, err)
+			}
+			httpInjection, err := body.Injections[1].AsHTTPInjection()
+			if err != nil || httpInjection.BaseURL != "https://api.example.com" || httpInjection.Headers == nil || !maps.Equal(*httpInjection.Headers, headers) {
+				t.Fatalf("unexpected HTTP injection: %+v, err: %v", httpInjection, err)
 			}
 			return &apis.UpdateSandboxInjectionsResponse{HTTPResponse: httpResponse(204)}, nil
 		},
 	}
 	c := newTestClient(mock)
 	sb := newTestSandbox(c, "sb-123")
-	if err := sb.UpdateInjections(context.Background(), []SandboxInjectionSpec{{ByID: &ruleID}}); err != nil {
+	if err := sb.UpdateInjections(context.Background(), []SandboxInjectionSpec{
+		{ByID: &ruleID},
+		{HTTP: &HTTPInjection{BaseURL: "https://api.example.com", Headers: &headers}},
+	}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestUpdateInjectionsClearsAllInjections(t *testing.T) {
+	mock := &mockAPI{
+		updateSandboxInjectionsFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxInjectionsJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxInjectionsResponse, error) {
+			if body.Injections == nil || len(body.Injections) != 0 {
+				t.Fatalf("expected a non-nil empty injections list, got %#v", body.Injections)
+			}
+			return &apis.UpdateSandboxInjectionsResponse{HTTPResponse: httpResponse(204)}, nil
+		},
+	}
+	c := newTestClient(mock)
+	sb := newTestSandbox(c, "sb-123")
+	if err := sb.UpdateInjections(context.Background(), []SandboxInjectionSpec{}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestGetInjectionsErrors(t *testing.T) {
+	t.Run("transport", func(t *testing.T) {
+		mock := &mockAPI{
+			getSandboxInjectionsFn: func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxInjectionsResponse, error) {
+				return nil, errors.New("network error")
+			},
+		}
+		_, err := newTestSandbox(newTestClient(mock), "sb-123").GetInjections(context.Background())
+		if err == nil || err.Error() != "network error" {
+			t.Fatalf("expected transport error, got %v", err)
+		}
+	})
+
+	t.Run("api", func(t *testing.T) {
+		mock := &mockAPI{
+			getSandboxInjectionsFn: func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxInjectionsResponse, error) {
+				return &apis.GetSandboxInjectionsResponse{
+					HTTPResponse: httpResponse(404),
+					Body:         []byte(`{"message":"sandbox not found"}`),
+				}, nil
+			},
+		}
+		_, err := newTestSandbox(newTestClient(mock), "sb-404").GetInjections(context.Background())
+		var apiErr *APIError
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != 404 {
+			t.Fatalf("expected 404 API error, got %v", err)
+		}
+	})
+}
+
+func TestUpdateInjectionsErrors(t *testing.T) {
+	ruleID := "rule-1"
+	tests := []struct {
+		name string
+		fn   func(context.Context, apis.SandboxID, apis.UpdateSandboxInjectionsJSONRequestBody, ...apis.RequestEditorFn) (*apis.UpdateSandboxInjectionsResponse, error)
+	}{
+		{
+			name: "transport",
+			fn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxInjectionsJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxInjectionsResponse, error) {
+				return nil, errors.New("network error")
+			},
+		},
+		{
+			name: "api",
+			fn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxInjectionsJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxInjectionsResponse, error) {
+				return &apis.UpdateSandboxInjectionsResponse{
+					HTTPResponse: httpResponse(409),
+					Body:         []byte(`{"message":"sandbox is not running"}`),
+				}, nil
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := &mockAPI{updateSandboxInjectionsFn: tt.fn}
+			err := newTestSandbox(newTestClient(mock), "sb-123").UpdateInjections(context.Background(), []SandboxInjectionSpec{{ByID: &ruleID}})
+			if err == nil {
+				t.Fatal("expected error")
+			}
+		})
 	}
 }
 
@@ -808,6 +898,38 @@ func TestUpdateGitHubToken(t *testing.T) {
 	sb := newTestSandbox(c, "sb-123")
 	if err := sb.UpdateGitHubToken(context.Background(), "github-token"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestUpdateGitHubTokenErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		fn   func(context.Context, apis.SandboxID, apis.UpdateSandboxGithubTokenJSONRequestBody, ...apis.RequestEditorFn) (*apis.UpdateSandboxGithubTokenResponse, error)
+	}{
+		{
+			name: "transport",
+			fn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxGithubTokenJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxGithubTokenResponse, error) {
+				return nil, errors.New("network error")
+			},
+		},
+		{
+			name: "api",
+			fn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxGithubTokenJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxGithubTokenResponse, error) {
+				return &apis.UpdateSandboxGithubTokenResponse{
+					HTTPResponse: httpResponse(400),
+					Body:         []byte(`{"message":"invalid token"}`),
+				}, nil
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := &mockAPI{updateSandboxGithubTokenFn: tt.fn}
+			err := newTestSandbox(newTestClient(mock), "sb-123").UpdateGitHubToken(context.Background(), "github-token")
+			if err == nil {
+				t.Fatal("expected error")
+			}
+		})
 	}
 }
 
