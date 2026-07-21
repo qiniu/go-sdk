@@ -101,6 +101,9 @@ type ListParams struct {
 	// Metadata 用于过滤沙箱的元数据查询（如 "user=abc&app=prod"）。
 	Metadata *string
 
+	// Template 按一个或多个模板 ID 或名称过滤沙箱，最多 20 个值。
+	Template *[]string
+
 	// State 按一个或多个状态过滤沙箱。
 	State *[]SandboxState
 
@@ -425,6 +428,7 @@ func (p *ListParams) toAPI() *apis.ListSandboxesV2Params {
 		Metadata:  p.Metadata,
 		NextToken: p.NextToken,
 		Limit:     p.Limit,
+		Template:  p.Template,
 	}
 	if p.State != nil {
 		states := make([]apis.SandboxState, len(*p.State))

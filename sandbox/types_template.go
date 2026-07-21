@@ -349,8 +349,12 @@ func (p *DeleteTagsParams) toAPI() apis.DeleteTemplateTagsJSONRequestBody {
 
 // Template 模板信息。
 type Template struct {
-	TemplateID    string
-	Aliases       []string
+	TemplateID string
+	// Aliases 模板别名（已弃用，请使用 Names）。
+	// Deprecated: 使用 Names。
+	Aliases []string
+	// Names 模板名称，使用命名空间/别名格式。
+	Names         []string
 	BuildID       string
 	BuildStatus   TemplateBuildStatus
 	BuildCount    int32
@@ -380,8 +384,14 @@ type TemplateBuild struct {
 
 // TemplateWithBuilds 模板及其构建记录。
 type TemplateWithBuilds struct {
-	TemplateID    string
-	Aliases       []string
+	TemplateID string
+	// Aliases 模板别名（已弃用，请使用 Names）。
+	// Deprecated: 使用 Names。
+	Aliases []string
+	// Names 模板名称，使用命名空间/别名格式。
+	Names []string
+	// IsOwner 表示模板是否归当前请求团队所有。
+	IsOwner       bool
 	Public        bool
 	SpawnCount    int64
 	CreatedAt     time.Time
@@ -449,6 +459,7 @@ func templateFromAPI(a apis.Template) Template {
 	return Template{
 		TemplateID:    a.TemplateID,
 		Aliases:       a.Aliases,
+		Names:         a.Names,
 		BuildID:       a.BuildID,
 		BuildStatus:   TemplateBuildStatus(a.BuildStatus),
 		BuildCount:    a.BuildCount,
@@ -496,6 +507,8 @@ func templateWithBuildsFromAPI(a *apis.TemplateWithBuilds) *TemplateWithBuilds {
 	result := &TemplateWithBuilds{
 		TemplateID:    a.TemplateID,
 		Aliases:       a.Aliases,
+		Names:         a.Names,
+		IsOwner:       a.IsOwner,
 		Public:        a.Public,
 		SpawnCount:    a.SpawnCount,
 		CreatedAt:     a.CreatedAt,

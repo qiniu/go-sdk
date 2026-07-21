@@ -48,6 +48,8 @@
 //   - [Sandbox.GetMetrics]: 获取 CPU、内存、磁盘等资源指标
 //   - [Sandbox.GetLogs]: 获取沙箱日志
 //   - [Sandbox.WaitForReady]: 轮询等待沙箱进入 running 状态
+//   - [Sandbox.GetInjections] / [Sandbox.UpdateInjections]: 查询和替换运行时请求注入规则
+//   - [Sandbox.UpdateGitHubToken]: 更新运行中沙箱的 GitHub 授权令牌
 //
 // # 命令执行
 //

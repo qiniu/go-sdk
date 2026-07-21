@@ -394,7 +394,7 @@ type InjectionRule struct {
 // KodoResource Kodo bucket resource mounted into the sandbox via NFS.
 // The platform creates an NFS-backed proxy that maps the Kodo bucket to a local path inside the sandbox.
 // Credentials (access_key/secret_key) are never exposed inside the sandbox.
-// Note: Kodo resource is only supported when creating a sandbox with Qiniu AKSK authentication. API key authentication is not supported.
+// Note: Kodo resources require access key authentication. API key authentication is not supported.
 type KodoResource struct {
 	// Bucket Kodo bucket name
 	Bucket string `json:"bucket"`
@@ -749,7 +749,8 @@ type TeamUser struct {
 
 // Template defines model for Template.
 type Template struct {
-	// Aliases Aliases of the template
+	// Aliases Aliases of the template (deprecated)
+	// Deprecated:
 	Aliases []string `json:"aliases"`
 
 	// BuildCount Number of times the template was built
@@ -779,6 +780,9 @@ type Template struct {
 
 	// MemoryMB Memory for the sandbox in MiB
 	MemoryMB MemoryMB `json:"memoryMB"`
+
+	// Names Names of the template (namespace/alias format when namespaced)
+	Names []string `json:"names"`
 
 	// Public Whether the template is public or only accessible by the team
 	Public bool `json:"public"`
@@ -1045,17 +1049,24 @@ type TemplateUpdateRequest struct {
 
 // TemplateWithBuilds defines model for TemplateWithBuilds.
 type TemplateWithBuilds struct {
-	// Aliases Aliases of the template
+	// Aliases Aliases of the template (deprecated)
+	// Deprecated:
 	Aliases []string `json:"aliases"`
 
-	// Builds List of builds for the template
+	// Builds List of builds for the template (empty for non-owning teams)
 	Builds []TemplateBuild `json:"builds"`
 
 	// CreatedAt Time when the template was created
 	CreatedAt time.Time `json:"createdAt"`
 
+	// IsOwner Whether the template is owned by the requesting team
+	IsOwner bool `json:"isOwner"`
+
 	// LastSpawnedAt Time when the template was last used
 	LastSpawnedAt *time.Time `json:"lastSpawnedAt"`
+
+	// Names Names of the template (namespace/alias format when namespaced)
+	Names []string `json:"names"`
 
 	// Public Whether the template is public or only accessible by the team
 	Public bool `json:"public"`
@@ -1124,6 +1135,18 @@ type ListSandboxesParams struct {
 type GetSandboxesMetricsParams struct {
 	// SandboxIds Comma-separated list of sandbox IDs to get metrics for
 	SandboxIds []string `form:"sandbox_ids" json:"sandbox_ids"`
+}
+
+// UpdateSandboxGithubTokenJSONBody defines parameters for UpdateSandboxGithubToken.
+type UpdateSandboxGithubTokenJSONBody struct {
+	// AuthorizationToken New GitHub authorization token
+	AuthorizationToken string `json:"authorization_token"`
+}
+
+// UpdateSandboxInjectionsJSONBody defines parameters for UpdateSandboxInjections.
+type UpdateSandboxInjectionsJSONBody struct {
+	// Injections New injection rules. Fully replaces the existing configuration.
+	Injections []SandboxInjection `json:"injections"`
 }
 
 // GetSandboxLogsParams defines parameters for GetSandboxLogs.
@@ -1197,6 +1220,9 @@ type ListSandboxesV2Params struct {
 	// Metadata Metadata query used to filter the sandboxes (e.g. "user=abc&app=prod"). Each key and values must be URL encoded.
 	Metadata *string `form:"metadata,omitempty" json:"metadata,omitempty"`
 
+	// Template Filter sandboxes by one or more template IDs or aliases. Maximum 20 values.
+	Template *[]string `form:"template,omitempty" json:"template,omitempty"`
+
 	// State Filter sandboxes by one or more states
 	State *[]SandboxState `form:"state,omitempty" json:"state,omitempty"`
 
@@ -1218,6 +1244,12 @@ type CreateSandboxJSONRequestBody = NewSandbox
 
 // ConnectSandboxJSONRequestBody defines body for ConnectSandbox for application/json ContentType.
 type ConnectSandboxJSONRequestBody = ConnectSandbox
+
+// UpdateSandboxGithubTokenJSONRequestBody defines body for UpdateSandboxGithubToken for application/json ContentType.
+type UpdateSandboxGithubTokenJSONRequestBody UpdateSandboxGithubTokenJSONBody
+
+// UpdateSandboxInjectionsJSONRequestBody defines body for UpdateSandboxInjections for application/json ContentType.
+type UpdateSandboxInjectionsJSONRequestBody UpdateSandboxInjectionsJSONBody
 
 // RefreshSandboxJSONRequestBody defines body for RefreshSandbox for application/json ContentType.
 type RefreshSandboxJSONRequestBody RefreshSandboxJSONBody
@@ -2025,6 +2057,19 @@ type ClientInterface interface {
 
 	ConnectSandbox(ctx context.Context, sandboxID SandboxID, body ConnectSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// UpdateSandboxGithubTokenWithBody request with any body
+	UpdateSandboxGithubTokenWithBody(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateSandboxGithubToken(ctx context.Context, sandboxID SandboxID, body UpdateSandboxGithubTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSandboxInjections request
+	GetSandboxInjections(ctx context.Context, sandboxID SandboxID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateSandboxInjectionsWithBody request with any body
+	UpdateSandboxInjectionsWithBody(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateSandboxInjections(ctx context.Context, sandboxID SandboxID, body UpdateSandboxInjectionsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetSandboxLogs request
 	GetSandboxLogs(ctx context.Context, sandboxID SandboxID, params *GetSandboxLogsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2299,6 +2344,66 @@ func (c *Client) ConnectSandboxWithBody(ctx context.Context, sandboxID SandboxID
 
 func (c *Client) ConnectSandbox(ctx context.Context, sandboxID SandboxID, body ConnectSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewConnectSandboxRequest(c.Server, sandboxID, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateSandboxGithubTokenWithBody(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateSandboxGithubTokenRequestWithBody(c.Server, sandboxID, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateSandboxGithubToken(ctx context.Context, sandboxID SandboxID, body UpdateSandboxGithubTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateSandboxGithubTokenRequest(c.Server, sandboxID, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetSandboxInjections(ctx context.Context, sandboxID SandboxID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSandboxInjectionsRequest(c.Server, sandboxID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateSandboxInjectionsWithBody(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateSandboxInjectionsRequestWithBody(c.Server, sandboxID, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateSandboxInjections(ctx context.Context, sandboxID SandboxID, body UpdateSandboxInjectionsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateSandboxInjectionsRequest(c.Server, sandboxID, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3166,6 +3271,134 @@ func NewConnectSandboxRequestWithBody(server string, sandboxID SandboxID, conten
 	}
 
 	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewUpdateSandboxGithubTokenRequest calls the generic UpdateSandboxGithubToken builder with application/json body
+func NewUpdateSandboxGithubTokenRequest(server string, sandboxID SandboxID, body UpdateSandboxGithubTokenJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateSandboxGithubTokenRequestWithBody(server, sandboxID, "application/json", bodyReader)
+}
+
+// NewUpdateSandboxGithubTokenRequestWithBody generates requests for UpdateSandboxGithubToken with any type of body
+func NewUpdateSandboxGithubTokenRequestWithBody(server string, sandboxID SandboxID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "sandboxID", runtime.ParamLocationPath, sandboxID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sandboxes/%s/github-token", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetSandboxInjectionsRequest generates requests for GetSandboxInjections
+func NewGetSandboxInjectionsRequest(server string, sandboxID SandboxID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "sandboxID", runtime.ParamLocationPath, sandboxID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sandboxes/%s/injections", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateSandboxInjectionsRequest calls the generic UpdateSandboxInjections builder with application/json body
+func NewUpdateSandboxInjectionsRequest(server string, sandboxID SandboxID, body UpdateSandboxInjectionsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateSandboxInjectionsRequestWithBody(server, sandboxID, "application/json", bodyReader)
+}
+
+// NewUpdateSandboxInjectionsRequestWithBody generates requests for UpdateSandboxInjections with any type of body
+func NewUpdateSandboxInjectionsRequestWithBody(server string, sandboxID SandboxID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "sandboxID", runtime.ParamLocationPath, sandboxID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sandboxes/%s/injections", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -4239,6 +4472,22 @@ func NewListSandboxesV2Request(server string, params *ListSandboxesV2Params) (*h
 
 		}
 
+		if params.Template != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", false, "template", runtime.ParamLocationQuery, *params.Template); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.State != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", false, "state", runtime.ParamLocationQuery, *params.State); err != nil {
@@ -4518,6 +4767,19 @@ type ClientWithResponsesInterface interface {
 	ConnectSandboxWithBodyWithResponse(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConnectSandboxResponse, error)
 
 	ConnectSandboxWithResponse(ctx context.Context, sandboxID SandboxID, body ConnectSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*ConnectSandboxResponse, error)
+
+	// UpdateSandboxGithubTokenWithBodyWithResponse request with any body
+	UpdateSandboxGithubTokenWithBodyWithResponse(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateSandboxGithubTokenResponse, error)
+
+	UpdateSandboxGithubTokenWithResponse(ctx context.Context, sandboxID SandboxID, body UpdateSandboxGithubTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateSandboxGithubTokenResponse, error)
+
+	// GetSandboxInjectionsWithResponse request
+	GetSandboxInjectionsWithResponse(ctx context.Context, sandboxID SandboxID, reqEditors ...RequestEditorFn) (*GetSandboxInjectionsResponse, error)
+
+	// UpdateSandboxInjectionsWithBodyWithResponse request with any body
+	UpdateSandboxInjectionsWithBodyWithResponse(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateSandboxInjectionsResponse, error)
+
+	UpdateSandboxInjectionsWithResponse(ctx context.Context, sandboxID SandboxID, body UpdateSandboxInjectionsJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateSandboxInjectionsResponse, error)
 
 	// GetSandboxLogsWithResponse request
 	GetSandboxLogsWithResponse(ctx context.Context, sandboxID SandboxID, params *GetSandboxLogsParams, reqEditors ...RequestEditorFn) (*GetSandboxLogsResponse, error)
@@ -4906,6 +5168,83 @@ func (r ConnectSandboxResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ConnectSandboxResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateSandboxGithubTokenResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *N400
+	JSON401      *N401
+	JSON404      *N404
+	JSON500      *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateSandboxGithubTokenResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateSandboxGithubTokenResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetSandboxInjectionsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Injections []SandboxInjection `json:"injections"`
+	}
+	JSON401 *N401
+	JSON404 *N404
+	JSON500 *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSandboxInjectionsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSandboxInjectionsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateSandboxInjectionsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *N400
+	JSON401      *N401
+	JSON404      *N404
+	JSON500      *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateSandboxInjectionsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateSandboxInjectionsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -5617,6 +5956,49 @@ func (c *ClientWithResponses) ConnectSandboxWithResponse(ctx context.Context, sa
 		return nil, err
 	}
 	return ParseConnectSandboxResponse(rsp)
+}
+
+// UpdateSandboxGithubTokenWithBodyWithResponse request with arbitrary body returning *UpdateSandboxGithubTokenResponse
+func (c *ClientWithResponses) UpdateSandboxGithubTokenWithBodyWithResponse(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateSandboxGithubTokenResponse, error) {
+	rsp, err := c.UpdateSandboxGithubTokenWithBody(ctx, sandboxID, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateSandboxGithubTokenResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateSandboxGithubTokenWithResponse(ctx context.Context, sandboxID SandboxID, body UpdateSandboxGithubTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateSandboxGithubTokenResponse, error) {
+	rsp, err := c.UpdateSandboxGithubToken(ctx, sandboxID, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateSandboxGithubTokenResponse(rsp)
+}
+
+// GetSandboxInjectionsWithResponse request returning *GetSandboxInjectionsResponse
+func (c *ClientWithResponses) GetSandboxInjectionsWithResponse(ctx context.Context, sandboxID SandboxID, reqEditors ...RequestEditorFn) (*GetSandboxInjectionsResponse, error) {
+	rsp, err := c.GetSandboxInjections(ctx, sandboxID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSandboxInjectionsResponse(rsp)
+}
+
+// UpdateSandboxInjectionsWithBodyWithResponse request with arbitrary body returning *UpdateSandboxInjectionsResponse
+func (c *ClientWithResponses) UpdateSandboxInjectionsWithBodyWithResponse(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateSandboxInjectionsResponse, error) {
+	rsp, err := c.UpdateSandboxInjectionsWithBody(ctx, sandboxID, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateSandboxInjectionsResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateSandboxInjectionsWithResponse(ctx context.Context, sandboxID SandboxID, body UpdateSandboxInjectionsJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateSandboxInjectionsResponse, error) {
+	rsp, err := c.UpdateSandboxInjections(ctx, sandboxID, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateSandboxInjectionsResponse(rsp)
 }
 
 // GetSandboxLogsWithResponse request returning *GetSandboxLogsResponse
@@ -6452,6 +6834,149 @@ func ParseConnectSandboxResponse(rsp *http.Response) (*ConnectSandboxResponse, e
 		}
 		response.JSON201 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest N400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest N404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateSandboxGithubTokenResponse parses an HTTP response from a UpdateSandboxGithubTokenWithResponse call
+func ParseUpdateSandboxGithubTokenResponse(rsp *http.Response) (*UpdateSandboxGithubTokenResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateSandboxGithubTokenResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest N400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest N404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetSandboxInjectionsResponse parses an HTTP response from a GetSandboxInjectionsWithResponse call
+func ParseGetSandboxInjectionsResponse(rsp *http.Response) (*GetSandboxInjectionsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSandboxInjectionsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Injections []SandboxInjection `json:"injections"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest N404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateSandboxInjectionsResponse parses an HTTP response from a UpdateSandboxInjectionsWithResponse call
+func ParseUpdateSandboxInjectionsResponse(rsp *http.Response) (*UpdateSandboxInjectionsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateSandboxInjectionsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest N400
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
