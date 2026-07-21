@@ -51,6 +51,17 @@ func main() {
 	}
 	fmt.Printf("共 %d 个 running 状态的沙箱\n", len(filtered))
 
+	// 按一个或多个模板 ID / 名称过滤，最多可传 20 个值。
+	fmt.Println("\n=== 按模板过滤 ===")
+	templates := []string{"base"}
+	filteredByTemplate, err := c.List(ctx, &sandbox.ListParams{
+		Template: &templates,
+	})
+	if err != nil {
+		log.Fatalf("按模板列出沙箱失败: %v", err)
+	}
+	fmt.Printf("模板 %v 下共有 %d 个沙箱\n", templates, len(filteredByTemplate))
+
 	// 批量获取沙箱指标
 	if len(sandboxes) > 0 {
 		fmt.Println("\n=== 批量获取沙箱指标 ===")
