@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -29,7 +30,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
+	if err := run(ctx, client); err != nil {
+		log.Fatal(err)
+	}
+}
 
+func run(ctx context.Context, client *sandbox.Client) error {
 	log.Println("Creating sandbox with request injections...")
 
 	// 设置针对特定域名的请求注入规则
@@ -96,11 +102,13 @@ func main() {
 	// 创建并等待沙箱就绪
 	sb, info, err := client.CreateAndWait(ctx, params)
 	if err != nil {
-		log.Fatalf("Failed to create sandbox: %v", err)
+		return fmt.Errorf("failed to create sandbox: %w", err)
 	}
 	defer func() {
 		log.Println("Killing sandbox...")
-		_ = sb.Kill(ctx)
+		if err := sb.Kill(ctx); err != nil {
+			log.Printf("Failed to kill sandbox: %v", err)
+		}
 	}()
 
 	log.Printf("Sandbox created successfully! ID: %s, State: %s\n", sb.ID(), info.State)
@@ -108,7 +116,7 @@ func main() {
 	// 查询当前运行时注入。敏感字段由服务端脱敏，返回值不能直接用于更新。
 	current, err := sb.GetInjections(ctx)
 	if err != nil {
-		log.Fatalf("Failed to get runtime injections: %v", err)
+		return fmt.Errorf("failed to get runtime injections: %w", err)
 	}
 	logMaskedInjections("Current runtime injections", current)
 
@@ -116,7 +124,9 @@ func main() {
 	// 沙箱内的程序完全感觉不到外部注入；只有请求同时满足 IfHeaders / IfQueries
 	// 匹配条件时，外层才会拦截并替换为真实的 Key。
 	fakeTokenCmd := `curl -sSL -X GET "https://httpbingo.org/bearer?inject=true" -H "accept: application/json" -H "Authorization: Bearer fake_xxx" -H "X-Injection-Scope: demo"`
-	runBearerCheck(ctx, sb, fakeTokenCmd, "real_xxx")
+	if err := runBearerCheck(ctx, sb, fakeTokenCmd, "real_xxx"); err != nil {
+		return err
+	}
 
 	// 替换运行中沙箱的全部注入规则。更新接口需要重新提供真实敏感值。
 	updatedHeaders := map[string]string{
@@ -138,40 +148,44 @@ func main() {
 		})
 	}
 	if err := sb.UpdateInjections(ctx, updatedInjections); err != nil {
-		log.Fatalf("Failed to update runtime injections: %v", err)
+		return fmt.Errorf("failed to update runtime injections: %w", err)
 	}
 	current, err = sb.GetInjections(ctx)
 	if err != nil {
-		log.Fatalf("Failed to get updated runtime injections: %v", err)
+		return fmt.Errorf("failed to get updated runtime injections: %w", err)
 	}
 	logMaskedInjections("Updated runtime injections", current)
-	runBearerCheck(ctx, sb, fakeTokenCmd, "updated_xxx")
+	if err := runBearerCheck(ctx, sb, fakeTokenCmd, "updated_xxx"); err != nil {
+		return err
+	}
 
 	// 已配置 GitHub 注入时，可独立轮换 GitHub token，无需替换其他注入规则。
 	if updatedGitHubToken := os.Getenv("QINIU_GITHUB_TOKEN_UPDATED"); updatedGitHubToken != "" {
 		if githubToken == "" {
-			log.Fatal("设置 QINIU_GITHUB_TOKEN_UPDATED 时也必须设置 QINIU_GITHUB_TOKEN")
+			return fmt.Errorf("设置 QINIU_GITHUB_TOKEN_UPDATED 时也必须设置 QINIU_GITHUB_TOKEN")
 		}
 		if err := sb.UpdateGitHubToken(ctx, updatedGitHubToken); err != nil {
-			log.Fatalf("Failed to update GitHub token: %v", err)
+			return fmt.Errorf("failed to update GitHub token: %w", err)
 		}
 		log.Println("GitHub token updated successfully")
 	}
+	return nil
 }
 
-func runBearerCheck(ctx context.Context, sb *sandbox.Sandbox, command, expectedToken string) {
+func runBearerCheck(ctx context.Context, sb *sandbox.Sandbox, command, expectedToken string) error {
 	log.Printf("Executing command in sandbox:\n$ %s\n", command)
 	result, err := sb.Commands().Run(ctx, command)
 	if err != nil {
-		log.Fatalf("Failed to run command: %v", err)
+		return fmt.Errorf("failed to run command: %w", err)
 	}
 	if result.ExitCode != 0 {
-		log.Fatalf("Command failed with exit code %d: %s", result.ExitCode, result.Stderr)
+		return fmt.Errorf("command failed with exit code %d: %s", result.ExitCode, result.Stderr)
 	}
 	if !strings.Contains(result.Stdout, `"token": "`+expectedToken+`"`) {
-		log.Fatalf("Request injection did not replace the bearer token, stdout: %s", result.Stdout)
+		return fmt.Errorf("request injection did not replace the bearer token, stdout: %s", result.Stdout)
 	}
 	log.Printf("Request injection verified with token %q", expectedToken)
+	return nil
 }
 
 func logMaskedInjections(label string, injections []sandbox.MaskedSandboxInjection) {
