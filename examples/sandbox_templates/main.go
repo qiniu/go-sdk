@@ -29,8 +29,20 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	// 1. 列出所有模板
-	fmt.Println("=== 列出模板 ===")
+	// 1. 列出默认模板
+	fmt.Println("=== 列出默认模板 ===")
+	defaultTemplates, err := c.ListDefaultTemplates(ctx)
+	if err != nil {
+		log.Fatalf("列出默认模板失败: %v", err)
+	}
+	fmt.Printf("共 %d 个默认模板:\n", len(defaultTemplates))
+	for _, tmpl := range defaultTemplates {
+		fmt.Printf("  - %s (名称: %v, 构建状态: %s)\n",
+			tmpl.TemplateID, tmpl.Names, tmpl.BuildStatus)
+	}
+
+	// 2. 列出所有模板
+	fmt.Println("\n=== 列出模板 ===")
 	templates, err := c.ListTemplates(ctx, nil)
 	if err != nil {
 		log.Fatalf("列出模板失败: %v", err)
@@ -55,7 +67,7 @@ func main() {
 			tmpl.CreatedAt.Format(time.RFC3339), tmpl.UpdatedAt.Format(time.RFC3339))
 	}
 
-	// 2. 获取单个模板详情
+	// 3. 获取单个模板详情
 	if len(templates) > 0 {
 		fmt.Println("\n=== 获取模板详情 ===")
 		detail, err := c.GetTemplate(ctx, templates[0].TemplateID, nil)
@@ -81,7 +93,7 @@ func main() {
 		return
 	}
 
-	// 3. 创建模板
+	// 4. 创建模板
 	fmt.Println("\n=== 创建模板 ===")
 	cpuCount := int32(2)
 	memoryMB := int32(512)
@@ -108,7 +120,7 @@ func main() {
 		}
 	}()
 
-	// 4. 更新模板
+	// 5. 更新模板
 	fmt.Println("\n=== 更新模板 ===")
 	public := true
 	if err := c.UpdateTemplate(ctx, templateID, sandbox.UpdateTemplateParams{
@@ -118,7 +130,7 @@ func main() {
 	}
 	fmt.Println("模板已更新为公开")
 
-	// 5. 获取构建状态
+	// 6. 获取构建状态
 	fmt.Println("\n=== 获取构建状态 ===")
 	buildInfo, err := c.GetTemplateBuildStatus(ctx, templateID, buildID, nil)
 	if err != nil {
@@ -127,7 +139,7 @@ func main() {
 		fmt.Printf("构建 %s: 状态=%s, 模板=%s\n", buildInfo.BuildID, buildInfo.Status, buildInfo.TemplateID)
 	}
 
-	// 6. 获取构建日志
+	// 7. 获取构建日志
 	fmt.Println("\n=== 获取构建日志 ===")
 	buildLogs, err := c.GetTemplateBuildLogs(ctx, templateID, buildID, nil)
 	if err != nil {
@@ -148,7 +160,7 @@ func main() {
 		}
 	}
 
-	// 7. 分配模板标签（AssignTemplateTags）
+	// 8. 分配模板标签（AssignTemplateTags）
 	fmt.Println("\n=== 分配模板标签 ===")
 	tagResult, err := c.AssignTemplateTags(ctx, sandbox.ManageTagsParams{
 		Target: fmt.Sprintf("%s:%s", templateName, "v1"),
@@ -160,7 +172,7 @@ func main() {
 		fmt.Printf("标签已分配, 构建: %s, 标签: %v\n", tagResult.BuildID, tagResult.Tags)
 	}
 
-	// 8. 删除模板标签（DeleteTemplateTags）
+	// 9. 删除模板标签（DeleteTemplateTags）
 	fmt.Println("\n=== 删除模板标签 ===")
 	if err := c.DeleteTemplateTags(ctx, sandbox.DeleteTagsParams{
 		Name: templateName,
@@ -171,7 +183,7 @@ func main() {
 		fmt.Println("标签 'stable' 已删除")
 	}
 
-	// 9. 通过别名查找模板（GetTemplateByAlias）
+	// 10. 通过别名查找模板（GetTemplateByAlias）
 	fmt.Println("\n=== 通过别名查找模板 ===")
 	if len(templates) > 0 && len(templates[0].Aliases) > 0 {
 		alias := templates[0].Aliases[0]
@@ -185,7 +197,7 @@ func main() {
 		fmt.Println("没有可用的模板别名，跳过")
 	}
 
-	// 10. 获取模板文件上传链接（GetTemplateFiles）
+	// 11. 获取模板文件上传链接（GetTemplateFiles）
 	fmt.Println("\n=== 获取模板文件上传链接 ===")
 	fileUpload, err := c.GetTemplateFiles(ctx, templateID, "example-hash-value")
 	if err != nil {
@@ -194,7 +206,7 @@ func main() {
 		fmt.Printf("文件是否已存在: %v, 已获得上传地址: %v\n", fileUpload.Present, fileUpload.URL != nil)
 	}
 
-	// 11. 启动模板构建（StartTemplateBuild）
+	// 12. 启动模板构建（StartTemplateBuild）
 	fmt.Println("\n=== 启动模板构建 ===")
 	fromImage := "ubuntu:latest"
 	if err := c.StartTemplateBuild(ctx, templateID, buildID, sandbox.StartTemplateBuildParams{
@@ -205,7 +217,7 @@ func main() {
 		fmt.Println("构建已启动")
 	}
 
-	// 12. 等待构建完成（WaitForBuild）
+	// 13. 等待构建完成（WaitForBuild）
 	fmt.Println("\n=== 等待构建完成 ===")
 	finalBuild, err := c.WaitForBuild(ctx, templateID, buildID, sandbox.WithPollInterval(3*time.Second))
 	if err != nil {
@@ -214,5 +226,5 @@ func main() {
 		fmt.Printf("构建已完成: %s (状态: %s)\n", finalBuild.BuildID, finalBuild.Status)
 	}
 
-	// 13. 删除模板（通过 defer 执行）
+	// 14. 删除模板（通过 defer 执行）
 }

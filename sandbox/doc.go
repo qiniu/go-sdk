@@ -115,7 +115,7 @@
 //
 // Client 提供模板的完整生命周期管理:
 //
-//   - [Client.ListTemplates] / [Client.GetTemplate]: 列出和查询模板
+//   - [Client.ListDefaultTemplates] / [Client.ListTemplates] / [Client.GetTemplate]: 列出和查询模板
 //   - [Client.CreateTemplate]: 创建模板（返回 templateID 和 buildID）
 //   - [Client.RebuildTemplate]: 在已有模板上创建新的 waiting build（返回新 buildID）
 //   - [Client.UpdateTemplate] / [Client.DeleteTemplate]: 更新和删除模板
