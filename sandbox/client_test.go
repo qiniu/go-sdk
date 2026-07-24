@@ -36,6 +36,7 @@ type mockAPI struct {
 	getSandboxMetricsFn        func(ctx context.Context, sandboxID apis.SandboxID, params *apis.GetSandboxMetricsParams, editors ...apis.RequestEditorFn) (*apis.GetSandboxMetricsResponse, error)
 	getSandboxLogsFn           func(ctx context.Context, sandboxID apis.SandboxID, params *apis.GetSandboxLogsParams, editors ...apis.RequestEditorFn) (*apis.GetSandboxLogsResponse, error)
 	refreshSandboxFn           func(ctx context.Context, sandboxID apis.SandboxID, body apis.RefreshSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.RefreshSandboxResponse, error)
+	listDefaultTemplatesFn     func(ctx context.Context, editors ...apis.RequestEditorFn) (*apis.ListDefaultTemplatesResponse, error)
 	listTemplatesFn            func(ctx context.Context, params *apis.ListTemplatesParams, editors ...apis.RequestEditorFn) (*apis.ListTemplatesResponse, error)
 	createTemplateV3Fn         func(ctx context.Context, body apis.CreateTemplateV3JSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateTemplateV3Response, error)
 	rebuildTemplateFn          func(ctx context.Context, templateID apis.TemplateID, body apis.RebuildTemplateJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.RebuildTemplateResponse, error)
@@ -152,7 +153,7 @@ func (m *mockAPI) GetSandboxesMetricsWithResponse(ctx context.Context, params *a
 // --- 模板操作 ---
 
 func (m *mockAPI) ListDefaultTemplatesWithResponse(ctx context.Context, editors ...apis.RequestEditorFn) (*apis.ListDefaultTemplatesResponse, error) {
-	panic("not implemented")
+	return m.listDefaultTemplatesFn(ctx, editors...)
 }
 
 func (m *mockAPI) ListTemplatesWithResponse(ctx context.Context, params *apis.ListTemplatesParams, editors ...apis.RequestEditorFn) (*apis.ListTemplatesResponse, error) {
@@ -1123,6 +1124,55 @@ func TestWaitForReadyTimeout(t *testing.T) {
 }
 
 // --- 模板测试 ---
+
+func TestListDefaultTemplates(t *testing.T) {
+	mock := &mockAPI{
+		listDefaultTemplatesFn: func(ctx context.Context, editors ...apis.RequestEditorFn) (*apis.ListDefaultTemplatesResponse, error) {
+			list := []apis.Template{
+				{TemplateID: "tmpl-default-1", Names: []string{"qiniu/code-interpreter"}},
+				{TemplateID: "tmpl-default-2"},
+			}
+			return &apis.ListDefaultTemplatesResponse{
+				JSON200:      &list,
+				HTTPResponse: httpResponse(200),
+			}, nil
+		},
+	}
+	c := newTestClient(mock)
+	templates, err := c.ListDefaultTemplates(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(templates) != 2 {
+		t.Errorf("expected 2 templates, got %d", len(templates))
+	}
+	if !slices.Equal(templates[0].Names, []string{"qiniu/code-interpreter"}) {
+		t.Errorf("unexpected names: %v", templates[0].Names)
+	}
+}
+
+func TestListDefaultTemplatesError(t *testing.T) {
+	mock := &mockAPI{
+		listDefaultTemplatesFn: func(ctx context.Context, editors ...apis.RequestEditorFn) (*apis.ListDefaultTemplatesResponse, error) {
+			return &apis.ListDefaultTemplatesResponse{
+				HTTPResponse: httpResponse(401),
+				Body:         []byte(`{"message":"unauthorized"}`),
+			}, nil
+		},
+	}
+	c := newTestClient(mock)
+	_, err := c.ListDefaultTemplates(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	apiErr, ok := err.(*APIError)
+	if !ok {
+		t.Fatalf("expected *APIError, got %T", err)
+	}
+	if apiErr.StatusCode != 401 {
+		t.Errorf("expected status 401, got %d", apiErr.StatusCode)
+	}
+}
 
 func TestListTemplates(t *testing.T) {
 	mock := &mockAPI{

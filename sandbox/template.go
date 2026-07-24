@@ -6,6 +6,18 @@ import (
 	"time"
 )
 
+// ListDefaultTemplates 列出所有默认模板。
+func (c *Client) ListDefaultTemplates(ctx context.Context) ([]Template, error) {
+	resp, err := c.api.ListDefaultTemplatesWithResponse(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if resp.JSON200 == nil {
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
+	}
+	return templatesFromAPI(*resp.JSON200), nil
+}
+
 // ListTemplates 列出所有模板。
 func (c *Client) ListTemplates(ctx context.Context, params *ListTemplatesParams) ([]Template, error) {
 	resp, err := c.api.ListTemplatesWithResponse(ctx, params.toAPI())

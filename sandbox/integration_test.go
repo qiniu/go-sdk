@@ -48,6 +48,21 @@ func TestIntegrationListTemplates(t *testing.T) {
 	}
 }
 
+func TestIntegrationListDefaultTemplates(t *testing.T) {
+	c := testClient(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	templates, err := c.ListDefaultTemplates(ctx)
+	if err != nil {
+		t.Fatalf("ListDefaultTemplates 失败: %v", err)
+	}
+	t.Logf("共 %d 个默认模板", len(templates))
+	for _, tmpl := range templates {
+		t.Logf("  - %s (buildStatus=%s)", tmpl.TemplateID, tmpl.BuildStatus)
+	}
+}
+
 func TestIntegrationListSandboxes(t *testing.T) {
 	c := testClient(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
