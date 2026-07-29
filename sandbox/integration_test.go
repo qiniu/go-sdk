@@ -33,7 +33,7 @@ func testClient(t *testing.T) *Client {
 		if err != nil || n < 0 {
 			t.Fatalf("SANDBOX_RETRY_MAX 必须是有效的非负整数，当前值：%q", v)
 		}
-		cfg.RetryMax = n
+		cfg.RetryMax = &n
 	}
 	c, err := NewClient(cfg)
 	if err != nil {
@@ -1078,6 +1078,9 @@ func TestIntegrationCreateRetryWithGitClone(t *testing.T) {
 		IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
+		if apiErr, ok := err.(*APIError); ok && apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 {
+			t.Fatalf("非可重试错误: %v", err)
+		}
 		t.Logf("Create 失败（clone 超时等可重试错误）: %v", err)
 		return
 	}

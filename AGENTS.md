@@ -290,7 +290,7 @@ make staticcheck
 
 ### 日常开发
 
-1. 确保分支基于最新 main：`git fetch upstream && git rebase upstream/main`
+1. 确保分支基于最新 master：`git fetch upstream && git rebase upstream/master`
 2. 同步 sandbox API 规范：`make sync-sandbox-api-specs`
 3. 修改代码前先运行 `make unittest` 确认当前状态
 4. 修改 API 规范后运行 `make generate` 或 `make generate-sandbox`

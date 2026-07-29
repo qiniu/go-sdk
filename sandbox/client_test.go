@@ -290,7 +290,12 @@ func (m *mockAPI) PutInjectionRulesRuleIDWithBodyWithResponse(ctx context.Contex
 // ============================================================
 
 func newTestClient(api apis.ClientWithResponsesInterface) *Client {
-	return &Client{config: &Config{APIKey: "test-key", RetryMax: 5}, api: api}
+	maxRetries := 5
+	return &Client{config: &Config{
+		APIKey:       "test-key",
+		RetryMax:     &maxRetries,
+		RetryBackoff: func(attempt int) time.Duration { return 0 },
+	}, api: api}
 }
 
 func newTestSandbox(c *Client, id string) *Sandbox {

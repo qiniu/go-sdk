@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/url"
@@ -190,9 +191,16 @@ func (c *Client) Connect(ctx context.Context, sandboxID string, params ConnectPa
 }
 
 // retryCall 执行 API 调用并在可重试错误时自动重试。
-// 重试次数由 Config.RetryMax 控制，默认 5 次。
+// 重试次数由 Config.RetryMax 控制（nil 默认 5，0 禁用重试）。
 func (c *Client) retryCall(fn func() error) error {
-	maxRetries := c.config.RetryMax
+	maxRetries := 5
+	if c.config.RetryMax != nil {
+		maxRetries = *c.config.RetryMax
+	}
+	backoffFn := c.config.RetryBackoff
+	if backoffFn == nil {
+		backoffFn = exponentialBackoff
+	}
 	for attempt := 0; ; attempt++ {
 		err := fn()
 		if err == nil {
@@ -201,7 +209,21 @@ func (c *Client) retryCall(fn func() error) error {
 		if attempt >= maxRetries || !isRetryable(err) {
 			return err
 		}
+		d := backoffFn(attempt)
+		if d > 0 {
+			time.Sleep(d)
+		}
 	}
+}
+
+// exponentialBackoff 指数退避（500ms → 1s → 2s → 4s → 8s，上限 10s）+ 随机抖动。
+func exponentialBackoff(attempt int) time.Duration {
+	base := time.Duration(500<<attempt) * time.Millisecond
+	if base > 10*time.Second {
+		base = 10 * time.Second
+	}
+	jitter := time.Duration(rand.Int64N(int64(base/2 + 1)))
+	return base + jitter
 }
 
 // List 列出沙箱，支持分页和状态过滤。
