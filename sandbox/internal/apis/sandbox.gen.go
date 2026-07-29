@@ -1131,6 +1131,12 @@ type ListSandboxesParams struct {
 	Metadata *string `form:"metadata,omitempty" json:"metadata,omitempty"`
 }
 
+// CreateSandboxParams defines parameters for CreateSandbox.
+type CreateSandboxParams struct {
+	// IdempotencyKey Identifies one logical sandbox creation within the authenticated team. Retry an uncertain request with the same key and request body.
+	IdempotencyKey *string `json:"Idempotency-Key,omitempty"`
+}
+
 // GetSandboxesMetricsParams defines parameters for GetSandboxesMetrics.
 type GetSandboxesMetricsParams struct {
 	// SandboxIds Comma-separated list of sandbox IDs to get metrics for
@@ -2039,9 +2045,9 @@ type ClientInterface interface {
 	ListSandboxes(ctx context.Context, params *ListSandboxesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateSandboxWithBody request with any body
-	CreateSandboxWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateSandboxWithBody(ctx context.Context, params *CreateSandboxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	CreateSandbox(ctx context.Context, body CreateSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateSandbox(ctx context.Context, params *CreateSandboxParams, body CreateSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetSandboxesMetrics request
 	GetSandboxesMetrics(ctx context.Context, params *GetSandboxesMetricsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2270,8 +2276,8 @@ func (c *Client) ListSandboxes(ctx context.Context, params *ListSandboxesParams,
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateSandboxWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateSandboxRequestWithBody(c.Server, contentType, body)
+func (c *Client) CreateSandboxWithBody(ctx context.Context, params *CreateSandboxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSandboxRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2282,8 +2288,8 @@ func (c *Client) CreateSandboxWithBody(ctx context.Context, contentType string, 
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateSandbox(ctx context.Context, body CreateSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateSandboxRequest(c.Server, body)
+func (c *Client) CreateSandbox(ctx context.Context, params *CreateSandboxParams, body CreateSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSandboxRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3081,18 +3087,18 @@ func NewListSandboxesRequest(server string, params *ListSandboxesParams) (*http.
 }
 
 // NewCreateSandboxRequest calls the generic CreateSandbox builder with application/json body
-func NewCreateSandboxRequest(server string, body CreateSandboxJSONRequestBody) (*http.Request, error) {
+func NewCreateSandboxRequest(server string, params *CreateSandboxParams, body CreateSandboxJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCreateSandboxRequestWithBody(server, "application/json", bodyReader)
+	return NewCreateSandboxRequestWithBody(server, params, "application/json", bodyReader)
 }
 
 // NewCreateSandboxRequestWithBody generates requests for CreateSandbox with any type of body
-func NewCreateSandboxRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+func NewCreateSandboxRequestWithBody(server string, params *CreateSandboxParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -3116,6 +3122,21 @@ func NewCreateSandboxRequestWithBody(server string, contentType string, body io.
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Idempotency-Key", runtime.ParamLocationHeader, *params.IdempotencyKey)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -4750,9 +4771,9 @@ type ClientWithResponsesInterface interface {
 	ListSandboxesWithResponse(ctx context.Context, params *ListSandboxesParams, reqEditors ...RequestEditorFn) (*ListSandboxesResponse, error)
 
 	// CreateSandboxWithBodyWithResponse request with any body
-	CreateSandboxWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSandboxResponse, error)
+	CreateSandboxWithBodyWithResponse(ctx context.Context, params *CreateSandboxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSandboxResponse, error)
 
-	CreateSandboxWithResponse(ctx context.Context, body CreateSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSandboxResponse, error)
+	CreateSandboxWithResponse(ctx context.Context, params *CreateSandboxParams, body CreateSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSandboxResponse, error)
 
 	// GetSandboxesMetricsWithResponse request
 	GetSandboxesMetricsWithResponse(ctx context.Context, params *GetSandboxesMetricsParams, reqEditors ...RequestEditorFn) (*GetSandboxesMetricsResponse, error)
@@ -5054,6 +5075,8 @@ type CreateSandboxResponse struct {
 	JSON201      *Sandbox
 	JSON400      *N400
 	JSON401      *N401
+	JSON408      *Error
+	JSON409      *Error
 	JSON500      *N500
 }
 
@@ -5898,16 +5921,16 @@ func (c *ClientWithResponses) ListSandboxesWithResponse(ctx context.Context, par
 }
 
 // CreateSandboxWithBodyWithResponse request with arbitrary body returning *CreateSandboxResponse
-func (c *ClientWithResponses) CreateSandboxWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSandboxResponse, error) {
-	rsp, err := c.CreateSandboxWithBody(ctx, contentType, body, reqEditors...)
+func (c *ClientWithResponses) CreateSandboxWithBodyWithResponse(ctx context.Context, params *CreateSandboxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSandboxResponse, error) {
+	rsp, err := c.CreateSandboxWithBody(ctx, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseCreateSandboxResponse(rsp)
 }
 
-func (c *ClientWithResponses) CreateSandboxWithResponse(ctx context.Context, body CreateSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSandboxResponse, error) {
-	rsp, err := c.CreateSandbox(ctx, body, reqEditors...)
+func (c *ClientWithResponses) CreateSandboxWithResponse(ctx context.Context, params *CreateSandboxParams, body CreateSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSandboxResponse, error) {
+	rsp, err := c.CreateSandbox(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -6659,6 +6682,20 @@ func ParseCreateSandboxResponse(rsp *http.Response) (*CreateSandboxResponse, err
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 408:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON408 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest N500

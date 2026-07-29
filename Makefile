@@ -1,4 +1,4 @@
-.PHONY: test unittest integrationtest staticcheck sync-api-specs generate generate-sandbox sandbox-examples
+.PHONY: test unittest integrationtest staticcheck sync-api-specs sync-sandbox-api-specs generate generate-sandbox sandbox-examples
 
 test:
 	go test -tags='unit integration' -failfast -count=1 -v -timeout 350m -coverprofile=coverage.txt `go list ./... | egrep -v 'examples|sms'` | tee -a test.log
@@ -16,6 +16,11 @@ staticcheck:
 # 运行后请先检查 api-specs 的变更，再运行 make generate 或 make generate-sandbox 并提交。
 sync-api-specs:
 	git submodule update --init --recursive --remote api-specs
+
+# 从远端同步 sandbox 的 OpenAPI 规范及 envd proto 文件。
+# 需要安装 gh CLI 并已认证。运行后请先检查变更，再运行 make generate-sandbox 并提交。
+sync-sandbox-api-specs:
+	@bash api-specs/sandbox/sync-openapi-public.sh
 
 generate:
 	go generate ./storagev2/

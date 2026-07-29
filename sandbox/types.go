@@ -70,6 +70,11 @@ type CreateParams struct {
 	// Resources 沙箱启动前需挂载的资源列表，可选。
 	// 平台会在沙箱启动前完成资源物化（如 GitHub 仓库克隆）。
 	Resources *[]SandboxResourceSpec
+
+	// IdempotencyKey 幂等键，可选。默认自动生成。
+	// 同一团队内重试不确定的请求时使用相同的 Key 和请求体，
+	// 可保证不会重复创建沙箱。
+	IdempotencyKey string
 }
 
 func (p CreateParams) hasKodoResource() bool {

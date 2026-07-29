@@ -27,6 +27,10 @@ type Config struct {
 
 	// HTTPClient 自定义 HTTP 客户端（可选，默认值：http.DefaultClient）。
 	HTTPClient *http.Client
+
+	// RetryMax 可重试 API 调用的最大重试次数（可选，默认值：5，即最多 6 次尝试）。
+	// 设置为 0 禁用重试。
+	RetryMax int
 }
 
 // Client 是沙箱客户端。
@@ -43,6 +47,9 @@ func NewClient(config *Config) (*Client, error) {
 	}
 	if config.HTTPClient == nil {
 		config.HTTPClient = http.DefaultClient
+	}
+	if config.RetryMax == 0 {
+		config.RetryMax = 5
 	}
 
 	opts := []apis.ClientOption{

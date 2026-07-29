@@ -4,14 +4,18 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/qiniu/go-sdk/v7/reqid"
 	"github.com/qiniu/go-sdk/v7/sandbox/internal/apis"
 	"github.com/qiniu/go-sdk/v7/sandbox/internal/envdapi/process/processconnect"
@@ -103,6 +107,7 @@ func (s *Sandbox) processClient() processconnect.ProcessClient {
 }
 
 // Create 根据指定模板创建一个新的沙箱。
+// 默认自动生成幂等键，在遇到服务端错误或网络错误时自动重试。
 func (c *Client) Create(ctx context.Context, params CreateParams) (*Sandbox, error) {
 	apiParams, err := params.toAPI()
 	if err != nil {
@@ -119,45 +124,84 @@ func (c *Client) Create(ctx context.Context, params CreateParams) (*Sandbox, err
 		}
 		editors = append(editors, cred)
 	}
-	resp, err := c.api.CreateSandboxWithResponse(ctx, apiParams, editors...)
+	idempotencyKey := params.IdempotencyKey
+	if idempotencyKey == "" {
+		idempotencyKey = newIdempotencyKey()
+	}
+	var resp *apis.CreateSandboxResponse
+	err = c.retryCall(func() error {
+		var e error
+		resp, e = c.api.CreateSandboxWithResponse(ctx, &apis.CreateSandboxParams{
+			IdempotencyKey: &idempotencyKey,
+		}, apiParams, editors...)
+		if e != nil {
+			return e
+		}
+		if resp.JSON201 == nil {
+			return newAPIError(resp.HTTPResponse, resp.Body)
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	if resp.JSON201 == nil {
-		return nil, newAPIError(resp.HTTPResponse, resp.Body)
-	}
 	sb := newSandbox(c, resp.JSON201)
-	// Create API 可能不返回 envdAccessToken（与 Connect 同理），通过 GetSandbox 补充。
 	if !sb.envdTokenLoaded {
-		if err := sb.refreshEnvdToken(ctx); err != nil {
-			return nil, fmt.Errorf("create sandbox %s: %w", sb.sandboxID, err)
+		if tErr := sb.refreshEnvdToken(ctx); tErr != nil {
+			return nil, fmt.Errorf("create sandbox %s: %w", sb.sandboxID, tErr)
 		}
 	}
 	return sb, nil
 }
 
 // Connect 连接到一个已有的沙箱，可选择恢复已暂停的沙箱。
+// 在遇到服务端错误或网络错误时自动重试。
 func (c *Client) Connect(ctx context.Context, sandboxID string, params ConnectParams) (*Sandbox, error) {
-	resp, err := c.api.ConnectSandboxWithResponse(ctx, sandboxID, params.toAPI())
+	var resp *apis.ConnectSandboxResponse
+	err := c.retryCall(func() error {
+		var e error
+		resp, e = c.api.ConnectSandboxWithResponse(ctx, sandboxID, params.toAPI())
+		if e != nil {
+			return e
+		}
+		if resp.JSON200 == nil && resp.JSON201 == nil {
+			return newAPIError(resp.HTTPResponse, resp.Body)
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	var sb *Sandbox
+	var sandboxResp *apis.Sandbox
 	if resp.JSON200 != nil {
-		sb = newSandbox(c, resp.JSON200)
-	} else if resp.JSON201 != nil {
-		sb = newSandbox(c, resp.JSON201)
+		sandboxResp = resp.JSON200
 	} else {
-		return nil, newAPIError(resp.HTTPResponse, resp.Body)
+		sandboxResp = resp.JSON201
 	}
+	sb := newSandbox(c, sandboxResp)
 	// Connect API 可能不返回 envdAccessToken，需要通过 GetSandbox 补充。
 	// envdAccessToken 用于 envd gRPC 认证，缺少时 PTY/命令执行等操作会静默失败。
 	if !sb.envdTokenLoaded {
-		if err := sb.refreshEnvdToken(ctx); err != nil {
-			return nil, fmt.Errorf("connect sandbox %s: %w", sandboxID, err)
+		if tErr := sb.refreshEnvdToken(ctx); tErr != nil {
+			return nil, fmt.Errorf("connect sandbox %s: %w", sandboxID, tErr)
 		}
 	}
 	return sb, nil
+}
+
+// retryCall 执行 API 调用并在可重试错误时自动重试。
+// 重试次数由 Config.RetryMax 控制，默认 5 次。
+func (c *Client) retryCall(fn func() error) error {
+	maxRetries := c.config.RetryMax
+	for attempt := 0; ; attempt++ {
+		err := fn()
+		if err == nil {
+			return nil
+		}
+		if attempt >= maxRetries || !isRetryable(err) {
+			return err
+		}
+	}
 }
 
 // List 列出沙箱，支持分页和状态过滤。
@@ -583,4 +627,44 @@ func (s *Sandbox) batchUploadURL(user string) string {
 	q := url.Values{}
 	q.Set("username", user)
 	return s.envdURL() + "/files?" + q.Encode()
+}
+
+// newIdempotencyKey 生成一个 UUID v4 格式的幂等键。
+func newIdempotencyKey() string {
+	return uuid.New().String()
+}
+
+// isRetryableStatusCode 判断 HTTP 状态码是否可重试。
+// 可重试：408（超时）及 5xx 服务端错误（排除 501）。
+func isRetryableStatusCode(code int) bool {
+	if code == 408 {
+		return true
+	}
+	return code >= 500 && code != 501
+}
+
+// isRetryableError 判断错误是否为网络层面的可重试错误。
+func isRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	s := err.Error()
+	return strings.Contains(s, "connection refused") ||
+		strings.Contains(s, "connection reset") ||
+		strings.Contains(s, "broken pipe") ||
+		strings.Contains(s, "no such host") ||
+		strings.Contains(s, "unexpected EOF") ||
+		strings.Contains(s, "use of closed network connection")
+}
+
+// isRetryable 判断错误是否可重试：APIError 按状态码判断，其余按网络错误判断。
+func isRetryable(err error) bool {
+	if apiErr, ok := err.(*APIError); ok {
+		return isRetryableStatusCode(apiErr.StatusCode)
+	}
+	return isRetryableError(err)
 }

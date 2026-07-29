@@ -165,6 +165,20 @@ sandbox 使用不同的生成工具链：
 make generate-sandbox   # 需要安装 buf、protoc-gen-go、protoc-gen-connect-go
 ```
 
+### 同步 Sandbox API 规范（make sync-sandbox-api-specs）
+
+sandbox 的 OpenAPI 规范不在子模块中，而是通过 `api-specs/sandbox/sync-openapi-public.sh` 脚本从远端仓库直接拉取：
+
+- **控制面**：从 `qbox/sandbox` 仓库的 `spec/openapi-public.yml` 拉取，保存为 `api-specs/sandbox/openapi.yml`
+- **envd**：从 `qbox/envd` 仓库的 `spec/` 目录拉取 envd.yaml 和 proto 文件
+
+需要安装 `gh` CLI 并已认证。同步后请运行 `make generate-sandbox` 重新生成代码。
+
+```bash
+make sync-sandbox-api-specs   # 同步远端规范 → 本地 api-specs/sandbox/
+make generate-sandbox          # 根据最新规范重新生成代码
+```
+
 ### 生成代码标记
 
 所有生成的代码文件首行包含如下标记之一：
@@ -276,16 +290,63 @@ make staticcheck
 
 ### 日常开发
 
-1. 修改代码前先运行 `make unittest` 确认当前状态
-2. 修改 API 规范后运行 `make generate` 或 `make generate-sandbox`
-3. 提交前运行 `make unittest` 和 `make staticcheck` 确保通过
-4. 代码格式化：`gofmt -s -w .`
+1. 确保分支基于最新 main：`git fetch upstream && git rebase upstream/main`
+2. 同步 sandbox API 规范：`make sync-sandbox-api-specs`
+3. 修改代码前先运行 `make unittest` 确认当前状态
+4. 修改 API 规范后运行 `make generate` 或 `make generate-sandbox`
+5. 提交前运行 `make unittest` 和 `make staticcheck` 确保通过
+6. 代码格式化：`gofmt -s -w .`
 
 ### 修改生成代码的正确流程
 
-1. 更新 `api-specs/` 中对应的 YAML 规范
-2. 运行 `make generate`（或 `make generate-sandbox`）
-3. 检查生成结果，确认无误后提交规范和生成代码
+1. 运行 `make sync-sandbox-api-specs` 同步远端 API 规范
+2. 更新 `api-specs/` 中对应的 YAML 规范（如需）
+3. 运行 `make generate`（或 `make generate-sandbox`）
+4. 检查生成结果，确认无误后提交规范和生成代码
+
+### 测试与验证
+
+实现新功能或修复 bug 时，应同时提供单元测试和集成测试。对于涉及幂等、重试等逻辑的接口，单元测试用 mock 覆盖边界条件，集成测试用真实凭证验证端到端行为。
+
+#### 运行规则
+
+```bash
+# 单测（提交前必须通过）
+make unittest
+
+# 特定包的单测
+go test -tags=unit -count=1 -v ./sandbox/
+
+# 集成测试（需要 .env 文件）
+set -a && source sandbox/.env && set +a && go test -tags=integration -count=1 -v ./sandbox/
+```
+
+#### 环境变量 `.env` 文件
+
+`sandbox/.env` 用于集成测试和示例程序的环境变量配置：
+
+```
+QINIU_API_KEY=          # 七牛 API Key（必填）
+QINIU_SANDBOX_API_URL=  # API 端点（可选，默认 https://cn-yangzhou-1-sandbox.qiniuapi.com）
+GITHUB_REPO_URL=        # Git 重试测试用的仓库 URL（可选）
+GITHUB_TOKEN=           # GitHub Personal Access Token（可选）
+SANDBOX_RETRY_MAX=      # 可重试 API 的最大重试次数（可选，默认 5，设为 0 禁用重试）
+```
+
+使用方式：
+
+```bash
+cd sandbox/
+set -a && source .env && set +a
+# 后续 go test / go run 命令可直接读取环境变量
+```
+
+#### 运行示例
+
+```bash
+# 需要先 source sandbox/.env
+go run ./examples/sandbox_idempotency_retry/
+```
 
 ## 重要约定
 

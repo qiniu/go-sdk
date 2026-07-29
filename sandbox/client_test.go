@@ -22,7 +22,7 @@ import (
 // mockAPI 实现 apis.ClientWithResponsesInterface 用于测试。
 // 每个方法字段可按测试设置；未设置的方法会 panic。
 type mockAPI struct {
-	createSandboxFn            func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error)
+	createSandboxFn            func(ctx context.Context, params *apis.CreateSandboxParams, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error)
 	getSandboxFn               func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error)
 	deleteSandboxFn            func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.DeleteSandboxResponse, error)
 	listSandboxesFn            func(ctx context.Context, params *apis.ListSandboxesParams, editors ...apis.RequestEditorFn) (*apis.ListSandboxesResponse, error)
@@ -58,11 +58,11 @@ func httpResponseWithReqid(statusCode int, reqidVal string) *http.Response {
 
 // --- 沙箱操作 ---
 
-func (m *mockAPI) CreateSandboxWithResponse(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
-	return m.createSandboxFn(ctx, body, editors...)
+func (m *mockAPI) CreateSandboxWithResponse(ctx context.Context, params *apis.CreateSandboxParams, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+	return m.createSandboxFn(ctx, params, body, editors...)
 }
 
-func (m *mockAPI) CreateSandboxWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+func (m *mockAPI) CreateSandboxWithBodyWithResponse(ctx context.Context, params *apis.CreateSandboxParams, contentType string, body io.Reader, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
 	panic("not implemented")
 }
 
@@ -290,7 +290,7 @@ func (m *mockAPI) PutInjectionRulesRuleIDWithBodyWithResponse(ctx context.Contex
 // ============================================================
 
 func newTestClient(api apis.ClientWithResponsesInterface) *Client {
-	return &Client{config: &Config{APIKey: "test-key"}, api: api}
+	return &Client{config: &Config{APIKey: "test-key", RetryMax: 5}, api: api}
 }
 
 func newTestSandbox(c *Client, id string) *Sandbox {
@@ -421,7 +421,7 @@ func TestReqidEditor(t *testing.T) {
 func TestCreate(t *testing.T) {
 	token := "create-token"
 	mock := &mockAPI{
-		createSandboxFn: func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+		createSandboxFn: func(ctx context.Context, params *apis.CreateSandboxParams, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
 			return &apis.CreateSandboxResponse{
 				JSON201:      &apis.Sandbox{SandboxID: "sb-123", TemplateID: "tmpl-1", EnvdAccessToken: &token},
 				HTTPResponse: httpResponse(201),
@@ -446,7 +446,7 @@ func TestCreateWithKodoResource(t *testing.T) {
 	prefix := "datasets/"
 	readOnly := true
 	mock := &mockAPI{
-		createSandboxFn: func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+		createSandboxFn: func(ctx context.Context, params *apis.CreateSandboxParams, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
 			if len(editors) != 1 {
 				t.Fatalf("expected one credentials editor, got %d", len(editors))
 			}
@@ -512,7 +512,7 @@ func TestCreateWithoutToken(t *testing.T) {
 	// Create API 不返回 token，应通过 GetSandbox 补充
 	token := "fallback-token"
 	mock := &mockAPI{
-		createSandboxFn: func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+		createSandboxFn: func(ctx context.Context, params *apis.CreateSandboxParams, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
 			return &apis.CreateSandboxResponse{
 				JSON201:      &apis.Sandbox{SandboxID: "sb-123", TemplateID: "tmpl-1"},
 				HTTPResponse: httpResponse(201),
@@ -544,7 +544,7 @@ func TestCreateWithoutToken(t *testing.T) {
 func TestCreateRefreshTokenError(t *testing.T) {
 	// Create API 不返回 token，GetSandbox 也失败 → Create 返回错误
 	mock := &mockAPI{
-		createSandboxFn: func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+		createSandboxFn: func(ctx context.Context, params *apis.CreateSandboxParams, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
 			return &apis.CreateSandboxResponse{
 				JSON201:      &apis.Sandbox{SandboxID: "sb-123", TemplateID: "tmpl-1"},
 				HTTPResponse: httpResponse(201),
@@ -563,7 +563,7 @@ func TestCreateRefreshTokenError(t *testing.T) {
 
 func TestCreateError(t *testing.T) {
 	mock := &mockAPI{
-		createSandboxFn: func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+		createSandboxFn: func(ctx context.Context, params *apis.CreateSandboxParams, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
 			return &apis.CreateSandboxResponse{
 				HTTPResponse: httpResponse(400),
 				Body:         []byte(`{"message":"bad request"}`),
@@ -1396,7 +1396,7 @@ func TestRefresh(t *testing.T) {
 
 func TestCreateAndWait(t *testing.T) {
 	mock := &mockAPI{
-		createSandboxFn: func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+		createSandboxFn: func(ctx context.Context, params *apis.CreateSandboxParams, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
 			return &apis.CreateSandboxResponse{
 				JSON201:      &apis.Sandbox{SandboxID: "sb-new", TemplateID: "tmpl-1"},
 				HTTPResponse: httpResponse(201),
@@ -1424,7 +1424,7 @@ func TestCreateAndWait(t *testing.T) {
 
 func TestCreateAndWaitCreateFails(t *testing.T) {
 	mock := &mockAPI{
-		createSandboxFn: func(ctx context.Context, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+		createSandboxFn: func(ctx context.Context, params *apis.CreateSandboxParams, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
 			return &apis.CreateSandboxResponse{
 				HTTPResponse: httpResponse(500),
 				Body:         []byte("internal error"),
@@ -1949,5 +1949,191 @@ func TestConnectCreated(t *testing.T) {
 	}
 	if sb.ID() != "sb-new" {
 		t.Errorf("expected sandbox ID 'sb-new', got %q", sb.ID())
+	}
+}
+
+func TestRetryCall_RetryableStatusCode(t *testing.T) {
+	c := newTestClient(&mockAPI{})
+	var callCount int
+	err := c.retryCall(func() error {
+		callCount++
+		if callCount < 3 {
+			return &APIError{StatusCode: http.StatusRequestTimeout} // 408
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("expected nil error after retries, got: %v", err)
+	}
+	if callCount != 3 {
+		t.Errorf("expected 3 calls, got %d", callCount)
+	}
+}
+
+func TestRetryCall_RetryableNetworkError(t *testing.T) {
+	c := newTestClient(&mockAPI{})
+	var callCount int
+	err := c.retryCall(func() error {
+		callCount++
+		if callCount < 2 {
+			return fmt.Errorf("connection refused")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("expected nil error after retries, got: %v", err)
+	}
+	if callCount != 2 {
+		t.Errorf("expected 2 calls, got %d", callCount)
+	}
+}
+
+func TestRetryCall_NoRetryOn4xx(t *testing.T) {
+	c := newTestClient(&mockAPI{})
+	var callCount int
+	err := c.retryCall(func() error {
+		callCount++
+		return &APIError{StatusCode: http.StatusBadRequest}
+	})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if callCount != 1 {
+		t.Errorf("expected 1 call (no retry), got %d", callCount)
+	}
+}
+
+func TestRetryCall_NoRetryOn409(t *testing.T) {
+	c := newTestClient(&mockAPI{})
+	var callCount int
+	err := c.retryCall(func() error {
+		callCount++
+		return &APIError{StatusCode: http.StatusConflict}
+	})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if callCount != 1 {
+		t.Errorf("expected 1 call (no retry), got %d", callCount)
+	}
+}
+
+func TestRetryCall_MaxRetries(t *testing.T) {
+	c := newTestClient(&mockAPI{})
+	var callCount int
+	err := c.retryCall(func() error {
+		callCount++
+		return &APIError{StatusCode: http.StatusInternalServerError}
+	})
+	if err == nil {
+		t.Fatal("expected error after max retries, got nil")
+	}
+	if callCount != 6 { // 1 initial + 5 retries
+		t.Errorf("expected 6 calls, got %d", callCount)
+	}
+}
+
+func TestCreate_IdempotencyKeyPassed(t *testing.T) {
+	var capturedKey *string
+	token := "tok"
+	mock := &mockAPI{
+		createSandboxFn: func(ctx context.Context, params *apis.CreateSandboxParams, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+			capturedKey = params.IdempotencyKey
+			return &apis.CreateSandboxResponse{
+				JSON201:      &apis.Sandbox{SandboxID: "sb-1", TemplateID: "tpl", EnvdAccessToken: &token},
+				HTTPResponse: httpResponse(201),
+			}, nil
+		},
+	}
+	c := newTestClient(mock)
+	_, err := c.Create(context.Background(), CreateParams{
+		TemplateID:     "tpl",
+		IdempotencyKey: "my-key",
+	})
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if capturedKey == nil || *capturedKey != "my-key" {
+		t.Errorf("expected idempotency key 'my-key', got %v", capturedKey)
+	}
+}
+
+func TestCreate_AutoIdempotencyKey(t *testing.T) {
+	var capturedKey *string
+	token := "tok"
+	mock := &mockAPI{
+		createSandboxFn: func(ctx context.Context, params *apis.CreateSandboxParams, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+			capturedKey = params.IdempotencyKey
+			return &apis.CreateSandboxResponse{
+				JSON201:      &apis.Sandbox{SandboxID: "sb-1", TemplateID: "tpl", EnvdAccessToken: &token},
+				HTTPResponse: httpResponse(201),
+			}, nil
+		},
+	}
+	c := newTestClient(mock)
+	_, err := c.Create(context.Background(), CreateParams{
+		TemplateID: "tpl",
+	})
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if capturedKey == nil || *capturedKey == "" {
+		t.Error("expected auto-generated idempotency key, got empty")
+	}
+}
+
+func TestCreate_RetryOn408(t *testing.T) {
+	var callCount int32
+	token := "tok"
+	mock := &mockAPI{
+		createSandboxFn: func(ctx context.Context, params *apis.CreateSandboxParams, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+			atomic.AddInt32(&callCount, 1)
+			if atomic.LoadInt32(&callCount) < 3 {
+				return &apis.CreateSandboxResponse{HTTPResponse: httpResponse(408)}, nil
+			}
+			return &apis.CreateSandboxResponse{
+				JSON201:      &apis.Sandbox{SandboxID: "sb-1", TemplateID: "tpl", EnvdAccessToken: &token},
+				HTTPResponse: httpResponse(201),
+			}, nil
+		},
+	}
+	c := newTestClient(mock)
+	sb, err := c.Create(context.Background(), CreateParams{TemplateID: "tpl"})
+	if err != nil {
+		t.Fatalf("Create should succeed after retries: %v", err)
+	}
+	if sb.ID() != "sb-1" {
+		t.Errorf("expected sb-1, got %s", sb.ID())
+	}
+	if atomic.LoadInt32(&callCount) != 3 {
+		t.Errorf("expected 3 calls, got %d", callCount)
+	}
+}
+
+func TestCreate_RetryOnNetworkError(t *testing.T) {
+	var callCount int32
+	token := "tok"
+	mock := &mockAPI{
+		createSandboxFn: func(ctx context.Context, params *apis.CreateSandboxParams, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error) {
+			atomic.AddInt32(&callCount, 1)
+			if atomic.LoadInt32(&callCount) < 2 {
+				return nil, fmt.Errorf("connection reset by peer")
+			}
+			return &apis.CreateSandboxResponse{
+				JSON201:      &apis.Sandbox{SandboxID: "sb-1", TemplateID: "tpl", EnvdAccessToken: &token},
+				HTTPResponse: httpResponse(201),
+			}, nil
+		},
+	}
+	c := newTestClient(mock)
+	sb, err := c.Create(context.Background(), CreateParams{TemplateID: "tpl"})
+	if err != nil {
+		t.Fatalf("Create should succeed after retries: %v", err)
+	}
+	if sb.ID() != "sb-1" {
+		t.Errorf("expected sb-1, got %s", sb.ID())
+	}
+	if atomic.LoadInt32(&callCount) != 2 {
+		t.Errorf("expected 2 calls, got %d", callCount)
 	}
 }
