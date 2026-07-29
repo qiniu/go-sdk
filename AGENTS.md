@@ -165,20 +165,6 @@ sandbox 使用不同的生成工具链：
 make generate-sandbox   # 需要安装 buf、protoc-gen-go、protoc-gen-connect-go
 ```
 
-### 同步 Sandbox API 规范（make sync-sandbox-api-specs）
-
-sandbox 的 OpenAPI 规范不在子模块中，而是通过 `api-specs/sandbox/sync-openapi-public.sh` 脚本从远端仓库直接拉取：
-
-- **控制面**：从 `qbox/sandbox` 仓库的 `spec/openapi-public.yml` 拉取，保存为 `api-specs/sandbox/openapi.yml`
-- **envd**：从 `qbox/envd` 仓库的 `spec/` 目录拉取 envd.yaml 和 proto 文件
-
-需要安装 `gh` CLI 并已认证。同步后请运行 `make generate-sandbox` 重新生成代码。
-
-```bash
-make sync-sandbox-api-specs   # 同步远端规范 → 本地 api-specs/sandbox/
-make generate-sandbox          # 根据最新规范重新生成代码
-```
-
 ### 生成代码标记
 
 所有生成的代码文件首行包含如下标记之一：
@@ -291,18 +277,16 @@ make staticcheck
 ### 日常开发
 
 1. 确保分支基于最新 master：`git fetch upstream && git rebase upstream/master`
-2. 同步 sandbox API 规范：`make sync-sandbox-api-specs`
-3. 修改代码前先运行 `make unittest` 确认当前状态
-4. 修改 API 规范后运行 `make generate` 或 `make generate-sandbox`
-5. 提交前运行 `make unittest` 和 `make staticcheck` 确保通过
-6. 代码格式化：`gofmt -s -w .`
+2. 修改代码前先运行 `make unittest` 确认当前状态
+3. 修改 API 规范后运行 `make generate` 或 `make generate-sandbox`
+4. 提交前运行 `make unittest` 和 `make staticcheck` 确保通过
+5. 代码格式化：`gofmt -s -w .`
 
 ### 修改生成代码的正确流程
 
-1. 运行 `make sync-sandbox-api-specs` 同步远端 API 规范
-2. 更新 `api-specs/` 中对应的 YAML 规范（如需）
-3. 运行 `make generate`（或 `make generate-sandbox`）
-4. 检查生成结果，确认无误后提交规范和生成代码
+1. 更新 `api-specs/` 中对应的 YAML 规范（如需）
+2. 运行 `make generate`（或 `make generate-sandbox`）
+3. 检查生成结果，确认无误后提交规范和生成代码
 
 ### 测试与验证
 

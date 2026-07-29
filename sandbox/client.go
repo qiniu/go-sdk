@@ -29,7 +29,7 @@ type Config struct {
 	// HTTPClient 自定义 HTTP 客户端（可选，默认值：http.DefaultClient）。
 	HTTPClient *http.Client
 
-	// RetryMax 可重试 API 调用的最大重试次数（可选，默认 5，最多 6 次尝试）。
+	// RetryMax 可重试 API 调用的最大重试次数（可选，nil 使用默认值 5，0 禁用重试）。
 	// 设置为 0 禁用重试，nil 使用默认值。
 	RetryMax *int
 
