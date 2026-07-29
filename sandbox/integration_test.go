@@ -1078,7 +1078,7 @@ func TestIntegrationCreateRetryWithGitClone(t *testing.T) {
 		IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
-		if apiErr, ok := err.(*APIError); ok && apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 {
+		if apiErr, ok := err.(*APIError); ok && apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 && apiErr.StatusCode != 408 {
 			t.Fatalf("非可重试错误: %v", err)
 		}
 		t.Logf("Create 失败（clone 超时等可重试错误）: %v", err)

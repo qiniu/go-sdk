@@ -674,6 +674,10 @@ func isRetryableError(err error) bool {
 	if errors.As(err, &netErr) && netErr.Timeout() {
 		return true
 	}
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return true
+	}
 	s := err.Error()
 	return strings.Contains(s, "connection refused") ||
 		strings.Contains(s, "connection reset") ||
@@ -685,7 +689,8 @@ func isRetryableError(err error) bool {
 
 // isRetryable 判断错误是否可重试：APIError 按状态码判断，其余按网络错误判断。
 func isRetryable(err error) bool {
-	if apiErr, ok := err.(*APIError); ok {
+	var apiErr *APIError
+	if errors.As(err, &apiErr) {
 		return isRetryableStatusCode(apiErr.StatusCode)
 	}
 	return isRetryableError(err)
