@@ -1032,62 +1032,6 @@ func TestIntegrationCreateIdempotencyRetry(t *testing.T) {
 	}
 }
 
-func TestIntegrationCreateRetryWithGitClone(t *testing.T) {
-	// 挂载大仓库时 clone 可能超时返回 408，
-	// 幂等键保证重试不会重复创建沙箱。
-	repoURL := strings.TrimSpace(os.Getenv("GITHUB_REPO_URL"))
-	token := strings.TrimSpace(os.Getenv("GITHUB_TOKEN"))
-	if repoURL == "" || token == "" {
-		t.Skip("未设置 GITHUB_REPO_URL / GITHUB_TOKEN")
-	}
-
-	c := testClient(t)
-	ctx := context.Background()
-
-	templates, err := c.ListTemplates(ctx, nil)
-	if err != nil {
-		t.Fatalf("ListTemplates 失败: %v", err)
-	}
-	var templateID string
-	for _, tmpl := range templates {
-		if tmpl.BuildStatus == BuildStatusReady || tmpl.BuildStatus == BuildStatusUploaded {
-			templateID = tmpl.TemplateID
-			break
-		}
-	}
-	if templateID == "" {
-		t.Skip("没有可用模板，跳过测试")
-	}
-	t.Logf("使用模板: %s, 仓库: %s", templateID, repoURL)
-
-	timeout := int32(300)
-	idempotencyKey := "sdk-retry-git-" + time.Now().Format("20060102-150405")
-	t.Logf("幂等键: %s", idempotencyKey)
-
-	sb, err := c.Create(ctx, CreateParams{
-		TemplateID: templateID,
-		Timeout:    &timeout,
-		Resources: &[]SandboxResourceSpec{{
-			GitRepository: &GitRepositoryResource{
-				URL:                repoURL,
-				MountPath:          "/repo",
-				Type:               GitRepositoryTypeGithub,
-				AuthorizationToken: &token,
-			},
-		}},
-		IdempotencyKey: idempotencyKey,
-	})
-	if err != nil {
-		if apiErr, ok := err.(*APIError); ok && apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 && apiErr.StatusCode != 408 {
-			t.Fatalf("非可重试错误: %v", err)
-		}
-		t.Logf("Create 失败（clone 超时等可重试错误）: %v", err)
-		return
-	}
-	defer killSandbox(t, sb)
-	t.Logf("沙箱创建成功: %s", sb.ID())
-}
-
 func killSandbox(t *testing.T, sb *Sandbox) {
 	t.Helper()
 	killCtx, killCancel := context.WithTimeout(context.Background(), 10*time.Second)

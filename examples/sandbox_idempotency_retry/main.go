@@ -11,9 +11,15 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	apiKey := os.Getenv("QINIU_API_KEY")
 	if apiKey == "" {
-		log.Fatal("请设置 QINIU_API_KEY 环境变量")
+		return fmt.Errorf("请设置 QINIU_API_KEY 环境变量")
 	}
 
 	apiURL := os.Getenv("QINIU_SANDBOX_API_URL")
@@ -23,7 +29,7 @@ func main() {
 		Endpoint: apiURL,
 	})
 	if err != nil {
-		log.Fatalf("创建客户端失败: %v", err)
+		return fmt.Errorf("创建客户端失败: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -42,8 +48,9 @@ func main() {
 		IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
-		log.Fatalf("第一次创建失败: %v", err)
+		return fmt.Errorf("第一次创建失败: %w", err)
 	}
+	defer cleanupSandbox(sb1)
 	fmt.Printf("第一次创建: %s\n", sb1.ID())
 
 	// 第二次创建 — 同一幂等键，应返回同一沙箱
@@ -53,7 +60,10 @@ func main() {
 		IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
-		log.Fatalf("第二次创建失败: %v", err)
+		return fmt.Errorf("第二次创建失败: %w", err)
+	}
+	if sb2.ID() != sb1.ID() {
+		defer cleanupSandbox(sb2)
 	}
 	fmt.Printf("第二次创建: %s\n", sb2.ID())
 
@@ -63,11 +73,15 @@ func main() {
 		fmt.Printf("\nWARNING: 两次创建返回不同沙箱: %s vs %s\n", sb1.ID(), sb2.ID())
 	}
 
-	// 清理
+	return nil
+}
+
+func cleanupSandbox(sb *sandbox.Sandbox) {
 	killCtx, killCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer killCancel()
-	if err := sb1.Kill(killCtx); err != nil {
-		log.Printf("清理沙箱失败: %v", err)
+	if err := sb.Kill(killCtx); err != nil {
+		log.Printf("清理沙箱 %s 失败: %v", sb.ID(), err)
+		return
 	}
-	fmt.Println("沙箱已清理")
+	log.Printf("沙箱 %s 已清理", sb.ID())
 }

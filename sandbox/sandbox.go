@@ -130,7 +130,7 @@ func (c *Client) Create(ctx context.Context, params CreateParams) (*Sandbox, err
 		idempotencyKey = newIdempotencyKey()
 	}
 	var resp *apis.CreateSandboxResponse
-	err = c.retryCall(func() error {
+	err = c.retryCall(ctx, func() error {
 		var e error
 		resp, e = c.api.CreateSandboxWithResponse(ctx, &apis.CreateSandboxParams{
 			IdempotencyKey: &idempotencyKey,
@@ -159,7 +159,7 @@ func (c *Client) Create(ctx context.Context, params CreateParams) (*Sandbox, err
 // 在遇到服务端错误或网络错误时自动重试。
 func (c *Client) Connect(ctx context.Context, sandboxID string, params ConnectParams) (*Sandbox, error) {
 	var resp *apis.ConnectSandboxResponse
-	err := c.retryCall(func() error {
+	err := c.retryCall(ctx, func() error {
 		var e error
 		resp, e = c.api.ConnectSandboxWithResponse(ctx, sandboxID, params.toAPI())
 		if e != nil {
@@ -192,7 +192,7 @@ func (c *Client) Connect(ctx context.Context, sandboxID string, params ConnectPa
 
 // retryCall 执行 API 调用并在可重试错误时自动重试。
 // 重试次数由 Config.RetryMax 控制（nil 默认 5，0 禁用重试）。
-func (c *Client) retryCall(fn func() error) error {
+func (c *Client) retryCall(ctx context.Context, fn func() error) error {
 	maxRetries := 5
 	if c.config.RetryMax != nil {
 		maxRetries = *c.config.RetryMax
@@ -202,25 +202,48 @@ func (c *Client) retryCall(fn func() error) error {
 		backoffFn = exponentialBackoff
 	}
 	for attempt := 0; ; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		err := fn()
 		if err == nil {
 			return nil
+		}
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
 		}
 		if attempt >= maxRetries || !isRetryable(err) {
 			return err
 		}
 		d := backoffFn(attempt)
 		if d > 0 {
-			time.Sleep(d)
+			timer := time.NewTimer(d)
+			select {
+			case <-timer.C:
+			case <-ctx.Done():
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+				return ctx.Err()
+			}
 		}
 	}
 }
 
 // exponentialBackoff 指数退避（500ms → 1s → 2s → 4s → 8s，上限 10s）+ 随机抖动。
 func exponentialBackoff(attempt int) time.Duration {
-	base := time.Duration(500<<attempt) * time.Millisecond
-	if base > 10*time.Second {
-		base = 10 * time.Second
+	const maxBackoff = 10 * time.Second
+	base := 500 * time.Millisecond
+	if attempt >= 5 {
+		base = maxBackoff
+	} else if attempt > 0 {
+		base *= time.Duration(1 << attempt)
+	}
+	if base > maxBackoff {
+		base = maxBackoff
 	}
 	jitter := time.Duration(rand.Int64N(int64(base/2 + 1)))
 	return base + jitter
@@ -689,6 +712,9 @@ func isRetryableError(err error) bool {
 
 // isRetryable 判断错误是否可重试：APIError 按状态码判断，其余按网络错误判断。
 func isRetryable(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
 	var apiErr *APIError
 	if errors.As(err, &apiErr) {
 		return isRetryableStatusCode(apiErr.StatusCode)

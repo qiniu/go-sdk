@@ -1961,7 +1961,7 @@ func TestConnectCreated(t *testing.T) {
 func TestRetryCall_RetryableStatusCode(t *testing.T) {
 	c := newTestClient(&mockAPI{})
 	var callCount int
-	err := c.retryCall(func() error {
+	err := c.retryCall(context.Background(), func() error {
 		callCount++
 		if callCount < 3 {
 			return &APIError{StatusCode: http.StatusRequestTimeout} // 408
@@ -1979,7 +1979,7 @@ func TestRetryCall_RetryableStatusCode(t *testing.T) {
 func TestRetryCall_RetryableNetworkError(t *testing.T) {
 	c := newTestClient(&mockAPI{})
 	var callCount int
-	err := c.retryCall(func() error {
+	err := c.retryCall(context.Background(), func() error {
 		callCount++
 		if callCount < 2 {
 			return fmt.Errorf("connection refused")
@@ -1997,7 +1997,7 @@ func TestRetryCall_RetryableNetworkError(t *testing.T) {
 func TestRetryCall_NoRetryOn4xx(t *testing.T) {
 	c := newTestClient(&mockAPI{})
 	var callCount int
-	err := c.retryCall(func() error {
+	err := c.retryCall(context.Background(), func() error {
 		callCount++
 		return &APIError{StatusCode: http.StatusBadRequest}
 	})
@@ -2012,7 +2012,7 @@ func TestRetryCall_NoRetryOn4xx(t *testing.T) {
 func TestRetryCall_NoRetryOn409(t *testing.T) {
 	c := newTestClient(&mockAPI{})
 	var callCount int
-	err := c.retryCall(func() error {
+	err := c.retryCall(context.Background(), func() error {
 		callCount++
 		return &APIError{StatusCode: http.StatusConflict}
 	})
@@ -2027,7 +2027,7 @@ func TestRetryCall_NoRetryOn409(t *testing.T) {
 func TestRetryCall_MaxRetries(t *testing.T) {
 	c := newTestClient(&mockAPI{})
 	var callCount int
-	err := c.retryCall(func() error {
+	err := c.retryCall(context.Background(), func() error {
 		callCount++
 		return &APIError{StatusCode: http.StatusInternalServerError}
 	})
@@ -2036,6 +2036,102 @@ func TestRetryCall_MaxRetries(t *testing.T) {
 	}
 	if callCount != 6 { // 1 initial + 5 retries
 		t.Errorf("expected 6 calls, got %d", callCount)
+	}
+}
+
+func TestRetryCall_StopsWhenContextCanceled(t *testing.T) {
+	c := newTestClient(&mockAPI{})
+	ctx, cancel := context.WithCancel(context.Background())
+	var callCount int
+
+	err := c.retryCall(ctx, func() error {
+		callCount++
+		cancel()
+		return &APIError{StatusCode: http.StatusInternalServerError}
+	})
+
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+	if callCount != 1 {
+		t.Errorf("expected 1 call after cancellation, got %d", callCount)
+	}
+}
+
+func TestRetryCall_CancelsDuringBackoff(t *testing.T) {
+	c := newTestClient(&mockAPI{})
+	backoffStarted := make(chan struct{})
+	c.config.RetryBackoff = func(int) time.Duration {
+		close(backoffStarted)
+		return time.Hour
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan error, 1)
+
+	go func() {
+		result <- c.retryCall(ctx, func() error {
+			return &APIError{StatusCode: http.StatusInternalServerError}
+		})
+	}()
+
+	<-backoffStarted
+	cancel()
+
+	select {
+	case err := <-result:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected context.Canceled, got %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("retryCall did not stop while waiting for backoff")
+	}
+}
+
+func TestCreate_RetryHTTPRequestsUseSameIdempotencyKey(t *testing.T) {
+	const idempotencyKey = "stable-retry-key"
+	var requestKeys []string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestKeys = append(requestKeys, r.Header.Get("Idempotency-Key"))
+		w.Header().Set("Content-Type", "application/json")
+		if len(requestKeys) < 3 {
+			w.WriteHeader(http.StatusRequestTimeout)
+			_, _ = fmt.Fprint(w, `{"message":"request timeout"}`)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		_, _ = fmt.Fprint(w, `{"sandboxID":"sb-1","templateID":"base","envdAccessToken":"token"}`)
+	}))
+	defer server.Close()
+
+	retryMax := 2
+	c, err := NewClient(&Config{
+		APIKey:       "test-key",
+		Endpoint:     server.URL,
+		RetryMax:     &retryMax,
+		RetryBackoff: func(int) time.Duration { return 0 },
+	})
+	if err != nil {
+		t.Fatalf("NewClient failed: %v", err)
+	}
+
+	sb, err := c.Create(context.Background(), CreateParams{
+		TemplateID:     "base",
+		IdempotencyKey: idempotencyKey,
+	})
+	if err != nil {
+		t.Fatalf("Create should succeed after retries: %v", err)
+	}
+	if sb.ID() != "sb-1" {
+		t.Errorf("expected sandbox ID sb-1, got %s", sb.ID())
+	}
+	if len(requestKeys) != 3 {
+		t.Fatalf("expected 3 HTTP requests, got %d", len(requestKeys))
+	}
+	for i, key := range requestKeys {
+		if key != idempotencyKey {
+			t.Errorf("request %d used idempotency key %q, expected %q", i+1, key, idempotencyKey)
+		}
 	}
 }
 
@@ -2206,5 +2302,20 @@ func TestIsRetryable_WrappedAPIError_ExpectRetry(t *testing.T) {
 	// After fix, this should return true
 	if !isRetryable(apiErr) {
 		t.Error("baseline: isRetryable should retry on unwrapped 502")
+	}
+}
+
+func TestIsRetryable_ContextErrors(t *testing.T) {
+	for _, err := range []error{context.Canceled, context.DeadlineExceeded} {
+		if isRetryable(err) {
+			t.Errorf("%v must not be retryable", err)
+		}
+	}
+}
+
+func TestExponentialBackoff_SaturatesBeforeOverflow(t *testing.T) {
+	delay := exponentialBackoff(35)
+	if delay < 10*time.Second || delay > 15*time.Second {
+		t.Fatalf("expected saturated delay between 10s and 15s, got %s", delay)
 	}
 }
