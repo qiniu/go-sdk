@@ -2319,3 +2319,26 @@ func TestExponentialBackoff_SaturatesBeforeOverflow(t *testing.T) {
 		t.Fatalf("expected saturated delay between 10s and 15s, got %s", delay)
 	}
 }
+
+func TestNewClient_UsesRetryMaxFromEnvironment(t *testing.T) {
+	t.Setenv("SANDBOX_RETRY_MAX", "0")
+	c, err := NewClient(&Config{APIKey: "test-key"})
+	if err != nil {
+		t.Fatalf("NewClient failed: %v", err)
+	}
+	if c.config.RetryMax == nil || *c.config.RetryMax != 0 {
+		t.Fatalf("expected RetryMax from environment to be 0, got %v", c.config.RetryMax)
+	}
+}
+
+func TestNewClient_RejectsInvalidRetryMax(t *testing.T) {
+	negative := -1
+	if _, err := NewClient(&Config{APIKey: "test-key", RetryMax: &negative}); err == nil {
+		t.Fatal("expected negative RetryMax to be rejected")
+	}
+
+	t.Setenv("SANDBOX_RETRY_MAX", "invalid")
+	if _, err := NewClient(&Config{APIKey: "test-key"}); err == nil {
+		t.Fatal("expected invalid SANDBOX_RETRY_MAX to be rejected")
+	}
+}

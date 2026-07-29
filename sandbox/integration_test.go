@@ -1026,6 +1026,7 @@ func TestIntegrationCreateIdempotencyRetry(t *testing.T) {
 	t.Logf("沙箱3（幂等键 %s）: %s", idempotencyKey, sb3.ID())
 
 	if sb2.ID() != sb3.ID() {
+		defer killSandbox(t, sb3)
 		t.Errorf("幂等重试应返回同一沙箱: sb2=%s, sb3=%s", sb2.ID(), sb3.ID())
 	} else {
 		t.Logf("幂等重试验证通过: sb2=sb3=%s", sb2.ID())

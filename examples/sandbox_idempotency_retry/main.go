@@ -70,7 +70,7 @@ func run() error {
 	if sb1.ID() == sb2.ID() {
 		fmt.Println("\n幂等重试验证通过：两次创建返回同一沙箱")
 	} else {
-		fmt.Printf("\nWARNING: 两次创建返回不同沙箱: %s vs %s\n", sb1.ID(), sb2.ID())
+		return fmt.Errorf("幂等重试验证失败：两次创建返回不同沙箱: %s vs %s", sb1.ID(), sb2.ID())
 	}
 
 	return nil

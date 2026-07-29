@@ -312,8 +312,6 @@ set -a && source sandbox/.env && set +a && go test -tags=integration -count=1 -v
 ```
 QINIU_API_KEY=          # 七牛 API Key（必填）
 QINIU_SANDBOX_API_URL=  # API 端点（可选，默认 https://cn-yangzhou-1-sandbox.qiniuapi.com）
-GITHUB_REPO_URL=        # Git 重试测试用的仓库 URL（可选）
-GITHUB_TOKEN=           # GitHub Personal Access Token（可选）
 SANDBOX_RETRY_MAX=      # 可重试 API 的最大重试次数（可选，默认 5，设为 0 禁用重试）
 ```
 
