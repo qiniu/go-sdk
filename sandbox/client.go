@@ -5,6 +5,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"strconv"
+	"time"
 
 	"github.com/qiniu/go-sdk/v7/auth"
 	"github.com/qiniu/go-sdk/v7/sandbox/internal/apis"
@@ -27,6 +30,15 @@ type Config struct {
 
 	// HTTPClient 自定义 HTTP 客户端（可选，默认值：http.DefaultClient）。
 	HTTPClient *http.Client
+
+	// RetryMax 可重试 API 调用的最大重试次数（可选）。
+	// 设置为 0 禁用重试；nil 时读取 SANDBOX_RETRY_MAX，未设置时默认 5。
+	RetryMax *int
+
+	// RetryBackoff 重试退避函数，输入第几次重试（0-based），返回等待时长（可选）。
+	// 默认：指数退避 500ms → 10s + 随机抖动。
+	// 返回 0 表示不等待直接重试。
+	RetryBackoff func(attempt int) time.Duration
 }
 
 // Client 是沙箱客户端。
@@ -37,6 +49,9 @@ type Client struct {
 
 // NewClient 创建一个新的沙箱客户端。
 func NewClient(config *Config) (*Client, error) {
+	if err := normalizeRetryMax(config); err != nil {
+		return nil, err
+	}
 	endpoint := config.Endpoint
 	if endpoint == "" {
 		endpoint = DefaultEndpoint
@@ -59,6 +74,26 @@ func NewClient(config *Config) (*Client, error) {
 	}
 
 	return &Client{config: config, api: client}, nil
+}
+
+// normalizeRetryMax 校验重试次数，并在未显式配置时读取 SANDBOX_RETRY_MAX。
+func normalizeRetryMax(config *Config) error {
+	if config.RetryMax != nil {
+		if *config.RetryMax < 0 {
+			return fmt.Errorf("RetryMax must be a non-negative integer")
+		}
+		return nil
+	}
+	envVal := os.Getenv("SANDBOX_RETRY_MAX")
+	if envVal == "" {
+		return nil
+	}
+	maxRetries, err := strconv.Atoi(envVal)
+	if err != nil || maxRetries < 0 {
+		return fmt.Errorf("SANDBOX_RETRY_MAX must be a non-negative integer")
+	}
+	config.RetryMax = &maxRetries
+	return nil
 }
 
 // reqidEditor 返回一个 RequestEditorFn，从 context 中提取 reqid 并注入 X-Reqid 请求头。

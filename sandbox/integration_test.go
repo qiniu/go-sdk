@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -23,10 +24,18 @@ func testClient(t *testing.T) *Client {
 		t.Fatal("需要设置 QINIU_API_KEY 环境变量")
 	}
 
-	c, err := NewClient(&Config{
+	cfg := &Config{
 		APIKey:   apiKey,
 		Endpoint: apiURL,
-	})
+	}
+	if v := strings.TrimSpace(os.Getenv("SANDBOX_RETRY_MAX")); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			t.Fatalf("SANDBOX_RETRY_MAX 必须是有效的非负整数，当前值：%q", v)
+		}
+		cfg.RetryMax = &n
+	}
+	c, err := NewClient(cfg)
 	if err != nil {
 		t.Fatalf("创建客户端失败: %v", err)
 	}
@@ -956,4 +965,81 @@ func TestIntegrationMetadata(t *testing.T) {
 		t.Errorf("Metadata[team] = %q, want %q", got["team"], "backend")
 	}
 	t.Logf("Metadata 验证通过: %v", got)
+}
+
+// TestIntegrationCreateIdempotencyRetry 测试创建沙箱的幂等重试机制。
+func TestIntegrationCreateIdempotencyRetry(t *testing.T) {
+	c := testClient(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	templates, err := c.ListTemplates(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListTemplates 失败: %v", err)
+	}
+	var templateID string
+	for _, tmpl := range templates {
+		if tmpl.BuildStatus == BuildStatusReady || tmpl.BuildStatus == BuildStatusUploaded {
+			templateID = tmpl.TemplateID
+			break
+		}
+	}
+	if templateID == "" {
+		t.Skip("没有可用模板，跳过测试")
+	}
+	t.Logf("使用模板: %s", templateID)
+
+	timeout := int32(60)
+
+	// 1. 不指定幂等键，验证自动生成
+	sb1, err := c.Create(ctx, CreateParams{
+		TemplateID: templateID,
+		Timeout:    &timeout,
+	})
+	if err != nil {
+		t.Fatalf("Create（自动幂等键）失败: %v", err)
+	}
+	t.Logf("沙箱1（自动幂等键）: %s", sb1.ID())
+	defer killSandbox(t, sb1)
+
+	// 2. 使用相同的自定义幂等键创建两次，应返回同一沙箱
+	idempotencyKey := "sdk-test-key-" + time.Now().Format("20060102-150405")
+	sb2, err := c.Create(ctx, CreateParams{
+		TemplateID:     templateID,
+		Timeout:        &timeout,
+		IdempotencyKey: idempotencyKey,
+	})
+	if err != nil {
+		t.Fatalf("Create（幂等键首次）失败: %v", err)
+	}
+	t.Logf("沙箱2（幂等键 %s）: %s", idempotencyKey, sb2.ID())
+	defer killSandbox(t, sb2)
+
+	sb3, err := c.Create(ctx, CreateParams{
+		TemplateID:     templateID,
+		Timeout:        &timeout,
+		IdempotencyKey: idempotencyKey,
+	})
+	if err != nil {
+		t.Fatalf("Create（幂等键第二次）失败: %v", err)
+	}
+	t.Logf("沙箱3（幂等键 %s）: %s", idempotencyKey, sb3.ID())
+
+	if sb2.ID() != sb3.ID() {
+		defer killSandbox(t, sb3)
+		t.Errorf("幂等重试应返回同一沙箱: sb2=%s, sb3=%s", sb2.ID(), sb3.ID())
+	} else {
+		t.Logf("幂等重试验证通过: sb2=sb3=%s", sb2.ID())
+	}
+}
+
+func killSandbox(t *testing.T, sb *Sandbox) {
+	t.Helper()
+	killCtx, killCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer killCancel()
+	if err := sb.Kill(killCtx); err != nil {
+		t.Logf("清理沙箱 %s 失败: %v", sb.ID(), err)
+	} else {
+		t.Logf("沙箱 %s 已清理", sb.ID())
+	}
 }
