@@ -1,4 +1,15 @@
 # Changelog
+## 7.27.0
+
+* 新增
+  * sandbox: 为创建沙箱请求添加幂等键支持，未显式指定时自动生成 UUID
+  * sandbox: 为创建和连接沙箱增加可配置的自动重试，支持通过 RetryMax 和 RetryBackoff 控制重试次数与退避策略
+* 完善
+  * sandbox: 对 408、可重试的 5xx 和网络错误进行带抖动的指数退避重试，并在重试过程中响应 Context 取消
+* 行为变更
+  * sandbox: Create 和 Connect 默认最多重试 5 次；如需保持单次请求，可将 Config.RetryMax 设为 0
+  * sandbox: Config.RetryMax 未设置时可通过 SANDBOX_RETRY_MAX 配置重试次数
+
 ## 7.26.18
 
 * 新增
