@@ -1,4 +1,15 @@
 # Changelog
+## 7.28.0
+
+* 新增
+  * sandbox: 支持查询沙箱已挂载的资源，并按资源 ID 更新 Git 仓库授权令牌
+  * sandbox: Kodo 资源支持直接指定 AccessKey 和 SecretKey，省略时继续使用 Client 配置的七牛凭证
+  * sandbox: CreateTemplateParams 新增 DiskSizeMB，用于配置模板构建磁盘大小
+* 完善
+  * sandbox: 模板示例在构建失败时输出完整构建日志，便于定位服务端问题
+* 修复
+  * storagev2: 修复并发降低批次大小时重置 ticker 的数据竞争
+
 ## 7.27.0
 
 * 新增
