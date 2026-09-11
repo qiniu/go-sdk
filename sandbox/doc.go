@@ -31,25 +31,30 @@
 //
 // # 沙箱生命周期
 //
-// Client 提供沙箱的创建、连接和列表操作:
+// Client 提供沙箱的创建、连接、查询和生命周期管理:
 //
 //   - [Client.Create] / [Client.CreateAndWait]: 创建沙箱（后者会轮询等待就绪）
 //   - [Client.Connect]: 连接到已有沙箱，可恢复已暂停的沙箱
 //   - [Client.List]: 列出沙箱，支持按状态和元数据过滤
+//   - [Client.GetInfo] / [Client.GetInjections] / [Client.GetResources]: 查询沙箱状态和配置
+//   - [Client.GetMetrics] / [Client.GetLogs]: 查询沙箱运行数据
+//   - [Client.UpdateInjections] / [Client.UpdateGitHubToken] / [Client.UpdateGitRepositoryResourceToken]:
+//     更新沙箱的注入规则、GitHub 授权令牌和资源令牌
+//   - [Client.Kill] / [Client.Pause] / [Client.SetTimeout] / [Client.Refresh]:
+//     管理沙箱状态和存活时间
+//   - [Client.WaitForReady]: 轮询等待沙箱进入 running 状态
 //
-// Sandbox 实例提供生命周期管理:
+// Sandbox 实例提供与已创建实例相关的操作:
 //
-//   - [Sandbox.Kill]: 终止沙箱
-//   - [Sandbox.Pause]: 暂停沙箱（保留文件系统和内存状态）
-//   - [Sandbox.SetTimeout]: 更新超时时间
-//   - [Sandbox.Refresh]: 延长存活时间
-//   - [Sandbox.GetInfo]: 查询沙箱详细状态
+//   - [Sandbox.GetInfo] / [Sandbox.GetInjections] / [Sandbox.GetResources]: 查询状态和配置
+//   - [Sandbox.GetMetrics] / [Sandbox.GetLogs]: 查询运行数据
+//   - [Sandbox.UpdateInjections] / [Sandbox.UpdateGitHubToken] / [Sandbox.UpdateGitRepositoryResourceToken]: 更新注入规则和令牌
+//   - [Sandbox.Kill] / [Sandbox.Pause] / [Sandbox.SetTimeout] / [Sandbox.Refresh]: 管理状态和存活时间
+//   - [Sandbox.WaitForReady]: 轮询等待就绪
 //   - [Sandbox.IsRunning]: 通过 envd /health 端点检查沙箱是否可用
-//   - [Sandbox.GetMetrics]: 获取 CPU、内存、磁盘等资源指标
-//   - [Sandbox.GetLogs]: 获取沙箱日志
-//   - [Sandbox.WaitForReady]: 轮询等待沙箱进入 running 状态
-//   - [Sandbox.GetInjections] / [Sandbox.UpdateInjections]: 查询和替换运行时请求注入规则
-//   - [Sandbox.UpdateGitHubToken]: 更新运行中沙箱的 GitHub 授权令牌
+//
+// 实例的控制面方法自动传入自身 ID，委托给对应的 Client 方法。
+// 例如 sb.UpdateGitHubToken(ctx, token) 与 c.UpdateGitHubToken(ctx, sb.ID(), token) 使用相同实现。
 //
 // # 命令执行
 //
@@ -121,6 +126,7 @@
 //   - [Client.UpdateTemplate] / [Client.DeleteTemplate]: 更新和删除模板
 //   - [Client.StartTemplateBuild] / [Client.WaitForBuild]: 启动构建并等待完成
 //   - [Client.GetTemplateBuildStatus] / [Client.GetTemplateBuildLogs]: 查询构建状态和日志
+//   - [Client.GetTemplateFiles]: 获取模板构建文件的上传链接
 //   - [Client.AssignTemplateTags] / [Client.DeleteTemplateTags]: 管理模板标签
 //   - [Client.GetTemplateByAlias]: 通过别名查找模板
 //
@@ -134,7 +140,7 @@
 //
 // # 轮询选项
 //
-// [Client.CreateAndWait]、[Sandbox.WaitForReady] 和 [Client.WaitForBuild] 支持
+// [Client.CreateAndWait]、[Client.WaitForReady] 和 [Client.WaitForBuild] 支持
 // 通过 [PollOption] 自定义轮询行为:
 //
 //   - [WithPollInterval]: 设置轮询间隔

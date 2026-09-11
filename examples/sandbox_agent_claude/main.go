@@ -132,7 +132,7 @@ func main() {
 
 		newSessionID, err := runTurn(ctx, sb, prompt, sessionID)
 		if err != nil {
-			// 用 return 而非 log.Fatal，确保 defer 中的 sb.Kill 能执行，避免沙箱泄漏。
+			// 用 return 而非 log.Fatal，确保 defer 中的 c.Kill 能执行，避免沙箱泄漏。
 			log.Printf("Turn %d 执行失败: %v", i+1, err)
 			return
 		}

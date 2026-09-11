@@ -313,10 +313,6 @@ func newTestClient(api apis.ClientWithResponsesInterface) *Client {
 	}, api: api}
 }
 
-func newTestSandbox(c *Client, id string) *Sandbox {
-	return &Sandbox{sandboxID: id, client: c}
-}
-
 // --- 客户端测试 ---
 
 func TestNewClient(t *testing.T) {
@@ -781,8 +777,7 @@ func TestGetInjections(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
-	injections, err := sb.GetInjections(context.Background())
+	injections, err := c.GetInjections(context.Background(), "sb-123")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -818,8 +813,7 @@ func TestUpdateInjections(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
-	if err := sb.UpdateInjections(context.Background(), []SandboxInjectionSpec{
+	if err := c.UpdateInjections(context.Background(), "sb-123", []SandboxInjectionSpec{
 		{ByID: &ruleID},
 		{HTTP: &HTTPInjection{BaseURL: "https://api.example.com", Headers: &headers}},
 	}); err != nil {
@@ -837,8 +831,7 @@ func TestUpdateInjectionsClearsAllInjections(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
-	if err := sb.UpdateInjections(context.Background(), []SandboxInjectionSpec{}); err != nil {
+	if err := c.UpdateInjections(context.Background(), "sb-123", []SandboxInjectionSpec{}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -850,7 +843,7 @@ func TestGetInjectionsErrors(t *testing.T) {
 				return nil, errors.New("network error")
 			},
 		}
-		_, err := newTestSandbox(newTestClient(mock), "sb-123").GetInjections(context.Background())
+		_, err := newTestClient(mock).GetInjections(context.Background(), "sb-123")
 		if err == nil || err.Error() != "network error" {
 			t.Fatalf("expected transport error, got %v", err)
 		}
@@ -865,7 +858,7 @@ func TestGetInjectionsErrors(t *testing.T) {
 				}, nil
 			},
 		}
-		_, err := newTestSandbox(newTestClient(mock), "sb-404").GetInjections(context.Background())
+		_, err := newTestClient(mock).GetInjections(context.Background(), "sb-404")
 		var apiErr *APIError
 		if !errors.As(err, &apiErr) || apiErr.StatusCode != 404 {
 			t.Fatalf("expected 404 API error, got %v", err)
@@ -898,7 +891,7 @@ func TestUpdateInjectionsErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mock := &mockAPI{updateSandboxInjectionsFn: tt.fn}
-			err := newTestSandbox(newTestClient(mock), "sb-123").UpdateInjections(context.Background(), []SandboxInjectionSpec{{ByID: &ruleID}})
+			err := newTestClient(mock).UpdateInjections(context.Background(), "sb-123", []SandboxInjectionSpec{{ByID: &ruleID}})
 			if err == nil {
 				t.Fatal("expected error")
 			}
@@ -916,8 +909,7 @@ func TestUpdateGitHubToken(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
-	if err := sb.UpdateGitHubToken(context.Background(), "github-token"); err != nil {
+	if err := c.UpdateGitHubToken(context.Background(), "sb-123", "github-token"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -946,7 +938,7 @@ func TestUpdateGitHubTokenErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mock := &mockAPI{updateSandboxGithubTokenFn: tt.fn}
-			err := newTestSandbox(newTestClient(mock), "sb-123").UpdateGitHubToken(context.Background(), "github-token")
+			err := newTestClient(mock).UpdateGitHubToken(context.Background(), "sb-123", "github-token")
 			if err == nil {
 				t.Fatal("expected error")
 			}
@@ -954,7 +946,7 @@ func TestUpdateGitHubTokenErrors(t *testing.T) {
 	}
 }
 
-// --- Sandbox.Kill ---
+// --- Client.Kill ---
 
 func TestKill(t *testing.T) {
 	mock := &mockAPI{
@@ -963,13 +955,12 @@ func TestKill(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
-	if err := sb.Kill(context.Background()); err != nil {
+	if err := c.Kill(context.Background(), "sb-123"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
-// --- Sandbox.SetTimeout ---
+// --- Client.SetTimeout ---
 
 func TestSetTimeout(t *testing.T) {
 	var gotTimeout int32
@@ -980,8 +971,7 @@ func TestSetTimeout(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
-	if err := sb.SetTimeout(context.Background(), 2*time.Minute); err != nil {
+	if err := c.SetTimeout(context.Background(), "sb-123", 2*time.Minute); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if gotTimeout != 120 {
@@ -989,7 +979,7 @@ func TestSetTimeout(t *testing.T) {
 	}
 }
 
-// --- Sandbox.GetInfo ---
+// --- Client.GetInfo ---
 
 func TestGetInfo(t *testing.T) {
 	mock := &mockAPI{
@@ -1001,8 +991,7 @@ func TestGetInfo(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
-	info, err := sb.GetInfo(context.Background())
+	info, err := c.GetInfo(context.Background(), "sb-123")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1087,7 +1076,7 @@ func (t *redirectTransport) RoundTrip(req *http.Request) (*http.Response, error)
 	return http.DefaultTransport.RoundTrip(newReq)
 }
 
-// --- Sandbox.Pause ---
+// --- Client.Pause ---
 
 func TestPause(t *testing.T) {
 	mock := &mockAPI{
@@ -1096,13 +1085,12 @@ func TestPause(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
-	if err := sb.Pause(context.Background()); err != nil {
+	if err := c.Pause(context.Background(), "sb-123"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
-// --- Sandbox.WaitForReady ---
+// --- Client.WaitForReady ---
 
 func TestWaitForReadyImmediate(t *testing.T) {
 	mock := &mockAPI{
@@ -1114,8 +1102,7 @@ func TestWaitForReadyImmediate(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
-	info, err := sb.WaitForReady(context.Background(), WithPollInterval(100*time.Millisecond))
+	info, err := c.WaitForReady(context.Background(), "sb-123", WithPollInterval(100*time.Millisecond))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1134,10 +1121,9 @@ func TestWaitForReadyTimeout(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
-	_, err := sb.WaitForReady(ctx, WithPollInterval(50*time.Millisecond))
+	_, err := c.WaitForReady(ctx, "sb-123", WithPollInterval(50*time.Millisecond))
 	if err == nil {
 		t.Fatal("expected timeout error")
 	}
@@ -1349,7 +1335,7 @@ func TestAPIErrorMessage(t *testing.T) {
 	}
 }
 
-// --- Sandbox.GetMetrics ---
+// --- Client.GetMetrics ---
 
 func TestGetMetrics(t *testing.T) {
 	mock := &mockAPI{
@@ -1362,8 +1348,7 @@ func TestGetMetrics(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
-	metrics, err := sb.GetMetrics(context.Background(), nil)
+	metrics, err := c.GetMetrics(context.Background(), "sb-123", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1375,7 +1360,7 @@ func TestGetMetrics(t *testing.T) {
 	}
 }
 
-// --- Sandbox.GetLogs ---
+// --- Client.GetLogs ---
 
 func TestGetLogs(t *testing.T) {
 	mock := &mockAPI{
@@ -1387,8 +1372,7 @@ func TestGetLogs(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
-	logs, err := sb.GetLogs(context.Background(), nil)
+	logs, err := c.GetLogs(context.Background(), "sb-123", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1397,7 +1381,7 @@ func TestGetLogs(t *testing.T) {
 	}
 }
 
-// --- Sandbox.Refresh ---
+// --- Client.Refresh ---
 
 func TestRefresh(t *testing.T) {
 	mock := &mockAPI{
@@ -1406,8 +1390,7 @@ func TestRefresh(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
-	if err := sb.Refresh(context.Background(), RefreshParams{}); err != nil {
+	if err := c.Refresh(context.Background(), "sb-123", RefreshParams{}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -1458,7 +1441,7 @@ func TestCreateAndWaitCreateFails(t *testing.T) {
 	}
 }
 
-// --- Sandbox.WaitForReady 轮询 ---
+// --- Client.WaitForReady 轮询 ---
 
 func TestWaitForReadyPolling(t *testing.T) {
 	callCount := 0
@@ -1476,8 +1459,7 @@ func TestWaitForReadyPolling(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
-	info, err := sb.WaitForReady(context.Background(), WithPollInterval(50*time.Millisecond))
+	info, err := c.WaitForReady(context.Background(), "sb-123", WithPollInterval(50*time.Millisecond))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1489,7 +1471,7 @@ func TestWaitForReadyPolling(t *testing.T) {
 	}
 }
 
-// --- 实例方法的错误用例 ---
+// --- Client 方法的错误用例 ---
 
 func TestKillError(t *testing.T) {
 	mock := &mockAPI{
@@ -1501,8 +1483,7 @@ func TestKillError(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-999")
-	err := sb.Kill(context.Background())
+	err := c.Kill(context.Background(), "sb-999")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -1525,8 +1506,7 @@ func TestSetTimeoutError(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-999")
-	err := sb.SetTimeout(context.Background(), time.Minute)
+	err := c.SetTimeout(context.Background(), "sb-999", time.Minute)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -1542,8 +1522,7 @@ func TestPauseError(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-123")
-	err := sb.Pause(context.Background())
+	err := c.Pause(context.Background(), "sb-123")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -1575,8 +1554,7 @@ func TestGetInfoError(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sb := newTestSandbox(c, "sb-999")
-	_, err := sb.GetInfo(context.Background())
+	_, err := c.GetInfo(context.Background(), "sb-999")
 	if err == nil {
 		t.Fatal("expected error")
 	}

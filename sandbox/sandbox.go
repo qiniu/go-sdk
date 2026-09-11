@@ -86,6 +86,84 @@ func newSandbox(c *Client, s *apis.Sandbox) *Sandbox {
 // ID 返回沙箱 ID。
 func (s *Sandbox) ID() string { return s.sandboxID }
 
+// GetInfo 返回当前沙箱的详细信息。
+// 具体行为参见 [Client.GetInfo]。
+func (s *Sandbox) GetInfo(ctx context.Context) (*SandboxInfo, error) {
+	return s.client.GetInfo(ctx, s.sandboxID)
+}
+
+// GetMetrics 返回当前沙箱的资源指标。
+// 具体行为参见 [Client.GetMetrics]。
+func (s *Sandbox) GetMetrics(ctx context.Context, params *GetMetricsParams) ([]SandboxMetric, error) {
+	return s.client.GetMetrics(ctx, s.sandboxID, params)
+}
+
+// GetLogs 返回当前沙箱的日志。
+// 具体行为参见 [Client.GetLogs]。
+func (s *Sandbox) GetLogs(ctx context.Context, params *GetLogsParams) (*SandboxLogs, error) {
+	return s.client.GetLogs(ctx, s.sandboxID, params)
+}
+
+// GetResources 返回当前沙箱已挂载的资源配置。
+// 具体行为参见 [Client.GetResources]。
+func (s *Sandbox) GetResources(ctx context.Context) ([]SandboxResourceInfo, error) {
+	return s.client.GetResources(ctx, s.sandboxID)
+}
+
+// GetInjections 返回当前沙箱的运行时请求注入规则。
+// 具体行为参见 [Client.GetInjections]。
+func (s *Sandbox) GetInjections(ctx context.Context) ([]MaskedSandboxInjection, error) {
+	return s.client.GetInjections(ctx, s.sandboxID)
+}
+
+// Kill 终止当前沙箱。
+// 具体行为参见 [Client.Kill]。
+func (s *Sandbox) Kill(ctx context.Context) error {
+	return s.client.Kill(ctx, s.sandboxID)
+}
+
+// Pause 暂停当前沙箱。
+// 具体行为参见 [Client.Pause]。
+func (s *Sandbox) Pause(ctx context.Context) error {
+	return s.client.Pause(ctx, s.sandboxID)
+}
+
+// Refresh 延长当前沙箱的存活时间。
+// 具体行为参见 [Client.Refresh]。
+func (s *Sandbox) Refresh(ctx context.Context, params RefreshParams) error {
+	return s.client.Refresh(ctx, s.sandboxID, params)
+}
+
+// SetTimeout 更新当前沙箱的超时时间，timeout 必须至少为 1 秒。
+// 具体行为参见 [Client.SetTimeout]。
+func (s *Sandbox) SetTimeout(ctx context.Context, timeout time.Duration) error {
+	return s.client.SetTimeout(ctx, s.sandboxID, timeout)
+}
+
+// UpdateInjections 替换当前沙箱的全部运行时请求注入规则。
+// 具体行为参见 [Client.UpdateInjections]。
+func (s *Sandbox) UpdateInjections(ctx context.Context, injections []SandboxInjectionSpec) error {
+	return s.client.UpdateInjections(ctx, s.sandboxID, injections)
+}
+
+// UpdateGitHubToken 更新当前沙箱使用的 GitHub 授权令牌。
+// 具体行为参见 [Client.UpdateGitHubToken]。
+func (s *Sandbox) UpdateGitHubToken(ctx context.Context, authorizationToken string) error {
+	return s.client.UpdateGitHubToken(ctx, s.sandboxID, authorizationToken)
+}
+
+// UpdateGitRepositoryResourceToken 更新当前沙箱中指定 Git 仓库资源的授权令牌。
+// 具体行为参见 [Client.UpdateGitRepositoryResourceToken]。
+func (s *Sandbox) UpdateGitRepositoryResourceToken(ctx context.Context, resourceID, authorizationToken string) error {
+	return s.client.UpdateGitRepositoryResourceToken(ctx, s.sandboxID, resourceID, authorizationToken)
+}
+
+// WaitForReady 轮询当前沙箱的状态，直到进入 running 状态或上下文被取消。
+// 具体行为参见 [Client.WaitForReady]。
+func (s *Sandbox) WaitForReady(ctx context.Context, opts ...PollOption) (*SandboxInfo, error) {
+	return s.client.WaitForReady(ctx, s.sandboxID, opts...)
+}
+
 // TemplateID 返回沙箱所属的模板 ID。
 func (s *Sandbox) TemplateID() string { return s.templateID }
 
@@ -261,61 +339,10 @@ func (c *Client) List(ctx context.Context, params *ListParams) ([]ListedSandbox,
 	return listedSandboxesFromAPI(*resp.JSON200), nil
 }
 
-// GetInjections 返回沙箱当前的运行时请求注入规则。
-// 响应中的密钥、令牌和 Header 等敏感字段由服务端脱敏。
-// 返回值不能直接用于 UpdateInjections；更新时必须提供包含真实敏感值的新配置。
-func (s *Sandbox) GetInjections(ctx context.Context) ([]MaskedSandboxInjection, error) {
-	resp, err := s.client.api.GetSandboxInjectionsWithResponse(ctx, s.sandboxID)
-	if err != nil {
-		return nil, err
-	}
-	if resp.JSON200 == nil {
-		return nil, newAPIError(resp.HTTPResponse, resp.Body)
-	}
-	return maskedSandboxInjectionsFromAPI(resp.JSON200.Injections)
-}
-
-// UpdateInjections 替换沙箱的全部运行时请求注入规则。
-// 变更会立即应用于新的出站 HTTPS 连接。
-func (s *Sandbox) UpdateInjections(ctx context.Context, injections []SandboxInjectionSpec) error {
-	apiInjections := make([]apis.SandboxInjection, len(injections))
-	for i, injection := range injections {
-		apiInjection, err := sandboxInjectionSpecToAPI(injection)
-		if err != nil {
-			return err
-		}
-		apiInjections[i] = apiInjection
-	}
-	resp, err := s.client.api.UpdateSandboxInjectionsWithResponse(ctx, s.sandboxID, apis.UpdateSandboxInjectionsJSONRequestBody{
-		Injections: apiInjections,
-	})
-	if err != nil {
-		return err
-	}
-	if resp.HTTPResponse.StatusCode != http.StatusNoContent {
-		return newAPIError(resp.HTTPResponse, resp.Body)
-	}
-	return nil
-}
-
-// UpdateGitHubToken 更新沙箱使用的 GitHub 授权令牌。
-func (s *Sandbox) UpdateGitHubToken(ctx context.Context, authorizationToken string) error {
-	resp, err := s.client.api.UpdateSandboxGithubTokenWithResponse(ctx, s.sandboxID, apis.UpdateSandboxGithubTokenJSONRequestBody{
-		AuthorizationToken: authorizationToken,
-	})
-	if err != nil {
-		return err
-	}
-	if resp.HTTPResponse.StatusCode != http.StatusNoContent {
-		return newAPIError(resp.HTTPResponse, resp.Body)
-	}
-	return nil
-}
-
-// GetResources 返回沙箱已挂载的资源配置。
+// GetResources 返回指定沙箱已挂载的资源配置。
 // 响应中的访问密钥和授权令牌等敏感字段由服务端脱敏。
-func (s *Sandbox) GetResources(ctx context.Context) ([]SandboxResourceInfo, error) {
-	resp, err := s.client.api.GetSandboxResourcesWithResponse(ctx, s.sandboxID)
+func (c *Client) GetResources(ctx context.Context, sandboxID string) ([]SandboxResourceInfo, error) {
+	resp, err := c.api.GetSandboxResourcesWithResponse(ctx, sandboxID)
 	if err != nil {
 		return nil, err
 	}
@@ -325,10 +352,10 @@ func (s *Sandbox) GetResources(ctx context.Context) ([]SandboxResourceInfo, erro
 	return sandboxResourceInfosFromAPI(resp.JSON200.Resources)
 }
 
-// UpdateGitRepositoryResourceToken 更新指定 Git 仓库资源的授权令牌。
+// UpdateGitRepositoryResourceToken 更新指定沙箱中 Git 仓库资源的授权令牌。
 // 对正在运行的沙箱，新令牌会立即应用到对应的 GitHub 注入配置。
-func (s *Sandbox) UpdateGitRepositoryResourceToken(ctx context.Context, resourceID, authorizationToken string) error {
-	resp, err := s.client.api.PatchSandboxResourceWithResponse(ctx, s.sandboxID, resourceID, apis.PatchSandboxResourceJSONRequestBody{
+func (c *Client) UpdateGitRepositoryResourceToken(ctx context.Context, sandboxID, resourceID, authorizationToken string) error {
+	resp, err := c.api.PatchSandboxResourceWithResponse(ctx, sandboxID, resourceID, apis.PatchSandboxResourceJSONRequestBody{
 		AuthorizationToken: &authorizationToken,
 	})
 	if err != nil {
@@ -340,9 +367,45 @@ func (s *Sandbox) UpdateGitRepositoryResourceToken(ctx context.Context, resource
 	return nil
 }
 
-// Kill 终止沙箱。
-func (s *Sandbox) Kill(ctx context.Context) error {
-	resp, err := s.client.api.DeleteSandboxWithResponse(ctx, s.sandboxID)
+// GetInfo 返回指定沙箱的详细信息。
+func (c *Client) GetInfo(ctx context.Context, sandboxID string) (*SandboxInfo, error) {
+	resp, err := c.api.GetSandboxWithResponse(ctx, sandboxID)
+	if err != nil {
+		return nil, err
+	}
+	if resp.JSON200 == nil {
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
+	}
+	return sandboxInfoFromAPI(resp.JSON200), nil
+}
+
+// GetMetrics 返回指定沙箱的资源指标。
+func (c *Client) GetMetrics(ctx context.Context, sandboxID string, params *GetMetricsParams) ([]SandboxMetric, error) {
+	resp, err := c.api.GetSandboxMetricsWithResponse(ctx, sandboxID, params.toAPI())
+	if err != nil {
+		return nil, err
+	}
+	if resp.JSON200 == nil {
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
+	}
+	return sandboxMetricsFromAPI(*resp.JSON200), nil
+}
+
+// GetLogs 返回指定沙箱的日志。
+func (c *Client) GetLogs(ctx context.Context, sandboxID string, params *GetLogsParams) (*SandboxLogs, error) {
+	resp, err := c.api.GetSandboxLogsWithResponse(ctx, sandboxID, params.toAPI())
+	if err != nil {
+		return nil, err
+	}
+	if resp.JSON200 == nil {
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
+	}
+	return sandboxLogsFromAPI(resp.JSON200), nil
+}
+
+// Kill 终止指定沙箱。
+func (c *Client) Kill(ctx context.Context, sandboxID string) error {
+	resp, err := c.api.DeleteSandboxWithResponse(ctx, sandboxID)
 	if err != nil {
 		return err
 	}
@@ -352,20 +415,45 @@ func (s *Sandbox) Kill(ctx context.Context) error {
 	return nil
 }
 
-// SetTimeout 更新沙箱超时时间。
-// 沙箱将在从现在起经过指定时长后过期。
-// timeout 必须 >= 1 秒。
-func (s *Sandbox) SetTimeout(ctx context.Context, timeout time.Duration) error {
-	if timeout < time.Second {
-		return fmt.Errorf("timeout must be at least 1 second, got %v", timeout)
+// Pause 暂停指定沙箱。
+func (c *Client) Pause(ctx context.Context, sandboxID string) error {
+	resp, err := c.api.PauseSandboxWithResponse(ctx, sandboxID)
+	if err != nil {
+		return err
 	}
-	secs := timeout.Seconds()
-	if secs > float64(math.MaxInt32) {
-		return fmt.Errorf("timeout %v exceeds maximum allowed value", timeout)
+	if resp.HTTPResponse.StatusCode != http.StatusNoContent {
+		return newAPIError(resp.HTTPResponse, resp.Body)
 	}
-	timeoutSec := int32(secs)
-	resp, err := s.client.api.UpdateSandboxTimeoutWithResponse(ctx, s.sandboxID, apis.UpdateSandboxTimeoutJSONRequestBody{
-		Timeout: timeoutSec,
+	return nil
+}
+
+// GetInjections 返回指定沙箱当前的运行时请求注入规则。
+// 响应中的密钥、令牌和 Header 等敏感字段由服务端脱敏。
+// 返回值不能直接用于 UpdateInjections；更新时必须提供包含真实敏感值的新配置。
+func (c *Client) GetInjections(ctx context.Context, sandboxID string) ([]MaskedSandboxInjection, error) {
+	resp, err := c.api.GetSandboxInjectionsWithResponse(ctx, sandboxID)
+	if err != nil {
+		return nil, err
+	}
+	if resp.JSON200 == nil {
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
+	}
+	return maskedSandboxInjectionsFromAPI(resp.JSON200.Injections)
+}
+
+// UpdateInjections 替换指定沙箱的全部运行时请求注入规则。
+// 变更会立即应用于新的出站 HTTPS 连接。
+func (c *Client) UpdateInjections(ctx context.Context, sandboxID string, injections []SandboxInjectionSpec) error {
+	apiInjections := make([]apis.SandboxInjection, len(injections))
+	for i, injection := range injections {
+		apiInjection, err := sandboxInjectionSpecToAPI(injection)
+		if err != nil {
+			return err
+		}
+		apiInjections[i] = apiInjection
+	}
+	resp, err := c.api.UpdateSandboxInjectionsWithResponse(ctx, sandboxID, apis.UpdateSandboxInjectionsJSONRequestBody{
+		Injections: apiInjections,
 	})
 	if err != nil {
 		return err
@@ -374,6 +462,75 @@ func (s *Sandbox) SetTimeout(ctx context.Context, timeout time.Duration) error {
 		return newAPIError(resp.HTTPResponse, resp.Body)
 	}
 	return nil
+}
+
+// UpdateGitHubToken 更新指定沙箱使用的 GitHub 授权令牌。
+func (c *Client) UpdateGitHubToken(ctx context.Context, sandboxID, authorizationToken string) error {
+	resp, err := c.api.UpdateSandboxGithubTokenWithResponse(ctx, sandboxID, apis.UpdateSandboxGithubTokenJSONRequestBody{
+		AuthorizationToken: authorizationToken,
+	})
+	if err != nil {
+		return err
+	}
+	if resp.HTTPResponse.StatusCode != http.StatusNoContent {
+		return newAPIError(resp.HTTPResponse, resp.Body)
+	}
+	return nil
+}
+
+// SetTimeout 更新指定沙箱的超时时间。
+// 沙箱将在从现在起经过指定时长后过期。
+// timeout 必须 >= 1 秒。
+func (c *Client) SetTimeout(ctx context.Context, sandboxID string, timeout time.Duration) error {
+	if timeout < time.Second {
+		return fmt.Errorf("timeout must be at least 1 second, got %v", timeout)
+	}
+	secs := timeout.Seconds()
+	if secs > float64(math.MaxInt32) {
+		return fmt.Errorf("timeout %v exceeds maximum allowed value", timeout)
+	}
+	resp, err := c.api.UpdateSandboxTimeoutWithResponse(ctx, sandboxID, apis.UpdateSandboxTimeoutJSONRequestBody{
+		Timeout: int32(secs),
+	})
+	if err != nil {
+		return err
+	}
+	if resp.HTTPResponse.StatusCode != http.StatusNoContent {
+		return newAPIError(resp.HTTPResponse, resp.Body)
+	}
+	return nil
+}
+
+// Refresh 延长指定沙箱的存活时间。
+func (c *Client) Refresh(ctx context.Context, sandboxID string, params RefreshParams) error {
+	resp, err := c.api.RefreshSandboxWithResponse(ctx, sandboxID, params.toAPI())
+	if err != nil {
+		return err
+	}
+	if resp.HTTPResponse.StatusCode != http.StatusNoContent {
+		return newAPIError(resp.HTTPResponse, resp.Body)
+	}
+	return nil
+}
+
+// WaitForReady 轮询指定沙箱的状态，直到变为 "running" 或上下文被取消。
+// 默认轮询间隔为 1 秒，可通过 WithPollInterval 等选项自定义。
+func (c *Client) WaitForReady(ctx context.Context, sandboxID string, opts ...PollOption) (*SandboxInfo, error) {
+	o := defaultPollOpts(time.Second)
+	for _, fn := range opts {
+		fn(o)
+	}
+
+	return pollLoop(ctx, o, func() (bool, *SandboxInfo, error) {
+		info, err := c.GetInfo(ctx, sandboxID)
+		if err != nil {
+			return false, nil, fmt.Errorf("get sandbox %s: %w", sandboxID, err)
+		}
+		if info.State == StateRunning {
+			return true, info, nil
+		}
+		return false, nil, nil
+	})
 }
 
 // refreshEnvdToken 通过 GetSandbox API 获取 envdAccessToken 并更新到当前实例。
@@ -391,18 +548,6 @@ func (s *Sandbox) refreshEnvdToken(ctx context.Context) error {
 	s.envdTokenLoaded = true
 	s.envdTokenMu.Unlock()
 	return nil
-}
-
-// GetInfo 返回沙箱的详细信息。
-func (s *Sandbox) GetInfo(ctx context.Context) (*SandboxInfo, error) {
-	resp, err := s.client.api.GetSandboxWithResponse(ctx, s.sandboxID)
-	if err != nil {
-		return nil, err
-	}
-	if resp.JSON200 == nil {
-		return nil, newAPIError(resp.HTTPResponse, resp.Body)
-	}
-	return sandboxInfoFromAPI(resp.JSON200), nil
 }
 
 // IsRunning 通过探测 envd /health 端点检查沙箱是否正在运行且可用。
@@ -429,81 +574,13 @@ func (s *Sandbox) IsRunning(ctx context.Context) (bool, error) {
 	return false, newAPIError(resp, nil)
 }
 
-// GetMetrics 返回沙箱的资源指标。
-func (s *Sandbox) GetMetrics(ctx context.Context, params *GetMetricsParams) ([]SandboxMetric, error) {
-	resp, err := s.client.api.GetSandboxMetricsWithResponse(ctx, s.sandboxID, params.toAPI())
-	if err != nil {
-		return nil, err
-	}
-	if resp.JSON200 == nil {
-		return nil, newAPIError(resp.HTTPResponse, resp.Body)
-	}
-	return sandboxMetricsFromAPI(*resp.JSON200), nil
-}
-
-// GetLogs 返回沙箱日志。
-func (s *Sandbox) GetLogs(ctx context.Context, params *GetLogsParams) (*SandboxLogs, error) {
-	resp, err := s.client.api.GetSandboxLogsWithResponse(ctx, s.sandboxID, params.toAPI())
-	if err != nil {
-		return nil, err
-	}
-	if resp.JSON200 == nil {
-		return nil, newAPIError(resp.HTTPResponse, resp.Body)
-	}
-	return sandboxLogsFromAPI(resp.JSON200), nil
-}
-
-// Pause 暂停沙箱，以便后续恢复。
-func (s *Sandbox) Pause(ctx context.Context) error {
-	resp, err := s.client.api.PauseSandboxWithResponse(ctx, s.sandboxID)
-	if err != nil {
-		return err
-	}
-	if resp.HTTPResponse.StatusCode != http.StatusNoContent {
-		return newAPIError(resp.HTTPResponse, resp.Body)
-	}
-	return nil
-}
-
-// Refresh 延长沙箱的存活时间。
-func (s *Sandbox) Refresh(ctx context.Context, params RefreshParams) error {
-	resp, err := s.client.api.RefreshSandboxWithResponse(ctx, s.sandboxID, params.toAPI())
-	if err != nil {
-		return err
-	}
-	if resp.HTTPResponse.StatusCode != http.StatusNoContent {
-		return newAPIError(resp.HTTPResponse, resp.Body)
-	}
-	return nil
-}
-
-// WaitForReady 轮询 GetInfo 直到沙箱状态变为 "running" 或上下文被取消。
-// 默认轮询间隔为 1 秒，可通过 WithPollInterval 等选项自定义。
-func (s *Sandbox) WaitForReady(ctx context.Context, opts ...PollOption) (*SandboxInfo, error) {
-	o := defaultPollOpts(time.Second)
-	for _, fn := range opts {
-		fn(o)
-	}
-
-	return pollLoop(ctx, o, func() (bool, *SandboxInfo, error) {
-		info, err := s.GetInfo(ctx)
-		if err != nil {
-			return false, nil, fmt.Errorf("get sandbox %s: %w", s.sandboxID, err)
-		}
-		if info.State == StateRunning {
-			return true, info, nil
-		}
-		return false, nil, nil
-	})
-}
-
 // CreateAndWait 创建沙箱并等待其就绪。
 func (c *Client) CreateAndWait(ctx context.Context, params CreateParams, opts ...PollOption) (*Sandbox, *SandboxInfo, error) {
 	sb, err := c.Create(ctx, params)
 	if err != nil {
 		return nil, nil, fmt.Errorf("create sandbox: %w", err)
 	}
-	info, err := sb.WaitForReady(ctx, opts...)
+	info, err := c.WaitForReady(ctx, sb.ID(), opts...)
 	if err != nil {
 		return nil, nil, err
 	}

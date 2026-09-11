@@ -1,4 +1,13 @@
 # Changelog
+## 7.28.1
+
+* 新增
+  * sandbox: `Client` 支持通过沙箱 ID 调用 `GetInfo`、`GetMetrics`、`GetLogs`、`Kill`、`Pause`、`Refresh`、`WaitForReady`、`SetTimeout`、`GetInjections`、`UpdateInjections`、`UpdateGitHubToken`、`GetResources` 和 `UpdateGitRepositoryResourceToken`。
+  * sandbox: `Sandbox` 提供对应的实例方法，自动传入自身 ID，与 `Client` 共用控制面实现。持有实例时可调用 `sb.GetInfo(ctx)`、`sb.UpdateGitHubToken(ctx, token)`；持有沙箱 ID 时可调用 `client.GetInfo(ctx, sandboxID)`、`client.UpdateGitHubToken(ctx, sandboxID, token)`。
+
+* 完善
+  * sandbox: 补充模板构建文件上传链接 API 的文档。
+
 ## 7.28.0
 
 * 新增
