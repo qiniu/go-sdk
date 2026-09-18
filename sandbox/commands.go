@@ -70,6 +70,13 @@ func (h *CommandHandle) Kill(ctx context.Context) error {
 	return h.commands.Kill(ctx, h.pid.Load())
 }
 
+// Disconnect 停止接收命令事件，但不终止沙箱内的进程。
+// 后续可通过 [Commands.Connect] 使用进程 PID 重新连接。
+// Disconnect 可重复调用。
+func (h *CommandHandle) Disconnect() {
+	h.cancel()
+}
+
 // WaitPID 等待进程 PID 被分配。
 // 当进程流收到 Start 事件后返回 PID；若 ctx 取消则返回错误。
 func (h *CommandHandle) WaitPID(ctx context.Context) (uint32, error) {
