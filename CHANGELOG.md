@@ -1,4 +1,14 @@
 # Changelog
+## 7.29.0
+
+* 新增
+  * sandbox: 支持创建和管理 Desktop Sandbox，提供 Xvfb/Xfce 桌面初始化、截图、屏幕尺寸、鼠标、键盘、窗口和应用操作。
+  * sandbox: 支持通过 x11vnc 和 noVNC 启动 Desktop 桌面流，提供随机 VNC 密码认证、自定义端口、窗口 ID 和页面显示选项。
+  * examples: 新增 Desktop Sandbox 使用示例，并补充单元测试和真实模板集成测试。
+
+* 相关 PR
+  * https://github.com/qiniu/go-sdk/pull/238
+
 ## 7.28.1
 
 * 新增
