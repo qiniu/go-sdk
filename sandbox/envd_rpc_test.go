@@ -795,6 +795,68 @@ func TestCommandsStart(t *testing.T) {
 	}
 }
 
+func TestCommandHandleWaitContext(t *testing.T) {
+	handle := &CommandHandle{done: make(chan struct{})}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := handle.WaitContext(ctx); err != context.Canceled {
+		t.Fatalf("WaitContext error = %v, want %v", err, context.Canceled)
+	}
+
+	handle.result = &CommandResult{ExitCode: 0}
+	close(handle.done)
+	result, err := handle.WaitContext(context.Background())
+	if err != nil {
+		t.Fatalf("WaitContext completed error: %v", err)
+	}
+	if result.ExitCode != 0 {
+		t.Fatalf("WaitContext result = %+v", result)
+	}
+}
+
+func TestCommandHandleDisconnectStopsReceivingWithoutKillingProcess(t *testing.T) {
+	streamCanceled := make(chan struct{})
+	handler := &testProcessHandler{
+		startFn: func(ctx context.Context, _ *connect.Request[process.StartRequest], stream *connect.ServerStream[process.StartResponse]) error {
+			if err := stream.Send(&process.StartResponse{
+				Event: &process.ProcessEvent{
+					Event: &process.ProcessEvent_Start{
+						Start: &process.ProcessEvent_StartEvent{Pid: 101},
+					},
+				},
+			}); err != nil {
+				return err
+			}
+			<-ctx.Done()
+			close(streamCanceled)
+			return ctx.Err()
+		},
+		sendSignalFn: func(context.Context, *connect.Request[process.SendSignalRequest]) (*connect.Response[process.SendSignalResponse], error) {
+			t.Fatal("Disconnect must not send a process signal")
+			return nil, nil
+		},
+	}
+	cmd, ts := newTestCommands(handler)
+	defer ts.Close()
+
+	handle, err := cmd.Start(context.Background(), "sleep 60")
+	if err != nil {
+		t.Fatalf("Start error: %v", err)
+	}
+	if _, err := handle.WaitPID(context.Background()); err != nil {
+		t.Fatalf("WaitPID error: %v", err)
+	}
+
+	handle.Disconnect()
+	handle.Disconnect()
+
+	select {
+	case <-streamCanceled:
+	case <-time.After(time.Second):
+		t.Fatal("Disconnect did not cancel the event stream")
+	}
+}
+
 func TestCommandsRunWithCallbacks(t *testing.T) {
 	handler := &testProcessHandler{
 		startFn: func(_ context.Context, _ *connect.Request[process.StartRequest], stream *connect.ServerStream[process.StartResponse]) error {

@@ -77,6 +77,29 @@
 // （[Commands.Start] / [Commands.List] / [Commands.Kill]）以及标准输入发送
 // （[Commands.SendStdin]）。
 //
+// # Desktop Sandbox
+//
+// [Client.CreateDesktop] 使用 desktop 模板创建并初始化 Xvfb 和 Xfce 桌面环境。
+// [Desktop] 提供截图、屏幕尺寸、鼠标、键盘、窗口查询和应用启动操作：
+//
+//	allowPublicTraffic := true
+//	desktop, err := c.CreateDesktop(ctx, sandbox.DesktopCreateParams{
+//	    CreateParams: sandbox.CreateParams{
+//	        Network: &sandbox.NetworkConfig{AllowPublicTraffic: &allowPublicTraffic},
+//	    },
+//	    Resolution: sandbox.ScreenSize{Width: 1024, Height: 768},
+//	})
+//	defer desktop.Kill(ctx)
+//
+//	desktop.Open(ctx, "https://developer.qiniu.com")
+//	pngData, err := desktop.Screenshot(ctx)
+//
+// [Desktop.Stream] 管理带随机 VNC 密码的 noVNC 桌面流。默认不会把密码写入 URL；
+// 只有显式传入 [DesktopStreamURLOptions.AuthKey] 时才会生成包含密码的 URL。
+// URL 查询参数可能被浏览器历史、代理和日志记录，应按敏感凭据处理。
+// 当 NetworkConfig.AllowPublicTraffic=false 时，平台要求通过 Header 携带流量访问令牌，
+// 浏览器直接打开 noVNC URL 无法附加该 Header，需要由调用方提供鉴权代理。
+//
 // # 文件系统操作
 //
 // 通过 [Sandbox.Files] 进行文件读写:
