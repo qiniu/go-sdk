@@ -36,9 +36,11 @@ const (
 
 // DesktopStreamOptions 是 noVNC 桌面流启动选项。
 type DesktopStreamOptions struct {
-	// VNCPort 是 x11vnc 监听端口，默认 5900。
+	// VNCPort 是 x11vnc 监听端口，默认 5900，取值范围为 1-65535，
+	// 且必须与 WebPort 不同。
 	VNCPort int
-	// WebPort 是 noVNC Web 服务监听端口，默认 6080。
+	// WebPort 是 noVNC Web 服务监听端口，默认 6080，取值范围为 1-65535，
+	// 且必须与 VNCPort 不同。
 	WebPort int
 	// RequireAuth 控制 VNC 密码认证，nil 表示启用认证。
 	RequireAuth *bool
@@ -122,8 +124,13 @@ func generateDesktopStreamKey(length int) (string, error) {
 	return string(key), nil
 }
 
-func (s *DesktopStream) checkRunning(ctx context.Context) (bool, error) {
-	result, err := s.desktop.commands.Run(ctx, "pgrep -x x11vnc", s.desktop.commandOptions()...)
+func x11VNCProcessMatch(port int) string {
+	return "[x]11vnc.*-rfbport " + strconv.Itoa(port)
+}
+
+func (s *DesktopStream) checkRunning(ctx context.Context, port int) (bool, error) {
+	command := "pgrep -f " + shellEscape(x11VNCProcessMatch(port))
+	result, err := s.desktop.commands.Run(ctx, command, s.desktop.commandOptions()...)
 	if err != nil {
 		return false, fmt.Errorf("desktop check stream: %w", err)
 	}
@@ -147,10 +154,13 @@ func (s *DesktopStream) cleanupCommand(ctx context.Context, operation, command s
 	return nil
 }
 
-func (s *DesktopStream) cleanup(ctx context.Context, noVNCPID uint32, noVNCCommand string) error {
+func (s *DesktopStream) cleanup(ctx context.Context, vncPort, noVNCPID uint32, noVNCCommand string) error {
 	var errs []error
-	if err := s.cleanupCommand(ctx, "stop x11vnc", "pkill -x x11vnc"); err != nil {
-		errs = append(errs, err)
+	if vncPort != 0 {
+		command := "pkill -f " + shellEscape(x11VNCProcessMatch(int(vncPort)))
+		if err := s.cleanupCommand(ctx, "stop x11vnc", command); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	stopNoVNC := noVNCCommand
 	if noVNCPID != 0 {
@@ -167,13 +177,48 @@ func (s *DesktopStream) cleanup(ctx context.Context, noVNCPID uint32, noVNCComma
 	return errors.Join(errs...)
 }
 
-func (s *DesktopStream) cleanupAfterStartFailure(primary error, noVNCPID uint32, noVNCCommand string) error {
+func (s *DesktopStream) cleanupAfterStartFailure(primary error, vncPort, noVNCPID uint32, noVNCCommand string) error {
 	cleanupCtx, cancel := context.WithTimeout(context.Background(), desktopCleanupTimeout)
 	defer cancel()
-	return errors.Join(primary, s.cleanup(cleanupCtx, noVNCPID, noVNCCommand))
+	return errors.Join(primary, s.cleanup(cleanupCtx, vncPort, noVNCPID, noVNCCommand))
 }
 
-// Start 启动 x11vnc 和 noVNC。默认启用随机 VNC 密码认证。
+func (s *DesktopStream) storeVNCPassword(ctx context.Context, password string) error {
+	command := "IFS= read -r password && x11vnc -storepasswd \"$password\" ~/.vnc/passwd"
+	options := append(s.desktop.commandOptions(), WithStdin())
+	handle, err := s.desktop.commands.Start(ctx, command, options...)
+	if err != nil {
+		return fmt.Errorf("desktop start VNC password helper: %w", err)
+	}
+	stopHelper := func() {
+		handle.Disconnect()
+		if handle.commands != nil {
+			killCtx, cancel := context.WithTimeout(context.Background(), desktopCleanupTimeout)
+			defer cancel()
+			_ = handle.Kill(killCtx)
+		}
+	}
+	pid, err := handle.WaitPID(ctx)
+	if err != nil {
+		stopHelper()
+		return fmt.Errorf("desktop VNC password helper PID: %w", err)
+	}
+	if err := s.desktop.commands.SendStdin(ctx, pid, []byte(password+"\n")); err != nil {
+		stopHelper()
+		return fmt.Errorf("desktop send VNC password: %w", err)
+	}
+	result, err := handle.Wait()
+	handle.Disconnect()
+	if err != nil {
+		return fmt.Errorf("desktop store VNC password: %w", err)
+	}
+	if result.ExitCode != 0 {
+		return &DesktopCommandError{Operation: "store VNC password", Result: result}
+	}
+	return nil
+}
+
+// Start 启动 x11vnc 和 noVNC。默认启用随机 VNC 密码认证；已启动时返回错误。
 func (s *DesktopStream) Start(ctx context.Context, options *DesktopStreamOptions) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -191,7 +236,7 @@ func (s *DesktopStream) Start(ctx context.Context, options *DesktopStreamOptions
 	if s.desktop.GetHost(normalized.WebPort) == "" {
 		return fmt.Errorf("desktop stream host is unavailable")
 	}
-	alreadyRunning, err := s.checkRunning(ctx)
+	alreadyRunning, err := s.checkRunning(ctx, normalized.VNCPort)
 	if err != nil {
 		return err
 	}
@@ -209,8 +254,8 @@ func (s *DesktopStream) Start(ctx context.Context, options *DesktopStreamOptions
 		if _, err := s.desktop.run(ctx, "prepare VNC password", "mkdir -p ~/.vnc"); err != nil {
 			return err
 		}
-		if _, err := s.desktop.run(ctx, "store VNC password", "x11vnc -storepasswd "+shellEscape(password)+" ~/.vnc/passwd"); err != nil {
-			return s.cleanupAfterStartFailure(err, 0, "")
+		if err := s.storeVNCPassword(ctx, password); err != nil {
+			return s.cleanupAfterStartFailure(err, 0, 0, "")
 		}
 		pwdFlag = "-usepw"
 	}
@@ -223,7 +268,7 @@ func (s *DesktopStream) Start(ctx context.Context, options *DesktopStreamOptions
 		x11Command += " -id " + shellEscape(normalized.WindowID)
 	}
 	if _, err := s.desktop.run(ctx, "start x11vnc", x11Command); err != nil {
-		return s.cleanupAfterStartFailure(err, 0, "")
+		return s.cleanupAfterStartFailure(err, uint32(normalized.VNCPort), 0, "")
 	}
 
 	noVNCCommand := fmt.Sprintf(
@@ -233,12 +278,12 @@ func (s *DesktopStream) Start(ctx context.Context, options *DesktopStreamOptions
 	noVNCProcessMatch := "pkill -f " + shellEscape("[n]ovnc_proxy.*--listen "+strconv.Itoa(normalized.WebPort))
 	handle, err := s.desktop.commands.Start(ctx, noVNCCommand, s.desktop.commandOptions()...)
 	if err != nil {
-		return s.cleanupAfterStartFailure(fmt.Errorf("desktop start noVNC: %w", err), 0, noVNCProcessMatch)
+		return s.cleanupAfterStartFailure(fmt.Errorf("desktop start noVNC: %w", err), uint32(normalized.VNCPort), 0, noVNCProcessMatch)
 	}
 	noVNCPID, err := handle.WaitPID(ctx)
 	handle.Disconnect()
 	if err != nil {
-		return s.cleanupAfterStartFailure(fmt.Errorf("desktop start noVNC PID: %w", err), noVNCPID, noVNCProcessMatch)
+		return s.cleanupAfterStartFailure(fmt.Errorf("desktop start noVNC PID: %w", err), uint32(normalized.VNCPort), noVNCPID, noVNCProcessMatch)
 	}
 
 	err = s.desktop.waitUntil(ctx, defaultDesktopStreamTimeout, func(ctx context.Context) (bool, error) {
@@ -250,7 +295,7 @@ func (s *DesktopStream) Start(ctx context.Context, options *DesktopStreamOptions
 		return result.ExitCode == 0 && strings.TrimSpace(result.Stdout) != "", nil
 	})
 	if err != nil {
-		return s.cleanupAfterStartFailure(fmt.Errorf("wait for noVNC: %w", err), noVNCPID, noVNCProcessMatch)
+		return s.cleanupAfterStartFailure(fmt.Errorf("wait for noVNC: %w", err), uint32(normalized.VNCPort), noVNCPID, noVNCProcessMatch)
 	}
 
 	s.running = true
@@ -262,24 +307,22 @@ func (s *DesktopStream) Start(ctx context.Context, options *DesktopStreamOptions
 	return nil
 }
 
-// Stop 停止 x11vnc 和 noVNC。未启动时调用是安全的。
+// Stop 停止 x11vnc 和 noVNC。未启动时调用是安全的；即使部分清理失败，
+// Stop 也会清除本地运行状态和内存中的认证密码，调用方可检查错误后重试。
 func (s *DesktopStream) Stop(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.running {
 		return nil
 	}
-	err := s.cleanup(ctx, s.noVNCPID, "")
-	if err != nil {
-		return err
-	}
+	err := s.cleanup(ctx, uint32(s.vncPort), s.noVNCPID, "")
 	s.running = false
 	s.vncPort = 0
 	s.webPort = 0
 	s.password = ""
 	s.noVNCPID = 0
 	s.requirePW = false
-	return nil
+	return err
 }
 
 // AuthKey 返回当前流的 VNC 密码。未运行或未启用认证时返回错误。

@@ -12,12 +12,14 @@ import (
 )
 
 type fakeDesktopStreamCommands struct {
-	runResults []*CommandResult
-	runCalls   []desktopCommandCall
-	startCalls []desktopCommandCall
-	startErr   error
-	waitPID    bool
-	disconnect int
+	runResults    []*CommandResult
+	runCalls      []desktopCommandCall
+	startCalls    []desktopCommandCall
+	startErr      error
+	waitPID       bool
+	disconnect    int
+	stdinCalls    int
+	cancelOnStdin context.CancelFunc
 }
 
 func (f *fakeDesktopStreamCommands) Run(_ context.Context, cmd string, opts ...CommandOption) (*CommandResult, error) {
@@ -32,7 +34,7 @@ func (f *fakeDesktopStreamCommands) Run(_ context.Context, cmd string, opts ...C
 
 func (f *fakeDesktopStreamCommands) Start(_ context.Context, cmd string, opts ...CommandOption) (*CommandHandle, error) {
 	f.startCalls = append(f.startCalls, desktopCommandCall{cmd: cmd, opts: applyCommandOpts(opts)})
-	if f.startErr != nil {
+	if f.startErr != nil && strings.Contains(cmd, "novnc_proxy") {
 		return nil, f.startErr
 	}
 	handle := &CommandHandle{
@@ -40,11 +42,25 @@ func (f *fakeDesktopStreamCommands) Start(_ context.Context, cmd string, opts ..
 		done:   make(chan struct{}),
 		pidCh:  make(chan struct{}),
 	}
-	if !f.waitPID {
+	if strings.Contains(cmd, "storepasswd") {
+		handle.result = &CommandResult{}
+		close(handle.done)
+	}
+	if !f.waitPID || strings.Contains(cmd, "storepasswd") {
 		handle.markPIDReady(321)
 	}
 	return handle, nil
 }
+
+func (f *fakeDesktopStreamCommands) SendStdin(context.Context, uint32, []byte) error {
+	f.stdinCalls++
+	if f.cancelOnStdin != nil {
+		f.cancelOnStdin()
+	}
+	return nil
+}
+
+func (f *fakeDesktopStreamCommands) CloseStdin(context.Context, uint32) error { return nil }
 
 func newStreamTestDesktop(commands desktopCommandRunner) *Desktop {
 	domain := "sandbox.test"
@@ -76,18 +92,25 @@ func TestDesktopStreamStartUsesSecureDefaultsAndBuildsURL(t *testing.T) {
 	if !regexp.MustCompile(`^[A-Za-z0-9]{16}$`).MatchString(key) {
 		t.Fatalf("AuthKey = %q, want 16 alphanumeric characters", key)
 	}
-	if commands.disconnect != 1 {
-		t.Fatalf("Disconnect calls = %d, want 1", commands.disconnect)
+	if commands.disconnect != 2 {
+		t.Fatalf("Disconnect calls = %d, want 2", commands.disconnect)
 	}
-	if len(commands.startCalls) != 1 || !strings.Contains(commands.startCalls[0].cmd, "--vnc 'localhost:5900' --listen '6080'") {
+	if len(commands.startCalls) != 2 || !strings.Contains(commands.startCalls[1].cmd, "--vnc 'localhost:5900' --listen '6080'") {
 		t.Fatalf("noVNC start calls = %+v", commands.startCalls)
 	}
 	joined := ""
-	for _, call := range commands.runCalls {
+	for _, call := range commands.startCalls {
 		joined += call.cmd + "\n"
 	}
-	if !strings.Contains(joined, "x11vnc -storepasswd '"+key+"' ~/.vnc/passwd") {
-		t.Fatalf("storepasswd command does not contain generated key: %s", joined)
+	if !strings.Contains(joined, "IFS= read -r password && x11vnc -storepasswd \"$password\"") {
+		t.Fatalf("storepasswd command does not read password from stdin: %s", joined)
+	}
+	if commands.stdinCalls != 1 {
+		t.Fatalf("SendStdin calls = %d, want 1", commands.stdinCalls)
+	}
+	joined = ""
+	for _, call := range commands.runCalls {
+		joined += call.cmd + "\n"
 	}
 	if !strings.Contains(joined, "-rfbport '5900' -usepw") {
 		t.Fatalf("x11vnc command does not use secure defaults: %s", joined)
@@ -141,7 +164,7 @@ func TestDesktopStreamStopTerminatesBothProcessesAndClearsSecrets(t *testing.T) 
 	for _, call := range commands.runCalls {
 		joined += call.cmd + "\n"
 	}
-	if !strings.Contains(joined, "pkill -x x11vnc") ||
+	if !strings.Contains(joined, "pkill -f '[x]11vnc.*-rfbport 5900'") ||
 		!strings.Contains(joined, "kill '321'") ||
 		!strings.Contains(joined, "rm -f ~/.vnc/passwd") {
 		t.Fatalf("cleanup commands = %s", joined)
@@ -154,6 +177,27 @@ func TestDesktopStreamStopTerminatesBothProcessesAndClearsSecrets(t *testing.T) 
 	}
 	if err := stream.Stop(context.Background()); err != nil {
 		t.Fatalf("second Stop error: %v", err)
+	}
+}
+
+func TestDesktopStreamStopClearsStateAfterCleanupError(t *testing.T) {
+	commands := &fakeDesktopStreamCommands{runResults: []*CommandResult{
+		{ExitCode: 1}, {ExitCode: 0}, {ExitCode: 0},
+		{ExitCode: 0, Stdout: "tcp 0 0 0.0.0.0:6080 0.0.0.0:* LISTEN\n"},
+		{ExitCode: 2, Stderr: "permission denied"}, {ExitCode: 0}, {ExitCode: 0},
+	}}
+	stream := newStreamTestDesktop(commands).Stream()
+	if err := stream.Start(context.Background(), nil); err != nil {
+		t.Fatalf("Start error: %v", err)
+	}
+	if err := stream.Stop(context.Background()); err == nil {
+		t.Fatal("Stop succeeded despite cleanup failure")
+	}
+	if _, err := stream.AuthKey(); err == nil {
+		t.Fatal("AuthKey succeeded after failed Stop cleanup")
+	}
+	if _, err := stream.URL(nil); err == nil {
+		t.Fatal("URL succeeded after failed Stop cleanup")
 	}
 }
 
@@ -173,7 +217,7 @@ func TestDesktopStreamCleansUpX11VNCWhenNoVNCStartFails(t *testing.T) {
 	for _, call := range commands.runCalls {
 		joined += call.cmd + "\n"
 	}
-	if !strings.Contains(joined, "pkill -x x11vnc") || !strings.Contains(joined, "rm -f ~/.vnc/passwd") {
+	if !strings.Contains(joined, "pkill -f '[x]11vnc.*-rfbport 5900'") || !strings.Contains(joined, "rm -f ~/.vnc/passwd") {
 		t.Fatalf("cleanup commands = %s", joined)
 	}
 	if _, err := stream.URL(nil); err == nil {
@@ -196,7 +240,7 @@ func TestDesktopStreamCleansUpNoVNCByPortWhenPIDDiscoveryIsCanceled(t *testing.T
 	}
 	stream := newStreamTestDesktop(commands).Stream()
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	commands.cancelOnStdin = cancel
 
 	err := stream.Start(ctx, nil)
 	if !errors.Is(err, context.Canceled) {

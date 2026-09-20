@@ -50,6 +50,10 @@ func (f *fakeDesktopCommands) Start(_ context.Context, cmd string, opts ...Comma
 	return handle, nil
 }
 
+func (f *fakeDesktopCommands) SendStdin(context.Context, uint32, []byte) error { return nil }
+
+func (f *fakeDesktopCommands) CloseStdin(context.Context, uint32) error { return nil }
+
 type fakeDesktopFiles struct {
 	data        []byte
 	readPath    string
@@ -172,6 +176,18 @@ func TestDesktopScreenAndCursorParsing(t *testing.T) {
 	}
 	if point != (Point{X: 0, Y: 899}) {
 		t.Fatalf("CursorPosition = %+v", point)
+	}
+}
+
+func TestDesktopScreenSizeRejectsUnscopedModeFallback(t *testing.T) {
+	commands := &fakeDesktopCommands{runResults: []*CommandResult{{
+		ExitCode: 0,
+		Stdout:   "Screen 0: minimum 8 x 8, maximum 32767 x 32767\n   800x600 60.00\n   1024x768 60.00\n",
+	}}}
+	desktop := testDesktop(commands, &fakeDesktopFiles{})
+
+	if _, err := desktop.ScreenSize(context.Background()); err == nil {
+		t.Fatal("ScreenSize accepted xrandr output without an explicit current resolution")
 	}
 }
 

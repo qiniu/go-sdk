@@ -24,13 +24,14 @@ const (
 	defaultDesktopProbePeriod = 500 * time.Millisecond
 	defaultXvfbStartTimeout   = 10 * time.Second
 	defaultXfceStartTimeout   = 60 * time.Second
+	defaultTypeTextChunkSize  = 25
+	defaultTypeTextDelay      = 75 * time.Millisecond
 	desktopCleanupTimeout     = 10 * time.Second
 )
 
 var (
 	displayPattern        = regexp.MustCompile(`^[A-Za-z0-9_.-]*:[0-9]+(?:\.[0-9]+)?$`)
 	screenCurrentPattern  = regexp.MustCompile(`current\s+(\d+)\s+x\s+(\d+)`)
-	screenCompactPattern  = regexp.MustCompile(`(\d+)x(\d+)`)
 	cursorPositionPattern = regexp.MustCompile(`x:(\d+)\s+y:(\d+)`)
 	keyPattern            = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
 )
@@ -112,6 +113,7 @@ func (e *DesktopCommandError) Error() string {
 type desktopCommandRunner interface {
 	Run(context.Context, string, ...CommandOption) (*CommandResult, error)
 	Start(context.Context, string, ...CommandOption) (*CommandHandle, error)
+	SendStdin(context.Context, uint32, []byte) error
 }
 
 type desktopFilesystem interface {
@@ -334,6 +336,8 @@ func (d *Desktop) Start(ctx context.Context) error {
 	}
 
 	resolution := fmt.Sprintf("%dx%dx24", d.options.Resolution.Width, d.options.Resolution.Height)
+	// -ac is safe here because TCP transport is disabled and the Unix socket is
+	// only reachable by processes inside this single-tenant Sandbox.
 	xvfbCommand := fmt.Sprintf(
 		"Xvfb %s -ac -screen 0 %s -retro -dpi %s -nolisten tcp",
 		shellEscape(d.options.Display), shellEscape(resolution), shellEscape(strconv.Itoa(d.options.DPI)),
@@ -367,9 +371,6 @@ func (d *Desktop) ScreenSize(ctx context.Context) (ScreenSize, error) {
 		return ScreenSize{}, err
 	}
 	match := screenCurrentPattern.FindStringSubmatch(result.Stdout)
-	if match == nil {
-		match = screenCompactPattern.FindStringSubmatch(result.Stdout)
-	}
 	if match == nil {
 		return ScreenSize{}, fmt.Errorf("parse desktop screen size from %q", result.Stdout)
 	}
@@ -490,7 +491,7 @@ func (d *Desktop) MouseUp(ctx context.Context, button MouseButton) error {
 	return d.mouseButtonAction(ctx, "release mouse button", "mouseup", button)
 }
 
-// Drag 按住鼠标左键从起点拖动到终点。
+// Drag 按住鼠标左键从起点拖动到终点。整个操作期间会串行化其他输入操作。
 func (d *Desktop) Drag(ctx context.Context, from, to Point) error {
 	d.actionMu.Lock()
 	defer d.actionMu.Unlock()
@@ -527,12 +528,13 @@ func (d *Desktop) Scroll(ctx context.Context, direction ScrollDirection, amount 
 	return err
 }
 
-// TypeText 在当前光标位置输入文本。
+// TypeText 在当前光标位置输入文本。整个操作期间会串行化其他输入操作；
+// 对长文本可通过 TypeTextOptions.ChunkSize 控制远程命令次数。
 func (d *Desktop) TypeText(ctx context.Context, text string, options *TypeTextOptions) error {
 	d.actionMu.Lock()
 	defer d.actionMu.Unlock()
-	chunkSize := 25
-	delay := 75 * time.Millisecond
+	chunkSize := defaultTypeTextChunkSize
+	delay := defaultTypeTextDelay
 	if options != nil {
 		chunkSize = options.ChunkSize
 		delay = options.Delay
@@ -574,7 +576,8 @@ var desktopKeyNames = map[string]string{
 	"win": "Super_L", "windows": "Super_L",
 }
 
-// Press 按下单个按键或组合键。
+// Press 按下单个按键或组合键。按键名称只能包含 ASCII 字母、数字和下划线，
+// 可用名称及组合键格式以 xdotool 支持的名称为准。
 func (d *Desktop) Press(ctx context.Context, keys ...string) error {
 	d.actionMu.Lock()
 	defer d.actionMu.Unlock()
