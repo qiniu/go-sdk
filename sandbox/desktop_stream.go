@@ -207,9 +207,10 @@ func (s *DesktopStream) storeVNCPassword(ctx context.Context, password string) e
 		stopHelper()
 		return fmt.Errorf("desktop send VNC password: %w", err)
 	}
-	result, err := handle.Wait()
+	result, err := handle.WaitContext(ctx)
 	handle.Disconnect()
 	if err != nil {
+		stopHelper()
 		return fmt.Errorf("desktop store VNC password: %w", err)
 	}
 	if result.ExitCode != 0 {
@@ -308,7 +309,7 @@ func (s *DesktopStream) Start(ctx context.Context, options *DesktopStreamOptions
 }
 
 // Stop 停止 x11vnc 和 noVNC。未启动时调用是安全的；即使部分清理失败，
-// Stop 也会清除本地运行状态和内存中的认证密码，调用方可检查错误后重试。
+// Stop 也会清除本地运行状态和内存中的认证密码，调用方应检查返回错误。
 func (s *DesktopStream) Stop(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

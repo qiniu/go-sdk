@@ -275,6 +275,26 @@ func TestDesktopTypeTextShellEscapesEachUnicodeChunk(t *testing.T) {
 	}
 }
 
+func TestDesktopTypeTextUsesPerFieldDefaults(t *testing.T) {
+	commands := &fakeDesktopCommands{}
+	desktop := testDesktop(commands, &fakeDesktopFiles{})
+
+	if err := desktop.TypeText(context.Background(), "text", &TypeTextOptions{Delay: time.Millisecond}); err != nil {
+		t.Fatalf("TypeText with default chunk size error: %v", err)
+	}
+	if len(commands.runCalls) != 1 || commands.runCalls[0].cmd != "xdotool type --delay '1' -- 'text'" {
+		t.Fatalf("TypeText command with default chunk size = %+v", commands.runCalls)
+	}
+
+	commands.runCalls = nil
+	if err := desktop.TypeText(context.Background(), "text", &TypeTextOptions{ChunkSize: 2}); err != nil {
+		t.Fatalf("TypeText with default delay error: %v", err)
+	}
+	if len(commands.runCalls) != 2 || commands.runCalls[0].cmd != "xdotool type --delay '75' -- 'te'" {
+		t.Fatalf("TypeText command with default delay = %+v", commands.runCalls)
+	}
+}
+
 func TestDesktopPressRejectsShellSyntax(t *testing.T) {
 	desktop := testDesktop(&fakeDesktopCommands{}, &fakeDesktopFiles{})
 
@@ -432,8 +452,8 @@ func TestDesktopInputAndWaitValidation(t *testing.T) {
 	if err := desktop.Scroll(context.Background(), ScrollDirectionUp, 0); err == nil {
 		t.Fatal("Scroll accepted a zero amount")
 	}
-	if err := desktop.TypeText(context.Background(), "text", &TypeTextOptions{ChunkSize: 0}); err == nil {
-		t.Fatal("TypeText accepted a zero chunk size")
+	if err := desktop.TypeText(context.Background(), "text", &TypeTextOptions{ChunkSize: -1}); err == nil {
+		t.Fatal("TypeText accepted a negative chunk size")
 	}
 	if err := desktop.TypeText(context.Background(), "text", &TypeTextOptions{Delay: -time.Millisecond}); err == nil {
 		t.Fatal("TypeText accepted a negative delay")

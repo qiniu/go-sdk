@@ -87,9 +87,9 @@ const (
 
 // TypeTextOptions 是文本输入选项。
 type TypeTextOptions struct {
-	// ChunkSize 是每次输入的 Unicode 字符数，必须大于 0。
+	// ChunkSize 是每次输入的 Unicode 字符数；零值使用默认值。
 	ChunkSize int
-	// Delay 是 xdotool 输入每个字符时的间隔。
+	// Delay 是 xdotool 输入每个字符时的间隔；零值使用默认值。
 	Delay time.Duration
 }
 
@@ -129,11 +129,11 @@ type Desktop struct {
 	commands desktopCommandRunner
 	files    desktopFilesystem
 
-	startMu  sync.Mutex
-	started  bool
-	actionMu sync.Mutex
-	streamMu sync.Once
-	stream   *DesktopStream
+	startMu    sync.Mutex
+	started    bool
+	actionMu   sync.Mutex
+	streamOnce sync.Once
+	stream     *DesktopStream
 }
 
 func defaultDesktopOptions() DesktopOptions {
@@ -216,7 +216,7 @@ func NewDesktop(sb *Sandbox, options DesktopOptions) (*Desktop, error) {
 
 // Stream 返回当前桌面的 noVNC 流管理器。
 func (d *Desktop) Stream() *DesktopStream {
-	d.streamMu.Do(func() {
+	d.streamOnce.Do(func() {
 		d.stream = newDesktopStream(d)
 	})
 	return d.stream
@@ -536,8 +536,12 @@ func (d *Desktop) TypeText(ctx context.Context, text string, options *TypeTextOp
 	chunkSize := defaultTypeTextChunkSize
 	delay := defaultTypeTextDelay
 	if options != nil {
-		chunkSize = options.ChunkSize
-		delay = options.Delay
+		if options.ChunkSize != 0 {
+			chunkSize = options.ChunkSize
+		}
+		if options.Delay != 0 {
+			delay = options.Delay
+		}
 	}
 	if chunkSize <= 0 {
 		return fmt.Errorf("desktop text chunk size must be positive")

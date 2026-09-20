@@ -59,6 +59,20 @@ func (h *CommandHandle) PID() uint32 {
 // Wait 等待命令完成并返回结果。
 func (h *CommandHandle) Wait() (*CommandResult, error) {
 	<-h.done
+	return h.resultValue()
+}
+
+// WaitContext 等待命令完成并返回结果；ctx 取消时立即返回 ctx.Err()。
+func (h *CommandHandle) WaitContext(ctx context.Context) (*CommandResult, error) {
+	select {
+	case <-h.done:
+		return h.resultValue()
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+func (h *CommandHandle) resultValue() (*CommandResult, error) {
 	if h.result == nil {
 		return nil, fmt.Errorf("command terminated without result")
 	}

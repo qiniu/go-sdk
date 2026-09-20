@@ -12,14 +12,15 @@ import (
 )
 
 type fakeDesktopStreamCommands struct {
-	runResults    []*CommandResult
-	runCalls      []desktopCommandCall
-	startCalls    []desktopCommandCall
-	startErr      error
-	waitPID       bool
-	disconnect    int
-	stdinCalls    int
-	cancelOnStdin context.CancelFunc
+	runResults         []*CommandResult
+	runCalls           []desktopCommandCall
+	startCalls         []desktopCommandCall
+	startErr           error
+	waitPID            bool
+	disconnect         int
+	stdinCalls         int
+	cancelOnStdin      context.CancelFunc
+	cancelOnNoVNCStart context.CancelFunc
 }
 
 func (f *fakeDesktopStreamCommands) Run(_ context.Context, cmd string, opts ...CommandOption) (*CommandResult, error) {
@@ -45,6 +46,9 @@ func (f *fakeDesktopStreamCommands) Start(_ context.Context, cmd string, opts ..
 	if strings.Contains(cmd, "storepasswd") {
 		handle.result = &CommandResult{}
 		close(handle.done)
+	}
+	if strings.Contains(cmd, "novnc_proxy") && f.cancelOnNoVNCStart != nil {
+		f.cancelOnNoVNCStart()
 	}
 	if !f.waitPID || strings.Contains(cmd, "storepasswd") {
 		handle.markPIDReady(321)
@@ -240,9 +244,10 @@ func TestDesktopStreamCleansUpNoVNCByPortWhenPIDDiscoveryIsCanceled(t *testing.T
 	}
 	stream := newStreamTestDesktop(commands).Stream()
 	ctx, cancel := context.WithCancel(context.Background())
-	commands.cancelOnStdin = cancel
+	commands.cancelOnNoVNCStart = cancel
 
-	err := stream.Start(ctx, nil)
+	no := false
+	err := stream.Start(ctx, &DesktopStreamOptions{RequireAuth: &no})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Start error = %v, want context.Canceled", err)
 	}

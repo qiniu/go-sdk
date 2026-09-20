@@ -795,6 +795,25 @@ func TestCommandsStart(t *testing.T) {
 	}
 }
 
+func TestCommandHandleWaitContext(t *testing.T) {
+	handle := &CommandHandle{done: make(chan struct{})}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := handle.WaitContext(ctx); err != context.Canceled {
+		t.Fatalf("WaitContext error = %v, want %v", err, context.Canceled)
+	}
+
+	handle.result = &CommandResult{ExitCode: 0}
+	close(handle.done)
+	result, err := handle.WaitContext(context.Background())
+	if err != nil {
+		t.Fatalf("WaitContext completed error: %v", err)
+	}
+	if result.ExitCode != 0 {
+		t.Fatalf("WaitContext result = %+v", result)
+	}
+}
+
 func TestCommandHandleDisconnectStopsReceivingWithoutKillingProcess(t *testing.T) {
 	streamCanceled := make(chan struct{})
 	handler := &testProcessHandler{
