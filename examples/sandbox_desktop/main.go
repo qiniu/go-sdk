@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/qiniu/go-sdk/v7/sandbox"
@@ -53,6 +54,55 @@ func main() {
 	if err := desktop.Open(ctx, "https://developer.qiniu.com"); err != nil {
 		log.Fatalf("打开浏览器失败: %v", err)
 	}
+	if err := desktop.Wait(ctx, 2*time.Second); err != nil {
+		log.Fatalf("等待浏览器启动失败: %v", err)
+	}
+	size, err := desktop.ScreenSize(ctx)
+	if err != nil {
+		log.Fatalf("获取桌面尺寸失败: %v", err)
+	}
+	point := sandbox.Point{X: size.Width / 2, Y: size.Height / 2}
+	if err := desktop.MoveMouse(ctx, point); err != nil {
+		log.Fatalf("移动鼠标失败: %v", err)
+	}
+	if err := desktop.Click(ctx, sandbox.MouseButtonLeft, &point); err != nil {
+		log.Fatalf("点击鼠标失败: %v", err)
+	}
+	if err := desktop.Scroll(ctx, sandbox.ScrollDirectionDown, 1); err != nil {
+		log.Fatalf("滚动鼠标失败: %v", err)
+	}
+	if err := desktop.Press(ctx, "ctrl", "l"); err != nil {
+		log.Fatalf("发送快捷键失败: %v", err)
+	}
+	if err := desktop.TypeText(ctx, "https://developer.qiniu.com", nil); err != nil {
+		log.Fatalf("输入文本失败: %v", err)
+	}
+	if err := desktop.Press(ctx, "enter"); err != nil {
+		log.Fatalf("确认输入失败: %v", err)
+	}
+	windowIDs, err := desktop.ApplicationWindows(ctx, "google-chrome")
+	if err != nil {
+		log.Printf("查询浏览器窗口失败（模板可能使用其他浏览器类名）: %v", err)
+	} else if len(windowIDs) > 0 {
+		title, titleErr := desktop.WindowTitle(ctx, windowIDs[0])
+		if titleErr != nil {
+			log.Printf("获取浏览器窗口标题失败: %v", titleErr)
+		} else {
+			fmt.Printf("浏览器窗口: %s (%s)\n", windowIDs[0], title)
+		}
+	}
+	if activeID, activeErr := desktop.ActiveWindowID(ctx); activeErr == nil {
+		fmt.Printf("活动窗口: %s\n", activeID)
+	}
+	screenshot, err := desktop.Screenshot(ctx)
+	if err != nil {
+		log.Fatalf("截图失败: %v", err)
+	}
+	screenshotPath := filepath.Join(os.TempDir(), "qiniu-desktop-example.png")
+	if err := os.WriteFile(screenshotPath, screenshot, 0o600); err != nil {
+		log.Fatalf("保存截图失败: %v", err)
+	}
+	fmt.Printf("截图已保存: %s\n", screenshotPath)
 	if err := desktop.Stream().Start(ctx, nil); err != nil {
 		log.Fatalf("启动桌面流失败: %v", err)
 	}

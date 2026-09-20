@@ -198,6 +198,41 @@ func TestDesktopClickAcceptsOriginAndSerializesArguments(t *testing.T) {
 	}
 }
 
+func TestDesktopMouseButtonActionsAndValidation(t *testing.T) {
+	commands := &fakeDesktopCommands{}
+	desktop := testDesktop(commands, &fakeDesktopFiles{})
+
+	if err := desktop.MoveMouse(context.Background(), Point{X: 4, Y: 5}); err != nil {
+		t.Fatalf("MoveMouse error: %v", err)
+	}
+	if err := desktop.MouseDown(context.Background(), MouseButtonMiddle); err != nil {
+		t.Fatalf("MouseDown error: %v", err)
+	}
+	if err := desktop.MouseUp(context.Background(), MouseButtonMiddle); err != nil {
+		t.Fatalf("MouseUp error: %v", err)
+	}
+	if err := desktop.MouseDown(context.Background(), MouseButton("invalid")); err == nil {
+		t.Fatal("MouseDown accepted an invalid button")
+	}
+	if err := desktop.MoveMouse(context.Background(), Point{X: -1, Y: 0}); err == nil {
+		t.Fatal("MoveMouse accepted a negative coordinate")
+	}
+
+	want := []string{
+		"xdotool mousemove --sync '4' '5'",
+		"xdotool mousedown '2'",
+		"xdotool mouseup '2'",
+	}
+	if len(commands.runCalls) != len(want) {
+		t.Fatalf("Run calls = %d, want %d", len(commands.runCalls), len(want))
+	}
+	for i, call := range commands.runCalls {
+		if call.cmd != want[i] {
+			t.Fatalf("Run call %d = %q, want %q", i, call.cmd, want[i])
+		}
+	}
+}
+
 func TestDesktopTypeTextShellEscapesEachUnicodeChunk(t *testing.T) {
 	commands := &fakeDesktopCommands{}
 	desktop := testDesktop(commands, &fakeDesktopFiles{})
@@ -370,6 +405,31 @@ func TestDesktopWaitHonorsContextCancellation(t *testing.T) {
 	err := desktop.Wait(ctx, time.Minute)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Wait error = %v, want context.Canceled", err)
+	}
+}
+
+func TestDesktopInputAndWaitValidation(t *testing.T) {
+	desktop := testDesktop(&fakeDesktopCommands{}, &fakeDesktopFiles{})
+	if err := desktop.Click(context.Background(), MouseButton("invalid"), nil); err == nil {
+		t.Fatal("Click accepted an invalid button")
+	}
+	if err := desktop.Scroll(context.Background(), ScrollDirectionUp, 0); err == nil {
+		t.Fatal("Scroll accepted a zero amount")
+	}
+	if err := desktop.TypeText(context.Background(), "text", &TypeTextOptions{ChunkSize: 0}); err == nil {
+		t.Fatal("TypeText accepted a zero chunk size")
+	}
+	if err := desktop.TypeText(context.Background(), "text", &TypeTextOptions{Delay: -time.Millisecond}); err == nil {
+		t.Fatal("TypeText accepted a negative delay")
+	}
+	if err := desktop.Open(context.Background(), ""); err == nil {
+		t.Fatal("Open accepted an empty path")
+	}
+	if err := desktop.Launch(context.Background(), ""); err == nil {
+		t.Fatal("Launch accepted an empty application")
+	}
+	if err := desktop.Wait(context.Background(), -time.Millisecond); err == nil {
+		t.Fatal("Wait accepted a negative duration")
 	}
 }
 

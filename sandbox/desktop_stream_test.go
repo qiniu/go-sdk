@@ -236,3 +236,63 @@ func TestDesktopStreamCanDisableVNCAuthentication(t *testing.T) {
 		t.Fatalf("authentication-disabled commands = %s", joined)
 	}
 }
+
+func TestDesktopStreamUsesCustomPortsAndWindowID(t *testing.T) {
+	commands := &fakeDesktopStreamCommands{runResults: []*CommandResult{
+		{ExitCode: 1}, {ExitCode: 0},
+		{ExitCode: 0, Stdout: "tcp 0 0 0.0.0.0:6081 0.0.0.0:* LISTEN\n"},
+	}}
+	stream := newStreamTestDesktop(commands).Stream()
+	if err := stream.Start(context.Background(), &DesktopStreamOptions{
+		VNCPort: 5901,
+		WebPort: 6081,
+		RequireAuth: func() *bool {
+			value := false
+			return &value
+		}(),
+		WindowID: "42",
+	}); err != nil {
+		t.Fatalf("Start error: %v", err)
+	}
+	if len(commands.startCalls) != 1 || !strings.Contains(commands.startCalls[0].cmd, "--listen '6081'") {
+		t.Fatalf("noVNC start command = %+v", commands.startCalls)
+	}
+	joined := ""
+	for _, call := range commands.runCalls {
+		joined += call.cmd + "\n"
+	}
+	if !strings.Contains(joined, "-rfbport '5901' -nopw") || !strings.Contains(joined, "-id '42'") {
+		t.Fatalf("x11vnc custom command = %s", joined)
+	}
+	autoConnect := false
+	rawURL, err := stream.URL(&DesktopStreamURLOptions{AutoConnect: &autoConnect, Resize: DesktopStreamResizeOff})
+	if err != nil {
+		t.Fatalf("URL error: %v", err)
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("parse URL: %v", err)
+	}
+	if parsed.Host != "6081-desktop-1.sandbox.test" || parsed.Query().Get("autoconnect") != "" || parsed.Query().Get("resize") != "off" {
+		t.Fatalf("custom URL = %q", rawURL)
+	}
+	if err := stream.Stop(context.Background()); err != nil {
+		t.Fatalf("Stop error: %v", err)
+	}
+}
+
+func TestNormalizeDesktopStreamOptionsRejectsInvalidPorts(t *testing.T) {
+	for _, options := range []*DesktopStreamOptions{
+		{VNCPort: 0, WebPort: 0},
+		{VNCPort: -1},
+		{WebPort: 65536},
+		{VNCPort: 5900, WebPort: 5900},
+	} {
+		if options.VNCPort == 0 && options.WebPort == 0 {
+			continue
+		}
+		if _, _, err := normalizeDesktopStreamOptions(options); err == nil {
+			t.Fatalf("normalizeDesktopStreamOptions accepted %+v", options)
+		}
+	}
+}
