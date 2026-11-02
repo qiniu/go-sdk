@@ -1,6 +1,7 @@
 package sandbox
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -53,11 +54,14 @@ func parseAPIErrorBody(body []byte) (code, message string) {
 		return "", ""
 	}
 	var parsed struct {
-		Code    string `json:"code"`
-		Message string `json:"message"`
+		Code      json.RawMessage `json:"code"`
+		ErrorCode string          `json:"error_code"`
+		Message   string          `json:"message"`
 	}
 	if json.Unmarshal(body, &parsed) == nil {
-		return parsed.Code, parsed.Message
+		var legacyCode string
+		_ = json.Unmarshal(parsed.Code, &legacyCode)
+		return cmp.Or(parsed.ErrorCode, legacyCode), parsed.Message
 	}
 	return "", ""
 }

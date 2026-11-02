@@ -112,6 +112,13 @@ type HTTPInjection struct {
 
 	// IfQueries 可选请求 query 匹配条件，满足后才注入。
 	IfQueries *map[string]string
+
+	// IfBody 顶层 JSON 字符串字段的精确匹配条件，各条件必须全部满足。
+	IfBody *map[string]string
+
+	// Body 要覆盖或新增的顶层 JSON 字符串字段；响应不会返回这些密钥值。
+	// 仅支持未压缩、最大 1 MiB 的 application/json 请求。
+	Body *map[string]string
 }
 
 // InjectionSpec 注入配置（discriminated union），各字段互斥，只能设置一个。
@@ -327,6 +334,8 @@ func injectionSpecToAPI(spec InjectionSpec) (apis.Injection, error) {
 			Headers:   spec.HTTP.Headers,
 			IfHeaders: spec.HTTP.IfHeaders,
 			IfQueries: spec.HTTP.IfQueries,
+			IfBody:    spec.HTTP.IfBody,
+			Body:      spec.HTTP.Body,
 			Type:      apis.HTTP,
 		})
 	}
@@ -417,6 +426,8 @@ func sandboxInjectionSpecToAPI(spec SandboxInjectionSpec) (apis.SandboxInjection
 			Headers:   spec.HTTP.Headers,
 			IfHeaders: spec.HTTP.IfHeaders,
 			IfQueries: spec.HTTP.IfQueries,
+			IfBody:    spec.HTTP.IfBody,
+			Body:      spec.HTTP.Body,
 			Type:      apis.HTTP,
 		})
 	}
@@ -468,7 +479,7 @@ func injectionSpecFromAPI(inj apis.Injection) (InjectionSpec, error) {
 		if err != nil {
 			return InjectionSpec{}, err
 		}
-		return InjectionSpec{HTTP: &HTTPInjection{BaseURL: v.BaseURL, Headers: v.Headers, IfHeaders: v.IfHeaders, IfQueries: v.IfQueries}}, nil
+		return InjectionSpec{HTTP: &HTTPInjection{BaseURL: v.BaseURL, Headers: v.Headers, IfHeaders: v.IfHeaders, IfQueries: v.IfQueries, IfBody: v.IfBody}}, nil
 	default:
 		return InjectionSpec{}, fmt.Errorf("unknown injection type: %s", disc)
 	}
@@ -521,7 +532,7 @@ func maskedSandboxInjectionFromAPI(inj apis.SandboxInjection) (MaskedSandboxInje
 		if err != nil {
 			return MaskedSandboxInjection{}, err
 		}
-		return MaskedSandboxInjection{HTTP: &HTTPInjection{BaseURL: v.BaseURL, Headers: v.Headers, IfHeaders: v.IfHeaders, IfQueries: v.IfQueries}}, nil
+		return MaskedSandboxInjection{HTTP: &HTTPInjection{BaseURL: v.BaseURL, Headers: v.Headers, IfHeaders: v.IfHeaders, IfQueries: v.IfQueries, IfBody: v.IfBody}}, nil
 	default:
 		return MaskedSandboxInjection{}, fmt.Errorf("unknown sandbox injection type: %s", disc)
 	}

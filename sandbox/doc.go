@@ -56,6 +56,22 @@
 // 实例的控制面方法自动传入自身 ID，委托给对应的 Client 方法。
 // 例如 sb.UpdateGitHubToken(ctx, token) 与 c.UpdateGitHubToken(ctx, sb.ID(), token) 使用相同实现。
 //
+// # 持久快照与恢复
+//
+// [Client.CreateSnapshot] / [Sandbox.CreateSnapshot] 创建可复用的持久快照，
+// [Client.ListSnapshots] 返回当前页与 NextToken。创建快照前必须自行生成并保存
+// CreateSnapshotParams.IdempotencyKey；遇到网络中断或等待超时时，用原键和原请求体重试。
+// 取消客户端等待不会取消已经接受的捕获。
+//
+// [Client.PauseWithParams] / [Sandbox.PauseWithParams] 支持 Memory=false，
+// 此时仅保存文件系统，恢复会冷启动，进程和内存状态丢失，不能通过流量自动恢复。
+// [Client.Connect] 使用 v2 连接接口，ConnectParams.Timeout=0 表示使用服务端默认 300 秒。
+// CreateParams.AutoResume 控制流量自动恢复；AutoPauseMemory=false 时不能启用该能力。
+//
+// 模板创建参数 MinFreeDiskMB 表示构建后的最小剩余空间，省略时使用团队默认值，
+// 显式设为 0 时不为剩余空间扩容，已有文件系统不会缩小。
+// [Client.ListTemplateTags] 查询模板标签的最新构建分配。
+//
 // # 命令执行
 //
 // 通过 [Sandbox.Commands] 在沙箱内执行终端命令:

@@ -213,6 +213,12 @@ type ConnectSandbox struct {
 	Timeout int32 `json:"timeout"`
 }
 
+// ConnectSandboxV2 defines model for ConnectSandboxV2.
+type ConnectSandboxV2 struct {
+	// Timeout Timeout in seconds from the current time after which the sandbox should expire
+	Timeout *int32 `json:"timeout,omitempty"`
+}
+
 // DeleteTemplateTagsRequest defines model for DeleteTemplateTagsRequest.
 type DeleteTemplateTagsRequest struct {
 	// Name Name of the template
@@ -235,6 +241,9 @@ type EnvdVersion = string
 type Error struct {
 	// Code Error code
 	Code int32 `json:"code"`
+
+	// ErrorCode Machine-readable semantic error code
+	ErrorCode *string `json:"error_code,omitempty"`
 
 	// Message Error
 	Message string `json:"message"`
@@ -345,8 +354,17 @@ type HTTPInjection struct {
 	// Default scheme is https if not specified.
 	BaseURL string `json:"base_url"`
 
+	// Body Top-level JSON field names mapped to secret string values to set on matching requests. Existing string fields are overwritten and missing fields are added. An existing target with a non-string value produces an error. Other fields retain their values.
+	// Values are assigned directly. Values are omitted from API responses.
+	// Body processing supports uncompressed application/json requests up to 1 MiB. Invalid or unsupported bodies produce an error when body processing is required.
+	Body *map[string]string `json:"body,omitempty"`
+
 	// Headers HTTP headers to inject or overwrite on matching HTTPS requests.
 	Headers *map[string]string `json:"headers,omitempty"`
+
+	// IfBody Top-level JSON string fields that must exist with exactly matching values before this injection matches. All conditions must match; names and values are case-sensitive.
+	// Body processing supports uncompressed application/json requests up to 1 MiB. Invalid or unsupported bodies produce an error when body processing is required.
+	IfBody *map[string]string `json:"if_body,omitempty"`
 
 	// IfHeaders Optional HTTP request headers that must already be present with exact values before this injection matches. Header names are matched case-insensitively; repeated headers compare only their first value. These conditions only scope request matching and are not an authorization boundary; sandbox processes can set request headers.
 	IfHeaders *map[string]string `json:"if_headers,omitempty"`
@@ -486,6 +504,9 @@ type Mcp map[string]interface{}
 // MemoryMB Memory for the sandbox in MiB
 type MemoryMB = int32
 
+// MinFreeDiskMb Requested minimum free space after the template's build steps, in MiB. Omit to use the team's default. Set to 0 to request no minimum free-disk growth. The filesystem is never shrunk, including inherited or already-larger filesystems. Growth is best effort, so filesystem metadata can leave the available space slightly below the requested minimum.
+type MinFreeDiskMb = int32
+
 // NewInjectionRule Request body for creating a new injection rule
 type NewInjectionRule struct {
 	Injection Injection `json:"injection"`
@@ -500,8 +521,14 @@ type NewSandbox struct {
 	AllowInternetAccess *bool `json:"allow_internet_access,omitempty"`
 
 	// AutoPause Automatically pauses the sandbox after the timeout
-	AutoPause *bool    `json:"autoPause,omitempty"`
-	EnvVars   *EnvVars `json:"envVars,omitempty"`
+	AutoPause *bool `json:"autoPause,omitempty"`
+
+	// AutoPauseMemory Controls the snapshot kind taken when the sandbox auto-pauses on timeout (only relevant when autoPause is true). When false, the auto-pause drops the in-memory state and persists only the filesystem (a filesystem-only snapshot); resuming it cold-boots (reboots) the sandbox from disk. Such a snapshot cannot be auto-resumed by traffic and must be resumed explicitly, so it cannot be combined with autoResume. Defaults to true (full memory snapshot).
+	AutoPauseMemory *bool `json:"autoPauseMemory,omitempty"`
+
+	// AutoResume Auto-resume configuration for paused sandboxes.
+	AutoResume *SandboxAutoResumeConfig `json:"autoResume,omitempty"`
+	EnvVars    *EnvVars                 `json:"envVars,omitempty"`
 
 	// Injections Injection rules to apply to outgoing HTTPS requests from the sandbox.
 	// Each item is a discriminated union with a "type" field.
@@ -615,6 +642,15 @@ type Sandbox struct {
 	// TrafficAccessToken Token required for accessing sandbox via proxy.
 	TrafficAccessToken *string `json:"trafficAccessToken"`
 }
+
+// SandboxAutoResumeConfig Auto-resume configuration for paused sandboxes.
+type SandboxAutoResumeConfig struct {
+	// Enabled Auto-resume enabled flag for paused sandboxes. Default false.
+	Enabled SandboxAutoResumeEnabled `json:"enabled"`
+}
+
+// SandboxAutoResumeEnabled Auto-resume enabled flag for paused sandboxes. Default false.
+type SandboxAutoResumeEnabled = bool
 
 // SandboxDetail defines model for SandboxDetail.
 type SandboxDetail struct {
@@ -743,9 +779,24 @@ type SandboxNetworkConfig struct {
 	MaskRequestHost *string `json:"maskRequestHost,omitempty"`
 }
 
+// SandboxPauseRequest defines model for SandboxPauseRequest.
+type SandboxPauseRequest struct {
+	// Memory Include memory in the pause snapshot. When false, persist only the filesystem; resuming the sandbox cold-boots from disk and loses in-memory state, including running processes. Filesystem-only snapshots cannot be auto-resumed by traffic, even when autoResume is enabled; explicitly call connect or resume to restart the sandbox. Defaults to true.
+	Memory *bool `json:"memory,omitempty"`
+}
+
 // SandboxResource defines model for SandboxResource.
 type SandboxResource struct {
 	union json.RawMessage
+}
+
+// SandboxSnapshotRequest defines model for SandboxSnapshotRequest.
+type SandboxSnapshotRequest struct {
+	// Memory Include memory in the snapshot. Set false to create a filesystem-only template that cold-boots.
+	Memory *bool `json:"memory,omitempty"`
+
+	// Name Optional alias with an optional tag, for example demo:v1. The name must not contain '/'; the namespace is assigned from the authenticated account. If a snapshot template with this alias already exists and is owned by the caller's team, the new build will be assigned to it instead of creating another template.
+	Name *string `json:"name,omitempty"`
 }
 
 // SandboxState State of the sandbox
@@ -754,6 +805,15 @@ type SandboxState string
 // SandboxesWithMetrics defines model for SandboxesWithMetrics.
 type SandboxesWithMetrics struct {
 	Sandboxes map[string]SandboxMetric `json:"sandboxes"`
+}
+
+// SnapshotInfo defines model for SnapshotInfo.
+type SnapshotInfo struct {
+	// Names Names associated with the snapshot template, including its namespace when present.
+	Names []string `json:"names"`
+
+	// SnapshotID Identifier of the snapshot template that can be used to create new sandboxes
+	SnapshotID string `json:"snapshotID"`
 }
 
 // TeamUser defines model for TeamUser.
@@ -857,9 +917,6 @@ type TemplateBuild struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// TemplateBuildDiskSizeMB Disk size for a template build in MiB; must be at least 10240 MiB
-type TemplateBuildDiskSizeMB = int32
-
 // TemplateBuildFileUpload defines model for TemplateBuildFileUpload.
 type TemplateBuildFileUpload struct {
 	// Present Whether the file is already present in the cache
@@ -943,11 +1000,11 @@ type TemplateBuildRequestV3 struct {
 	// CPUCount CPU cores for the sandbox
 	CPUCount *CPUCount `json:"cpuCount,omitempty"`
 
-	// DiskSizeMB Disk size for a template build in MiB; must be at least 10240 MiB
-	DiskSizeMB *TemplateBuildDiskSizeMB `json:"diskSizeMB,omitempty"`
-
 	// MemoryMB Memory for the sandbox in MiB
 	MemoryMB *MemoryMB `json:"memoryMB,omitempty"`
+
+	// MinFreeDiskMb Requested minimum free space after the template's build steps, in MiB. Omit to use the team's default. Set to 0 to request no minimum free-disk growth. The filesystem is never shrunk, including inherited or already-larger filesystems. Growth is best effort, so filesystem metadata can leave the available space slightly below the requested minimum.
+	MinFreeDiskMb *MinFreeDiskMb `json:"minFreeDiskMb,omitempty"`
 
 	// Name Name of the template. Can include a tag with colon separator (e.g. "my-template" or "my-template:v1"). If tag is included, it will be treated as if the tag was provided in the tags array.
 	Name *string `json:"name,omitempty"`
@@ -1063,6 +1120,18 @@ type TemplateStep struct {
 
 	// Type Type of the step
 	Type string `json:"type"`
+}
+
+// TemplateTag defines model for TemplateTag.
+type TemplateTag struct {
+	// BuildID Identifier of the build associated with this tag
+	BuildID openapi_types.UUID `json:"buildID"`
+
+	// CreatedAt Time when the tag was assigned
+	CreatedAt time.Time `json:"createdAt"`
+
+	// Tag The tag name
+	Tag string `json:"tag"`
 }
 
 // TemplateUpdateRequest defines model for TemplateUpdateRequest.
@@ -1201,10 +1270,31 @@ type RefreshSandboxJSONBody struct {
 	Duration *int `json:"duration,omitempty"`
 }
 
+// CreateSandboxSnapshotParams defines parameters for CreateSandboxSnapshot.
+type CreateSandboxSnapshotParams struct {
+	// IdempotencyKey Required. Identifies one snapshot request within the authenticated team. Retries must use the same key, sandbox ID and request body. A retry waits for the original capture or replays its terminal response, even if the source sandbox is gone. Client cancellation does not cancel an accepted capture. Use a new key for a new capture, including another version with the same name. Completed captures, including failures, are replayed. A request explicitly rejected before capture during API shutdown can be retried with the same key. Records expire after 35 minutes; completion starts a fresh 35-minute retention period. An unknown outcome must be investigated before a new capture.
+	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
 // UpdateSandboxTimeoutJSONBody defines parameters for UpdateSandboxTimeout.
 type UpdateSandboxTimeoutJSONBody struct {
 	// Timeout Timeout in seconds from the current time after which the sandbox should expire
 	Timeout int32 `json:"timeout"`
+}
+
+// ListSnapshotsParams defines parameters for ListSnapshots.
+type ListSnapshotsParams struct {
+	// SandboxID Only return snapshots created from this sandbox
+	SandboxID *string `form:"sandboxID,omitempty" json:"sandboxID,omitempty"`
+
+	// Name Filter snapshots by name or template ID, optionally tag-qualified (e.g. "my-snapshot", "my-team/my-snapshot" or "my-snapshot:v1").
+	Name *string `form:"name,omitempty" json:"name,omitempty"`
+
+	// Limit Maximum number of items to return per page
+	Limit *PaginationLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// NextToken Cursor to start the list from
+	NextToken *PaginationNextToken `form:"nextToken,omitempty" json:"nextToken,omitempty"`
 }
 
 // ListTemplatesParams defines parameters for ListTemplates.
@@ -1281,6 +1371,9 @@ type UpdateSandboxGithubTokenJSONRequestBody UpdateSandboxGithubTokenJSONBody
 // UpdateSandboxInjectionsJSONRequestBody defines body for UpdateSandboxInjections for application/json ContentType.
 type UpdateSandboxInjectionsJSONRequestBody UpdateSandboxInjectionsJSONBody
 
+// PauseSandboxJSONRequestBody defines body for PauseSandbox for application/json ContentType.
+type PauseSandboxJSONRequestBody = SandboxPauseRequest
+
 // RefreshSandboxJSONRequestBody defines body for RefreshSandbox for application/json ContentType.
 type RefreshSandboxJSONRequestBody RefreshSandboxJSONBody
 
@@ -1289,6 +1382,9 @@ type PatchSandboxResourceJSONRequestBody = ResourcePatch
 
 // ResumeSandboxJSONRequestBody defines body for ResumeSandbox for application/json ContentType.
 type ResumeSandboxJSONRequestBody = ResumedSandbox
+
+// CreateSandboxSnapshotJSONRequestBody defines body for CreateSandboxSnapshot for application/json ContentType.
+type CreateSandboxSnapshotJSONRequestBody = SandboxSnapshotRequest
 
 // UpdateSandboxTimeoutJSONRequestBody defines body for UpdateSandboxTimeout for application/json ContentType.
 type UpdateSandboxTimeoutJSONRequestBody UpdateSandboxTimeoutJSONBody
@@ -1307,6 +1403,9 @@ type UpdateTemplateJSONRequestBody = TemplateUpdateRequest
 
 // RebuildTemplateJSONRequestBody defines body for RebuildTemplate for application/json ContentType.
 type RebuildTemplateJSONRequestBody = TemplateBuildRequest
+
+// ConnectSandboxV2JSONRequestBody defines body for ConnectSandboxV2 for application/json ContentType.
+type ConnectSandboxV2JSONRequestBody = ConnectSandboxV2
 
 // CreateTemplateV2JSONRequestBody defines body for CreateTemplateV2 for application/json ContentType.
 type CreateTemplateV2JSONRequestBody = TemplateBuildRequestV2
@@ -2109,8 +2208,10 @@ type ClientInterface interface {
 	// GetSandboxMetrics request
 	GetSandboxMetrics(ctx context.Context, sandboxID SandboxID, params *GetSandboxMetricsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PauseSandbox request
-	PauseSandbox(ctx context.Context, sandboxID SandboxID, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// PauseSandboxWithBody request with any body
+	PauseSandboxWithBody(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PauseSandbox(ctx context.Context, sandboxID SandboxID, body PauseSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RefreshSandboxWithBody request with any body
 	RefreshSandboxWithBody(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2130,10 +2231,18 @@ type ClientInterface interface {
 
 	ResumeSandbox(ctx context.Context, sandboxID SandboxID, body ResumeSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// CreateSandboxSnapshotWithBody request with any body
+	CreateSandboxSnapshotWithBody(ctx context.Context, sandboxID SandboxID, params *CreateSandboxSnapshotParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateSandboxSnapshot(ctx context.Context, sandboxID SandboxID, params *CreateSandboxSnapshotParams, body CreateSandboxSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// UpdateSandboxTimeoutWithBody request with any body
 	UpdateSandboxTimeoutWithBody(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	UpdateSandboxTimeout(ctx context.Context, sandboxID SandboxID, body UpdateSandboxTimeoutJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSnapshots request
+	ListSnapshots(ctx context.Context, params *ListSnapshotsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTemplates request
 	ListTemplates(ctx context.Context, params *ListTemplatesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2184,8 +2293,16 @@ type ClientInterface interface {
 	// GetTemplateFiles request
 	GetTemplateFiles(ctx context.Context, templateID TemplateID, hash string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListTemplateTags request
+	ListTemplateTags(ctx context.Context, templateID TemplateID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListSandboxesV2 request
 	ListSandboxesV2(ctx context.Context, params *ListSandboxesV2Params, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConnectSandboxV2WithBody request with any body
+	ConnectSandboxV2WithBody(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ConnectSandboxV2(ctx context.Context, sandboxID SandboxID, body ConnectSandboxV2JSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateTemplateV2WithBody request with any body
 	CreateTemplateV2WithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2479,8 +2596,20 @@ func (c *Client) GetSandboxMetrics(ctx context.Context, sandboxID SandboxID, par
 	return c.Client.Do(req)
 }
 
-func (c *Client) PauseSandbox(ctx context.Context, sandboxID SandboxID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPauseSandboxRequest(c.Server, sandboxID)
+func (c *Client) PauseSandboxWithBody(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPauseSandboxRequestWithBody(c.Server, sandboxID, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PauseSandbox(ctx context.Context, sandboxID SandboxID, body PauseSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPauseSandboxRequest(c.Server, sandboxID, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2575,6 +2704,30 @@ func (c *Client) ResumeSandbox(ctx context.Context, sandboxID SandboxID, body Re
 	return c.Client.Do(req)
 }
 
+func (c *Client) CreateSandboxSnapshotWithBody(ctx context.Context, sandboxID SandboxID, params *CreateSandboxSnapshotParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSandboxSnapshotRequestWithBody(c.Server, sandboxID, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateSandboxSnapshot(ctx context.Context, sandboxID SandboxID, params *CreateSandboxSnapshotParams, body CreateSandboxSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSandboxSnapshotRequest(c.Server, sandboxID, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) UpdateSandboxTimeoutWithBody(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateSandboxTimeoutRequestWithBody(c.Server, sandboxID, contentType, body)
 	if err != nil {
@@ -2589,6 +2742,18 @@ func (c *Client) UpdateSandboxTimeoutWithBody(ctx context.Context, sandboxID San
 
 func (c *Client) UpdateSandboxTimeout(ctx context.Context, sandboxID SandboxID, body UpdateSandboxTimeoutJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateSandboxTimeoutRequest(c.Server, sandboxID, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListSnapshots(ctx context.Context, params *ListSnapshotsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSnapshotsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -2815,8 +2980,44 @@ func (c *Client) GetTemplateFiles(ctx context.Context, templateID TemplateID, ha
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListTemplateTags(ctx context.Context, templateID TemplateID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTemplateTagsRequest(c.Server, templateID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) ListSandboxesV2(ctx context.Context, params *ListSandboxesV2Params, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListSandboxesV2Request(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ConnectSandboxV2WithBody(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConnectSandboxV2RequestWithBody(c.Server, sandboxID, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ConnectSandboxV2(ctx context.Context, sandboxID SandboxID, body ConnectSandboxV2JSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConnectSandboxV2Request(c.Server, sandboxID, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3644,8 +3845,19 @@ func NewGetSandboxMetricsRequest(server string, sandboxID SandboxID, params *Get
 	return req, nil
 }
 
-// NewPauseSandboxRequest generates requests for PauseSandbox
-func NewPauseSandboxRequest(server string, sandboxID SandboxID) (*http.Request, error) {
+// NewPauseSandboxRequest calls the generic PauseSandbox builder with application/json body
+func NewPauseSandboxRequest(server string, sandboxID SandboxID, body PauseSandboxJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPauseSandboxRequestWithBody(server, sandboxID, "application/json", bodyReader)
+}
+
+// NewPauseSandboxRequestWithBody generates requests for PauseSandbox with any type of body
+func NewPauseSandboxRequestWithBody(server string, sandboxID SandboxID, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -3670,10 +3882,12 @@ func NewPauseSandboxRequest(server string, sandboxID SandboxID) (*http.Request, 
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	req, err := http.NewRequest("POST", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -3860,6 +4074,66 @@ func NewResumeSandboxRequestWithBody(server string, sandboxID SandboxID, content
 	return req, nil
 }
 
+// NewCreateSandboxSnapshotRequest calls the generic CreateSandboxSnapshot builder with application/json body
+func NewCreateSandboxSnapshotRequest(server string, sandboxID SandboxID, params *CreateSandboxSnapshotParams, body CreateSandboxSnapshotJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateSandboxSnapshotRequestWithBody(server, sandboxID, params, "application/json", bodyReader)
+}
+
+// NewCreateSandboxSnapshotRequestWithBody generates requests for CreateSandboxSnapshot with any type of body
+func NewCreateSandboxSnapshotRequestWithBody(server string, sandboxID SandboxID, params *CreateSandboxSnapshotParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "sandboxID", runtime.ParamLocationPath, sandboxID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sandboxes/%s/snapshots", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Idempotency-Key", runtime.ParamLocationHeader, params.IdempotencyKey)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("Idempotency-Key", headerParam0)
+
+	}
+
+	return req, nil
+}
+
 // NewUpdateSandboxTimeoutRequest calls the generic UpdateSandboxTimeout builder with application/json body
 func NewUpdateSandboxTimeoutRequest(server string, sandboxID SandboxID, body UpdateSandboxTimeoutJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -3903,6 +4177,103 @@ func NewUpdateSandboxTimeoutRequestWithBody(server string, sandboxID SandboxID, 
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListSnapshotsRequest generates requests for ListSnapshots
+func NewListSnapshotsRequest(server string, params *ListSnapshotsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/snapshots")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.SandboxID != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sandboxID", runtime.ParamLocationQuery, *params.SandboxID); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Name != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "name", runtime.ParamLocationQuery, *params.Name); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.NextToken != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "nextToken", runtime.ParamLocationQuery, *params.NextToken); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -4614,6 +4985,40 @@ func NewGetTemplateFilesRequest(server string, templateID TemplateID, hash strin
 	return req, nil
 }
 
+// NewListTemplateTagsRequest generates requests for ListTemplateTags
+func NewListTemplateTagsRequest(server string, templateID TemplateID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "templateID", runtime.ParamLocationPath, templateID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/templates/%s/tags", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListSandboxesV2Request generates requests for ListSandboxesV2
 func NewListSandboxesV2Request(server string, params *ListSandboxesV2Params) (*http.Request, error) {
 	var err error
@@ -4723,6 +5128,53 @@ func NewListSandboxesV2Request(server string, params *ListSandboxesV2Params) (*h
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewConnectSandboxV2Request calls the generic ConnectSandboxV2 builder with application/json body
+func NewConnectSandboxV2Request(server string, sandboxID SandboxID, body ConnectSandboxV2JSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConnectSandboxV2RequestWithBody(server, sandboxID, "application/json", bodyReader)
+}
+
+// NewConnectSandboxV2RequestWithBody generates requests for ConnectSandboxV2 with any type of body
+func NewConnectSandboxV2RequestWithBody(server string, sandboxID SandboxID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "sandboxID", runtime.ParamLocationPath, sandboxID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v2/sandboxes/%s/connect", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -4967,8 +5419,10 @@ type ClientWithResponsesInterface interface {
 	// GetSandboxMetricsWithResponse request
 	GetSandboxMetricsWithResponse(ctx context.Context, sandboxID SandboxID, params *GetSandboxMetricsParams, reqEditors ...RequestEditorFn) (*GetSandboxMetricsResponse, error)
 
-	// PauseSandboxWithResponse request
-	PauseSandboxWithResponse(ctx context.Context, sandboxID SandboxID, reqEditors ...RequestEditorFn) (*PauseSandboxResponse, error)
+	// PauseSandboxWithBodyWithResponse request with any body
+	PauseSandboxWithBodyWithResponse(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PauseSandboxResponse, error)
+
+	PauseSandboxWithResponse(ctx context.Context, sandboxID SandboxID, body PauseSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*PauseSandboxResponse, error)
 
 	// RefreshSandboxWithBodyWithResponse request with any body
 	RefreshSandboxWithBodyWithResponse(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RefreshSandboxResponse, error)
@@ -4988,10 +5442,18 @@ type ClientWithResponsesInterface interface {
 
 	ResumeSandboxWithResponse(ctx context.Context, sandboxID SandboxID, body ResumeSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*ResumeSandboxResponse, error)
 
+	// CreateSandboxSnapshotWithBodyWithResponse request with any body
+	CreateSandboxSnapshotWithBodyWithResponse(ctx context.Context, sandboxID SandboxID, params *CreateSandboxSnapshotParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSandboxSnapshotResponse, error)
+
+	CreateSandboxSnapshotWithResponse(ctx context.Context, sandboxID SandboxID, params *CreateSandboxSnapshotParams, body CreateSandboxSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSandboxSnapshotResponse, error)
+
 	// UpdateSandboxTimeoutWithBodyWithResponse request with any body
 	UpdateSandboxTimeoutWithBodyWithResponse(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateSandboxTimeoutResponse, error)
 
 	UpdateSandboxTimeoutWithResponse(ctx context.Context, sandboxID SandboxID, body UpdateSandboxTimeoutJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateSandboxTimeoutResponse, error)
+
+	// ListSnapshotsWithResponse request
+	ListSnapshotsWithResponse(ctx context.Context, params *ListSnapshotsParams, reqEditors ...RequestEditorFn) (*ListSnapshotsResponse, error)
 
 	// ListTemplatesWithResponse request
 	ListTemplatesWithResponse(ctx context.Context, params *ListTemplatesParams, reqEditors ...RequestEditorFn) (*ListTemplatesResponse, error)
@@ -5042,8 +5504,16 @@ type ClientWithResponsesInterface interface {
 	// GetTemplateFilesWithResponse request
 	GetTemplateFilesWithResponse(ctx context.Context, templateID TemplateID, hash string, reqEditors ...RequestEditorFn) (*GetTemplateFilesResponse, error)
 
+	// ListTemplateTagsWithResponse request
+	ListTemplateTagsWithResponse(ctx context.Context, templateID TemplateID, reqEditors ...RequestEditorFn) (*ListTemplateTagsResponse, error)
+
 	// ListSandboxesV2WithResponse request
 	ListSandboxesV2WithResponse(ctx context.Context, params *ListSandboxesV2Params, reqEditors ...RequestEditorFn) (*ListSandboxesV2Response, error)
+
+	// ConnectSandboxV2WithBodyWithResponse request with any body
+	ConnectSandboxV2WithBodyWithResponse(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConnectSandboxV2Response, error)
+
+	ConnectSandboxV2WithResponse(ctx context.Context, sandboxID SandboxID, body ConnectSandboxV2JSONRequestBody, reqEditors ...RequestEditorFn) (*ConnectSandboxV2Response, error)
 
 	// CreateTemplateV2WithBodyWithResponse request with any body
 	CreateTemplateV2WithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTemplateV2Response, error)
@@ -5495,6 +5965,7 @@ func (r GetSandboxMetricsResponse) StatusCode() int {
 type PauseSandboxResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON400      *N400
 	JSON401      *N401
 	JSON404      *N404
 	JSON409      *N409
@@ -5618,6 +6089,36 @@ func (r ResumeSandboxResponse) StatusCode() int {
 	return 0
 }
 
+type CreateSandboxSnapshotResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *SnapshotInfo
+	JSON400      *N400
+	JSON401      *N401
+	JSON403      *N403
+	JSON404      *N404
+	JSON408      *Error
+	JSON409      *N409
+	JSON500      *N500
+	JSON503      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateSandboxSnapshotResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateSandboxSnapshotResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type UpdateSandboxTimeoutResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -5636,6 +6137,32 @@ func (r UpdateSandboxTimeoutResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r UpdateSandboxTimeoutResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListSnapshotsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]SnapshotInfo
+	JSON400      *N400
+	JSON401      *N401
+	JSON403      *N403
+	JSON500      *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSnapshotsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSnapshotsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -5962,6 +6489,33 @@ func (r GetTemplateFilesResponse) StatusCode() int {
 	return 0
 }
 
+type ListTemplateTagsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TemplateTag
+	JSON400      *N400
+	JSON401      *N401
+	JSON403      *N403
+	JSON404      *N404
+	JSON500      *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTemplateTagsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTemplateTagsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListSandboxesV2Response struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -5981,6 +6535,33 @@ func (r ListSandboxesV2Response) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ListSandboxesV2Response) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ConnectSandboxV2Response struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Sandbox
+	JSON201      *Sandbox
+	JSON400      *N400
+	JSON401      *N401
+	JSON404      *N404
+	JSON500      *N500
+}
+
+// Status returns HTTPResponse.Status
+func (r ConnectSandboxV2Response) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConnectSandboxV2Response) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -6261,9 +6842,17 @@ func (c *ClientWithResponses) GetSandboxMetricsWithResponse(ctx context.Context,
 	return ParseGetSandboxMetricsResponse(rsp)
 }
 
-// PauseSandboxWithResponse request returning *PauseSandboxResponse
-func (c *ClientWithResponses) PauseSandboxWithResponse(ctx context.Context, sandboxID SandboxID, reqEditors ...RequestEditorFn) (*PauseSandboxResponse, error) {
-	rsp, err := c.PauseSandbox(ctx, sandboxID, reqEditors...)
+// PauseSandboxWithBodyWithResponse request with arbitrary body returning *PauseSandboxResponse
+func (c *ClientWithResponses) PauseSandboxWithBodyWithResponse(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PauseSandboxResponse, error) {
+	rsp, err := c.PauseSandboxWithBody(ctx, sandboxID, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePauseSandboxResponse(rsp)
+}
+
+func (c *ClientWithResponses) PauseSandboxWithResponse(ctx context.Context, sandboxID SandboxID, body PauseSandboxJSONRequestBody, reqEditors ...RequestEditorFn) (*PauseSandboxResponse, error) {
+	rsp, err := c.PauseSandbox(ctx, sandboxID, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -6330,6 +6919,23 @@ func (c *ClientWithResponses) ResumeSandboxWithResponse(ctx context.Context, san
 	return ParseResumeSandboxResponse(rsp)
 }
 
+// CreateSandboxSnapshotWithBodyWithResponse request with arbitrary body returning *CreateSandboxSnapshotResponse
+func (c *ClientWithResponses) CreateSandboxSnapshotWithBodyWithResponse(ctx context.Context, sandboxID SandboxID, params *CreateSandboxSnapshotParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSandboxSnapshotResponse, error) {
+	rsp, err := c.CreateSandboxSnapshotWithBody(ctx, sandboxID, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateSandboxSnapshotResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateSandboxSnapshotWithResponse(ctx context.Context, sandboxID SandboxID, params *CreateSandboxSnapshotParams, body CreateSandboxSnapshotJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSandboxSnapshotResponse, error) {
+	rsp, err := c.CreateSandboxSnapshot(ctx, sandboxID, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateSandboxSnapshotResponse(rsp)
+}
+
 // UpdateSandboxTimeoutWithBodyWithResponse request with arbitrary body returning *UpdateSandboxTimeoutResponse
 func (c *ClientWithResponses) UpdateSandboxTimeoutWithBodyWithResponse(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateSandboxTimeoutResponse, error) {
 	rsp, err := c.UpdateSandboxTimeoutWithBody(ctx, sandboxID, contentType, body, reqEditors...)
@@ -6345,6 +6951,15 @@ func (c *ClientWithResponses) UpdateSandboxTimeoutWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParseUpdateSandboxTimeoutResponse(rsp)
+}
+
+// ListSnapshotsWithResponse request returning *ListSnapshotsResponse
+func (c *ClientWithResponses) ListSnapshotsWithResponse(ctx context.Context, params *ListSnapshotsParams, reqEditors ...RequestEditorFn) (*ListSnapshotsResponse, error) {
+	rsp, err := c.ListSnapshots(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSnapshotsResponse(rsp)
 }
 
 // ListTemplatesWithResponse request returning *ListTemplatesResponse
@@ -6504,6 +7119,15 @@ func (c *ClientWithResponses) GetTemplateFilesWithResponse(ctx context.Context, 
 	return ParseGetTemplateFilesResponse(rsp)
 }
 
+// ListTemplateTagsWithResponse request returning *ListTemplateTagsResponse
+func (c *ClientWithResponses) ListTemplateTagsWithResponse(ctx context.Context, templateID TemplateID, reqEditors ...RequestEditorFn) (*ListTemplateTagsResponse, error) {
+	rsp, err := c.ListTemplateTags(ctx, templateID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTemplateTagsResponse(rsp)
+}
+
 // ListSandboxesV2WithResponse request returning *ListSandboxesV2Response
 func (c *ClientWithResponses) ListSandboxesV2WithResponse(ctx context.Context, params *ListSandboxesV2Params, reqEditors ...RequestEditorFn) (*ListSandboxesV2Response, error) {
 	rsp, err := c.ListSandboxesV2(ctx, params, reqEditors...)
@@ -6511,6 +7135,23 @@ func (c *ClientWithResponses) ListSandboxesV2WithResponse(ctx context.Context, p
 		return nil, err
 	}
 	return ParseListSandboxesV2Response(rsp)
+}
+
+// ConnectSandboxV2WithBodyWithResponse request with arbitrary body returning *ConnectSandboxV2Response
+func (c *ClientWithResponses) ConnectSandboxV2WithBodyWithResponse(ctx context.Context, sandboxID SandboxID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConnectSandboxV2Response, error) {
+	rsp, err := c.ConnectSandboxV2WithBody(ctx, sandboxID, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConnectSandboxV2Response(rsp)
+}
+
+func (c *ClientWithResponses) ConnectSandboxV2WithResponse(ctx context.Context, sandboxID SandboxID, body ConnectSandboxV2JSONRequestBody, reqEditors ...RequestEditorFn) (*ConnectSandboxV2Response, error) {
+	rsp, err := c.ConnectSandboxV2(ctx, sandboxID, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConnectSandboxV2Response(rsp)
 }
 
 // CreateTemplateV2WithBodyWithResponse request with arbitrary body returning *CreateTemplateV2Response
@@ -7407,6 +8048,13 @@ func ParsePauseSandboxResponse(rsp *http.Response) (*PauseSandboxResponse, error
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest N400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest N401
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7623,6 +8271,88 @@ func ParseResumeSandboxResponse(rsp *http.Response) (*ResumeSandboxResponse, err
 	return response, nil
 }
 
+// ParseCreateSandboxSnapshotResponse parses an HTTP response from a CreateSandboxSnapshotWithResponse call
+func ParseCreateSandboxSnapshotResponse(rsp *http.Response) (*CreateSandboxSnapshotResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateSandboxSnapshotResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest SnapshotInfo
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest N400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest N403
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest N404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 408:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON408 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest N409
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseUpdateSandboxTimeoutResponse parses an HTTP response from a UpdateSandboxTimeoutWithResponse call
 func ParseUpdateSandboxTimeoutResponse(rsp *http.Response) (*UpdateSandboxTimeoutResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -7650,6 +8380,60 @@ func ParseUpdateSandboxTimeoutResponse(rsp *http.Response) (*UpdateSandboxTimeou
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListSnapshotsResponse parses an HTTP response from a ListSnapshotsWithResponse call
+func ParseListSnapshotsResponse(rsp *http.Response) (*ListSnapshotsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSnapshotsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []SnapshotInfo
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest N400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest N403
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest N500
@@ -8239,6 +9023,67 @@ func ParseGetTemplateFilesResponse(rsp *http.Response) (*GetTemplateFilesRespons
 	return response, nil
 }
 
+// ParseListTemplateTagsResponse parses an HTTP response from a ListTemplateTagsWithResponse call
+func ParseListTemplateTagsResponse(rsp *http.Response) (*ListTemplateTagsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTemplateTagsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TemplateTag
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest N400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest N403
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest N404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListSandboxesV2Response parses an HTTP response from a ListSandboxesV2WithResponse call
 func ParseListSandboxesV2Response(rsp *http.Response) (*ListSandboxesV2Response, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -8273,6 +9118,67 @@ func ParseListSandboxesV2Response(rsp *http.Response) (*ListSandboxesV2Response,
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConnectSandboxV2Response parses an HTTP response from a ConnectSandboxV2WithResponse call
+func ParseConnectSandboxV2Response(rsp *http.Response) (*ConnectSandboxV2Response, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConnectSandboxV2Response{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Sandbox
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Sandbox
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest N400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest N404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest N500

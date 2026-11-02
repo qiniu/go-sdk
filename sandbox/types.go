@@ -48,6 +48,12 @@ type CreateParams struct {
 	// AutoPause 超时后自动暂停，可选。
 	AutoPause *bool
 
+	// AutoPauseMemory 超时自动暂停时是否保存内存，默认 true；false 时恢复会冷启动。
+	AutoPauseMemory *bool
+
+	// AutoResume 暂停后通过流量自动恢复的配置，不能与 AutoPauseMemory=false 同用。
+	AutoResume *AutoResumeConfig
+
 	// AllowInternetAccess 允许沙箱访问互联网，可选。
 	AllowInternetAccess *bool
 
@@ -89,9 +95,21 @@ func (p CreateParams) hasKodoResource() bool {
 	return false
 }
 
+// AutoResumeConfig 暂停沙箱的流量自动恢复配置。
+type AutoResumeConfig struct {
+	// Enabled 是否启用，默认 false。
+	Enabled bool
+}
+
+// PauseParams 暂停沙箱的请求参数。
+type PauseParams struct {
+	// Memory 是否保存内存，默认 true。false 时仅保存文件系统，恢复会丢失进程和内存状态，且不能通过流量自动恢复。
+	Memory *bool
+}
+
 // ConnectParams 连接沙箱的请求参数。
 type ConnectParams struct {
-	// Timeout 超时时间（秒）。
+	// Timeout 超时时间（秒）；0 表示使用服务端默认值 300 秒。
 	Timeout int32
 }
 
@@ -369,8 +387,12 @@ func (p *CreateParams) toAPI() (apis.CreateSandboxJSONRequestBody, error) {
 		TemplateID:          p.TemplateID,
 		Timeout:             p.Timeout,
 		AutoPause:           p.AutoPause,
+		AutoPauseMemory:     p.AutoPauseMemory,
 		AllowInternetAccess: p.AllowInternetAccess,
 		Secure:              p.Secure,
+	}
+	if p.AutoResume != nil {
+		body.AutoResume = &apis.SandboxAutoResumeConfig{Enabled: p.AutoResume.Enabled}
 	}
 	if p.EnvVars != nil {
 		ev := apis.EnvVars(*p.EnvVars)
@@ -413,10 +435,12 @@ func (p *CreateParams) toAPI() (apis.CreateSandboxJSONRequestBody, error) {
 	return body, nil
 }
 
-func (p *ConnectParams) toAPI() apis.ConnectSandboxJSONRequestBody {
-	return apis.ConnectSandboxJSONRequestBody{
-		Timeout: p.Timeout,
+func (p *ConnectParams) toAPI() apis.ConnectSandboxV2JSONRequestBody {
+	body := apis.ConnectSandboxV2JSONRequestBody{}
+	if p.Timeout != 0 {
+		body.Timeout = &p.Timeout
 	}
+	return body
 }
 
 func (p *RefreshParams) toAPI() apis.RefreshSandboxJSONRequestBody {

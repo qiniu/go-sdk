@@ -221,7 +221,7 @@ type PostFilesParams struct {
 // PostInitJSONBody defines parameters for PostInit.
 type PostInitJSONBody struct {
 	// AccessToken Access token for secure access to envd service
-	AccessToken *string `json:"accessToken,omitempty"`
+	AccessToken *SecureToken `json:"accessToken,omitempty"`
 
 	// CaCertPEM CA certificate in PEM format for MITM APIKEY protection to be injected into the sandbox system trust store
 	CaCertPEM *string `json:"caCertPEM,omitempty"`

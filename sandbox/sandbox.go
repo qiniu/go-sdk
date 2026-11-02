@@ -128,6 +128,11 @@ func (s *Sandbox) Pause(ctx context.Context) error {
 	return s.client.Pause(ctx, s.sandboxID)
 }
 
+// PauseWithParams 按指定快照方式暂停当前沙箱。
+func (s *Sandbox) PauseWithParams(ctx context.Context, params PauseParams) error {
+	return s.client.PauseWithParams(ctx, s.sandboxID, params)
+}
+
 // Refresh 延长当前沙箱的存活时间。
 // 具体行为参见 [Client.Refresh]。
 func (s *Sandbox) Refresh(ctx context.Context, params RefreshParams) error {
@@ -236,10 +241,10 @@ func (c *Client) Create(ctx context.Context, params CreateParams) (*Sandbox, err
 // Connect 连接到一个已有的沙箱，可选择恢复已暂停的沙箱。
 // 在遇到服务端错误或网络错误时自动重试。
 func (c *Client) Connect(ctx context.Context, sandboxID string, params ConnectParams) (*Sandbox, error) {
-	var resp *apis.ConnectSandboxResponse
+	var resp *apis.ConnectSandboxV2Response
 	err := c.retryCall(ctx, func() error {
 		var e error
-		resp, e = c.api.ConnectSandboxWithResponse(ctx, sandboxID, params.toAPI())
+		resp, e = c.api.ConnectSandboxV2WithResponse(ctx, sandboxID, params.toAPI())
 		if e != nil {
 			return e
 		}
@@ -417,7 +422,12 @@ func (c *Client) Kill(ctx context.Context, sandboxID string) error {
 
 // Pause 暂停指定沙箱。
 func (c *Client) Pause(ctx context.Context, sandboxID string) error {
-	resp, err := c.api.PauseSandboxWithResponse(ctx, sandboxID)
+	return c.PauseWithParams(ctx, sandboxID, PauseParams{})
+}
+
+// PauseWithParams 暂停指定沙箱；Memory=false 时仅保留文件系统，恢复后冷启动。
+func (c *Client) PauseWithParams(ctx context.Context, sandboxID string, params PauseParams) error {
+	resp, err := c.api.PauseSandboxWithResponse(ctx, sandboxID, apis.PauseSandboxJSONRequestBody{Memory: params.Memory})
 	if err != nil {
 		return err
 	}
