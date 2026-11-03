@@ -16,7 +16,8 @@ type CreateSnapshotParams struct {
 	Memory *bool
 	// Name 快照别名，可包含标签，但不能包含斜杠；命名空间由服务端分配。
 	Name *string
-	// IdempotencyKey 幂等键（必填，最长 128 字节）。调用前保存该键；结果不确定时使用原键和原请求体重试。
+	// IdempotencyKey 幂等键（必填，最长 128 字节）。每次新捕获都必须使用新键，包括同名快照的新版本；
+	// 对结果不确定的同一次捕获，使用原键和原请求体重试。服务端在捕获完成后保留该键 35 分钟，过期后重用可能发起新的捕获。
 	IdempotencyKey string
 }
 
@@ -48,8 +49,9 @@ type SnapshotPage struct {
 	NextToken string
 }
 
-// CreateSnapshot 创建指定沙箱的持久快照；重试始终复用同一个幂等键和请求体。
-// 取消等待不会取消已接受的捕获。结果不确定时应保留显式传入的幂等键，供后续查询和重试。
+// CreateSnapshot 创建指定沙箱的持久快照；同一次捕获的重试始终复用同一个幂等键和请求体。
+// 每次新捕获都必须使用新键，包括同名快照的新版本。服务端在捕获完成后保留幂等记录 35 分钟；过期后重用该键可能发起新的捕获。
+// 取消等待不会取消已接受的捕获。结果不确定时，使用 ListSnapshots 按来源沙箱或名称核对；核对前不要换键发起新捕获。
 func (c *Client) CreateSnapshot(ctx context.Context, sandboxID string, params CreateSnapshotParams) (*SnapshotInfo, error) {
 	key := params.IdempotencyKey
 	if key == "" || len(key) > 128 {

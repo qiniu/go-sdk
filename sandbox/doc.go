@@ -59,9 +59,10 @@
 // # 持久快照与恢复
 //
 // [Client.CreateSnapshot] / [Sandbox.CreateSnapshot] 创建可复用的持久快照，
-// [Client.ListSnapshots] 返回当前页与 NextToken。创建快照前必须自行生成并保存
-// CreateSnapshotParams.IdempotencyKey；遇到网络中断或等待超时时，用原键和原请求体重试。
-// 取消客户端等待不会取消已经接受的捕获。
+// [Client.ListSnapshots] 返回当前页与 NextToken。每次新捕获（包括同名快照的新版本）都必须使用新
+// CreateSnapshotParams.IdempotencyKey；同一次捕获遇到网络中断或等待超时时，用原键和原请求体重试。
+// 服务端在捕获完成后保留幂等记录 35 分钟，过期后重用该键可能发起新的捕获。取消客户端等待不会取消已接受的捕获。
+// 结果不确定时，用 ListSnapshots 按来源沙箱或名称核对；核对前不要换键发起新捕获。
 //
 // [Client.PauseWithParams] / [Sandbox.PauseWithParams] 支持 Memory=false，
 // 此时仅保存文件系统，恢复会冷启动，进程和内存状态丢失，不能通过流量自动恢复。
