@@ -1,4 +1,22 @@
 # Changelog
+## 7.30.0
+
+* 新增
+  * sandbox: 支持创建持久快照和分页查询快照；创建快照要求显式提供幂等键，同一次捕获的重试复用原键和请求体。
+  * sandbox: 支持通过 `PauseWithParams` 仅保存文件系统，并通过 `AutoPauseMemory` 和 `AutoResume` 配置自动暂停与流量自动恢复。
+  * sandbox: 支持通过 `ListTemplateTags` 查询模板标签的最新构建分配。
+  * sandbox: HTTP 请求注入支持通过 `IfBody` 匹配顶层 JSON 字符串字段，通过 `Body` 覆盖或新增字段。
+
+* 完善
+  * sandbox: 连接沙箱改用 v2 Connect 接口，连接只延长、不缩短 TTL；`ConnectParams.Timeout` 为 0 时使用服务端默认的 300 秒。
+  * sandbox: 错误解析支持 `error_code`，快照重试支持 `Retry-After`。
+
+* 不兼容变更
+  * sandbox: `CreateTemplateParams.DiskSizeMB` 已移除，请迁移至 `MinFreeDiskMB`。新参数表示构建后的最小剩余空间（MiB），省略时使用团队默认值，设为 0 时不为剩余空间扩容；响应中的 `DiskSizeMB` 仍表示实际磁盘大小。
+
+* 相关 PR
+  * https://github.com/qiniu/go-sdk/pull/240
+
 ## 7.29.0
 
 * 新增
