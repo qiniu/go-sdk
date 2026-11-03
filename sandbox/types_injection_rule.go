@@ -98,7 +98,8 @@ type GithubInjection struct {
 	Token *string
 }
 
-// HTTPInjection 自定义 HTTP 注入配置。
+// HTTPInjection 自定义 HTTP 注入配置。IfHeaders、IfQueries 和 IfBody 只是请求匹配条件，不是授权边界；
+// 沙箱进程可以构造满足条件的请求。需要限制密钥发送目标时，应严格限定 BaseURL。
 type HTTPInjection struct {
 	// BaseURL 匹配 HTTPS 请求的 base URL。host 精确匹配；path 存在时精确匹配
 	// 规范化路径，尾部 * 表示前缀匹配。若未指定 scheme 默认为 https。
@@ -114,10 +115,11 @@ type HTTPInjection struct {
 	IfQueries *map[string]string
 
 	// IfBody 顶层 JSON 字符串字段的精确匹配条件，各条件必须全部满足。
+	// 需要处理 body 时，非法或不支持的请求体会导致请求报错，而非视为条件不匹配。
 	IfBody *map[string]string
 
 	// Body 要覆盖或新增的顶层 JSON 字符串字段；响应不会返回这些密钥值。
-	// 仅支持未压缩、最大 1 MiB 的 application/json 请求。
+	// 仅支持未压缩、最大 1 MiB 的 application/json 请求；非法或不支持的请求体会导致请求报错。
 	Body *map[string]string
 }
 
