@@ -276,6 +276,10 @@ func (c *Client) Connect(ctx context.Context, sandboxID string, params ConnectPa
 // retryCall 执行 API 调用并在可重试错误时自动重试。
 // 重试次数由 Config.RetryMax 控制（nil 默认 5，0 禁用重试）。
 func (c *Client) retryCall(ctx context.Context, fn func() error) error {
+	return c.retryCallWithPolicy(ctx, fn, isRetryable, nil)
+}
+
+func (c *Client) retryCallWithPolicy(ctx context.Context, fn func() error, retryable func(error) bool, retryAfter func(error) (time.Duration, bool)) error {
 	maxRetries := 5
 	if c.config.RetryMax != nil {
 		maxRetries = *c.config.RetryMax
@@ -295,10 +299,15 @@ func (c *Client) retryCall(ctx context.Context, fn func() error) error {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
 		}
-		if attempt >= maxRetries || !isRetryable(err) {
+		if attempt >= maxRetries || !retryable(err) {
 			return err
 		}
 		d := backoffFn(attempt)
+		if retryAfter != nil {
+			if delay, ok := retryAfter(err); ok {
+				d = delay
+			}
+		}
 		if d > 0 {
 			timer := time.NewTimer(d)
 			select {

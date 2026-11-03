@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 )
@@ -20,6 +23,9 @@ type APIError struct {
 	Code string
 	// Message 是从响应 body 中解析出的错误消息（如果有）。
 	Message string
+
+	retryAfter    time.Duration
+	hasRetryAfter bool
 }
 
 // Error 实现 error 接口。
@@ -39,13 +45,24 @@ func (e *APIError) Error() string {
 
 // newAPIError 从 HTTP 响应创建 APIError，提取 X-Reqid 头并解析 JSON body。
 func newAPIError(resp *http.Response, body []byte) *APIError {
+	retryAfter, hasRetryAfter := parseRetryAfter(resp.Header.Get("Retry-After"))
 	e := &APIError{
-		StatusCode: resp.StatusCode,
-		Body:       body,
-		Reqid:      resp.Header.Get("X-Reqid"),
+		StatusCode:    resp.StatusCode,
+		Body:          body,
+		Reqid:         resp.Header.Get("X-Reqid"),
+		retryAfter:    retryAfter,
+		hasRetryAfter: hasRetryAfter,
 	}
 	e.Code, e.Message = parseAPIErrorBody(body)
 	return e
+}
+
+func parseRetryAfter(value string) (time.Duration, bool) {
+	seconds, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+	if err != nil || seconds < 0 || seconds > int64((1<<63-1)/int64(time.Second)) {
+		return 0, false
+	}
+	return time.Duration(seconds) * time.Second, true
 }
 
 // parseAPIErrorBody 尝试从 JSON body 中解析 code 和 message 字段。

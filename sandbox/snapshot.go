@@ -2,7 +2,10 @@ package sandbox
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/qiniu/go-sdk/v7/sandbox/internal/apis"
 )
@@ -54,7 +57,7 @@ func (c *Client) CreateSnapshot(ctx context.Context, sandboxID string, params Cr
 	}
 	body := apis.CreateSandboxSnapshotJSONRequestBody{Memory: params.Memory, Name: params.Name}
 	var result *SnapshotInfo
-	err := c.retryCall(ctx, func() error {
+	err := c.retryCallWithPolicy(ctx, func() error {
 		resp, err := c.api.CreateSandboxSnapshotWithResponse(ctx, sandboxID, &apis.CreateSandboxSnapshotParams{IdempotencyKey: key}, body)
 		if err != nil {
 			return err
@@ -64,8 +67,31 @@ func (c *Client) CreateSnapshot(ctx context.Context, sandboxID string, params Cr
 		}
 		result = &SnapshotInfo{SnapshotID: resp.JSON201.SnapshotID, Names: resp.JSON201.Names}
 		return nil
-	})
+	}, isSnapshotRetryable, snapshotRetryAfter)
 	return result, err
+}
+
+func isSnapshotRetryable(err error) bool {
+	var apiErr *APIError
+	if errors.As(err, &apiErr) {
+		switch apiErr.StatusCode {
+		case http.StatusRequestTimeout, http.StatusBadGateway, http.StatusGatewayTimeout:
+			return true
+		case http.StatusServiceUnavailable:
+			return apiErr.Code == "api_shutdown"
+		default:
+			return false
+		}
+	}
+	return isRetryableError(err)
+}
+
+func snapshotRetryAfter(err error) (time.Duration, bool) {
+	var apiErr *APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.retryAfter, apiErr.hasRetryAfter
+	}
+	return 0, false
 }
 
 // CreateSnapshot 创建当前沙箱的持久快照。
