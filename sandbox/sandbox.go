@@ -238,7 +238,8 @@ func (c *Client) Create(ctx context.Context, params CreateParams) (*Sandbox, err
 	return sb, nil
 }
 
-// Connect 连接到一个已有的沙箱，可选择恢复已暂停的沙箱。
+// Connect 通过 v2 接口连接到一个已有的沙箱；沙箱处于暂停状态时会被恢复。
+// 连接会将存活时间延长到至少 params.Timeout 秒（为 0 时使用服务端默认 300 秒），不会缩短现有存活时间。
 // 在遇到服务端错误或网络错误时自动重试。
 func (c *Client) Connect(ctx context.Context, sandboxID string, params ConnectParams) (*Sandbox, error) {
 	var resp *apis.ConnectSandboxV2Response

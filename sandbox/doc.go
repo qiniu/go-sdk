@@ -34,7 +34,7 @@
 // Client 提供沙箱的创建、连接、查询和生命周期管理:
 //
 //   - [Client.Create] / [Client.CreateAndWait]: 创建沙箱（后者会轮询等待就绪）
-//   - [Client.Connect]: 连接到已有沙箱，可恢复已暂停的沙箱
+//   - [Client.Connect]: 连接到已有沙箱，若已暂停则恢复；连接会延长但不会缩短沙箱 TTL
 //   - [Client.List]: 列出沙箱，支持按状态和元数据过滤
 //   - [Client.GetInfo] / [Client.GetInjections] / [Client.GetResources]: 查询沙箱状态和配置
 //   - [Client.GetMetrics] / [Client.GetLogs]: 查询沙箱运行数据
@@ -66,7 +66,7 @@
 //
 // [Client.PauseWithParams] / [Sandbox.PauseWithParams] 支持 Memory=false，
 // 此时仅保存文件系统，恢复会冷启动，进程和内存状态丢失，不能通过流量自动恢复。
-// [Client.Connect] 使用 v2 连接接口，ConnectParams.Timeout=0 表示使用服务端默认 300 秒。
+// [Client.Connect] 使用 v2 连接接口，ConnectParams.Timeout=0 表示使用服务端默认 300 秒；连接只延长、不缩短 TTL。
 // CreateParams.AutoResume 控制流量自动恢复；AutoPauseMemory=false 时不能启用该能力。
 //
 // 模板创建参数 MinFreeDiskMB 表示构建后的最小剩余空间，省略时使用团队默认值，

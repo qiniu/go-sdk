@@ -5,8 +5,10 @@ package sandbox
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -174,4 +176,83 @@ func TestSnapshotResumeAfterUnknownOutcome(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "original-snapshot", snapshot.SnapshotID)
 	assert.Equal(t, 2, calls)
+}
+
+func TestIsSnapshotRetryable(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "408", err: &APIError{StatusCode: http.StatusRequestTimeout}, want: true},
+		{name: "502", err: &APIError{StatusCode: http.StatusBadGateway}, want: true},
+		{name: "504", err: &APIError{StatusCode: http.StatusGatewayTimeout}, want: true},
+		{name: "api_shutdown 503", err: &APIError{StatusCode: http.StatusServiceUnavailable, Code: "api_shutdown"}, want: true},
+		{name: "other 503", err: &APIError{StatusCode: http.StatusServiceUnavailable, Code: "unavailable"}},
+		{name: "503 without error code", err: &APIError{StatusCode: http.StatusServiceUnavailable}},
+		{name: "500", err: &APIError{StatusCode: http.StatusInternalServerError}},
+		{name: "400", err: &APIError{StatusCode: http.StatusBadRequest}},
+		{name: "409", err: &APIError{StatusCode: http.StatusConflict}},
+		{name: "network", err: errors.New("connection reset by peer"), want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isSnapshotRetryable(tt.err))
+		})
+	}
+}
+
+func TestParseRetryAfter(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  time.Duration
+		ok    bool
+	}{
+		{name: "missing"},
+		{name: "zero", value: "0", ok: true},
+		{name: "seconds", value: "7", want: 7 * time.Second, ok: true},
+		{name: "negative", value: "-1"},
+		{name: "HTTP date", value: "Wed, 21 Oct 2015 07:28:00 GMT"},
+		{name: "overflow", value: strings.Repeat("9", 100)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := parseRetryAfter(tt.value)
+			assert.Equal(t, tt.ok, ok)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestSnapshotRetryAfterFromAPIError(t *testing.T) {
+	header := make(http.Header)
+	header.Set("Retry-After", "12")
+	err := newAPIError(&http.Response{StatusCode: http.StatusRequestTimeout, Header: header}, nil)
+	delay, ok := snapshotRetryAfter(err)
+	assert.True(t, ok)
+	assert.Equal(t, 12*time.Second, delay)
+
+	_, ok = snapshotRetryAfter(errors.New("connection reset"))
+	assert.False(t, ok)
+}
+
+func TestRetryCallWithPolicyRetryAfterOverridesBackoff(t *testing.T) {
+	retryMax := 1
+	c, err := NewClient(&Config{RetryMax: &retryMax, RetryBackoff: func(int) time.Duration { return 0 }})
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	calls := 0
+	err = c.retryCallWithPolicy(ctx, func() error {
+		calls++
+		return errors.New("retry")
+	}, func(error) bool {
+		return true
+	}, func(error) (time.Duration, bool) {
+		return time.Hour, true
+	})
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Equal(t, 1, calls)
 }

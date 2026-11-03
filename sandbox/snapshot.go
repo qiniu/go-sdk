@@ -52,6 +52,7 @@ type SnapshotPage struct {
 // CreateSnapshot 创建指定沙箱的持久快照；同一次捕获的重试始终复用同一个幂等键和请求体。
 // 每次新捕获都必须使用新键，包括同名快照的新版本。服务端在捕获完成后保留幂等记录 35 分钟；过期后重用该键可能发起新的捕获。
 // 取消等待不会取消已接受的捕获。结果不确定时，使用 ListSnapshots 按来源沙箱或名称核对；核对前不要换键发起新捕获。
+// 自动重试 408、502、504、error_code 为 api_shutdown 的 503 和网络错误；500 及其他 503 会直接返回。
 func (c *Client) CreateSnapshot(ctx context.Context, sandboxID string, params CreateSnapshotParams) (*SnapshotInfo, error) {
 	key := params.IdempotencyKey
 	if key == "" || len(key) > 128 {
