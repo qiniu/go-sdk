@@ -203,3 +203,19 @@ func (c *Client) WaitForBuild(ctx context.Context, templateID, buildID string, o
 		return false, nil, nil
 	})
 }
+
+// ListTemplateTags 查询模板全部标签的最新构建分配。
+func (c *Client) ListTemplateTags(ctx context.Context, templateID string) ([]TemplateTag, error) {
+	resp, err := c.api.ListTemplateTagsWithResponse(ctx, templateID)
+	if err != nil {
+		return nil, err
+	}
+	if resp.JSON200 == nil {
+		return nil, newAPIError(resp.HTTPResponse, resp.Body)
+	}
+	tags := make([]TemplateTag, len(*resp.JSON200))
+	for i, tag := range *resp.JSON200 {
+		tags[i] = TemplateTag{Tag: tag.Tag, BuildID: tag.BuildID.String(), CreatedAt: tag.CreatedAt}
+	}
+	return tags, nil
+}

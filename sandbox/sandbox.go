@@ -128,6 +128,11 @@ func (s *Sandbox) Pause(ctx context.Context) error {
 	return s.client.Pause(ctx, s.sandboxID)
 }
 
+// PauseWithParams 按指定快照方式暂停当前沙箱。
+func (s *Sandbox) PauseWithParams(ctx context.Context, params PauseParams) error {
+	return s.client.PauseWithParams(ctx, s.sandboxID, params)
+}
+
 // Refresh 延长当前沙箱的存活时间。
 // 具体行为参见 [Client.Refresh]。
 func (s *Sandbox) Refresh(ctx context.Context, params RefreshParams) error {
@@ -233,13 +238,14 @@ func (c *Client) Create(ctx context.Context, params CreateParams) (*Sandbox, err
 	return sb, nil
 }
 
-// Connect 连接到一个已有的沙箱，可选择恢复已暂停的沙箱。
+// Connect 通过 v2 接口连接到一个已有的沙箱；沙箱处于暂停状态时会被恢复。
+// 连接会将存活时间延长到至少 params.Timeout 秒（为 0 时使用服务端默认 300 秒），不会缩短现有存活时间。
 // 在遇到服务端错误或网络错误时自动重试。
 func (c *Client) Connect(ctx context.Context, sandboxID string, params ConnectParams) (*Sandbox, error) {
-	var resp *apis.ConnectSandboxResponse
+	var resp *apis.ConnectSandboxV2Response
 	err := c.retryCall(ctx, func() error {
 		var e error
-		resp, e = c.api.ConnectSandboxWithResponse(ctx, sandboxID, params.toAPI())
+		resp, e = c.api.ConnectSandboxV2WithResponse(ctx, sandboxID, params.toAPI())
 		if e != nil {
 			return e
 		}
@@ -271,6 +277,10 @@ func (c *Client) Connect(ctx context.Context, sandboxID string, params ConnectPa
 // retryCall 执行 API 调用并在可重试错误时自动重试。
 // 重试次数由 Config.RetryMax 控制（nil 默认 5，0 禁用重试）。
 func (c *Client) retryCall(ctx context.Context, fn func() error) error {
+	return c.retryCallWithPolicy(ctx, fn, isRetryable, nil)
+}
+
+func (c *Client) retryCallWithPolicy(ctx context.Context, fn func() error, retryable func(error) bool, retryAfter func(error) (time.Duration, bool)) error {
 	maxRetries := 5
 	if c.config.RetryMax != nil {
 		maxRetries = *c.config.RetryMax
@@ -290,10 +300,15 @@ func (c *Client) retryCall(ctx context.Context, fn func() error) error {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
 		}
-		if attempt >= maxRetries || !isRetryable(err) {
+		if attempt >= maxRetries || !retryable(err) {
 			return err
 		}
 		d := backoffFn(attempt)
+		if retryAfter != nil {
+			if delay, ok := retryAfter(err); ok {
+				d = delay
+			}
+		}
 		if d > 0 {
 			timer := time.NewTimer(d)
 			select {
@@ -417,7 +432,12 @@ func (c *Client) Kill(ctx context.Context, sandboxID string) error {
 
 // Pause 暂停指定沙箱。
 func (c *Client) Pause(ctx context.Context, sandboxID string) error {
-	resp, err := c.api.PauseSandboxWithResponse(ctx, sandboxID)
+	return c.PauseWithParams(ctx, sandboxID, PauseParams{})
+}
+
+// PauseWithParams 暂停指定沙箱；Memory=false 时仅保留文件系统，恢复后冷启动。
+func (c *Client) PauseWithParams(ctx context.Context, sandboxID string, params PauseParams) error {
+	resp, err := c.api.PauseSandboxWithResponse(ctx, sandboxID, apis.PauseSandboxJSONRequestBody{Memory: params.Memory})
 	if err != nil {
 		return err
 	}

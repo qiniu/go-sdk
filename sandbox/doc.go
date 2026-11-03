@@ -34,7 +34,7 @@
 // Client 提供沙箱的创建、连接、查询和生命周期管理:
 //
 //   - [Client.Create] / [Client.CreateAndWait]: 创建沙箱（后者会轮询等待就绪）
-//   - [Client.Connect]: 连接到已有沙箱，可恢复已暂停的沙箱
+//   - [Client.Connect]: 连接到已有沙箱，若已暂停则恢复；连接会延长但不会缩短沙箱 TTL
 //   - [Client.List]: 列出沙箱，支持按状态和元数据过滤
 //   - [Client.GetInfo] / [Client.GetInjections] / [Client.GetResources]: 查询沙箱状态和配置
 //   - [Client.GetMetrics] / [Client.GetLogs]: 查询沙箱运行数据
@@ -55,6 +55,23 @@
 //
 // 实例的控制面方法自动传入自身 ID，委托给对应的 Client 方法。
 // 例如 sb.UpdateGitHubToken(ctx, token) 与 c.UpdateGitHubToken(ctx, sb.ID(), token) 使用相同实现。
+//
+// # 持久快照与恢复
+//
+// [Client.CreateSnapshot] / [Sandbox.CreateSnapshot] 创建可复用的持久快照，
+// [Client.ListSnapshots] 返回当前页与 NextToken。每次新捕获（包括同名快照的新版本）都必须使用新
+// CreateSnapshotParams.IdempotencyKey；同一次捕获遇到网络中断或等待超时时，用原键和原请求体重试。
+// 服务端在捕获完成后保留幂等记录 35 分钟，过期后重用该键可能发起新的捕获。取消客户端等待不会取消已接受的捕获。
+// 结果不确定时，用 ListSnapshots 按来源沙箱或名称核对；核对前不要换键发起新捕获。
+//
+// [Client.PauseWithParams] / [Sandbox.PauseWithParams] 支持 Memory=false，
+// 此时仅保存文件系统，恢复会冷启动，进程和内存状态丢失，不能通过流量自动恢复。
+// [Client.Connect] 使用 v2 连接接口，ConnectParams.Timeout=0 表示使用服务端默认 300 秒；连接只延长、不缩短 TTL。
+// CreateParams.AutoResume 控制流量自动恢复；AutoPauseMemory=false 时不能启用该能力。
+//
+// 模板创建参数 MinFreeDiskMB 表示构建后的最小剩余空间，省略时使用团队默认值，
+// 显式设为 0 时不为剩余空间扩容，已有文件系统不会缩小。
+// [Client.ListTemplateTags] 查询模板标签的最新构建分配。
 //
 // # 命令执行
 //

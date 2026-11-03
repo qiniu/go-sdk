@@ -98,7 +98,8 @@ type GithubInjection struct {
 	Token *string
 }
 
-// HTTPInjection 自定义 HTTP 注入配置。
+// HTTPInjection 自定义 HTTP 注入配置。IfHeaders、IfQueries 和 IfBody 只是请求匹配条件，不是授权边界；
+// 沙箱进程可以构造满足条件的请求。需要限制密钥发送目标时，应严格限定 BaseURL。
 type HTTPInjection struct {
 	// BaseURL 匹配 HTTPS 请求的 base URL。host 精确匹配；path 存在时精确匹配
 	// 规范化路径，尾部 * 表示前缀匹配。若未指定 scheme 默认为 https。
@@ -112,6 +113,14 @@ type HTTPInjection struct {
 
 	// IfQueries 可选请求 query 匹配条件，满足后才注入。
 	IfQueries *map[string]string
+
+	// IfBody 顶层 JSON 字符串字段的精确匹配条件，各条件必须全部满足。
+	// 需要处理 body 时，非法或不支持的请求体会导致请求报错，而非视为条件不匹配。
+	IfBody *map[string]string
+
+	// Body 要覆盖或新增的顶层 JSON 字符串字段；响应不会返回这些密钥值。
+	// 仅支持未压缩、最大 1 MiB 的 application/json 请求；非法或不支持的请求体会导致请求报错。
+	Body *map[string]string
 }
 
 // InjectionSpec 注入配置（discriminated union），各字段互斥，只能设置一个。
@@ -327,6 +336,8 @@ func injectionSpecToAPI(spec InjectionSpec) (apis.Injection, error) {
 			Headers:   spec.HTTP.Headers,
 			IfHeaders: spec.HTTP.IfHeaders,
 			IfQueries: spec.HTTP.IfQueries,
+			IfBody:    spec.HTTP.IfBody,
+			Body:      spec.HTTP.Body,
 			Type:      apis.HTTP,
 		})
 	}
@@ -417,6 +428,8 @@ func sandboxInjectionSpecToAPI(spec SandboxInjectionSpec) (apis.SandboxInjection
 			Headers:   spec.HTTP.Headers,
 			IfHeaders: spec.HTTP.IfHeaders,
 			IfQueries: spec.HTTP.IfQueries,
+			IfBody:    spec.HTTP.IfBody,
+			Body:      spec.HTTP.Body,
 			Type:      apis.HTTP,
 		})
 	}
@@ -468,7 +481,7 @@ func injectionSpecFromAPI(inj apis.Injection) (InjectionSpec, error) {
 		if err != nil {
 			return InjectionSpec{}, err
 		}
-		return InjectionSpec{HTTP: &HTTPInjection{BaseURL: v.BaseURL, Headers: v.Headers, IfHeaders: v.IfHeaders, IfQueries: v.IfQueries}}, nil
+		return InjectionSpec{HTTP: &HTTPInjection{BaseURL: v.BaseURL, Headers: v.Headers, IfHeaders: v.IfHeaders, IfQueries: v.IfQueries, IfBody: v.IfBody}}, nil
 	default:
 		return InjectionSpec{}, fmt.Errorf("unknown injection type: %s", disc)
 	}
@@ -521,7 +534,7 @@ func maskedSandboxInjectionFromAPI(inj apis.SandboxInjection) (MaskedSandboxInje
 		if err != nil {
 			return MaskedSandboxInjection{}, err
 		}
-		return MaskedSandboxInjection{HTTP: &HTTPInjection{BaseURL: v.BaseURL, Headers: v.Headers, IfHeaders: v.IfHeaders, IfQueries: v.IfQueries}}, nil
+		return MaskedSandboxInjection{HTTP: &HTTPInjection{BaseURL: v.BaseURL, Headers: v.Headers, IfHeaders: v.IfHeaders, IfQueries: v.IfQueries, IfBody: v.IfBody}}, nil
 	default:
 		return MaskedSandboxInjection{}, fmt.Errorf("unknown sandbox injection type: %s", disc)
 	}

@@ -96,8 +96,8 @@ type CreateTemplateParams struct {
 	// CPUCount 沙箱 CPU 核数。
 	CPUCount *int32
 
-	// DiskSizeMB 模板构建磁盘大小（MiB），最小值为 10240。
-	DiskSizeMB *int32
+	// MinFreeDiskMB 构建后最小剩余空间（MiB），省略时使用团队默认值；0 表示不为剩余空间扩容，已有文件系统不会缩小。
+	MinFreeDiskMB *int32
 
 	// MemoryMB 沙箱内存大小（MiB）。
 	MemoryMB *int32
@@ -114,13 +114,13 @@ type CreateTemplateParams struct {
 
 func (p *CreateTemplateParams) toAPI() apis.CreateTemplateV3JSONRequestBody {
 	return apis.CreateTemplateV3JSONRequestBody{
-		Alias:      p.Alias,
-		CPUCount:   p.CPUCount,
-		DiskSizeMB: p.DiskSizeMB,
-		MemoryMB:   p.MemoryMB,
-		Name:       p.Name,
-		Tags:       p.Tags,
-		TeamID:     p.TeamID,
+		Alias:         p.Alias,
+		CPUCount:      p.CPUCount,
+		MinFreeDiskMb: p.MinFreeDiskMB,
+		MemoryMB:      p.MemoryMB,
+		Name:          p.Name,
+		Tags:          p.Tags,
+		TeamID:        p.TeamID,
 	}
 }
 
@@ -608,4 +608,14 @@ func assignedTemplateTagsFromAPI(a *apis.AssignedTemplateTags) *AssignedTemplate
 		BuildID: a.BuildID.String(),
 		Tags:    a.Tags,
 	}
+}
+
+// TemplateTag 模板标签的最新构建分配。
+type TemplateTag struct {
+	// Tag 标签名称。
+	Tag string
+	// BuildID 构建 ID。
+	BuildID string
+	// CreatedAt 标签分配时间。
+	CreatedAt time.Time
 }

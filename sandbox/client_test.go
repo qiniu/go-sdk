@@ -23,12 +23,13 @@ import (
 // mockAPI 实现 apis.ClientWithResponsesInterface 用于测试。
 // 每个方法字段可按测试设置；未设置的方法会 panic。
 type mockAPI struct {
+	apis.ClientWithResponsesInterface
 	createSandboxFn            func(ctx context.Context, params *apis.CreateSandboxParams, body apis.CreateSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.CreateSandboxResponse, error)
 	getSandboxFn               func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxResponse, error)
 	deleteSandboxFn            func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.DeleteSandboxResponse, error)
 	listSandboxesFn            func(ctx context.Context, params *apis.ListSandboxesParams, editors ...apis.RequestEditorFn) (*apis.ListSandboxesResponse, error)
 	listSandboxesV2Fn          func(ctx context.Context, params *apis.ListSandboxesV2Params, editors ...apis.RequestEditorFn) (*apis.ListSandboxesV2Response, error)
-	connectSandboxFn           func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error)
+	connectSandboxFn           func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxV2JSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxV2Response, error)
 	getSandboxInjectionsFn     func(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.GetSandboxInjectionsResponse, error)
 	updateSandboxInjectionsFn  func(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxInjectionsJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxInjectionsResponse, error)
 	updateSandboxGithubTokenFn func(ctx context.Context, sandboxID apis.SandboxID, body apis.UpdateSandboxGithubTokenJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.UpdateSandboxGithubTokenResponse, error)
@@ -85,11 +86,11 @@ func (m *mockAPI) ListSandboxesV2WithResponse(ctx context.Context, params *apis.
 	return m.listSandboxesV2Fn(ctx, params, editors...)
 }
 
-func (m *mockAPI) ConnectSandboxWithResponse(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error) {
+func (m *mockAPI) ConnectSandboxV2WithResponse(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxV2JSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxV2Response, error) {
 	return m.connectSandboxFn(ctx, sandboxID, body, editors...)
 }
 
-func (m *mockAPI) ConnectSandboxWithBodyWithResponse(ctx context.Context, sandboxID apis.SandboxID, contentType string, body io.Reader, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error) {
+func (m *mockAPI) ConnectSandboxV2WithBodyWithResponse(ctx context.Context, sandboxID apis.SandboxID, contentType string, body io.Reader, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxV2Response, error) {
 	panic("not implemented")
 }
 
@@ -121,7 +122,7 @@ func (m *mockAPI) UpdateSandboxTimeoutWithBodyWithResponse(ctx context.Context, 
 	panic("not implemented")
 }
 
-func (m *mockAPI) PauseSandboxWithResponse(ctx context.Context, sandboxID apis.SandboxID, editors ...apis.RequestEditorFn) (*apis.PauseSandboxResponse, error) {
+func (m *mockAPI) PauseSandboxWithResponse(ctx context.Context, sandboxID apis.SandboxID, body apis.PauseSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.PauseSandboxResponse, error) {
 	return m.pauseSandboxFn(ctx, sandboxID, editors...)
 }
 
@@ -607,8 +608,8 @@ func TestConnectWithToken(t *testing.T) {
 	token := "connect-token"
 	var getSandboxCalled atomic.Bool
 	mock := &mockAPI{
-		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error) {
-			return &apis.ConnectSandboxResponse{
+		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxV2JSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxV2Response, error) {
+			return &apis.ConnectSandboxV2Response{
 				JSON200:      &apis.Sandbox{SandboxID: sandboxID, TemplateID: "tmpl-1", EnvdAccessToken: &token},
 				HTTPResponse: httpResponse(200),
 			}, nil
@@ -644,8 +645,8 @@ func TestConnectWithoutToken(t *testing.T) {
 	// Connect 不返回 token，通过 GetSandbox 获取
 	token := "fallback-token"
 	mock := &mockAPI{
-		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error) {
-			return &apis.ConnectSandboxResponse{
+		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxV2JSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxV2Response, error) {
+			return &apis.ConnectSandboxV2Response{
 				JSON200:      &apis.Sandbox{SandboxID: sandboxID, TemplateID: "tmpl-1"},
 				HTTPResponse: httpResponse(200),
 			}, nil
@@ -676,8 +677,8 @@ func TestConnectWithoutToken(t *testing.T) {
 func TestConnectRefreshTokenError(t *testing.T) {
 	// Connect 不返回 token，GetSandbox 报错 → Connect 返回错误
 	mock := &mockAPI{
-		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error) {
-			return &apis.ConnectSandboxResponse{
+		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxV2JSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxV2Response, error) {
+			return &apis.ConnectSandboxV2Response{
 				JSON200:      &apis.Sandbox{SandboxID: sandboxID, TemplateID: "tmpl-1"},
 				HTTPResponse: httpResponse(200),
 			}, nil
@@ -697,8 +698,8 @@ func TestConnect201Response(t *testing.T) {
 	// Connect 返回 201（恢复已暂停的沙箱），带 token
 	token := "resumed-token"
 	mock := &mockAPI{
-		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error) {
-			return &apis.ConnectSandboxResponse{
+		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxV2JSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxV2Response, error) {
+			return &apis.ConnectSandboxV2Response{
 				JSON201:      &apis.Sandbox{SandboxID: sandboxID, TemplateID: "tmpl-1", EnvdAccessToken: &token},
 				HTTPResponse: httpResponse(201),
 			}, nil
@@ -1530,8 +1531,8 @@ func TestPauseError(t *testing.T) {
 
 func TestConnectError(t *testing.T) {
 	mock := &mockAPI{
-		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error) {
-			return &apis.ConnectSandboxResponse{
+		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxV2JSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxV2Response, error) {
+			return &apis.ConnectSandboxV2Response{
 				HTTPResponse: httpResponse(404),
 				Body:         []byte(`{"message":"not found"}`),
 			}, nil
@@ -1584,11 +1585,11 @@ func TestCreateTemplate(t *testing.T) {
 	}
 }
 
-func TestCreateTemplateParamsToAPIForwardsDiskSizeMB(t *testing.T) {
+func TestCreateTemplateParamsToAPIForwardsMinFreeDiskMB(t *testing.T) {
 	diskSize := int32(10240)
-	body := (&CreateTemplateParams{DiskSizeMB: &diskSize}).toAPI()
-	if body.DiskSizeMB == nil || *body.DiskSizeMB != diskSize {
-		t.Fatalf("DiskSizeMB not forwarded: %v", body.DiskSizeMB)
+	body := (&CreateTemplateParams{MinFreeDiskMB: &diskSize}).toAPI()
+	if body.MinFreeDiskMb == nil || *body.MinFreeDiskMb != diskSize {
+		t.Fatalf("MinFreeDiskMB not forwarded: %v", body.MinFreeDiskMb)
 	}
 }
 
@@ -1935,8 +1936,8 @@ func (m *mockAPIWithSandboxesMetrics) GetSandboxesMetricsWithResponse(ctx contex
 
 func TestConnectCreated(t *testing.T) {
 	mock := &mockAPI{
-		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxJSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxResponse, error) {
-			return &apis.ConnectSandboxResponse{
+		connectSandboxFn: func(ctx context.Context, sandboxID apis.SandboxID, body apis.ConnectSandboxV2JSONRequestBody, editors ...apis.RequestEditorFn) (*apis.ConnectSandboxV2Response, error) {
+			return &apis.ConnectSandboxV2Response{
 				JSON201:      &apis.Sandbox{SandboxID: sandboxID, TemplateID: "tmpl-1"},
 				HTTPResponse: httpResponse(201),
 			}, nil

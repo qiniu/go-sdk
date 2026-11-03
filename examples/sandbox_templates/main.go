@@ -97,20 +97,20 @@ func main() {
 	fmt.Println("\n=== 创建模板 ===")
 	cpuCount := int32(2)
 	memoryMB := int32(512)
-	diskSizeMB := int32(15360)
+	minFreeDiskMB := int32(5120)
 	templateName := "sdk-example-template"
 	resp, err := c.CreateTemplate(ctx, sandbox.CreateTemplateParams{
-		Name:       &templateName,
-		CPUCount:   &cpuCount,
-		MemoryMB:   &memoryMB,
-		DiskSizeMB: &diskSizeMB,
+		Name:          &templateName,
+		CPUCount:      &cpuCount,
+		MemoryMB:      &memoryMB,
+		MinFreeDiskMB: &minFreeDiskMB,
 	})
 	if err != nil {
 		log.Fatalf("创建模板失败: %v", err)
 	}
 	templateID := resp.TemplateID
 	buildID := resp.BuildID
-	fmt.Printf("模板已创建: %s (构建: %s，磁盘: %d MiB)\n", templateID, buildID, diskSizeMB)
+	fmt.Printf("模板已创建: %s (构建: %s，最小剩余空间: %d MiB)\n", templateID, buildID, minFreeDiskMB)
 
 	// 确保测试结束时清理
 	defer func() {
