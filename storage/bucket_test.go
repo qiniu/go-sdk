@@ -197,7 +197,7 @@ func TestSetRemark(t *testing.T) {
 	}
 }
 
-// Test get file info
+// TestStat 验证归档恢复状态，以及设置生命周期后单文件和批量查询的全部时间字段。
 func TestStat(t *testing.T) {
 	key := "qiniu.png"
 	copyKey := "staus_copy_" + key
@@ -225,48 +225,95 @@ func TestStat(t *testing.T) {
 	bucketManager.Delete(testBucket, copyKey)
 	copyKey = "rule_" + copyKey
 	ruleName := "golangStatusTest"
+	const (
+		toIADays                 = 10
+		toIntelligentTieringDays = 15
+		toArchiveIRDays          = 20
+		toArchiveDays            = 30
+		toDeepArchiveDays        = 40
+		deleteDays               = 50
+	)
 	bucketManager.DelBucketLifeCycleRule(testBucket, ruleName)
-	if e := bucketManager.AddBucketLifeCycleRule(testBucket, &BucketLifeCycleRule{
+	if err := bucketManager.AddBucketLifeCycleRule(testBucket, &BucketLifeCycleRule{
 		Name:                   ruleName,
-		Prefix:                 "",
-		ToLineAfterDays:        10,
-		ToArchiveIRAfterDays:   20,
-		ToArchiveAfterDays:     30,
-		ToDeepArchiveAfterDays: 40,
-		DeleteAfterDays:        50,
-	}); e != nil {
-		t.Logf("Stat AddBucketLifeCycleRule() error, %s", e)
-		t.Fail()
+		Prefix:                 copyKey,
+		ToLineAfterDays:        toIADays,
+		ToArchiveIRAfterDays:   toArchiveIRDays,
+		ToArchiveAfterDays:     toArchiveDays,
+		ToDeepArchiveAfterDays: toDeepArchiveDays,
+		DeleteAfterDays:        deleteDays,
+	}); err != nil {
+		t.Fatalf("AddBucketLifeCycleRule() error: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := bucketManager.DelBucketLifeCycleRule(testBucket, ruleName); err != nil {
+			t.Errorf("DelBucketLifeCycleRule() cleanup error: %v", err)
+		}
+	})
+
+	if err := bucketManager.Copy(testBucket, key, testBucket, copyKey, true); err != nil {
+		t.Fatalf("Copy() error: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := bucketManager.Delete(testBucket, copyKey); err != nil {
+			t.Errorf("Delete() cleanup error: %v", err)
+		}
+	})
+
+	// 通过对象生命周期操作补齐智能分层配置，并显式设置所有转换和删除天数。
+	operation := fmt.Sprintf("/lifecycle/%s/toIAAfterDays/%d/toIntelligentTieringAfterDays/%d/toArchiveIRAfterDays/%d/toArchiveAfterDays/%d/toDeepArchiveAfterDays/%d/deleteAfterDays/%d",
+		EncodedEntry(testBucket, copyKey), toIADays, toIntelligentTieringDays,
+		toArchiveIRDays, toArchiveDays, toDeepArchiveDays, deleteDays)
+	results, err := bucketManager.Batch([]string{operation})
+	if err != nil {
+		t.Fatalf("Batch lifecycle update error: %v", err)
+	}
+	if len(results) != 1 || results[0].Code != 200 {
+		t.Fatalf("Batch lifecycle update returned unexpected results: %+v", results)
 	}
 
-	if e := bucketManager.Copy(testBucket, key, testBucket, copyKey, true); e != nil {
-		t.Logf("2 Stat Copy error, %s", e)
-		t.Fail()
+	info, err := bucketManager.Stat(testBucket, copyKey)
+	if err != nil {
+		t.Fatalf("Stat() error: %v", err)
 	}
-	if e := bucketManager.DeleteAfterDays(testBucket, copyKey, 1); e != nil {
-		t.Logf("2 Stat Delete error, %s", e)
-		t.Fail()
+	if len(info.Hash) == 0 || info.PutTime <= 0 {
+		t.Fatalf("Stat() returned invalid object info: %+v", info)
 	}
-	client.DebugMode = true
-	if info, e := bucketManager.Stat(testBucket, copyKey); e != nil ||
-		len(info.Hash) == 0 || info.Expiration == 0 || info.TransitionToArchiveIR == 0 {
-		t.Logf("3 Stat() error, %v", e)
-		t.Fail()
-	} else {
-		t.Logf("3 FileInfo:\n %s", info.String())
+	results, err = bucketManager.Batch([]string{URIStat(testBucket, copyKey)})
+	if err != nil {
+		t.Fatalf("BatchStat() error: %v", err)
 	}
+	if len(results) != 1 || results[0].Code != 200 {
+		t.Fatalf("BatchStat() returned unexpected results: %+v", results)
+	}
+	batchInfo := results[0].Data
 
-	// 校验批量查询同样保留生命周期规则生成的归档直读时间。
-	if results, err := bucketManager.Batch([]string{URIStat(testBucket, copyKey)}); err != nil {
-		t.Errorf("BatchStat lifecycle error: %v", err)
-	} else if len(results) != 1 {
-		t.Errorf("BatchStat lifecycle result count = %d, want 1", len(results))
-	} else if results[0].Code != 200 || results[0].Data.TransitionToArchiveIR == 0 {
-		t.Errorf("BatchStat lifecycle returned unexpected result: %+v", results[0])
+	// 生命周期开始时间为上传时间加配置天数后，向后取整到中国标准时间次日零点。
+	uploaded := time.Unix(0, info.PutTime*100).In(time.FixedZone("CST", 8*60*60))
+	midnight := time.Date(uploaded.Year(), uploaded.Month(), uploaded.Day(), 0, 0, 0, 0, uploaded.Location())
+	for _, field := range []struct {
+		name  string
+		days  int
+		stat  int64
+		batch *int64
+	}{
+		{"TransitionToIA", toIADays, info.TransitionToIA, batchInfo.TransitionToIA},
+		{"TransitionToIntelligentTiering", toIntelligentTieringDays, info.TransitionToIntelligentTiering, batchInfo.TransitionToIntelligentTiering},
+		{"TransitionToArchiveIR", toArchiveIRDays, info.TransitionToArchiveIR, &batchInfo.TransitionToArchiveIR},
+		{"TransitionToArchive", toArchiveDays, info.TransitionToArchive, batchInfo.TransitionToArchive},
+		{"TransitionToDeepArchive", toDeepArchiveDays, info.TransitionToDeepArchive, batchInfo.TransitionToDeepArchive},
+		{"Expiration", deleteDays, info.Expiration, batchInfo.Expiration},
+	} {
+		want := midnight.AddDate(0, 0, field.days+1).Unix()
+		if field.stat != want {
+			t.Errorf("Stat %s = %d, want %d", field.name, field.stat, want)
+		}
+		if field.batch == nil {
+			t.Errorf("BatchStat %s is nil, want %d", field.name, want)
+		} else if *field.batch != want {
+			t.Errorf("BatchStat %s = %d, want %d", field.name, *field.batch, want)
+		}
 	}
-
-	bucketManager.Delete(testBucket, copyKey)
-	bucketManager.DelBucketLifeCycleRule(testBucket, ruleName)
 }
 
 func TestStatWithOption(t *testing.T) {
