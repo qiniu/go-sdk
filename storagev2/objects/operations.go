@@ -171,6 +171,10 @@ func (operation *StatObjectOperation) parseResponse(response *stat_object.Respon
 		transitionToIA := time.Unix(response.TransitionToIaTime, 0)
 		object.TransitionToIA = &transitionToIA
 	}
+	if response.TransitionToIntelligentTieringTime > 0 {
+		transitionToIntelligentTiering := time.Unix(response.TransitionToIntelligentTieringTime, 0)
+		object.TransitionToIntelligentTiering = &transitionToIntelligentTiering
+	}
 	if response.TransitionToArchiveIrTime > 0 {
 		transitionToArchiveIR := time.Unix(response.TransitionToArchiveIrTime, 0)
 		object.TransitionToArchiveIR = &transitionToArchiveIR

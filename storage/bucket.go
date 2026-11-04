@@ -113,6 +113,9 @@ type FileInfo struct {
 	 */
 	TransitionToIA int64 `json:"transitionToIA"`
 
+	// TransitionToIntelligentTiering 文件生命周期中转为智能分层存储的日期，Unix 时间戳格式。
+	TransitionToIntelligentTiering int64 `json:"transitionToIntelligentTiering"`
+
 	/**
 	 * 文件生命周期中转为归档直读存储的日期，int64 类型，Unix 时间戳格式 ，具体日期计算参考 生命周期管理。
 	 * 文件在设置转归档直读后才会返回该字段（通过生命周期规则设置文件转归档直读，仅对该功能发布后满足规则条件新上传文件返回该字段；
@@ -160,6 +163,7 @@ func (f *FileInfo) String() string {
 	str += fmt.Sprintf("EndUser:                   %s\n", f.EndUser)
 	str += fmt.Sprintf("Expiration:                %d\n", f.Expiration)
 	str += fmt.Sprintf("TransitionToIA:            %d\n", f.TransitionToIA)
+	str += fmt.Sprintf("TransitionToIntelligentTiering: %d\n", f.TransitionToIntelligentTiering)
 	str += fmt.Sprintf("TransitionToArchiveIR:     %d\n", f.TransitionToArchiveIR)
 	str += fmt.Sprintf("TransitionToArchive:       %d\n", f.TransitionToArchive)
 	str += fmt.Sprintf("TransitionToDeepArchive:   %d\n", f.TransitionToDeepArchive)
@@ -256,6 +260,9 @@ type BatchOpRet struct {
 		 * 例如：值为1568736000的时间，表示文件会在2019/9/18当天转为低频存储类型。
 		 */
 		TransitionToIA *int64 `json:"transitionToIA"`
+
+		// TransitionToIntelligentTiering 文件转为智能分层存储的 Unix 时间戳，接口未返回有效时间时为 nil。
+		TransitionToIntelligentTiering *int64 `json:"transitionToIntelligentTiering"`
 
 		/**
 		 * 文件生命周期中转为归档直读存储的日期，int64 类型，Unix 时间戳格式 ，具体日期计算参考 生命周期管理。
@@ -555,21 +562,23 @@ func (m *BucketManager) StatWithOpts(bucket, key string, opt *StatOpts) (FileInf
 		return FileInfo{}, err
 	}
 	return FileInfo{
-		Fsize:                   response.Size,
-		Hash:                    response.Hash,
-		MimeType:                response.MimeType,
-		Type:                    int(response.Type),
-		PutTime:                 response.PutTime,
-		RestoreStatus:           int(response.RestoringStatus),
-		Status:                  int(response.Status),
-		Md5:                     response.Md5,
-		EndUser:                 response.EndUser,
-		MetaData:                response.Metadata,
-		Expiration:              response.ExpirationTime,
-		TransitionToIA:          response.TransitionToIaTime,
-		TransitionToArchive:     response.TransitionToArchiveTime,
-		TransitionToDeepArchive: response.TransitionToDeepArchiveTime,
-		Parts:                   response.Parts,
+		Fsize:                          response.Size,
+		Hash:                           response.Hash,
+		MimeType:                       response.MimeType,
+		Type:                           int(response.Type),
+		PutTime:                        response.PutTime,
+		RestoreStatus:                  int(response.RestoringStatus),
+		Status:                         int(response.Status),
+		Md5:                            response.Md5,
+		EndUser:                        response.EndUser,
+		MetaData:                       response.Metadata,
+		Expiration:                     response.ExpirationTime,
+		TransitionToIA:                 response.TransitionToIaTime,
+		TransitionToIntelligentTiering: response.TransitionToIntelligentTieringTime,
+		TransitionToArchiveIR:          response.TransitionToArchiveIrTime,
+		TransitionToArchive:            response.TransitionToArchiveTime,
+		TransitionToDeepArchive:        response.TransitionToDeepArchiveTime,
+		Parts:                          response.Parts,
 	}, nil
 }
 
@@ -755,6 +764,10 @@ func convertToBatchOptRet(op batch_ops.OperationResponse) BatchOpRet {
 	if transitionToIA := opData.TransitionToIaTime; transitionToIA != 0 {
 		ret.Data.TransitionToIA = &transitionToIA
 	}
+	if transitionToIntelligentTiering := opData.TransitionToIntelligentTieringTime; transitionToIntelligentTiering != 0 {
+		ret.Data.TransitionToIntelligentTiering = &transitionToIntelligentTiering
+	}
+	ret.Data.TransitionToArchiveIR = opData.TransitionToArchiveIrTime
 	if transitionToArchiveTime := opData.TransitionToArchiveTime; transitionToArchiveTime != 0 {
 		ret.Data.TransitionToArchive = &transitionToArchiveTime
 	}

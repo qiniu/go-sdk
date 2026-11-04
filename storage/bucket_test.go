@@ -249,11 +249,20 @@ func TestStat(t *testing.T) {
 	}
 	client.DebugMode = true
 	if info, e := bucketManager.Stat(testBucket, copyKey); e != nil ||
-		len(info.Hash) == 0 || info.Expiration == 0 {
+		len(info.Hash) == 0 || info.Expiration == 0 || info.TransitionToArchiveIR == 0 {
 		t.Logf("3 Stat() error, %v", e)
 		t.Fail()
 	} else {
 		t.Logf("3 FileInfo:\n %s", info.String())
+	}
+
+	// 校验批量查询同样保留生命周期规则生成的归档直读时间。
+	if results, err := bucketManager.Batch([]string{URIStat(testBucket, copyKey)}); err != nil {
+		t.Errorf("BatchStat lifecycle error: %v", err)
+	} else if len(results) != 1 {
+		t.Errorf("BatchStat lifecycle result count = %d, want 1", len(results))
+	} else if results[0].Code != 200 || results[0].Data.TransitionToArchiveIR == 0 {
+		t.Errorf("BatchStat lifecycle returned unexpected result: %+v", results[0])
 	}
 
 	bucketManager.Delete(testBucket, copyKey)

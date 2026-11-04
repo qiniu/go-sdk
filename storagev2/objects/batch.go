@@ -563,6 +563,10 @@ func (object *ObjectDetails) fromOperationResponseData(key string, data *batch_o
 		transitionToIA := time.Unix(data.TransitionToIaTime, 0)
 		object.TransitionToIA = &transitionToIA
 	}
+	if data.TransitionToIntelligentTieringTime > 0 {
+		transitionToIntelligentTiering := time.Unix(data.TransitionToIntelligentTieringTime, 0)
+		object.TransitionToIntelligentTiering = &transitionToIntelligentTiering
+	}
 	if data.TransitionToArchiveIrTime > 0 {
 		transitionToArchiveIR := time.Unix(data.TransitionToArchiveIrTime, 0)
 		object.TransitionToArchiveIR = &transitionToArchiveIR
