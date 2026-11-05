@@ -123,6 +123,7 @@ type FileInfo struct {
 	 * 件，到期都会正常执行，只是服务端没有该字段返回)
 	 *
 	 * 例如：值为1568736000的时间，表示文件会在2019/9/18当天转为归档直读存储类型。
+	 * 接口未返回有效时间时为 0。
 	 */
 	TransitionToArchiveIR int64 `json:"transitionToArchiveIR"`
 
@@ -150,24 +151,29 @@ type FileInfo struct {
 	Parts []int64 `json:"parts"`
 }
 
+// String 返回文件信息的对齐文本表示。
 func (f *FileInfo) String() string {
+	const fieldWidth = 35
 	str := ""
-	str += fmt.Sprintf("Hash:                      %s\n", f.Hash)
-	str += fmt.Sprintf("Fsize:                     %d\n", f.Fsize)
-	str += fmt.Sprintf("PutTime:                   %d\n", f.PutTime)
-	str += fmt.Sprintf("MimeType:                  %s\n", f.MimeType)
-	str += fmt.Sprintf("Type:                      %d\n", f.Type)
-	str += fmt.Sprintf("RestoreStatus:             %d\n", f.RestoreStatus)
-	str += fmt.Sprintf("Status:                    %d\n", f.Status)
-	str += fmt.Sprintf("Md5:                       %s\n", f.Md5)
-	str += fmt.Sprintf("EndUser:                   %s\n", f.EndUser)
-	str += fmt.Sprintf("Expiration:                %d\n", f.Expiration)
-	str += fmt.Sprintf("TransitionToIA:            %d\n", f.TransitionToIA)
-	str += fmt.Sprintf("TransitionToIntelligentTiering: %d\n", f.TransitionToIntelligentTiering)
-	str += fmt.Sprintf("TransitionToArchiveIR:     %d\n", f.TransitionToArchiveIR)
-	str += fmt.Sprintf("TransitionToArchive:       %d\n", f.TransitionToArchive)
-	str += fmt.Sprintf("TransitionToDeepArchive:   %d\n", f.TransitionToDeepArchive)
-	str += fmt.Sprintf("MetaData:                  %s\n", f.MetaData)
+	fieldAdder := func(name string, value interface{}) {
+		str += fmt.Sprintf("%-*s%v\n", fieldWidth, name, value)
+	}
+	fieldAdder("Hash:", f.Hash)
+	fieldAdder("Fsize:", f.Fsize)
+	fieldAdder("PutTime:", f.PutTime)
+	fieldAdder("MimeType:", f.MimeType)
+	fieldAdder("Type:", f.Type)
+	fieldAdder("RestoreStatus:", f.RestoreStatus)
+	fieldAdder("Status:", f.Status)
+	fieldAdder("Md5:", f.Md5)
+	fieldAdder("EndUser:", f.EndUser)
+	fieldAdder("Expiration:", f.Expiration)
+	fieldAdder("TransitionToIA:", f.TransitionToIA)
+	fieldAdder("TransitionToIntelligentTiering:", f.TransitionToIntelligentTiering)
+	fieldAdder("TransitionToArchiveIR:", f.TransitionToArchiveIR)
+	fieldAdder("TransitionToArchive:", f.TransitionToArchive)
+	fieldAdder("TransitionToDeepArchive:", f.TransitionToDeepArchive)
+	fieldAdder("MetaData:", f.MetaData)
 	return str
 }
 
@@ -271,6 +277,7 @@ type BatchOpRet struct {
 		 * 件，到期都会正常执行，只是服务端没有该字段返回)
 		 *
 		 * 例如：值为1568736000的时间，表示文件会在2019/9/18当天转为归档直读存储类型。
+		 * 接口未返回有效时间时为 0。
 		 */
 		TransitionToArchiveIR int64 `json:"transitionToArchiveIR"`
 

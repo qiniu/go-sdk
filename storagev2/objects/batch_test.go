@@ -446,21 +446,37 @@ func TestRequestManagerBatchSize(t *testing.T) {
 	}
 }
 
-// TestRequestManagerBatchSizeAutoIncrease 验证后台定时扩容，以及缩容后恢复到批大小上限。
+// TestRequestManagerBatchSizeResetTicker 验证缩容会通知后台重置扩容计时器。
+func TestRequestManagerBatchSizeResetTicker(t *testing.T) {
+	requestsManager := requestsManager{
+		batchSize:      4,
+		minBatchSize:   1,
+		doublingFactor: 2,
+		resetTicker:    make(chan struct{}, 1),
+	}
+	requestsManager.decreaseBatchSize()
+	if requestsManager.batchSize != 2 {
+		t.Fatalf("unexpected batch size after decrease: %d", requestsManager.batchSize)
+	}
+	select {
+	case <-requestsManager.resetTicker:
+	default:
+		t.Fatal("batch size decrease did not reset the expansion timer")
+	}
+}
+
+// TestRequestManagerBatchSizeAutoIncrease 验证后台定时扩容达到上限。
 func TestRequestManagerBatchSizeAutoIncrease(t *testing.T) {
 	requestsManager, err := newRequestsManager(apis.NewStorage(nil), 1, 1, 8, 2, 1, 10*time.Millisecond, nil)
 	require.NoError(t, err)
 	defer requestsManager.done()
 
-	// 持锁读取后台状态，等待扩容完成，不依赖两个定时器的执行先后。
-	isMaximumBatchSize := func() bool {
+	getBatchSize := func() uint {
 		requestsManager.lock.Lock()
 		defer requestsManager.lock.Unlock()
-		return requestsManager.batchSize == 8
+		return requestsManager.batchSize
 	}
-	require.Eventually(t, isMaximumBatchSize, 5*time.Second, time.Millisecond)
-	requestsManager.decreaseBatchSize()
-	require.Eventually(t, isMaximumBatchSize, 5*time.Second, time.Millisecond)
+	require.Eventually(t, func() bool { return getBatchSize() == 8 }, time.Second, time.Millisecond)
 }
 
 func TestWorkersManagerDoOperations573(t *testing.T) {

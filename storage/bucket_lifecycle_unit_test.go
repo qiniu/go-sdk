@@ -142,6 +142,28 @@ func TestStatLifecycleFields(t *testing.T) {
 	}
 }
 
+// TestFileInfoString 验证对象信息输出的字段对齐和元数据格式。
+func TestFileInfoString(t *testing.T) {
+	info := FileInfo{
+		Hash:                           "testhash",
+		TransitionToIntelligentTiering: 1702000000,
+		MetaData:                       map[string]string{"x-qn-meta-a": "b"},
+	}
+
+	result := info.String()
+	if strings.Contains(result, "%!s(") {
+		t.Fatalf("FileInfo.String() contains invalid format output: %s", result)
+	}
+	if !strings.Contains(result, "TransitionToIntelligentTiering:") {
+		t.Fatalf("FileInfo.String() misses intelligent tiering field: %s", result)
+	}
+	for _, line := range strings.Split(strings.TrimSuffix(result, "\n"), "\n") {
+		if len(line) < 35 {
+			t.Fatalf("FileInfo.String() field is not aligned: %q", line)
+		}
+	}
+}
+
 // assertObjectLifecycleTimes 核对对象详情的生命周期时间，未设置时应保持空指针。
 func assertObjectLifecycleTimes(t *testing.T, details *objects.ObjectDetails, want [6]int64) {
 	t.Helper()
