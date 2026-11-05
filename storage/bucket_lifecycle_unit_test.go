@@ -142,25 +142,60 @@ func TestStatLifecycleFields(t *testing.T) {
 	}
 }
 
-// TestFileInfoString 验证对象信息输出的字段对齐和元数据格式。
+// TestFileInfoString 验证字段顺序、值列位置，以及空字符串和元数据输出。
 func TestFileInfoString(t *testing.T) {
-	info := FileInfo{
-		Hash:                           "testhash",
-		TransitionToIntelligentTiering: 1702000000,
-		MetaData:                       map[string]string{"x-qn-meta-a": "b"},
+	fields := []string{
+		"Hash:", "Fsize:", "PutTime:", "MimeType:", "Type:", "RestoreStatus:", "Status:", "Md5:",
+		"EndUser:", "Expiration:", "TransitionToIA:", "TransitionToIntelligentTiering:",
+		"TransitionToArchiveIR:", "TransitionToArchive:", "TransitionToDeepArchive:", "MetaData:",
 	}
-
-	result := info.String()
-	if strings.Contains(result, "%!s(") {
-		t.Fatalf("FileInfo.String() contains invalid format output: %s", result)
-	}
-	if !strings.Contains(result, "TransitionToIntelligentTiering:") {
-		t.Fatalf("FileInfo.String() misses intelligent tiering field: %s", result)
-	}
-	for _, line := range strings.Split(strings.TrimSuffix(result, "\n"), "\n") {
-		if len(line) < 35 {
-			t.Fatalf("FileInfo.String() field is not aligned: %q", line)
-		}
+	for _, tc := range []struct {
+		name   string
+		info   FileInfo
+		values []string
+	}{
+		{
+			name: "populated",
+			info: FileInfo{
+				Hash:                           "testhash",
+				Fsize:                          123,
+				PutTime:                        17000000001234567,
+				MimeType:                       "text/plain",
+				Type:                           5,
+				RestoreStatus:                  2,
+				Status:                         1,
+				Md5:                            "testmd5",
+				EndUser:                        "testuser",
+				Expiration:                     1706000000,
+				TransitionToIA:                 1701000000,
+				TransitionToIntelligentTiering: 1702000000,
+				TransitionToArchiveIR:          1703000000,
+				TransitionToArchive:            1704000000,
+				TransitionToDeepArchive:        1705000000,
+				MetaData:                       map[string]string{"x-qn-meta-z": "last", "x-qn-meta-a": "first"},
+			},
+			values: []string{
+				"testhash", "123", "17000000001234567", "text/plain", "5", "2", "1", "testmd5", "testuser",
+				"1706000000", "1701000000", "1702000000", "1703000000", "1704000000", "1705000000",
+				"map[x-qn-meta-a:first x-qn-meta-z:last]",
+			},
+		},
+		{
+			name:   "empty",
+			values: []string{"", "0", "0", "", "0", "0", "0", "", "", "0", "0", "0", "0", "0", "0", "map[]"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.info.String()
+			require.True(t, strings.HasSuffix(result, "\n"))
+			lines := strings.Split(strings.TrimSuffix(result, "\n"), "\n")
+			require.Len(t, lines, len(fields))
+			for i, field := range fields {
+				require.GreaterOrEqual(t, len(lines[i]), 35, field)
+				assert.Equal(t, field+strings.Repeat(" ", 35-len(field)), lines[i][:35])
+				assert.Equal(t, tc.values[i], lines[i][35:], field)
+			}
+		})
 	}
 }
 

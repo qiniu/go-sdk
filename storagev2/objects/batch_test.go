@@ -446,23 +446,47 @@ func TestRequestManagerBatchSize(t *testing.T) {
 	}
 }
 
-// TestRequestManagerBatchSizeResetTicker 验证缩容会通知后台重置扩容计时器。
+// TestRequestManagerBatchSizeResetTicker 用受控时钟验证缩容后重置周期，下一次计时事件才扩容。
 func TestRequestManagerBatchSizeResetTicker(t *testing.T) {
 	requestsManager := requestsManager{
-		batchSize:      4,
-		minBatchSize:   1,
-		doublingFactor: 2,
-		resetTicker:    make(chan struct{}, 1),
+		batchSize:        4,
+		minBatchSize:     1,
+		maxBatchSize:     8,
+		doublingFactor:   2,
+		doublingInterval: time.Minute,
+		resetTicker:      make(chan struct{}, 1),
 	}
+	ticks := make(chan time.Time)
+	resets := make(chan time.Duration, 1)
+	done := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		defer close(done)
+		requestsManager.batchSizeLoop(ctx, ticks, func(interval time.Duration) { resets <- interval })
+	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+
 	requestsManager.decreaseBatchSize()
-	if requestsManager.batchSize != 2 {
-		t.Fatalf("unexpected batch size after decrease: %d", requestsManager.batchSize)
-	}
 	select {
-	case <-requestsManager.resetTicker:
-	default:
+	case interval := <-resets:
+		require.Equal(t, time.Minute, interval)
+	case <-time.After(time.Second):
 		t.Fatal("batch size decrease did not reset the expansion timer")
 	}
+	requestsManager.lock.Lock()
+	batchSize := requestsManager.batchSize
+	requestsManager.lock.Unlock()
+	require.Equal(t, uint(2), batchSize)
+
+	ticks <- time.Now()
+	require.Eventually(t, func() bool {
+		requestsManager.lock.Lock()
+		defer requestsManager.lock.Unlock()
+		return requestsManager.batchSize == 4
+	}, time.Second, time.Millisecond)
 }
 
 // TestRequestManagerBatchSizeAutoIncrease 验证后台定时扩容达到上限。
