@@ -194,16 +194,21 @@ func newRequestsManager(storage *apis.Storage, initBatchSize, minBatchSize, maxB
 	return &rm, nil
 }
 
+// asyncLoop 创建扩容计时器，并在后台处理批大小调整。
 func (rm *requestsManager) asyncLoop(ctx internal_context.Context) {
 	defer rm.waitGroup.Done()
 	ticker := time.NewTicker(rm.doublingInterval)
 	defer ticker.Stop()
+	rm.batchSizeLoop(ctx, ticker.C, ticker.Reset)
+}
 
+// batchSizeLoop 根据计时器事件扩容，缩容后用原周期重新计时。
+func (rm *requestsManager) batchSizeLoop(ctx internal_context.Context, ticks <-chan time.Time, reset func(time.Duration)) {
 	for {
 		select {
 		case <-rm.resetTicker:
-			ticker.Reset(rm.doublingInterval)
-		case <-ticker.C:
+			reset(rm.doublingInterval)
+		case <-ticks:
 			rm.increaseBatchSize()
 		case <-ctx.Done():
 			return
@@ -562,6 +567,10 @@ func (object *ObjectDetails) fromOperationResponseData(key string, data *batch_o
 	if data.TransitionToIaTime > 0 {
 		transitionToIA := time.Unix(data.TransitionToIaTime, 0)
 		object.TransitionToIA = &transitionToIA
+	}
+	if data.TransitionToIntelligentTieringTime > 0 {
+		transitionToIntelligentTiering := time.Unix(data.TransitionToIntelligentTieringTime, 0)
+		object.TransitionToIntelligentTiering = &transitionToIntelligentTiering
 	}
 	if data.TransitionToArchiveIrTime > 0 {
 		transitionToArchiveIR := time.Unix(data.TransitionToArchiveIrTime, 0)

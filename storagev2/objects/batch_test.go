@@ -19,6 +19,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/storagev2/credentials"
 	"github.com/qiniu/go-sdk/v7/storagev2/http_client"
 	"github.com/qiniu/go-sdk/v7/storagev2/region"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTopoSort(t *testing.T) {
@@ -403,6 +404,7 @@ func TestRequestManagerGetOperations(t *testing.T) {
 	}
 }
 
+// TestRequestManagerBatchSize 验证批大小增减和上下限，关闭后台扩容以消除时序竞争。
 func TestRequestManagerBatchSize(t *testing.T) {
 	objectsManager := NewObjectsManager(nil)
 	bucket1 := objectsManager.Bucket("bucket1")
@@ -411,27 +413,21 @@ func TestRequestManagerBatchSize(t *testing.T) {
 		operations = append(operations, bucket1.Object(fmt.Sprintf("object_%04d", i)).Stat())
 	}
 
-	const interval = 1 * time.Second
-	requestsManager, err := newRequestsManager(apis.NewStorage(nil), 256, 1, 1000, 2, 1, interval, operations)
+	requestsManager, err := newRequestsManager(apis.NewStorage(nil), 256, 1, 1000, 2, 1, time.Minute, operations)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer requestsManager.done()
-	time.Sleep(100 * time.Millisecond)
+	requestsManager.done()
 
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
 	if size := len(requestsManager.takeOperations()); size != 256 {
 		t.Fatalf("unexpected operations got, actual: %d, expected: %d", size, 256)
 	}
-	<-ticker.C
 	requestsManager.decreaseBatchSize()
-	ticker = time.NewTicker(interval)
-	if size := len(requestsManager.takeOperations()); size != 256 {
-		t.Fatalf("unexpected operations got, actual: %d, expected: %d", size, 256)
+	if size := len(requestsManager.takeOperations()); size != 128 {
+		t.Fatalf("unexpected operations got, actual: %d, expected: %d", size, 128)
 	}
 	for i := 0; i < 3; i++ {
-		<-ticker.C
+		requestsManager.increaseBatchSize()
 	}
 	if size := len(requestsManager.takeOperations()); size != 1000 {
 		t.Fatalf("unexpected operations got, actual: %d, expected: %d", size, 1000)
@@ -439,16 +435,72 @@ func TestRequestManagerBatchSize(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		requestsManager.decreaseBatchSize()
 	}
-	ticker = time.NewTicker(interval)
 	if size := len(requestsManager.takeOperations()); size != 1 {
 		t.Fatalf("unexpected operations got, actual: %d, expected: %d", size, 1)
 	}
 	for i := 0; i < 11; i++ {
-		<-ticker.C
+		requestsManager.increaseBatchSize()
 	}
 	if size := len(requestsManager.takeOperations()); size != 1000 {
 		t.Fatalf("unexpected operations got, actual: %d, expected: %d", size, 1000)
 	}
+}
+
+// TestRequestManagerBatchSizeResetTicker 用受控时钟验证缩容后重置周期，下一次计时事件才扩容。
+func TestRequestManagerBatchSizeResetTicker(t *testing.T) {
+	requestsManager := requestsManager{
+		batchSize:        4,
+		minBatchSize:     1,
+		maxBatchSize:     8,
+		doublingFactor:   2,
+		doublingInterval: time.Minute,
+		resetTicker:      make(chan struct{}, 1),
+	}
+	ticks := make(chan time.Time)
+	resets := make(chan time.Duration, 1)
+	done := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		defer close(done)
+		requestsManager.batchSizeLoop(ctx, ticks, func(interval time.Duration) { resets <- interval })
+	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+
+	requestsManager.decreaseBatchSize()
+	select {
+	case interval := <-resets:
+		require.Equal(t, time.Minute, interval)
+	case <-time.After(time.Second):
+		t.Fatal("batch size decrease did not reset the expansion timer")
+	}
+	requestsManager.lock.Lock()
+	batchSize := requestsManager.batchSize
+	requestsManager.lock.Unlock()
+	require.Equal(t, uint(2), batchSize)
+
+	ticks <- time.Now()
+	require.Eventually(t, func() bool {
+		requestsManager.lock.Lock()
+		defer requestsManager.lock.Unlock()
+		return requestsManager.batchSize == 4
+	}, time.Second, time.Millisecond)
+}
+
+// TestRequestManagerBatchSizeAutoIncrease 验证后台定时扩容达到上限。
+func TestRequestManagerBatchSizeAutoIncrease(t *testing.T) {
+	requestsManager, err := newRequestsManager(apis.NewStorage(nil), 1, 1, 8, 2, 1, 10*time.Millisecond, nil)
+	require.NoError(t, err)
+	defer requestsManager.done()
+
+	getBatchSize := func() uint {
+		requestsManager.lock.Lock()
+		defer requestsManager.lock.Unlock()
+		return requestsManager.batchSize
+	}
+	require.Eventually(t, func() bool { return getBatchSize() == 8 }, time.Second, time.Millisecond)
 }
 
 func TestWorkersManagerDoOperations573(t *testing.T) {
