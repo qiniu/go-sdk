@@ -39,3 +39,15 @@ RPC 超时而终止 replay PTY，进程由显式 Kill 或 Sandbox 生命周期�
 
 协议源位于 envd 的 `spec/process/process.proto`，并同步到 api-specs 提交 `58ee2f835d135e62ebc32bac3e5aa91cbfc21df6`。
 本改动的 process.pb.go 从该协议通过 buf 生成；提交固定对应的 api-specs 版本，以保证可复现生成。
+
+能力查询、重连、标签查询和三种控制方法均接受可选的 `WithCommandUser`；自定义模板
+使用 `root` 等账户时，每次调用传入相同选项，创建前的能力查询也使用这个账户。
+这些后续方法仅使用 CommandOption 的用户字段。输入、resize 和 kill 每次先查询能力，
+旧 envd 或能力查询失败时不发送修改请求。该检查不保存在节点缓存中。
+初始输出已超出回放窗口时，创建仍先返回带 `Reference` 的流；后续 `Receive` 返回缺口错误，
+调用方可使用已取得的身份清理 PTY，游标不会自动前移。
+
+真实生命周期验收使用 `TestIntegrationPtyReplayLifecycle`，额外设置
+`QINIU_SANDBOX_PTY_REPLAY_TEMPLATE` 为已经部署新版 envd 的模板，可选
+`QINIU_SANDBOX_PTY_REPLAY_USER` 指定 OS 用户。测试创建短期 Sandbox，验证创建、
+断开订阅、无订阅时输入、保存游标重连及清理；未配置模板时跳过。

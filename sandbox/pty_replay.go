@@ -40,6 +40,7 @@ type PtyReplayStream struct {
 func (s *PtyReplayStream) Close() error { return s.close() }
 
 // Receive 接收一个事件；服务端明确报告重放缺口，调用方不得静默跳过。
+// 创建时已发生缺口也会先返回带 Reference 的流，供调用方清理已创建的 PTY。
 func (s *PtyReplayStream) Receive() (PtyReplayEvent, error) {
 	event, err := s.receive()
 	if err != nil {
@@ -75,7 +76,7 @@ func newPtyReplayStream(receive func() (*process.ProcessEvent, error), closeFn f
 		return nil, err
 	}
 	start := event.GetStart()
-	if start == nil || start.Pid == 0 || start.StreamId == "" || start.OutputOffset < start.ReplayStart {
+	if start == nil || start.Pid == 0 || start.StreamId == "" {
 		_ = closeFn()
 		return nil, ErrPtyReplayUnsupported
 	}
@@ -83,9 +84,13 @@ func newPtyReplayStream(receive func() (*process.ProcessEvent, error), closeFn f
 }
 
 // SupportsReplay 查询当前 Sandbox 的能力，不使用版本号推断或本地缓存。
-func (p *Pty) SupportsReplay(ctx context.Context) (bool, error) {
+func (p *Pty) SupportsReplay(ctx context.Context, opts ...CommandOption) (bool, error) {
+	return p.supportsReplay(ctx, applyCommandOpts(opts).user)
+}
+
+func (p *Pty) supportsReplay(ctx context.Context, user string) (bool, error) {
 	req := connect.NewRequest(&process.ListRequest{})
-	p.sandbox.setEnvdAuth(req, DefaultUser)
+	p.sandbox.setEnvdAuth(req, user)
 	resp, err := p.rpc.List(ctx, req)
 	if err != nil {
 		return false, err
@@ -93,17 +98,28 @@ func (p *Pty) SupportsReplay(ctx context.Context) (bool, error) {
 	return resp.Msg.PtyReplaySupported, nil
 }
 
+func (p *Pty) requireReplay(ctx context.Context, user string) error {
+	supported, err := p.supportsReplay(ctx, user)
+	if err != nil {
+		return err
+	}
+	if !supported {
+		return ErrPtyReplayUnsupported
+	}
+	return nil
+}
+
 // CreateReplay 创建支持字节偏移重连的 PTY。旧 envd 会在创建前被拒绝。
 // 输出通过返回的流读取；不会调用 CommandOption 中的输出回调。
 func (p *Pty) CreateReplay(ctx context.Context, size PtySize, opts ...CommandOption) (*PtyReplayStream, error) {
-	supported, err := p.SupportsReplay(ctx)
+	o := applyCommandOpts(opts)
+	supported, err := p.supportsReplay(ctx, o.user)
 	if err != nil {
 		return nil, err
 	}
 	if !supported {
 		return nil, ErrPtyReplayUnsupported
 	}
-	o := applyCommandOpts(opts)
 	envs := map[string]string{"TERM": "xterm", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"}
 	for k, v := range o.envs {
 		envs[k] = v
@@ -141,13 +157,13 @@ func replaySelector(ref PtyReference) (*process.ProcessSelector, error) {
 }
 
 // ConnectReplay 从指定字节偏移续接同一个 PTY。nil 从当前保留输出的起点开始。
-func (p *Pty) ConnectReplay(ctx context.Context, ref PtyReference, after *uint64) (*PtyReplayStream, error) {
+func (p *Pty) ConnectReplay(ctx context.Context, ref PtyReference, after *uint64, opts ...CommandOption) (*PtyReplayStream, error) {
 	selector, err := replaySelector(ref)
 	if err != nil {
 		return nil, err
 	}
 	req := connect.NewRequest(&process.ConnectRequest{Process: selector, AfterOffset: after})
-	p.sandbox.setEnvdAuth(req, DefaultUser)
+	p.sandbox.setEnvdAuth(req, applyCommandOpts(opts).user)
 	req.Header().Set(keepalivePingHeader, "5")
 	stream, err := p.rpc.Connect(context.WithValue(ctx, keepaliveIntervalKey{}, "5"), req)
 	if err != nil {
@@ -170,48 +186,60 @@ func (p *Pty) ConnectReplay(ctx context.Context, ref PtyReference, after *uint64
 }
 
 // SendReplayInput 向准确的 PTY 实例发送输入；调用方不得自动重试未知结果。
-func (p *Pty) SendReplayInput(ctx context.Context, ref PtyReference, data []byte) error {
+func (p *Pty) SendReplayInput(ctx context.Context, ref PtyReference, data []byte, opts ...CommandOption) error {
 	selector, err := replaySelector(ref)
 	if err != nil {
 		return err
 	}
+	user := applyCommandOpts(opts).user
+	if err := p.requireReplay(ctx, user); err != nil {
+		return err
+	}
 	req := connect.NewRequest(&process.SendInputRequest{Process: selector, Input: &process.ProcessInput{Input: &process.ProcessInput_Pty{Pty: data}}})
-	p.sandbox.setEnvdAuth(req, DefaultUser)
+	p.sandbox.setEnvdAuth(req, user)
 	_, err = p.rpc.SendInput(ctx, req)
 	return err
 }
 
 // ResizeReplay 调整准确的 PTY 实例的窗口大小。
-func (p *Pty) ResizeReplay(ctx context.Context, ref PtyReference, size PtySize) error {
+func (p *Pty) ResizeReplay(ctx context.Context, ref PtyReference, size PtySize, opts ...CommandOption) error {
 	selector, err := replaySelector(ref)
 	if err != nil {
 		return err
 	}
+	user := applyCommandOpts(opts).user
+	if err := p.requireReplay(ctx, user); err != nil {
+		return err
+	}
 	req := connect.NewRequest(&process.UpdateRequest{Process: selector, Pty: &process.PTY{Size: &process.PTY_Size{Cols: size.Cols, Rows: size.Rows}}})
-	p.sandbox.setEnvdAuth(req, DefaultUser)
+	p.sandbox.setEnvdAuth(req, user)
 	_, err = p.rpc.Update(ctx, req)
 	return err
 }
 
 // KillReplay 终止准确的 PTY 实例，拒绝对重用 PID 的其他进程执行操作。
-func (p *Pty) KillReplay(ctx context.Context, ref PtyReference) error {
+func (p *Pty) KillReplay(ctx context.Context, ref PtyReference, opts ...CommandOption) error {
 	selector, err := replaySelector(ref)
 	if err != nil {
 		return err
 	}
+	user := applyCommandOpts(opts).user
+	if err := p.requireReplay(ctx, user); err != nil {
+		return err
+	}
 	req := connect.NewRequest(&process.SendSignalRequest{Process: selector, Signal: process.Signal_SIGNAL_SIGKILL})
-	p.sandbox.setEnvdAuth(req, DefaultUser)
+	p.sandbox.setEnvdAuth(req, user)
 	_, err = p.rpc.SendSignal(ctx, req)
 	return err
 }
 
 // FindReplay 根据创建前保存的唯一标签查询仍在运行的 PTY，用于恢复未知创建结果。
-func (p *Pty) FindReplay(ctx context.Context, tag string) ([]PtyReference, error) {
+func (p *Pty) FindReplay(ctx context.Context, tag string, opts ...CommandOption) ([]PtyReference, error) {
 	if tag == "" {
 		return nil, errors.New("PTY tag is required")
 	}
 	req := connect.NewRequest(&process.ListRequest{})
-	p.sandbox.setEnvdAuth(req, DefaultUser)
+	p.sandbox.setEnvdAuth(req, applyCommandOpts(opts).user)
 	resp, err := p.rpc.List(ctx, req)
 	if err != nil {
 		return nil, err
