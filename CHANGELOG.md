@@ -1,4 +1,12 @@
 # Changelog
+## 7.30.1
+
+* 新增
+  * sandbox: `CreateTemplateParams` 新增 `MinDiskMB`，用于指定构建后的最小总磁盘大小（MiB）；省略或设为 0 时不设置最小值，与 `MinFreeDiskMB` 同时设置时满足两者要求，已有磁盘不会缩小。
+
+* 相关 PR
+  * https://github.com/qiniu/go-sdk/pull/242
+
 ## 7.30.0
 
 * 新增
