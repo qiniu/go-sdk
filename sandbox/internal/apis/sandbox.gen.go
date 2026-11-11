@@ -504,6 +504,9 @@ type Mcp map[string]interface{}
 // MemoryMB Memory for the sandbox in MiB
 type MemoryMB = int32
 
+// MinDiskMb Requested minimum total disk size of the template after its build steps, in MiB. Omit or set to 0 to request no minimum. When minFreeDiskMb is also set, the disk satisfies both. The disk is never shrunk, so a template whose disk is already larger keeps its size.
+type MinDiskMb = int32
+
 // MinFreeDiskMb Requested minimum free space after the template's build steps, in MiB. Omit to use the team's default. Set to 0 to request no minimum free-disk growth. The filesystem is never shrunk, including inherited or already-larger filesystems. Growth is best effort, so filesystem metadata can leave the available space slightly below the requested minimum.
 type MinFreeDiskMb = int32
 
@@ -1002,6 +1005,9 @@ type TemplateBuildRequestV3 struct {
 
 	// MemoryMB Memory for the sandbox in MiB
 	MemoryMB *MemoryMB `json:"memoryMB,omitempty"`
+
+	// MinDiskMb Requested minimum total disk size of the template after its build steps, in MiB. Omit or set to 0 to request no minimum. When minFreeDiskMb is also set, the disk satisfies both. The disk is never shrunk, so a template whose disk is already larger keeps its size.
+	MinDiskMb *MinDiskMb `json:"minDiskMb,omitempty"`
 
 	// MinFreeDiskMb Requested minimum free space after the template's build steps, in MiB. Omit to use the team's default. Set to 0 to request no minimum free-disk growth. The filesystem is never shrunk, including inherited or already-larger filesystems. Growth is best effort, so filesystem metadata can leave the available space slightly below the requested minimum.
 	MinFreeDiskMb *MinFreeDiskMb `json:"minFreeDiskMb,omitempty"`

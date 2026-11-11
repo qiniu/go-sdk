@@ -96,6 +96,10 @@ type CreateTemplateParams struct {
 	// CPUCount 沙箱 CPU 核数。
 	CPUCount *int32
 
+	// MinDiskMB 构建后最小总磁盘大小（MiB），省略或设为 0 表示不设置最小值。
+	// 与 MinFreeDiskMB 同时设置时满足两者要求，已有磁盘不会缩小。
+	MinDiskMB *int32
+
 	// MinFreeDiskMB 构建后最小剩余空间（MiB），省略时使用团队默认值；0 表示不为剩余空间扩容，已有文件系统不会缩小。
 	MinFreeDiskMB *int32
 
@@ -116,6 +120,7 @@ func (p *CreateTemplateParams) toAPI() apis.CreateTemplateV3JSONRequestBody {
 	return apis.CreateTemplateV3JSONRequestBody{
 		Alias:         p.Alias,
 		CPUCount:      p.CPUCount,
+		MinDiskMb:     p.MinDiskMB,
 		MinFreeDiskMb: p.MinFreeDiskMB,
 		MemoryMB:      p.MemoryMB,
 		Name:          p.Name,
