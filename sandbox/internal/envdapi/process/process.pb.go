@@ -219,10 +219,12 @@ func (*ListRequest) Descriptor() ([]byte, []int) {
 }
 
 type ProcessInfo struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Config        *ProcessConfig         `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
-	Pid           uint32                 `protobuf:"varint,2,opt,name=pid,proto3" json:"pid,omitempty"`
-	Tag           *string                `protobuf:"bytes,3,opt,name=tag,proto3,oneof" json:"tag,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Config *ProcessConfig         `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	Pid    uint32                 `protobuf:"varint,2,opt,name=pid,proto3" json:"pid,omitempty"`
+	Tag    *string                `protobuf:"bytes,3,opt,name=tag,proto3,oneof" json:"tag,omitempty"`
+	// Present only for PTYs created with pty_replay.
+	StreamId      string `protobuf:"bytes,4,opt,name=stream_id,json=streamId,proto3" json:"stream_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -278,11 +280,19 @@ func (x *ProcessInfo) GetTag() string {
 	return ""
 }
 
+func (x *ProcessInfo) GetStreamId() string {
+	if x != nil {
+		return x.StreamId
+	}
+	return ""
+}
+
 type ListResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Processes     []*ProcessInfo         `protobuf:"bytes,1,rep,name=processes,proto3" json:"processes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Processes          []*ProcessInfo         `protobuf:"bytes,1,rep,name=processes,proto3" json:"processes,omitempty"`
+	PtyReplaySupported bool                   `protobuf:"varint,2,opt,name=pty_replay_supported,json=ptyReplaySupported,proto3" json:"pty_replay_supported,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ListResponse) Reset() {
@@ -322,6 +332,13 @@ func (x *ListResponse) GetProcesses() []*ProcessInfo {
 	return nil
 }
 
+func (x *ListResponse) GetPtyReplaySupported() bool {
+	if x != nil {
+		return x.PtyReplaySupported
+	}
+	return false
+}
+
 type StartRequest struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Process *ProcessConfig         `protobuf:"bytes,1,opt,name=process,proto3" json:"process,omitempty"`
@@ -329,7 +346,9 @@ type StartRequest struct {
 	Tag     *string                `protobuf:"bytes,3,opt,name=tag,proto3,oneof" json:"tag,omitempty"`
 	// This is optional for backwards compatibility.
 	// We default to true. New SDK versions will set this to false by default.
-	Stdin         *bool `protobuf:"varint,4,opt,name=stdin,proto3,oneof" json:"stdin,omitempty"`
+	Stdin *bool `protobuf:"varint,4,opt,name=stdin,proto3,oneof" json:"stdin,omitempty"`
+	// Retain a bounded PTY output tail and expose cursor-based reconnect.
+	PtyReplay     bool `protobuf:"varint,5,opt,name=pty_replay,json=ptyReplay,proto3" json:"pty_replay,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -388,6 +407,13 @@ func (x *StartRequest) GetTag() string {
 func (x *StartRequest) GetStdin() bool {
 	if x != nil && x.Stdin != nil {
 		return *x.Stdin
+	}
+	return false
+}
+
+func (x *StartRequest) GetPtyReplay() bool {
+	if x != nil {
+		return x.PtyReplay
 	}
 	return false
 }
@@ -1155,8 +1181,10 @@ func (*CloseStdinResponse) Descriptor() ([]byte, []int) {
 }
 
 type ConnectRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Process       *ProcessSelector       `protobuf:"bytes,1,opt,name=process,proto3" json:"process,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Process *ProcessSelector       `protobuf:"bytes,1,opt,name=process,proto3" json:"process,omitempty"`
+	// Requires stream_id. Omission starts at the oldest retained byte.
+	AfterOffset   *uint64 `protobuf:"varint,2,opt,name=after_offset,json=afterOffset,proto3,oneof" json:"after_offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1198,8 +1226,17 @@ func (x *ConnectRequest) GetProcess() *ProcessSelector {
 	return nil
 }
 
+func (x *ConnectRequest) GetAfterOffset() uint64 {
+	if x != nil && x.AfterOffset != nil {
+		return *x.AfterOffset
+	}
+	return 0
+}
+
 type ProcessSelector struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional generation check; prevents operations against a reused PID.
+	StreamId string `protobuf:"bytes,3,opt,name=stream_id,json=streamId,proto3" json:"stream_id,omitempty"`
 	// Types that are valid to be assigned to Selector:
 	//
 	//	*ProcessSelector_Pid
@@ -1237,6 +1274,13 @@ func (x *ProcessSelector) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ProcessSelector.ProtoReflect.Descriptor instead.
 func (*ProcessSelector) Descriptor() ([]byte, []int) {
 	return file_process_process_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ProcessSelector) GetStreamId() string {
+	if x != nil {
+		return x.StreamId
+	}
+	return ""
 }
 
 func (x *ProcessSelector) GetSelector() isProcessSelector_Selector {
@@ -1335,6 +1379,9 @@ func (x *PTY_Size) GetRows() uint32 {
 type ProcessEvent_StartEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Pid           uint32                 `protobuf:"varint,1,opt,name=pid,proto3" json:"pid,omitempty"`
+	StreamId      string                 `protobuf:"bytes,2,opt,name=stream_id,json=streamId,proto3" json:"stream_id,omitempty"`
+	OutputOffset  uint64                 `protobuf:"varint,3,opt,name=output_offset,json=outputOffset,proto3" json:"output_offset,omitempty"`
+	ReplayStart   uint64                 `protobuf:"varint,4,opt,name=replay_start,json=replayStart,proto3" json:"replay_start,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1376,8 +1423,31 @@ func (x *ProcessEvent_StartEvent) GetPid() uint32 {
 	return 0
 }
 
+func (x *ProcessEvent_StartEvent) GetStreamId() string {
+	if x != nil {
+		return x.StreamId
+	}
+	return ""
+}
+
+func (x *ProcessEvent_StartEvent) GetOutputOffset() uint64 {
+	if x != nil {
+		return x.OutputOffset
+	}
+	return 0
+}
+
+func (x *ProcessEvent_StartEvent) GetReplayStart() uint64 {
+	if x != nil {
+		return x.ReplayStart
+	}
+	return 0
+}
+
 type ProcessEvent_DataEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Absolute byte offset immediately after this PTY chunk.
+	OutputOffset uint64 `protobuf:"varint,4,opt,name=output_offset,json=outputOffset,proto3" json:"output_offset,omitempty"`
 	// Types that are valid to be assigned to Output:
 	//
 	//	*ProcessEvent_DataEvent_Stdout
@@ -1416,6 +1486,13 @@ func (x *ProcessEvent_DataEvent) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ProcessEvent_DataEvent.ProtoReflect.Descriptor instead.
 func (*ProcessEvent_DataEvent) Descriptor() ([]byte, []int) {
 	return file_process_process_proto_rawDescGZIP(), []int{8, 1}
+}
+
+func (x *ProcessEvent_DataEvent) GetOutputOffset() uint64 {
+	if x != nil {
+		return x.OutputOffset
+	}
+	return 0
 }
 
 func (x *ProcessEvent_DataEvent) GetOutput() isProcessEvent_DataEvent_Output {
@@ -1721,19 +1798,23 @@ const file_process_process_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x06\n" +
 	"\x04_cwd\"\r\n" +
-	"\vListRequest\"n\n" +
+	"\vListRequest\"\x8b\x01\n" +
 	"\vProcessInfo\x12.\n" +
 	"\x06config\x18\x01 \x01(\v2\x16.process.ProcessConfigR\x06config\x12\x10\n" +
 	"\x03pid\x18\x02 \x01(\rR\x03pid\x12\x15\n" +
-	"\x03tag\x18\x03 \x01(\tH\x00R\x03tag\x88\x01\x01B\x06\n" +
-	"\x04_tag\"B\n" +
+	"\x03tag\x18\x03 \x01(\tH\x00R\x03tag\x88\x01\x01\x12\x1b\n" +
+	"\tstream_id\x18\x04 \x01(\tR\bstreamIdB\x06\n" +
+	"\x04_tag\"t\n" +
 	"\fListResponse\x122\n" +
-	"\tprocesses\x18\x01 \x03(\v2\x14.process.ProcessInfoR\tprocesses\"\xb1\x01\n" +
+	"\tprocesses\x18\x01 \x03(\v2\x14.process.ProcessInfoR\tprocesses\x120\n" +
+	"\x14pty_replay_supported\x18\x02 \x01(\bR\x12ptyReplaySupported\"\xd0\x01\n" +
 	"\fStartRequest\x120\n" +
 	"\aprocess\x18\x01 \x01(\v2\x16.process.ProcessConfigR\aprocess\x12#\n" +
 	"\x03pty\x18\x02 \x01(\v2\f.process.PTYH\x00R\x03pty\x88\x01\x01\x12\x15\n" +
 	"\x03tag\x18\x03 \x01(\tH\x01R\x03tag\x88\x01\x01\x12\x19\n" +
-	"\x05stdin\x18\x04 \x01(\bH\x02R\x05stdin\x88\x01\x01B\x06\n" +
+	"\x05stdin\x18\x04 \x01(\bH\x02R\x05stdin\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"pty_replay\x18\x05 \x01(\bR\tptyReplayB\x06\n" +
 	"\x04_ptyB\x06\n" +
 	"\x04_tagB\b\n" +
 	"\x06_stdin\"p\n" +
@@ -1741,16 +1822,20 @@ const file_process_process_proto_rawDesc = "" +
 	"\aprocess\x18\x01 \x01(\v2\x18.process.ProcessSelectorR\aprocess\x12#\n" +
 	"\x03pty\x18\x02 \x01(\v2\f.process.PTYH\x00R\x03pty\x88\x01\x01B\x06\n" +
 	"\x04_pty\"\x10\n" +
-	"\x0eUpdateResponse\"\x87\x04\n" +
+	"\x0eUpdateResponse\"\x93\x05\n" +
 	"\fProcessEvent\x128\n" +
 	"\x05start\x18\x01 \x01(\v2 .process.ProcessEvent.StartEventH\x00R\x05start\x125\n" +
 	"\x04data\x18\x02 \x01(\v2\x1f.process.ProcessEvent.DataEventH\x00R\x04data\x122\n" +
 	"\x03end\x18\x03 \x01(\v2\x1e.process.ProcessEvent.EndEventH\x00R\x03end\x12?\n" +
-	"\tkeepalive\x18\x04 \x01(\v2\x1f.process.ProcessEvent.KeepAliveH\x00R\tkeepalive\x1a\x1e\n" +
+	"\tkeepalive\x18\x04 \x01(\v2\x1f.process.ProcessEvent.KeepAliveH\x00R\tkeepalive\x1a\x83\x01\n" +
 	"\n" +
 	"StartEvent\x12\x10\n" +
-	"\x03pid\x18\x01 \x01(\rR\x03pid\x1a]\n" +
-	"\tDataEvent\x12\x18\n" +
+	"\x03pid\x18\x01 \x01(\rR\x03pid\x12\x1b\n" +
+	"\tstream_id\x18\x02 \x01(\tR\bstreamId\x12#\n" +
+	"\routput_offset\x18\x03 \x01(\x04R\foutputOffset\x12!\n" +
+	"\freplay_start\x18\x04 \x01(\x04R\vreplayStart\x1a\x82\x01\n" +
+	"\tDataEvent\x12#\n" +
+	"\routput_offset\x18\x04 \x01(\x04R\foutputOffset\x12\x18\n" +
 	"\x06stdout\x18\x01 \x01(\fH\x00R\x06stdout\x12\x18\n" +
 	"\x06stderr\x18\x02 \x01(\fH\x00R\x06stderr\x12\x12\n" +
 	"\x03pty\x18\x03 \x01(\fH\x00R\x03ptyB\b\n" +
@@ -1793,10 +1878,13 @@ const file_process_process_proto_rawDesc = "" +
 	"\x12SendSignalResponse\"G\n" +
 	"\x11CloseStdinRequest\x122\n" +
 	"\aprocess\x18\x01 \x01(\v2\x18.process.ProcessSelectorR\aprocess\"\x14\n" +
-	"\x12CloseStdinResponse\"D\n" +
+	"\x12CloseStdinResponse\"}\n" +
 	"\x0eConnectRequest\x122\n" +
-	"\aprocess\x18\x01 \x01(\v2\x18.process.ProcessSelectorR\aprocess\"E\n" +
-	"\x0fProcessSelector\x12\x12\n" +
+	"\aprocess\x18\x01 \x01(\v2\x18.process.ProcessSelectorR\aprocess\x12&\n" +
+	"\fafter_offset\x18\x02 \x01(\x04H\x00R\vafterOffset\x88\x01\x01B\x0f\n" +
+	"\r_after_offset\"b\n" +
+	"\x0fProcessSelector\x12\x1b\n" +
+	"\tstream_id\x18\x03 \x01(\tR\bstreamId\x12\x12\n" +
 	"\x03pid\x18\x01 \x01(\rH\x00R\x03pid\x12\x12\n" +
 	"\x03tag\x18\x02 \x01(\tH\x00R\x03tagB\n" +
 	"\n" +
@@ -1939,6 +2027,7 @@ func file_process_process_proto_init() {
 		(*StreamInputRequest_Data)(nil),
 		(*StreamInputRequest_Keepalive)(nil),
 	}
+	file_process_process_proto_msgTypes[20].OneofWrappers = []any{}
 	file_process_process_proto_msgTypes[21].OneofWrappers = []any{
 		(*ProcessSelector_Pid)(nil),
 		(*ProcessSelector_Tag)(nil),

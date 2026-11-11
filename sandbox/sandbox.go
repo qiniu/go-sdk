@@ -697,6 +697,9 @@ const keepalivePingHeader = "Keepalive-Ping-Interval"
 // keepaliveInterceptor 是一个 ConnectRPC 拦截器，为所有流式请求注入 Keepalive-Ping-Interval header。
 type keepaliveInterceptor struct{}
 
+// keepaliveIntervalKey 为指定流传递心跳间隔，避免默认拦截器覆盖请求头。
+type keepaliveIntervalKey struct{}
+
 func (keepaliveInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	return next
 }
@@ -704,7 +707,11 @@ func (keepaliveInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc 
 func (keepaliveInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
 	return func(ctx context.Context, spec connect.Spec) connect.StreamingClientConn {
 		conn := next(ctx, spec)
-		conn.RequestHeader().Set(keepalivePingHeader, keepalivePingIntervalSec)
+		interval := keepalivePingIntervalSec
+		if requested, ok := ctx.Value(keepaliveIntervalKey{}).(string); ok {
+			interval = requested
+		}
+		conn.RequestHeader().Set(keepalivePingHeader, interval)
 		return conn
 	}
 }
