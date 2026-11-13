@@ -8,6 +8,14 @@
   * storage：修复单文件和批量对象查询丢失归档直读转换时间的问题。
   * storage：统一 `FileInfo.String()` 的字段对齐，元数据使用通用格式化输出。
 
+## 7.30.1
+
+* 新增
+  * sandbox: `CreateTemplateParams` 新增 `MinDiskMB`，用于指定构建后的最小总磁盘大小（MiB）；省略或设为 0 时不设置最小值，与 `MinFreeDiskMB` 同时设置时满足两者要求，已有磁盘不会缩小。
+
+* 相关 PR
+  * https://github.com/qiniu/go-sdk/pull/242
+
 ## 7.30.0
 
 * 新增
