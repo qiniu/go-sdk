@@ -19,22 +19,23 @@ type Request struct {
 
 // 获取 API 所用的响应
 type Response struct {
-	Size                        int64             // 对象大小，单位为字节
-	Hash                        string            // 对象哈希值
-	MimeType                    string            // 对象 MIME 类型
-	Type                        int64             // 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
-	PutTime                     int64             // 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
-	EndUser                     string            // 资源内容的唯一属主标识
-	RestoringStatus             int64             // 归档存储文件的解冻状态，`2` 表示解冻完成，`1` 表示解冻中；归档文件冻结时，不返回该字段
-	Status                      int64             // 文件状态。`1` 表示禁用；只有禁用状态的文件才会返回该字段
-	Md5                         string            // 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
-	ExpirationTime              int64             // 文件过期删除日期，UNIX 时间戳格式，文件在设置过期时间后才会返回该字段
-	TransitionToIaTime          int64             // 文件生命周期中转为低频存储的日期，UNIX 时间戳格式，文件在设置转低频后才会返回该字段
-	TransitionToArchiveTime     int64             // 文件生命周期中转为归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
-	TransitionToDeepArchiveTime int64             // 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
-	TransitionToArchiveIrTime   int64             // 文件生命周期中转为归档直读存储的日期，UNIX 时间戳格式，文件在设置转归档直读后才会返回该字段
-	Metadata                    map[string]string // 对象存储元信息
-	Parts                       PartSizes         // 每个分片的大小，如没有指定 need_parts 参数则不返回
+	Size                               int64             // 对象大小，单位为字节
+	Hash                               string            // 对象哈希值
+	MimeType                           string            // 对象 MIME 类型
+	Type                               int64             // 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
+	PutTime                            int64             // 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
+	EndUser                            string            // 资源内容的唯一属主标识
+	RestoringStatus                    int64             // 归档存储文件的解冻状态，`2` 表示解冻完成，`1` 表示解冻中；归档文件冻结时，不返回该字段
+	Status                             int64             // 文件状态。`1` 表示禁用；只有禁用状态的文件才会返回该字段
+	Md5                                string            // 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
+	ExpirationTime                     int64             // 文件过期删除日期，UNIX 时间戳格式，文件在设置过期时间后才会返回该字段
+	TransitionToIaTime                 int64             // 文件生命周期中转为低频存储的日期，UNIX 时间戳格式，文件在设置转低频后才会返回该字段
+	TransitionToIntelligentTieringTime int64             // 文件生命周期中转为智能分层存储的日期，UNIX 时间戳格式，文件在设置转智能分层后才会返回该字段
+	TransitionToArchiveTime            int64             // 文件生命周期中转为归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
+	TransitionToDeepArchiveTime        int64             // 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
+	TransitionToArchiveIrTime          int64             // 文件生命周期中转为归档直读存储的日期，UNIX 时间戳格式，文件在设置转归档直读后才会返回该字段
+	Metadata                           map[string]string // 对象存储元信息
+	Parts                              PartSizes         // 每个分片的大小，如没有指定 need_parts 参数则不返回
 }
 
 // 每个分片的大小
@@ -44,22 +45,23 @@ type PartSizes = []int64
 type (
 	ObjectMetadata = Response
 	jsonResponse   struct {
-		Size                        int64             `json:"fsize,omitempty"`                   // 对象大小，单位为字节
-		Hash                        string            `json:"hash"`                              // 对象哈希值
-		MimeType                    string            `json:"mimeType"`                          // 对象 MIME 类型
-		Type                        int64             `json:"type,omitempty"`                    // 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
-		PutTime                     int64             `json:"putTime"`                           // 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
-		EndUser                     string            `json:"endUser,omitempty"`                 // 资源内容的唯一属主标识
-		RestoringStatus             int64             `json:"restoreStatus,omitempty"`           // 归档存储文件的解冻状态，`2` 表示解冻完成，`1` 表示解冻中；归档文件冻结时，不返回该字段
-		Status                      int64             `json:"status,omitempty"`                  // 文件状态。`1` 表示禁用；只有禁用状态的文件才会返回该字段
-		Md5                         string            `json:"md5,omitempty"`                     // 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
-		ExpirationTime              int64             `json:"expiration,omitempty"`              // 文件过期删除日期，UNIX 时间戳格式，文件在设置过期时间后才会返回该字段
-		TransitionToIaTime          int64             `json:"transitionToIA,omitempty"`          // 文件生命周期中转为低频存储的日期，UNIX 时间戳格式，文件在设置转低频后才会返回该字段
-		TransitionToArchiveTime     int64             `json:"transitionToARCHIVE,omitempty"`     // 文件生命周期中转为归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
-		TransitionToDeepArchiveTime int64             `json:"transitionToDeepArchive,omitempty"` // 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
-		TransitionToArchiveIrTime   int64             `json:"transitionToArchiveIR,omitempty"`   // 文件生命周期中转为归档直读存储的日期，UNIX 时间戳格式，文件在设置转归档直读后才会返回该字段
-		Metadata                    map[string]string `json:"x-qn-meta,omitempty"`               // 对象存储元信息
-		Parts                       PartSizes         `json:"parts,omitempty"`                   // 每个分片的大小，如没有指定 need_parts 参数则不返回
+		Size                               int64             `json:"fsize,omitempty"`                          // 对象大小，单位为字节
+		Hash                               string            `json:"hash"`                                     // 对象哈希值
+		MimeType                           string            `json:"mimeType"`                                 // 对象 MIME 类型
+		Type                               int64             `json:"type,omitempty"`                           // 对象存储类型，`0` 表示普通存储，`1` 表示低频存储，`2` 表示归档存储
+		PutTime                            int64             `json:"putTime"`                                  // 文件上传时间，UNIX 时间戳格式，单位为 100 纳秒
+		EndUser                            string            `json:"endUser,omitempty"`                        // 资源内容的唯一属主标识
+		RestoringStatus                    int64             `json:"restoreStatus,omitempty"`                  // 归档存储文件的解冻状态，`2` 表示解冻完成，`1` 表示解冻中；归档文件冻结时，不返回该字段
+		Status                             int64             `json:"status,omitempty"`                         // 文件状态。`1` 表示禁用；只有禁用状态的文件才会返回该字段
+		Md5                                string            `json:"md5,omitempty"`                            // 对象 MD5 值，只有通过直传文件和追加文件 API 上传的文件，服务端确保有该字段返回
+		ExpirationTime                     int64             `json:"expiration,omitempty"`                     // 文件过期删除日期，UNIX 时间戳格式，文件在设置过期时间后才会返回该字段
+		TransitionToIaTime                 int64             `json:"transitionToIA,omitempty"`                 // 文件生命周期中转为低频存储的日期，UNIX 时间戳格式，文件在设置转低频后才会返回该字段
+		TransitionToIntelligentTieringTime int64             `json:"transitionToIntelligentTiering,omitempty"` // 文件生命周期中转为智能分层存储的日期，UNIX 时间戳格式，文件在设置转智能分层后才会返回该字段
+		TransitionToArchiveTime            int64             `json:"transitionToARCHIVE,omitempty"`            // 文件生命周期中转为归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
+		TransitionToDeepArchiveTime        int64             `json:"transitionToDeepArchive,omitempty"`        // 文件生命周期中转为深度归档存储的日期，UNIX 时间戳格式，文件在设置转归档后才会返回该字段
+		TransitionToArchiveIrTime          int64             `json:"transitionToArchiveIR,omitempty"`          // 文件生命周期中转为归档直读存储的日期，UNIX 时间戳格式，文件在设置转归档直读后才会返回该字段
+		Metadata                           map[string]string `json:"x-qn-meta,omitempty"`                      // 对象存储元信息
+		Parts                              PartSizes         `json:"parts,omitempty"`                          // 每个分片的大小，如没有指定 need_parts 参数则不返回
 	}
 )
 
@@ -67,7 +69,7 @@ func (j *Response) MarshalJSON() ([]byte, error) {
 	if err := j.validate(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(&jsonResponse{Size: j.Size, Hash: j.Hash, MimeType: j.MimeType, Type: j.Type, PutTime: j.PutTime, EndUser: j.EndUser, RestoringStatus: j.RestoringStatus, Status: j.Status, Md5: j.Md5, ExpirationTime: j.ExpirationTime, TransitionToIaTime: j.TransitionToIaTime, TransitionToArchiveTime: j.TransitionToArchiveTime, TransitionToDeepArchiveTime: j.TransitionToDeepArchiveTime, TransitionToArchiveIrTime: j.TransitionToArchiveIrTime, Metadata: j.Metadata, Parts: j.Parts})
+	return json.Marshal(&jsonResponse{Size: j.Size, Hash: j.Hash, MimeType: j.MimeType, Type: j.Type, PutTime: j.PutTime, EndUser: j.EndUser, RestoringStatus: j.RestoringStatus, Status: j.Status, Md5: j.Md5, ExpirationTime: j.ExpirationTime, TransitionToIaTime: j.TransitionToIaTime, TransitionToIntelligentTieringTime: j.TransitionToIntelligentTieringTime, TransitionToArchiveTime: j.TransitionToArchiveTime, TransitionToDeepArchiveTime: j.TransitionToDeepArchiveTime, TransitionToArchiveIrTime: j.TransitionToArchiveIrTime, Metadata: j.Metadata, Parts: j.Parts})
 }
 
 func (j *Response) UnmarshalJSON(data []byte) error {
@@ -86,6 +88,7 @@ func (j *Response) UnmarshalJSON(data []byte) error {
 	j.Md5 = nj.Md5
 	j.ExpirationTime = nj.ExpirationTime
 	j.TransitionToIaTime = nj.TransitionToIaTime
+	j.TransitionToIntelligentTieringTime = nj.TransitionToIntelligentTieringTime
 	j.TransitionToArchiveTime = nj.TransitionToArchiveTime
 	j.TransitionToDeepArchiveTime = nj.TransitionToDeepArchiveTime
 	j.TransitionToArchiveIrTime = nj.TransitionToArchiveIrTime
