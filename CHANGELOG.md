@@ -1,13 +1,5 @@
 # Changelog
 
-## Unreleased
-
-* 新增
-  * storage、storagev2：单文件和批量对象查询返回智能分层转换时间。
-* 修复
-  * storage：修复单文件和批量对象查询丢失归档直读转换时间的问题。
-  * storage：统一 `FileInfo.String()` 的字段对齐，元数据使用通用格式化输出。
-
 ## 7.30.1
 
 * 新增

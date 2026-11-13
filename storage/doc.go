@@ -7,14 +7,4 @@
 // 建议采用分片上传的方式来保证上传的效率和可靠性。
 //
 // 对于数据处理，则提供了 OperationManager，可以使用它来发送持久化数据处理请求，及查询数据处理的状态。
-//
-// # 生命周期查询的空值
-//
-// 生命周期时间以 Unix 秒表示；PutTime 的单位仍为 100 纳秒。
-// 单文件查询的 FileInfo 生命周期字段为 int64，接口未返回有效时间时为 0。
-// 批量查询的 BatchOpRet.Data 中，Expiration、TransitionToIA、TransitionToIntelligentTiering、
-// TransitionToArchive 和 TransitionToDeepArchive 为 *int64，接口缺失或返回 0 时为 nil。
-// TransitionToArchiveIR 保留 int64 类型，相同情况下返回 0。
-// 0 和 nil 均表示接口未提供有效时间，不能据此判断对象没有生命周期规则或永不过期。
-// 部分历史对象即使会执行生命周期操作，接口也可能不返回对应时间。
 package storage
