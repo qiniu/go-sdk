@@ -132,8 +132,8 @@ func TestBuildClonePlan_StripsCredentials(t *testing.T) {
 	assert.True(t, plan.shouldStrip)
 	assert.Equal(t, "https://github.com/o/r.git", plan.sanitizedURL)
 	assert.Equal(t, "r", plan.repoPath)
-	// args[1] 应包含凭证
-	assert.Contains(t, plan.args[1], "alice:tk@")
+	assert.Equal(t, []string{"-c", "credential.helper=", "clone"}, plan.args[:3])
+	assert.Contains(t, plan.args[3], "alice:tk@")
 }
 
 func TestBuildClonePlan_StoresCredentials(t *testing.T) {

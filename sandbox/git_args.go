@@ -1,6 +1,7 @@
 package sandbox
 
 import (
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -257,6 +258,14 @@ func buildClonePlan(rawURL, path, branch string, depth int, username, password s
 	}
 	if path != "" {
 		args = append(args, path)
+	}
+	if shouldStrip {
+		// 临时 URL 凭据也会被成功认证后的 credential approve 写入继承的 helper。
+		if parsed, err := url.Parse(cloneURL); err == nil && parsed.User != nil {
+			if password, _ := parsed.User.Password(); password != "" {
+				args = append([]string{"-c", "credential.helper="}, args...)
+			}
+		}
 	}
 
 	plan := &clonePlan{args: args, repoPath: repoPath}

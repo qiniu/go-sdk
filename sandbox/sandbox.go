@@ -749,13 +749,14 @@ func WithFileUser(user string) FileURLOption {
 	return func(o *fileURLOpts) { o.user = user }
 }
 
-// WithSignatureExpiration 设置签名过期时间（秒）。
-func WithSignatureExpiration(seconds int) FileURLOption {
-	return func(o *fileURLOpts) { o.signatureExpiration = seconds }
+// WithSignatureExpiration 设置签名过期时刻，为绝对 Unix 时间戳（秒）。
+// 例如 int(time.Now().Add(10*time.Minute).Unix())；省略或传 0 时默认 5 分钟后过期。
+func WithSignatureExpiration(unixSeconds int) FileURLOption {
+	return func(o *fileURLOpts) { o.signatureExpiration = unixSeconds }
 }
 
 // fileSignature 计算文件操作签名。
-// 算法: "v1_" + SHA256(path + ":" + operation + ":" + username + ":" + accessToken + ":" + expiration)
+// 算法: "v1_" + RawStdBase64(SHA256(path + ":" + operation + ":" + username + ":" + accessToken + ":" + expiration))
 //
 // 注意: 此签名算法由后端服务定义，SDK 端需与服务端保持一致，不可单独修改。
 // 当前算法未使用 HMAC，存在已知 accessToken 情况下的签名伪造风险，
@@ -766,15 +767,17 @@ func WithSignatureExpiration(seconds int) FileURLOption {
 func fileSignature(path, operation, username, accessToken string, expiration int) string {
 	raw := fmt.Sprintf("%s:%s:%s:%s:%d", path, operation, username, accessToken, expiration)
 	hash := sha256.Sum256([]byte(raw))
-	return "v1_" + fmt.Sprintf("%x", hash)
+	return "v1_" + base64.RawStdEncoding.EncodeToString(hash[:])
 }
 
 // DownloadURL 返回从沙箱下载文件的 URL。
+// 有 envd 访问令牌时生成签名，默认 5 分钟后过期，可用 WithSignatureExpiration 指定绝对过期时刻。
 func (s *Sandbox) DownloadURL(path string, opts ...FileURLOption) string {
 	return s.fileURL(path, "read", opts...)
 }
 
 // UploadURL 返回向沙箱上传文件的 URL（POST multipart/form-data）。
+// 有 envd 访问令牌时生成签名，默认 5 分钟后过期，可用 WithSignatureExpiration 指定绝对过期时刻。
 func (s *Sandbox) UploadURL(path string, opts ...FileURLOption) string {
 	return s.fileURL(path, "write", opts...)
 }
@@ -796,13 +799,22 @@ func (s *Sandbox) fileURL(path, operation string, opts ...FileURLOption) string 
 	if tok != nil && *tok != "" {
 		exp := o.signatureExpiration
 		if exp == 0 {
-			exp = 300
+			exp = int(time.Now().Unix()) + 300
 		}
 		sig := fileSignature(path, operation, o.user, *tok, exp)
 		q.Set("signature", sig)
 		q.Set("signature_expiration", strconv.Itoa(exp))
 	}
 
+	return s.envdURL() + "/files?" + q.Encode()
+}
+
+// fileTransferURL 供 SDK 自身通过访问令牌请求文件，不把签名放入 URL。
+// 避免重定向时 Referer 将有效的文件访问签名带给其他服务。
+func (s *Sandbox) fileTransferURL(path, user string) string {
+	q := url.Values{}
+	q.Set("path", path)
+	q.Set("username", user)
 	return s.envdURL() + "/files?" + q.Encode()
 }
 

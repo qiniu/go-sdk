@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -272,7 +273,7 @@ func (fs *Filesystem) ReadStream(ctx context.Context, path string, opts ...Files
 // 调用方负责关闭 resp.Body。
 func (fs *Filesystem) doRead(ctx context.Context, path string, opts ...FilesystemOption) (*http.Response, error) {
 	o := applyFilesystemOpts(opts)
-	downloadURL := fs.sandbox.DownloadURL(path, WithFileUser(o.user))
+	downloadURL := fs.sandbox.fileTransferURL(path, o.user)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
@@ -280,8 +281,7 @@ func (fs *Filesystem) doRead(ctx context.Context, path string, opts ...Filesyste
 	}
 	setReqidHeader(ctx, req)
 
-	httpClient := fs.sandbox.client.config.HTTPClient
-	resp, err := httpClient.Do(req)
+	resp, err := fs.doFileRequest(req)
 	if err != nil {
 		return nil, fmt.Errorf("download file: %w", err)
 	}
@@ -294,11 +294,49 @@ func (fs *Filesystem) doRead(ctx context.Context, path string, opts ...Filesyste
 	return resp, nil
 }
 
+// doFileRequest 仅为本次 envd 文件请求注入访问令牌，不修改用户提供的 HTTPClient。
+func (fs *Filesystem) doFileRequest(req *http.Request) (*http.Response, error) {
+	s := fs.sandbox
+	s.envdTokenMu.RLock()
+	var token string
+	if s.envdAccessToken != nil {
+		token = *s.envdAccessToken
+	}
+	s.envdTokenMu.RUnlock()
+
+	client := *s.client.config.HTTPClient
+	transport := client.Transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+	client.Transport = &envdFileTransport{
+		base: transport, scheme: req.URL.Scheme, host: req.URL.Host, token: token,
+	}
+	return client.Do(req)
+}
+
+// envdFileTransport 在重定向时按目标地址控制令牌，避免传给其他服务。
+// 复用用户的底层 Transport，保留 HTTPClient 的超时、Cookie 和重定向策略。
+type envdFileTransport struct {
+	base                http.RoundTripper
+	scheme, host, token string
+}
+
+func (t *envdFileTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	cloned := req.Clone(req.Context())
+	if t.token != "" && strings.EqualFold(req.URL.Scheme, t.scheme) && strings.EqualFold(req.URL.Host, t.host) {
+		cloned.Header.Set("X-Access-Token", t.token)
+	} else {
+		cloned.Header.Del("X-Access-Token")
+	}
+	return t.base.RoundTrip(cloned)
+}
+
 // Write 写入文件内容。如果文件已存在则覆盖，自动创建父目录。
 // 通过 envd HTTP API 上传文件。
 func (fs *Filesystem) Write(ctx context.Context, path string, data []byte, opts ...FilesystemOption) (*EntryInfo, error) {
 	o := applyFilesystemOpts(opts)
-	uploadURL := fs.sandbox.UploadURL(path, WithFileUser(o.user))
+	uploadURL := fs.sandbox.fileTransferURL(path, o.user)
 
 	pr, pw := io.Pipe()
 	writer := newMultipartWriter(pw)
@@ -322,8 +360,7 @@ func (fs *Filesystem) Write(ctx context.Context, path string, data []byte, opts 
 	req.Header.Set("Content-Type", writer.contentType())
 	setReqidHeader(ctx, req)
 
-	httpClient := fs.sandbox.client.config.HTTPClient
-	resp, err := httpClient.Do(req)
+	resp, err := fs.doFileRequest(req)
 	if err != nil {
 		return nil, fmt.Errorf("upload file: %w", err)
 	}
@@ -391,8 +428,7 @@ func (fs *Filesystem) WriteFiles(ctx context.Context, files []WriteEntry, opts .
 	req.Header.Set("Content-Type", writer.contentType())
 	setReqidHeader(ctx, req)
 
-	httpClient := fs.sandbox.client.config.HTTPClient
-	resp, err := httpClient.Do(req)
+	resp, err := fs.doFileRequest(req)
 	if err != nil {
 		return nil, fmt.Errorf("upload files: %w", err)
 	}
