@@ -35,7 +35,7 @@
 //
 //   - [Client.Create] / [Client.CreateAndWait]: 创建沙箱（后者会轮询等待就绪）
 //   - [Client.Connect]: 连接到已有沙箱，若已暂停则恢复；连接会延长但不会缩短沙箱 TTL
-//   - [Client.List]: 列出沙箱，支持按状态和元数据过滤
+//   - [Client.List] / [Client.ListPage]: 列出一页沙箱，支持按状态和元数据过滤；后者还返回下一页游标
 //   - [Client.GetInfo] / [Client.GetInjections] / [Client.GetResources]: 查询沙箱状态和配置
 //   - [Client.GetMetrics] / [Client.GetLogs]: 查询沙箱运行数据
 //   - [Client.UpdateInjections] / [Client.UpdateGitHubToken] / [Client.UpdateGitRepositoryResourceToken]:
@@ -55,6 +55,8 @@
 //
 // 实例的控制面方法自动传入自身 ID，委托给对应的 Client 方法。
 // 例如 sb.UpdateGitHubToken(ctx, token) 与 c.UpdateGitHubToken(ctx, sb.ID(), token) 使用相同实现。
+// ListPage 返回 [SandboxPage]，将 NextToken 传给下一次 ListParams.NextToken，直到游标为空。
+// 翻页时保留相同的过滤条件；List 的数组返回值保持兼容，但不包含游标。
 //
 // # 持久快照与恢复
 //
@@ -158,6 +160,18 @@
 //	sb.Pty().Resize(ctx, ptyHandle.PID(), sandbox.PtySize{Cols: 120, Rows: 40})
 //	sb.Pty().Kill(ctx, ptyHandle.PID())
 //
+// 已有 PID 可通过 [Pty.ConnectWithOptions] 重新接收实时原始字节：
+//
+//	ptyHandle, err := sb.Pty().ConnectWithOptions(ctx, pid, &sandbox.PtyConnectOptions{
+//	    OnData: func(data []byte) { os.Stdout.Write(data) },
+//	})
+//	result, err := ptyHandle.WaitContext(ctx)
+//
+// PTY 的最终 CommandResult.Stdout 包含本次连接收到的全部原始终端字节，包括控制字符。
+// 输出会累积在客户端内存中，长时间交互应控制输出量和连接时长。
+// ctx 取消或 ptyHandle.Disconnect() 只断开客户端流，不终止远端 PTY；需要结束时显式 Kill。
+// 原有 [Pty.Connect] 签名保持不变，也可以通过 Wait 获取本次连接收到的输出。
+//
 // # 模板管理
 //
 // Client 提供模板的完整生命周期管理:
@@ -179,6 +193,9 @@
 //
 // 沙箱默认允许访问互联网，可通过 [CreateParams] 的 Network 字段配置出站流量规则。
 // 使用 [Sandbox.GetHost] 获取外部访问沙箱指定端口的域名。
+// 受限服务的调用方可用 [Sandbox.TrafficAccessToken] 读取创建或连接响应中的流量令牌，
+// 通过 E2B-Traffic-Access-Token Header 传入。返回空字符串表示响应未提供该令牌，
+// 不能使用 envd 认证令牌替代；不要将流量令牌写入日志或公开 URL。
 //
 // # 轮询选项
 //

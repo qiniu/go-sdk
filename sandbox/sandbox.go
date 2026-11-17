@@ -86,6 +86,16 @@ func newSandbox(c *Client, s *apis.Sandbox) *Sandbox {
 // ID 返回沙箱 ID。
 func (s *Sandbox) ID() string { return s.sandboxID }
 
+// TrafficAccessToken 返回创建或连接响应中的服务流量访问令牌。
+// 未返回令牌时为空字符串。该令牌用于访问沙箱内的受限服务，与 envd 认证令牌不同。
+// 应将它作为凭据保管，不要写入日志或公开 URL。
+func (s *Sandbox) TrafficAccessToken() string {
+	if s.trafficAccessToken == nil {
+		return ""
+	}
+	return *s.trafficAccessToken
+}
+
 // GetInfo 返回当前沙箱的详细信息。
 // 具体行为参见 [Client.GetInfo]。
 func (s *Sandbox) GetInfo(ctx context.Context) (*SandboxInfo, error) {
@@ -342,8 +352,20 @@ func exponentialBackoff(attempt int) time.Duration {
 	return base + jitter
 }
 
-// List 列出沙箱，支持分页和状态过滤。
+// List 列出一页沙箱，支持分页和状态过滤。
+// 需要读取下一页游标时使用 [Client.ListPage]。
 func (c *Client) List(ctx context.Context, params *ListParams) ([]ListedSandbox, error) {
+	page, err := c.ListPage(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	return page.Items, nil
+}
+
+// ListPage 列出一页沙箱并返回下一页游标，支持与 List 相同的过滤参数。
+// 将返回的 NextToken 传入下一次 ListParams.NextToken；空字符串表示没有下一页。
+// 此方法不会修改 params，翻页时应保留原有过滤条件。
+func (c *Client) ListPage(ctx context.Context, params *ListParams) (*SandboxPage, error) {
 	resp, err := c.api.ListSandboxesV2WithResponse(ctx, params.toAPI())
 	if err != nil {
 		return nil, err
@@ -351,7 +373,10 @@ func (c *Client) List(ctx context.Context, params *ListParams) ([]ListedSandbox,
 	if resp.JSON200 == nil {
 		return nil, newAPIError(resp.HTTPResponse, resp.Body)
 	}
-	return listedSandboxesFromAPI(*resp.JSON200), nil
+	return &SandboxPage{
+		Items:     listedSandboxesFromAPI(*resp.JSON200),
+		NextToken: resp.HTTPResponse.Header.Get("X-Next-Token"),
+	}, nil
 }
 
 // GetResources 返回指定沙箱已挂载的资源配置。

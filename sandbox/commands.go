@@ -16,9 +16,10 @@ import (
 // CommandResult 命令执行结果。
 type CommandResult struct {
 	ExitCode int
-	Stdout   string
-	Stderr   string
-	Error    string
+	// Stdout 累积标准输出；PTY 会话中保存原始终端字节，可能不是 UTF-8 文本。
+	Stdout string
+	Stderr string
+	Error  string
 }
 
 // CommandHandle 后台命令句柄。
@@ -277,6 +278,7 @@ type streamReceiver[T eventMessage] interface {
 // processEventStream 处理进程事件流（Start 和 Connect 共用）。
 func processEventStream[T eventMessage](stream streamReceiver[T], handle *CommandHandle) {
 	defer close(handle.done)
+	defer handle.cancel()
 
 	var stdout, stderr []byte
 	for stream.Receive() {
@@ -307,6 +309,7 @@ func processEventStream[T eventMessage](stream streamReceiver[T], handle *Comman
 				}
 			}
 			if data := ev.Data.GetPty(); len(data) > 0 {
+				stdout = append(stdout, data...)
 				handle.mu.Lock()
 				fn := handle.onPtyData
 				handle.mu.Unlock()
@@ -343,12 +346,16 @@ func processEventStream[T eventMessage](stream streamReceiver[T], handle *Comman
 
 // Connect 连接到正在运行的进程。
 func (c *Commands) Connect(ctx context.Context, pid uint32) (*CommandHandle, error) {
+	return c.connect(ctx, pid, DefaultUser, nil)
+}
+
+func (c *Commands) connect(ctx context.Context, pid uint32, user string, onPtyData func([]byte)) (*CommandHandle, error) {
 	connectCtx, connectCancel := context.WithCancel(ctx)
 
 	req := connect.NewRequest(&process.ConnectRequest{
 		Process: pidSelector(pid),
 	})
-	c.sandbox.setEnvdAuth(req, DefaultUser)
+	c.sandbox.setEnvdAuth(req, user)
 
 	stream, err := c.rpc.Connect(connectCtx, req)
 	if err != nil {
@@ -357,10 +364,11 @@ func (c *Commands) Connect(ctx context.Context, pid uint32) (*CommandHandle, err
 	}
 
 	handle := &CommandHandle{
-		commands: c,
-		cancel:   connectCancel,
-		done:     make(chan struct{}),
-		pidCh:    make(chan struct{}),
+		commands:  c,
+		cancel:    connectCancel,
+		done:      make(chan struct{}),
+		pidCh:     make(chan struct{}),
+		onPtyData: onPtyData,
 	}
 	// PID 已知，立即标记就绪；后续若服务端在流里再发 Start 事件，
 	// markPIDReady 内部的 sync.Once 会保证不会重复 close(pidCh)。

@@ -137,6 +137,14 @@ type ListParams struct {
 	Limit *int32
 }
 
+// SandboxPage 沙箱列表的一页结果。
+type SandboxPage struct {
+	// Items 当前页的沙箱。
+	Items []ListedSandbox
+	// NextToken 下一页游标，空字符串表示没有下一页。
+	NextToken string
+}
+
 // GetMetricsParams 获取沙箱指标的查询参数。
 type GetMetricsParams struct {
 	// Start 起始时间的 Unix 时间戳（秒）。

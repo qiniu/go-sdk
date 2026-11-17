@@ -184,7 +184,7 @@ func TestIntegrationSandboxLifecycle(t *testing.T) {
 }
 
 // createTestSandbox 创建一个用于 envd 集成测试的沙箱并等待就绪。
-func createTestSandbox(t *testing.T, c *Client, ctx context.Context) *Sandbox {
+func createTestSandbox(t *testing.T, c *Client, ctx context.Context, metadata ...Metadata) *Sandbox {
 	t.Helper()
 
 	templates, err := c.ListTemplates(ctx, nil)
@@ -204,12 +204,16 @@ func createTestSandbox(t *testing.T, c *Client, ctx context.Context) *Sandbox {
 	}
 
 	timeout := int32(120)
-	sb, _, err := c.CreateAndWait(ctx, CreateParams{
+	params := CreateParams{
 		TemplateID: templateID,
 		Timeout:    &timeout,
-	}, WithPollInterval(2*time.Second))
+	}
+	if len(metadata) > 0 {
+		params.Metadata = &metadata[0]
+	}
+	sb, err := c.Create(ctx, params)
 	if err != nil {
-		t.Fatalf("CreateAndWait 失败: %v", err)
+		t.Fatalf("Create 失败: %v", err)
 	}
 
 	t.Cleanup(func() {
@@ -220,6 +224,9 @@ func createTestSandbox(t *testing.T, c *Client, ctx context.Context) *Sandbox {
 		}
 	})
 
+	if _, err := sb.WaitForReady(ctx, WithPollInterval(2*time.Second)); err != nil {
+		t.Fatalf("WaitForReady 失败: %v", err)
+	}
 	return sb
 }
 
