@@ -19,7 +19,7 @@ import (
 	"github.com/qiniu/go-sdk/v7/sandbox/internal/envdapi/process"
 )
 
-func TestListPagePreservesFiltersAndCursor(t *testing.T) {
+func TestListPreservesFiltersAndCursor(t *testing.T) {
 	metadata := "purpose=test&owner=alice"
 	templates := []string{"t1", "t2"}
 	states := []SandboxState{StateRunning, StatePaused}
@@ -47,14 +47,14 @@ func TestListPagePreservesFiltersAndCursor(t *testing.T) {
 		},
 	})
 	params := &ListParams{Metadata: &metadata, Template: &templates, State: &states, Limit: &limit}
-	first, err := client.ListPage(context.Background(), params)
+	first, err := client.List(context.Background(), params)
 	require.NoError(t, err)
 	require.Len(t, first.Items, 1)
 	assert.Equal(t, "first", first.Items[0].SandboxID)
 	assert.Equal(t, "page2", first.NextToken)
-	assert.Nil(t, params.NextToken, "ListPage must not advance the caller's cursor")
+	assert.Nil(t, params.NextToken, "List must not advance the caller's cursor")
 	params.NextToken = &first.NextToken
-	last, err := client.ListPage(context.Background(), params)
+	last, err := client.List(context.Background(), params)
 	require.NoError(t, err)
 	require.Len(t, last.Items, 1)
 	assert.Equal(t, "second", last.Items[0].SandboxID)
@@ -62,7 +62,7 @@ func TestListPagePreservesFiltersAndCursor(t *testing.T) {
 	assert.Equal(t, 2, calls)
 }
 
-func TestListPageEmptyAndLegacyList(t *testing.T) {
+func TestListEmptyPage(t *testing.T) {
 	client := newTestClient(&mockAPI{
 		listSandboxesV2Fn: func(_ context.Context, params *apis.ListSandboxesV2Params, _ ...apis.RequestEditorFn) (*apis.ListSandboxesV2Response, error) {
 			assert.Nil(t, params)
@@ -70,16 +70,13 @@ func TestListPageEmptyAndLegacyList(t *testing.T) {
 			return &apis.ListSandboxesV2Response{JSON200: &items, HTTPResponse: httpResponse(http.StatusOK)}, nil
 		},
 	})
-	page, err := client.ListPage(context.Background(), nil)
+	page, err := client.List(context.Background(), nil)
 	require.NoError(t, err)
 	assert.Empty(t, page.Items)
 	assert.Empty(t, page.NextToken)
-	items, err := client.List(context.Background(), nil)
-	require.NoError(t, err)
-	assert.Equal(t, page.Items, items)
 }
 
-func TestListPageErrors(t *testing.T) {
+func TestListErrors(t *testing.T) {
 	transportErr := errors.New("transport failed")
 	for _, tc := range []struct {
 		name     string
@@ -93,7 +90,7 @@ func TestListPageErrors(t *testing.T) {
 			client := newTestClient(&mockAPI{listSandboxesV2Fn: func(context.Context, *apis.ListSandboxesV2Params, ...apis.RequestEditorFn) (*apis.ListSandboxesV2Response, error) {
 				return tc.response, tc.err
 			}})
-			page, err := client.ListPage(context.Background(), nil)
+			page, err := client.List(context.Background(), nil)
 			assert.Nil(t, page)
 			require.Error(t, err)
 			if tc.err != nil {

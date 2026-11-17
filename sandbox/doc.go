@@ -35,7 +35,7 @@
 //
 //   - [Client.Create] / [Client.CreateAndWait]: 创建沙箱（后者会轮询等待就绪）
 //   - [Client.Connect]: 连接到已有沙箱，若已暂停则恢复；连接会延长但不会缩短沙箱 TTL
-//   - [Client.List] / [Client.ListPage]: 列出一页沙箱，支持按状态和元数据过滤；后者还返回下一页游标
+//   - [Client.List]: 列出一页沙箱并返回下一页游标，支持按状态和元数据过滤
 //   - [Client.GetInfo] / [Client.GetInjections] / [Client.GetResources]: 查询沙箱状态和配置
 //   - [Client.GetMetrics] / [Client.GetLogs]: 查询沙箱运行数据
 //   - [Client.UpdateInjections] / [Client.UpdateGitHubToken] / [Client.UpdateGitRepositoryResourceToken]:
@@ -55,8 +55,24 @@
 //
 // 实例的控制面方法自动传入自身 ID，委托给对应的 Client 方法。
 // 例如 sb.UpdateGitHubToken(ctx, token) 与 c.UpdateGitHubToken(ctx, sb.ID(), token) 使用相同实现。
-// ListPage 返回 [SandboxPage]，将 NextToken 传给下一次 ListParams.NextToken，直到游标为空。
-// 翻页时保留相同的过滤条件；List 的数组返回值保持兼容，但不包含游标。
+// [Client.List] 返回 [SandboxPage]，Items 是当前页的沙箱。
+// 将 NextToken 传给下一次 ListParams.NextToken，继续调用同一个 List 方法，直到游标为空。
+// 翻页时保留相同的过滤条件：
+//
+//	params := &sandbox.ListParams{}
+//	for {
+//	    page, err := c.List(ctx, params)
+//	    if err != nil {
+//	        log.Fatal(err)
+//	    }
+//	    for _, item := range page.Items {
+//	        fmt.Println(item.SandboxID)
+//	    }
+//	    if page.NextToken == "" {
+//	        break
+//	    }
+//	    params.NextToken = &page.NextToken
+//	}
 //
 // # 持久快照与恢复
 //

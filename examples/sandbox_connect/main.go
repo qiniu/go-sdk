@@ -33,12 +33,12 @@ func main() {
 	sandboxID := os.Getenv("SANDBOX_ID")
 	if sandboxID == "" {
 		// 如果未指定，列出现有沙箱并选取第一个
-		sandboxes, err := c.List(ctx, nil)
+		page, err := c.List(ctx, nil)
 		if err != nil {
 			log.Fatalf("列出沙箱失败: %v", err)
 		}
-		if len(sandboxes) > 0 {
-			sandboxID = sandboxes[0].SandboxID
+		if len(page.Items) > 0 {
+			sandboxID = page.Items[0].SandboxID
 			fmt.Printf("找到运行中的沙箱: %s\n", sandboxID)
 		}
 	}

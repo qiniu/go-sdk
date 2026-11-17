@@ -352,20 +352,10 @@ func exponentialBackoff(attempt int) time.Duration {
 	return base + jitter
 }
 
-// List 列出一页沙箱，支持分页和状态过滤。
-// 需要读取下一页游标时使用 [Client.ListPage]。
-func (c *Client) List(ctx context.Context, params *ListParams) ([]ListedSandbox, error) {
-	page, err := c.ListPage(ctx, params)
-	if err != nil {
-		return nil, err
-	}
-	return page.Items, nil
-}
-
-// ListPage 列出一页沙箱并返回下一页游标，支持与 List 相同的过滤参数。
+// List 列出一页沙箱并返回下一页游标，支持按状态、元数据和模板过滤。
 // 将返回的 NextToken 传入下一次 ListParams.NextToken；空字符串表示没有下一页。
 // 此方法不会修改 params，翻页时应保留原有过滤条件。
-func (c *Client) ListPage(ctx context.Context, params *ListParams) (*SandboxPage, error) {
+func (c *Client) List(ctx context.Context, params *ListParams) (*SandboxPage, error) {
 	resp, err := c.api.ListSandboxesV2WithResponse(ctx, params.toAPI())
 	if err != nil {
 		return nil, err

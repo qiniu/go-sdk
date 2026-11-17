@@ -77,12 +77,12 @@ func TestIntegrationListSandboxes(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	sandboxes, err := c.List(ctx, nil)
+	page, err := c.List(ctx, nil)
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
 	}
-	t.Logf("共 %d 个沙箱", len(sandboxes))
-	for _, sb := range sandboxes {
+	t.Logf("本页共 %d 个沙箱", len(page.Items))
+	for _, sb := range page.Items {
 		t.Logf("  - %s (template=%s)", sb.SandboxID, sb.TemplateID)
 	}
 }
@@ -160,12 +160,12 @@ func TestIntegrationSandboxLifecycle(t *testing.T) {
 	t.Log("超时时间已更新为 120s")
 
 	// 6. 在沙箱列表中确认可见
-	sandboxes, err := c.List(ctx, nil)
+	page, err := c.List(ctx, nil)
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
 	}
 	found := false
-	for _, s := range sandboxes {
+	for _, s := range page.Items {
 		if s.SandboxID == sb.ID() {
 			found = true
 			break

@@ -14,24 +14,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIntegrationListPageCursor(t *testing.T) {
+func TestIntegrationListCursor(t *testing.T) {
 	client := testClient(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	runID := uuid.NewString()
-	metadata := Metadata{"sdkListPageTest": runID}
+	metadata := Metadata{"sdkListTest": runID}
 	first := createTestSandbox(t, client, ctx, metadata)
 	second := createTestSandbox(t, client, ctx, metadata)
 	require.NotEqual(t, first.ID(), second.ID())
-	query := "sdkListPageTest=" + runID
+	query := "sdkListTest=" + runID
 	limit := int32(1)
 	params := &ListParams{Limit: &limit, Metadata: &query}
-	page, err := client.ListPage(ctx, params)
+	page, err := client.List(ctx, params)
 	require.NoError(t, err)
 	require.Len(t, page.Items, 1)
 	require.NotEmpty(t, page.NextToken, "two matching sandboxes require a second page")
 	params.NextToken = &page.NextToken
-	next, err := client.ListPage(ctx, params)
+	next, err := client.List(ctx, params)
 	require.NoError(t, err)
 	require.Len(t, next.Items, 1)
 	assert.Empty(t, next.NextToken)
