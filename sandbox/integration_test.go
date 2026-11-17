@@ -602,8 +602,7 @@ func TestIntegrationCommandsSendStdin(t *testing.T) {
 	sb := createTestSandbox(t, c, ctx)
 	t.Logf("沙箱: %s", sb.ID())
 
-	// 启动 sleep 长命令（stdin 默认禁用，SendStdin 验证 RPC 调用不报错即可）
-	handle, err := sb.Commands().Start(ctx, "sleep 300")
+	handle, err := sb.Commands().Start(ctx, "cat", WithStdin())
 	if err != nil {
 		t.Fatalf("Start 失败: %v", err)
 	}
@@ -613,23 +612,19 @@ func TestIntegrationCommandsSendStdin(t *testing.T) {
 		t.Fatalf("WaitPID 失败: %v", err)
 	}
 
-	// 发送 stdin（stdin 未启用，服务端会返回错误，验证错误信息符合预期）
-	err = sb.Commands().SendStdin(ctx, handle.PID(), []byte("hello\n"))
-	if err != nil {
-		// stdin 未启用时，服务端返回 "stdin not enabled" 错误是预期行为
-		if strings.Contains(err.Error(), "stdin not enabled") {
-			t.Logf("SendStdin 返回预期错误: %v", err)
-		} else {
-			t.Fatalf("SendStdin 失败（非预期错误）: %v", err)
-		}
-	} else {
-		t.Log("SendStdin RPC 调用成功（数据可能被丢弃）")
+	if err := sb.Commands().SendStdin(ctx, handle.PID(), []byte("hello\n")); err != nil {
+		t.Fatalf("SendStdin 失败: %v", err)
 	}
-
-	// 清理
-	_ = handle.Kill(ctx)
-	_, _ = handle.Wait()
-	t.Log("SendStdin 验证通过")
+	if err := sb.Commands().CloseStdin(ctx, handle.PID()); err != nil {
+		t.Fatalf("CloseStdin 失败: %v", err)
+	}
+	result, err := handle.Wait()
+	if err != nil {
+		t.Fatalf("Wait 失败: %v", err)
+	}
+	if result.ExitCode != 0 || result.Stdout != "hello\n" {
+		t.Fatalf("stdin 输出不符合预期: %+v", result)
+	}
 }
 
 func TestIntegrationCommandsWithCallbacks(t *testing.T) {
