@@ -243,18 +243,43 @@ func TestPtyConnectDisconnectPreservesOutputAndAllowsReconnect(t *testing.T) {
 	defer server.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	received := make(chan struct{}, 1)
-	handle, err := pty.ConnectWithOptions(ctx, 42, &PtyConnectOptions{OnData: func([]byte) { received <- struct{}{} }})
+	callbackStarted := make(chan struct{})
+	releaseCallback := make(chan struct{})
+	defer close(releaseCallback)
+	handle, err := pty.ConnectWithOptions(ctx, 42, &PtyConnectOptions{OnData: func([]byte) {
+		close(callbackStarted)
+		<-releaseCallback
+	}})
 	require.NoError(t, err)
 	select {
-	case <-received:
+	case <-callbackStarted:
 	case <-ctx.Done():
 		t.Fatal("PTY output did not arrive")
 	}
+	type waitResult struct {
+		result *CommandResult
+		err    error
+	}
+	waited := make(chan waitResult, 1)
+	go func() {
+		result, err := handle.Wait()
+		waited <- waitResult{result, err}
+	}()
+
 	handle.Disconnect()
 	handle.Disconnect()
-	result, err := handle.WaitContext(ctx)
+	var result *CommandResult
+	select {
+	case got := <-waited:
+		require.NoError(t, got.err)
+		result = got.result
+	case <-ctx.Done():
+		t.Fatal("Wait remained blocked by the PTY callback after Disconnect")
+	}
+	require.NotNil(t, result)
+	repeated, err := handle.WaitContext(ctx)
 	require.NoError(t, err)
+	assert.Same(t, result, repeated)
 	assert.Equal(t, "first", result.Stdout)
 	assert.Equal(t, -1, result.ExitCode)
 	assert.NotEmpty(t, result.Error)
@@ -269,6 +294,41 @@ func TestPtyConnectDisconnectPreservesOutputAndAllowsReconnect(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "reconnected", result.Stdout)
 	assert.Equal(t, 0, result.ExitCode)
+}
+
+func TestPtyCreateDisconnectWhileCallbackBlocked(t *testing.T) {
+	pty, server := newTestPty(&testProcessHandler{
+		startFn: func(ctx context.Context, _ *connect.Request[process.StartRequest], stream *connect.ServerStream[process.StartResponse]) error {
+			if err := stream.Send(&process.StartResponse{Event: connectedPtyData([]byte("first")).Event}); err != nil {
+				return err
+			}
+			<-ctx.Done()
+			return ctx.Err()
+		},
+	})
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	callbackStarted := make(chan struct{})
+	releaseCallback := make(chan struct{})
+	defer close(releaseCallback)
+
+	handle, err := pty.Create(ctx, PtySize{Cols: 80, Rows: 24}, WithOnPtyData(func([]byte) {
+		close(callbackStarted)
+		<-releaseCallback
+	}))
+	require.NoError(t, err)
+	select {
+	case <-callbackStarted:
+	case <-ctx.Done():
+		t.Fatal("PTY output did not arrive")
+	}
+
+	handle.Disconnect()
+	result, err := handle.WaitContext(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "first", result.Stdout)
+	assert.Equal(t, -1, result.ExitCode)
 }
 
 func TestPtyConnectContextCancellation(t *testing.T) {

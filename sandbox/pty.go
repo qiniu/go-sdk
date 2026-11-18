@@ -87,6 +87,7 @@ func (p *Pty) Create(ctx context.Context, size PtySize, opts ...CommandOption) (
 		cancel:    ptyCancel,
 		done:      make(chan struct{}),
 		pidCh:     make(chan struct{}),
+		pty:       true,
 		onPtyData: ptyDataFn,
 	}
 
@@ -121,7 +122,7 @@ func (p *Pty) ConnectWithOptions(ctx context.Context, pid uint32, opts *PtyConne
 		onData = opts.OnData
 	}
 	commands := &Commands{sandbox: p.sandbox, rpc: p.rpc}
-	return commands.connect(ctx, pid, user, onData)
+	return commands.connect(ctx, pid, user, onData, true)
 }
 
 // SendInput 向 PTY 发送输入。
