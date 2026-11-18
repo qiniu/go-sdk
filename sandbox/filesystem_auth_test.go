@@ -316,3 +316,41 @@ func TestFilesystemHTTPRedirectDoesNotForwardEnvdToken(t *testing.T) {
 		})
 	}
 }
+
+type legacyFileTransport struct {
+	canceled chan *http.Request
+}
+
+func (tr *legacyFileTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	select {
+	case canceled := <-tr.canceled:
+		if canceled != req {
+			return nil, fmt.Errorf("CancelRequest received a different request")
+		}
+		return nil, fmt.Errorf("legacy file request canceled")
+	case <-time.After(time.Second):
+		return nil, fmt.Errorf("CancelRequest was not called")
+	}
+}
+
+func (tr *legacyFileTransport) CancelRequest(req *http.Request) {
+	tr.canceled <- req
+}
+
+func TestFilesystemHTTPPreservesLegacyTransportCancellation(t *testing.T) {
+	tr := &legacyFileTransport{canceled: make(chan *http.Request, 1)}
+	token := "test-envd-token"
+	sb := &Sandbox{
+		envdAccessToken: &token,
+		client: &Client{config: &Config{HTTPClient: &http.Client{
+			Transport: tr,
+			Timeout:   25 * time.Millisecond,
+		}}},
+	}
+	fs := &Filesystem{sandbox: sb}
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.test/files", nil)
+	require.NoError(t, err)
+	_, err = fs.doFileRequest(req)
+	require.ErrorContains(t, err, "legacy file request canceled")
+	assert.Empty(t, req.Header.Get("X-Access-Token"))
+}

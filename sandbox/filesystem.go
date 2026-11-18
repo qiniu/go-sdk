@@ -305,31 +305,31 @@ func (fs *Filesystem) doFileRequest(req *http.Request) (*http.Response, error) {
 	s.envdTokenMu.RUnlock()
 
 	client := *s.client.config.HTTPClient
-	transport := client.Transport
-	if transport == nil {
-		transport = http.DefaultTransport
+	scheme, host := req.URL.Scheme, req.URL.Host
+	setToken := func(r *http.Request) {
+		if token != "" && strings.EqualFold(r.URL.Scheme, scheme) && strings.EqualFold(r.URL.Host, host) {
+			r.Header.Set("X-Access-Token", token)
+		} else {
+			r.Header.Del("X-Access-Token")
+		}
 	}
-	client.Transport = &envdFileTransport{
-		base: transport, scheme: req.URL.Scheme, host: req.URL.Host, token: token,
+	checkRedirect := client.CheckRedirect
+	client.CheckRedirect = func(next *http.Request, via []*http.Request) error {
+		next.Header.Del("X-Access-Token")
+		if checkRedirect != nil {
+			if err := checkRedirect(next, via); err != nil {
+				return err
+			}
+		} else if len(via) >= 10 {
+			return fmt.Errorf("stopped after 10 redirects")
+		}
+		// 用户的重定向策略可能改写目标地址，按最终目标设置令牌。
+		setToken(next)
+		return nil
 	}
+	req = req.Clone(req.Context())
+	setToken(req)
 	return client.Do(req)
-}
-
-// envdFileTransport 在重定向时按目标地址控制令牌，避免传给其他服务。
-// 复用用户的底层 Transport，保留 HTTPClient 的超时、Cookie 和重定向策略。
-type envdFileTransport struct {
-	base                http.RoundTripper
-	scheme, host, token string
-}
-
-func (t *envdFileTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	cloned := req.Clone(req.Context())
-	if t.token != "" && strings.EqualFold(req.URL.Scheme, t.scheme) && strings.EqualFold(req.URL.Host, t.host) {
-		cloned.Header.Set("X-Access-Token", t.token)
-	} else {
-		cloned.Header.Del("X-Access-Token")
-	}
-	return t.base.RoundTrip(cloned)
 }
 
 // Write 写入文件内容。如果文件已存在则覆盖，自动创建父目录。

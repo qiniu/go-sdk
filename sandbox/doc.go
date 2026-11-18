@@ -56,6 +56,7 @@
 // 实例的控制面方法自动传入自身 ID，委托给对应的 Client 方法。
 // 例如 sb.UpdateGitHubToken(ctx, token) 与 c.UpdateGitHubToken(ctx, sb.ID(), token) 使用相同实现。
 // [Client.List] 返回 [SandboxPage]，Items 是当前页的沙箱。
+// 从 v7.31.0 升级时，将直接遍历、取长度或按索引访问 List 返回值的代码改为使用 page.Items。
 // 将 NextToken 传给下一次 ListParams.NextToken，继续调用同一个 List 方法，直到游标为空。
 // 翻页时保留相同的过滤条件：
 //

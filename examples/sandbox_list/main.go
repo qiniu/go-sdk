@@ -79,13 +79,19 @@ func main() {
 		for _, sb := range items {
 			ids = append(ids, sb.SandboxID)
 		}
-		metrics, err := c.GetSandboxesMetrics(ctx, &sandbox.GetSandboxesMetricsParams{
-			SandboxIds: ids,
-		})
-		if err != nil {
-			fmt.Printf("获取批量指标失败: %v\n", err)
-		} else {
-			fmt.Printf("获取到 %d 个沙箱的指标数据\n", len(metrics.Sandboxes))
+		const maxMetricsIDs = 100
+		var count int
+		for len(ids) > 0 {
+			size := min(len(ids), maxMetricsIDs)
+			metrics, err := c.GetSandboxesMetrics(ctx, &sandbox.GetSandboxesMetricsParams{
+				SandboxIds: ids[:size],
+			})
+			if err != nil {
+				log.Fatalf("获取批量指标失败: %v", err)
+			}
+			count += len(metrics.Sandboxes)
+			ids = ids[size:]
 		}
+		fmt.Printf("获取到 %d 个沙箱的指标数据\n", count)
 	}
 }
