@@ -16,9 +16,10 @@ import (
 // CommandResult 命令执行结果。
 type CommandResult struct {
 	ExitCode int
-	Stdout   string
-	Stderr   string
-	Error    string
+	// Stdout 累积标准输出；PTY 会话中保存原始终端字节，可能不是 UTF-8 文本。
+	Stdout string
+	Stderr string
+	Error  string
 }
 
 // CommandHandle 后台命令句柄。
@@ -32,9 +33,15 @@ type CommandHandle struct {
 	done     chan struct{}
 	pidCh    chan struct{}
 	pidOnce  sync.Once
-	result   *CommandResult
+	pty      bool
 
+	// mu 保护事件流状态。关闭 done 后，result 不再由 SDK 修改。
 	mu        sync.Mutex
+	stdout    []byte
+	stderr    []byte
+	endResult *CommandResult
+	result    *CommandResult
+
 	onStdout  func(data []byte)
 	onStderr  func(data []byte)
 	onPtyData func(data []byte)
@@ -86,9 +93,34 @@ func (h *CommandHandle) Kill(ctx context.Context) error {
 
 // Disconnect 停止接收命令事件，但不终止沙箱内的进程。
 // 后续可通过 [Commands.Connect] 使用进程 PID 重新连接。
-// Disconnect 可重复调用。
+// Disconnect 可重复调用。PTY 断连时，Wait 返回已收到的输出，
+// 已调度的回调仍可能在断连后执行。
 func (h *CommandHandle) Disconnect() {
+	if h.pty {
+		h.finish(context.Canceled)
+	}
 	h.cancel()
+}
+
+func (h *CommandHandle) finish(streamErr error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.result != nil {
+		return
+	}
+	h.result = h.endResult
+	if h.result == nil {
+		h.result = &CommandResult{
+			ExitCode: -1,
+			Stdout:   string(h.stdout),
+			Stderr:   string(h.stderr),
+		}
+		if streamErr != nil {
+			h.result.Error = streamErr.Error()
+		}
+	}
+	h.stdout, h.stderr = nil, nil
+	close(h.done)
 }
 
 // WaitPID 等待进程 PID 被分配。
@@ -276,79 +308,66 @@ type streamReceiver[T eventMessage] interface {
 
 // processEventStream 处理进程事件流（Start 和 Connect 共用）。
 func processEventStream[T eventMessage](stream streamReceiver[T], handle *CommandHandle) {
-	defer close(handle.done)
+	defer handle.cancel()
 
-	var stdout, stderr []byte
 	for stream.Receive() {
 		event := stream.Msg().GetEvent()
 		if event == nil {
 			continue
 		}
+
+		var callback func([]byte)
+		var chunk []byte
+		handle.mu.Lock()
+		if handle.result != nil {
+			handle.mu.Unlock()
+			return
+		}
 		switch ev := event.Event.(type) {
 		case *process.ProcessEvent_Start:
 			handle.markPIDReady(ev.Start.Pid)
 		case *process.ProcessEvent_Data:
-			if data := ev.Data.GetStdout(); len(data) > 0 {
-				stdout = append(stdout, data...)
-				handle.mu.Lock()
-				fn := handle.onStdout
-				handle.mu.Unlock()
-				if fn != nil {
-					fn(data)
-				}
-			}
-			if data := ev.Data.GetStderr(); len(data) > 0 {
-				stderr = append(stderr, data...)
-				handle.mu.Lock()
-				fn := handle.onStderr
-				handle.mu.Unlock()
-				if fn != nil {
-					fn(data)
-				}
-			}
-			if data := ev.Data.GetPty(); len(data) > 0 {
-				handle.mu.Lock()
-				fn := handle.onPtyData
-				handle.mu.Unlock()
-				if fn != nil {
-					fn(data)
-				}
+			switch output := ev.Data.GetOutput().(type) {
+			case *process.ProcessEvent_DataEvent_Stdout:
+				chunk, callback = output.Stdout, handle.onStdout
+				handle.stdout = append(handle.stdout, chunk...)
+			case *process.ProcessEvent_DataEvent_Stderr:
+				chunk, callback = output.Stderr, handle.onStderr
+				handle.stderr = append(handle.stderr, chunk...)
+			case *process.ProcessEvent_DataEvent_Pty:
+				chunk, callback = output.Pty, handle.onPtyData
+				handle.stdout = append(handle.stdout, chunk...)
 			}
 		case *process.ProcessEvent_End:
-			handle.result = &CommandResult{
-				ExitCode: int(ev.End.ExitCode),
-				Stdout:   string(stdout),
-				Stderr:   string(stderr),
+			handle.endResult = &CommandResult{
+				ExitCode: int(ev.End.GetExitCode()),
+				Stdout:   string(handle.stdout),
+				Stderr:   string(handle.stderr),
+				Error:    ev.End.GetError(),
 			}
-			if ev.End.Error != nil {
-				handle.result.Error = *ev.End.Error
-			}
+		}
+		// 回调在锁内确认调度，在锁外执行。
+		handle.mu.Unlock()
+		if callback != nil && len(chunk) > 0 {
+			callback(chunk)
 		}
 	}
 
-	// 如果流结束但没有收到 EndEvent，创建一个错误结果
-	if handle.result == nil {
-		errMsg := ""
-		if err := stream.Err(); err != nil {
-			errMsg = err.Error()
-		}
-		handle.result = &CommandResult{
-			ExitCode: -1,
-			Stdout:   string(stdout),
-			Stderr:   string(stderr),
-			Error:    errMsg,
-		}
-	}
+	handle.finish(stream.Err())
 }
 
 // Connect 连接到正在运行的进程。
 func (c *Commands) Connect(ctx context.Context, pid uint32) (*CommandHandle, error) {
+	return c.connect(ctx, pid, DefaultUser, nil, false)
+}
+
+func (c *Commands) connect(ctx context.Context, pid uint32, user string, onPtyData func([]byte), pty bool) (*CommandHandle, error) {
 	connectCtx, connectCancel := context.WithCancel(ctx)
 
 	req := connect.NewRequest(&process.ConnectRequest{
 		Process: pidSelector(pid),
 	})
-	c.sandbox.setEnvdAuth(req, DefaultUser)
+	c.sandbox.setEnvdAuth(req, user)
 
 	stream, err := c.rpc.Connect(connectCtx, req)
 	if err != nil {
@@ -357,10 +376,12 @@ func (c *Commands) Connect(ctx context.Context, pid uint32) (*CommandHandle, err
 	}
 
 	handle := &CommandHandle{
-		commands: c,
-		cancel:   connectCancel,
-		done:     make(chan struct{}),
-		pidCh:    make(chan struct{}),
+		commands:  c,
+		cancel:    connectCancel,
+		done:      make(chan struct{}),
+		pidCh:     make(chan struct{}),
+		pty:       pty,
+		onPtyData: onPtyData,
 	}
 	// PID 已知，立即标记就绪；后续若服务端在流里再发 Start 事件，
 	// markPIDReady 内部的 sync.Once 会保证不会重复 close(pidCh)。

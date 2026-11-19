@@ -3,8 +3,6 @@ package sandbox
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"fmt"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -63,9 +61,8 @@ func TestEnvdBasicAuth(t *testing.T) {
 
 func TestFileSignature(t *testing.T) {
 	sig := fileSignature("/test/file.txt", "read", "user", "token123", 300)
-	raw := "/test/file.txt:read:user:token123:300"
-	hash := sha256.Sum256([]byte(raw))
-	want := "v1_" + fmt.Sprintf("%x", hash)
+	// 固定向量来自 envd generateSignature / keys.HashWithoutPrefix 的协议。
+	want := "v1_Unpg9p3y7/IV/sGl899EPgV6ic1AGxSm54exBASqj90"
 	if sig != want {
 		t.Errorf("fileSignature = %q, want %q", sig, want)
 	}

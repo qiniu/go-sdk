@@ -731,12 +731,12 @@ func TestList(t *testing.T) {
 		},
 	}
 	c := newTestClient(mock)
-	sandboxes, err := c.List(context.Background(), nil)
+	page, err := c.List(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(sandboxes) != 2 {
-		t.Errorf("expected 2 sandboxes, got %d", len(sandboxes))
+	if len(page.Items) != 2 {
+		t.Errorf("expected 2 sandboxes, got %d", len(page.Items))
 	}
 }
 

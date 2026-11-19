@@ -28,7 +28,7 @@ type CloneOptions struct {
 	// Password 是 HTTPS 认证的密码或 token。
 	Password string
 	// DangerouslyStoreCredentials 为 true 时，凭证会持久化在 .git/config 中；
-	// 默认会在 clone 完成后通过 remote set-url 清除。
+	// 使用临时密码/token 时默认禁用本次 clone 继承的 credential helper，并在完成后清除 URL 凭据。
 	DangerouslyStoreCredentials bool
 }
 

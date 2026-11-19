@@ -48,7 +48,7 @@ func validateCredentialPair(verb, username, password string) error {
 
 // Clone 克隆远程仓库到沙箱中。
 // 当 opts.Username/Password 提供且 opts.DangerouslyStoreCredentials 为 false 时，
-// SDK 会在 clone 完成后通过 git remote set-url 移除 origin URL 中的凭证。
+// SDK 会禁用本次命令继承的 credential helper，完成后移除 origin URL 中的凭证。
 func (g *Git) Clone(ctx context.Context, repoURL string, opts *CloneOptions) (*CommandResult, error) {
 	if opts == nil {
 		opts = &CloneOptions{}
@@ -217,6 +217,7 @@ func (g *Git) Restore(ctx context.Context, path string, opts *RestoreOptions) (*
 
 // Push 将提交推送到远程。
 // 当 opts.Username/Password 提供时，SDK 会临时把凭证写入目标 remote URL，命令完成后立即恢复原 URL。
+// 本次 push 禁用继承的 credential helper，避免临时凭据被持久化。
 //
 // 当未显式指定 Remote 时，SDK 会尝试自动选中仓库唯一的 remote（与"自动选择单一 remote"
 // 契约一致）；多 remote / 无 remote 时回退到 git 原生行为或返回带凭证场景下的明确错误。
@@ -259,6 +260,7 @@ func (g *Git) Push(ctx context.Context, path string, opts *PushOptions) (*Comman
 
 // Pull 从远程拉取变更。
 // 当 opts.Username/Password 提供时，SDK 会临时把凭证写入目标 remote URL，命令完成后立即恢复原 URL。
+// 本次 pull 禁用继承的 credential helper，避免临时凭据被持久化。
 //
 // 当未显式指定 Remote 时，SDK 会尝试自动选中仓库唯一的 remote（与"自动选择单一 remote"
 // 契约一致）。当 Remote 与 Branch 都未指定时，SDK 会先检查当前分支是否配置了 upstream，
@@ -351,6 +353,7 @@ func (g *Git) runWithOptionalCredentials(
 	if err != nil {
 		return nil, err
 	}
+	args = append([]string{"-c", "credential.helper="}, args...)
 	var result *CommandResult
 	err = g.withRemoteCredentials(ctx, path, remoteName, originalURL, username, password, opts, func() error {
 		r, runErr := g.runGit(ctx, sub, args, path, opts)

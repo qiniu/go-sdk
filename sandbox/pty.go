@@ -1,6 +1,7 @@
 package sandbox
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 
@@ -86,6 +87,7 @@ func (p *Pty) Create(ctx context.Context, size PtySize, opts ...CommandOption) (
 		cancel:    ptyCancel,
 		done:      make(chan struct{}),
 		pidCh:     make(chan struct{}),
+		pty:       true,
 		onPtyData: ptyDataFn,
 	}
 
@@ -94,10 +96,33 @@ func (p *Pty) Create(ctx context.Context, size PtySize, opts ...CommandOption) (
 	return handle, nil
 }
 
-// Connect 连接到已有的 PTY 会话。
+// PtyConnectOptions 连接已有 PTY 会话的选项。
+type PtyConnectOptions struct {
+	// User 执行连接操作的用户，空字符串使用 DefaultUser。
+	User string
+	// OnData 在收到终端输出时同步调用，参数是原始字节，不作 UTF-8 解码。
+	// 回调应尽快返回；输出同时累计到最终 CommandResult.Stdout，占用客户端内存。
+	OnData func(data []byte)
+}
+
+// Connect 连接到已有的 PTY 会话，终端输出保存在最终结果的 Stdout 中。
+// 需要实时原始字节回调时使用 [Pty.ConnectWithOptions]。
 func (p *Pty) Connect(ctx context.Context, pid uint32) (*CommandHandle, error) {
+	return p.ConnectWithOptions(ctx, pid, nil)
+}
+
+// ConnectWithOptions 连接到已有的 PTY 会话，并在输出到达时调用 OnData。
+// ctx 或返回句柄的 Disconnect 取消时只停止客户端读取，不会终止远端进程。
+// 输出包含终端控制字符；最终 Stdout 保存本次连接收到的全部终端字节。
+func (p *Pty) ConnectWithOptions(ctx context.Context, pid uint32, opts *PtyConnectOptions) (*CommandHandle, error) {
+	user := DefaultUser
+	var onData func([]byte)
+	if opts != nil {
+		user = cmp.Or(opts.User, DefaultUser)
+		onData = opts.OnData
+	}
 	commands := &Commands{sandbox: p.sandbox, rpc: p.rpc}
-	return commands.Connect(ctx, pid)
+	return commands.connect(ctx, pid, user, onData, true)
 }
 
 // SendInput 向 PTY 发送输入。
