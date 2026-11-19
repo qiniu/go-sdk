@@ -1,5 +1,22 @@
 # Changelog
 
+## 7.32.0 (2026-11-19)
+
+* 不兼容变更
+  * `sandbox.Client.List(ctx, params)` 的返回值由 `[]sandbox.ListedSandbox` 改为 `*sandbox.SandboxPage`。升级后，用 `page, err := client.List(ctx, params)` 接收结果，检查错误后通过 **`page.Items`** 访问当前页。原来对返回值取长度、按下标访问或遍历的代码，分别改用 `len(page.Items)`、`page.Items[i]` 或 `for _, sb := range page.Items`。
+  * 需要翻页时，使用 `params := &sandbox.ListParams{}` 或已有的非空查询参数。保留过滤条件，设置 `params.NextToken = &page.NextToken` 后再次调用 `List`，直到 `page.NextToken` 为空。
+
+* 新增
+  * 可通过 `Sandbox.TrafficAccessToken()` 获取访问受限服务的流量令牌。
+  * PTY 重连支持指定用户并通过回调接收原始终端字节。`Wait()` 返回本次连接收到的输出，调用 `Disconnect()` 后即可返回，即使输出回调仍在执行。
+
+* 修复
+  * 安全沙箱的文件读写使用 envd 访问令牌，跨来源重定向时清除令牌。文件签名 URL 使用服务端要求的 Base64 编码，默认 5 分钟后过期。
+  * 使用临时凭据执行 Git clone、pull 或 push 时，禁用该命令继承的 credential helper，避免临时凭据被持久化。
+
+* 相关 PR
+  * https://github.com/qiniu/go-sdk/pull/245
+
 ## 7.31.0 (2026-11-13)
 
 * 新增
